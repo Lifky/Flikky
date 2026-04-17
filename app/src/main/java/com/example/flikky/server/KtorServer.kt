@@ -1,6 +1,11 @@
 package com.example.flikky.server
 
-import android.content.Context
+import com.example.flikky.server.routes.FileStore
+import com.example.flikky.server.routes.WsHub
+import com.example.flikky.server.routes.authRoutes
+import com.example.flikky.server.routes.fileRoutes
+import com.example.flikky.server.routes.messageRoutes
+import com.example.flikky.server.routes.wsRoutes
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
 import io.ktor.http.HttpStatusCode
@@ -16,28 +21,24 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
-import com.example.flikky.server.routes.authRoutes
-import com.example.flikky.server.routes.fileRoutes
-import com.example.flikky.server.routes.messageRoutes
-import com.example.flikky.server.routes.wsRoutes
 import kotlinx.serialization.json.Json
 
 class KtorServer(
-    private val context: Context,
     private val host: String,
     private val startPort: Int = 8080,
     private val endPort: Int = 8099,
     private val pinAuth: PinAuth,
     private val session: SessionState,
     private val stats: TransferStats,
+    private val fileStore: FileStore,
+    private val assetLoader: (String) -> ByteArray,
     private val nowMs: () -> Long = System::currentTimeMillis,
 ) {
     private var engine: EmbeddedServer<*, *>? = null
     var boundPort: Int = -1
         private set
 
-    internal val wsHub = com.example.flikky.server.routes.WsHub()
-    internal val fileStore = AndroidFileStore(context)
+    internal val wsHub = WsHub()
 
     fun start(): Int {
         var lastError: Throwable? = null
@@ -66,9 +67,7 @@ class KtorServer(
                         call.response.headers.append("Cross-Origin-Resource-Policy", "same-origin")
                     }
                     routing {
-                        authRoutes(pinAuth, readAsset = { path ->
-                            context.assets.open(path).use { it.readBytes() }
-                        })
+                        authRoutes(pinAuth, readAsset = assetLoader)
                         messageRoutes(
                             session = session,
                             pinAuth = pinAuth,
@@ -102,25 +101,4 @@ class KtorServer(
         engine = null
         boundPort = -1
     }
-}
-
-class AndroidFileStore(private val context: android.content.Context) :
-    com.example.flikky.server.routes.FileStore {
-    private val pending = java.util.concurrent.ConcurrentHashMap<String, com.example.flikky.server.routes.PushedFile>()
-
-    override fun fileDir(): java.io.File =
-        java.io.File(context.filesDir, "transfer").apply { mkdirs() }
-
-    override fun registerPushFromPhone(
-        fileId: String,
-        name: String,
-        size: Long,
-        mime: String,
-        input: () -> java.io.InputStream,
-    ) {
-        pending[fileId] = com.example.flikky.server.routes.PushedFile(name, size, mime, input())
-    }
-
-    override fun takePushedFile(fileId: String): com.example.flikky.server.routes.PushedFile? =
-        pending.remove(fileId)
 }
