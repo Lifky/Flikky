@@ -17,6 +17,7 @@ import io.ktor.server.websocket.WebSockets
 import com.example.flikky.server.routes.authRoutes
 import com.example.flikky.server.routes.fileRoutes
 import com.example.flikky.server.routes.messageRoutes
+import com.example.flikky.server.routes.wsRoutes
 import kotlinx.serialization.json.Json
 
 class KtorServer(
@@ -71,6 +72,7 @@ class KtorServer(
                             broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
                             nowMs = nowMs,
                         )
+                        wsRoutes(pinAuth, session, wsHub)
                     }
                 }
                 server.start(wait = false)
