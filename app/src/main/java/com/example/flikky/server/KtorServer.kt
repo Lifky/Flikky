@@ -15,6 +15,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import com.example.flikky.server.routes.authRoutes
+import com.example.flikky.server.routes.messageRoutes
 import kotlinx.serialization.json.Json
 
 class KtorServer(
@@ -25,10 +26,13 @@ class KtorServer(
     private val pinAuth: PinAuth,
     private val session: SessionState,
     private val stats: TransferStats,
+    private val nowMs: () -> Long = System::currentTimeMillis,
 ) {
     private var engine: EmbeddedServer<*, *>? = null
     var boundPort: Int = -1
         private set
+
+    internal val wsHub = com.example.flikky.server.routes.WsHub()
 
     fun start(): Int {
         var lastError: Throwable? = null
@@ -51,6 +55,12 @@ class KtorServer(
                         authRoutes(pinAuth, readAsset = { path ->
                             context.assets.open(path).use { it.readBytes() }
                         })
+                        messageRoutes(
+                            session = session,
+                            pinAuth = pinAuth,
+                            broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
+                            nowMs = nowMs,
+                        )
                     }
                 }
                 server.start(wait = false)
