@@ -1,13 +1,34 @@
 package com.example.flikky.di
 
 import android.content.Context
+import com.example.flikky.network.NetworkInfo
+import com.example.flikky.server.AndroidFileStore
+import com.example.flikky.session.SessionState
+import com.example.flikky.session.TransferStats
 
 object ServiceLocator {
     private lateinit var appContext: Context
+    lateinit var session: SessionState
+        private set
+    lateinit var stats: TransferStats
+        private set
+    lateinit var fileStore: AndroidFileStore
+        private set
+    lateinit var networkInfo: NetworkInfo
+        private set
 
     fun init(app: Context) {
         appContext = app.applicationContext
+        session = SessionState(nowMs = System::currentTimeMillis)
+        stats = TransferStats(nowMs = System::currentTimeMillis)
+        fileStore = AndroidFileStore(appContext)
+        networkInfo = NetworkInfo(appContext)
     }
 
     fun context(): Context = appContext
+
+    fun reset() {
+        session = SessionState(nowMs = System::currentTimeMillis)
+        stats = TransferStats(nowMs = System::currentTimeMillis)
+    }
 }
