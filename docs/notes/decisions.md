@@ -89,7 +89,24 @@
 
 ---
 
-## D8. 会话不持久化（v1）
+## D8a. 电脑端组件库改用 mdui（2026-04-17 修订 D5）
+
+**背景：** v1 rc1 的手写 MD3 CSS 在实际浏览器里视觉"不够 Material"，留白、elevation、交互态都显得业余。
+
+**选：** 用 `mdui` v2（https://github.com/zdhxiong/mdui）作为组件库，2 个文件（`mdui.css` 22KB + `mdui.global.js` 354KB）**本地打包**进 APK 的 `assets/web/vendor/`。
+**拒：** 继续手写；或引入 React 生态的 Material UI/shadcn（体量大且需构建）。
+
+**理由：**
+- mdui 是原生 Web Components，`<mdui-button>`/`<mdui-text-field>`/`<mdui-card>` 等，无需构建工具
+- 完整 MD3 色彩系统 + 暗色主题自动切换，比手写 CSS 专业
+- 380KB 可接受（APK 当前 ~34MB）
+- 本地打包 = 不破坏"不联网"红线
+
+**副作用：**
+- CSP 需要加 `'unsafe-inline'` 到 `style-src`——mdui 的 JS 会给宿主元素设 inline style。XSS 防护从 script-src 那一侧仍然强（只允许 `'self'`）
+- 部分 `<style>` 和 `style="..."` 改成 mdui 的 attribute（如 `variant="filled"`），但我仍留了少数 inline style 处理间距
+
+**何时重新评估：** 若 mdui 的 bundle 在某次升级后体积翻倍，或项目移除 "离线打包" 要求时。
 
 **选：** 所有消息只在内存 `SessionState` 里，服务停止即丢。
 **拒：** v1 就做 Room/SQLite 落盘。

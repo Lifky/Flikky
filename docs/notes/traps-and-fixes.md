@@ -101,6 +101,20 @@ JAVA_HOME="/c/Program Files/Java/jdk-17" ./gradlew ...
 
 ---
 
+## T7a. 引入 Web Components 库时的 CSP
+
+**现象：** 用 mdui 后，很多组件的 layout 错乱。
+
+**原因：** 我的 CSP 是 `style-src 'self'` 没有 `'unsafe-inline'`。mdui 的 JS 会给宿主元素设 inline style（比如 `<mdui-button>` 的内部 layout/theming），被 CSP 拦截。
+
+**修复：** `style-src 'self' 'unsafe-inline'`。注意 Shadow DOM 里的样式不受页面 CSP 约束（所以 mdui 组件内部 CSS 本身没问题），但它会向宿主 DOM 注入 inline style。
+
+**安全影响：** `script-src 'self'` 仍然严格，XSS 主防线没破。`'unsafe-inline'` 只放开了 style 注入，攻击者能做的最多是 UI 变形，不能执行 JS。
+
+**教训：** 任何时候引入第三方 Web Components 库，第一件事就是把 CSP 从 `'self'` 降级到至少 `'self' 'unsafe-inline'` for style-src——别指望第三方组件库会按纯 CSP 友好的方式写。
+
+---
+
 ## T7. 误用 `git add -A`
 
 **现象：** 一次 `git add -A && git commit` 把 `.idea/`、`app/release/*.apk`（26MB 二进制）拉进仓库。
