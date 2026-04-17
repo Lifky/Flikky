@@ -5,6 +5,8 @@ import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.ApplicationCallPipeline
+import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
@@ -53,6 +55,15 @@ class KtorServer(
                         exception<Throwable> { call, cause ->
                             call.respond(HttpStatusCode.InternalServerError, mapOf("error" to (cause.message ?: "error")))
                         }
+                    }
+                    intercept(ApplicationCallPipeline.Plugins) {
+                        call.response.headers.append("Content-Security-Policy",
+                            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+                        call.response.headers.append("X-Content-Type-Options", "nosniff")
+                        call.response.headers.append("Referrer-Policy", "no-referrer")
+                        call.response.headers.append("X-Frame-Options", "DENY")
+                        call.response.headers.append("Cross-Origin-Opener-Policy", "same-origin")
+                        call.response.headers.append("Cross-Origin-Resource-Policy", "same-origin")
                     }
                     routing {
                         authRoutes(pinAuth, readAsset = { path ->
