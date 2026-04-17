@@ -14,6 +14,7 @@ import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
+import com.example.flikky.server.routes.authRoutes
 import kotlinx.serialization.json.Json
 
 class KtorServer(
@@ -47,7 +48,9 @@ class KtorServer(
                         }
                     }
                     routing {
-                        // routes added in later tasks
+                        authRoutes(pinAuth, readAsset = { path ->
+                            context.assets.open(path).use { it.readBytes() }
+                        })
                     }
                 }
                 server.start(wait = false)
