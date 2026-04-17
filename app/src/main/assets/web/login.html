@@ -1,35 +1,40 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="mdui-theme-auto">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Flikky 登录</title>
+    <link rel="stylesheet" href="/static/vendor/mdui.css">
     <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-    <div class="container" style="max-width:420px; margin-top:12vh;">
-        <div class="card">
-            <div class="title">输入 PIN 码</div>
-            <p style="color:var(--outline); font-size:14px;">请在手机屏幕上查看 6 位 PIN 码。</p>
+    <div class="login-wrap">
+        <mdui-card variant="filled">
+            <h2 style="margin:0 0 8px; font-size:22px;">输入 PIN 码</h2>
+            <p style="margin:0 0 16px; color:rgb(var(--mdui-color-on-surface-variant)); font-size:14px;">
+                请在手机屏幕上查看 6 位 PIN 码。
+            </p>
             <form id="pin-form" autocomplete="off" novalidate>
-                <div class="pin-input" id="pin-input">
-                    <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]">
-                    <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]">
-                    <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]">
-                    <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]">
-                    <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]">
-                    <input type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]">
-                </div>
-                <div id="err" class="error"></div>
-                <div style="text-align:center; margin-top:16px;">
-                    <button type="submit" class="btn" id="submit-btn">进入</button>
-                </div>
+                <mdui-text-field
+                    id="pin-input"
+                    class="pin-field"
+                    variant="outlined"
+                    type="tel"
+                    label="PIN"
+                    maxlength="6"
+                    autofocus>
+                </mdui-text-field>
+                <mdui-button id="submit-btn" type="submit" variant="filled" full-width style="margin-top:16px;">
+                    进入
+                </mdui-button>
             </form>
-            <p style="margin-top:24px; font-size:12px; color:var(--outline);">
+            <p style="margin-top:24px; font-size:12px; color:rgb(var(--mdui-color-on-surface-variant));">
                 提示：为防止浏览器插件读取会话内容，建议使用无痕/隐私窗口访问。
             </p>
-        </div>
+        </mdui-card>
     </div>
+
+    <script src="/static/vendor/mdui.global.js"></script>
     <script src="/static/login.js"></script>
 </body>
 </html>

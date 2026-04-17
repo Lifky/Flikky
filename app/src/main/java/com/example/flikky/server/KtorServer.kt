@@ -59,7 +59,7 @@ class KtorServer(
                     }
                     intercept(ApplicationCallPipeline.Plugins) {
                         call.response.headers.append("Content-Security-Policy",
-                            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+                            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
                         call.response.headers.append("X-Content-Type-Options", "nosniff")
                         call.response.headers.append("Referrer-Policy", "no-referrer")
                         call.response.headers.append("X-Frame-Options", "DENY")

@@ -11,6 +11,18 @@
 
     const seen = new Set();
 
+    function formatSize(b) {
+        if (b >= 1024 * 1024) return (b / 1048576).toFixed(1) + ' MB';
+        if (b >= 1024) return (b / 1024).toFixed(1) + ' KB';
+        return b + ' B';
+    }
+    function formatRate(b) { return formatSize(b) + '/s'; }
+    function formatUptime(s) {
+        const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+        const pad = (n) => String(n).padStart(2, '0');
+        return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+    }
+
     function renderText(msg, mine) {
         const div = document.createElement('div');
         div.className = 'bubble ' + (mine ? 'me' : 'them');
@@ -25,23 +37,14 @@
         const a = document.createElement('a');
         a.href = `/api/files/${msg.fileId}`;
         a.download = msg.name;
-        a.textContent = `${msg.name} (${formatSize(msg.sizeBytes)})`;
+        a.textContent = msg.name;
+        const size = document.createElement('span');
+        size.className = 'size';
+        size.textContent = formatSize(msg.sizeBytes);
         div.appendChild(a);
+        div.appendChild(size);
         list.appendChild(div);
         list.scrollTop = list.scrollHeight;
-    }
-
-    function formatSize(b) {
-        if (b >= 1024 * 1024) return (b / 1048576).toFixed(1) + ' MB';
-        if (b >= 1024) return (b / 1024).toFixed(1) + ' KB';
-        return b + ' B';
-    }
-    function formatRate(b) { return formatSize(b) + '/s'; }
-
-    function formatUptime(s) {
-        const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
-        const pad = (n) => String(n).padStart(2, '0');
-        return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
     }
 
     function onWsEvent(ev) {
@@ -69,18 +72,20 @@
         for (const f of data.files) { seen.add(`file_added:${f.id}`); renderFile(f, f.origin === 'BROWSER'); }
     }
 
+    function setConn(text) { conn.textContent = text; }
+
     function openWs() {
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${proto}//${location.host}/ws`);
-        ws.onopen = () => { conn.textContent = '已连接'; };
-        ws.onclose = () => { conn.textContent = '已断开'; setTimeout(openWs, 1500); };
+        ws.onopen = () => setConn('已连接');
+        ws.onclose = () => { setConn('已断开'); setTimeout(openWs, 1500); };
         ws.onmessage = (e) => {
             try { onWsEvent(JSON.parse(e.data)); } catch (_) {}
         };
     }
 
     async function sendText() {
-        const text = input.value.trim();
+        const text = (input.value || '').trim();
         if (!text) return;
         sendBtn.disabled = true;
         try {
