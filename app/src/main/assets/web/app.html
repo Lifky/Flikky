@@ -1,3 +1,27 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="utf-8"><title>Flikky</title></head>
-<body><p>App page placeholder — final UI in M6.</p></body></html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flikky</title>
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+    <div class="chat">
+        <div class="chat-header">
+            <div><strong>Flikky</strong> <span id="conn" style="color:var(--outline);">连接中…</span></div>
+            <div style="font-size:13px; color:var(--outline);">
+                <span id="uptime">00:00</span> · <span id="count">0</span> 文件 · <span id="rate">0 B/s</span>
+            </div>
+        </div>
+        <div class="chat-list" id="list"></div>
+        <div class="chat-input">
+            <input type="file" id="file-picker" style="display:none" multiple>
+            <button class="btn" id="file-btn" style="background:var(--surface-variant); color:var(--on-surface);">+ 文件</button>
+            <textarea id="text-input" rows="2" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+            <button class="btn" id="send-btn">发送</button>
+        </div>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>
