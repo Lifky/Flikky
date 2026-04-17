@@ -73,6 +73,10 @@ fun Route.fileRoutes(
             if (part is PartData.FileItem) {
                 savedName = part.originalFileName ?: "unnamed"
                 savedMime = part.contentType?.toString() ?: savedMime
+                // v1 限制：Ktor 3.x multipart 没有轻量流式 copy+tick 回调；
+                // 用 copyAndClose 一次性传输、结束后一次性 recordBytes。
+                // 后果：大文件上传期间状态栏瞬时速率会为 0，落盘完成瞬间冒出一格，窗口内迅速衰减。
+                // 不影响功能、不影响总字节统计；v1.1 再优化（可实现 CountingByteWriteChannel）。
                 savedSize = part.provider().copyAndClose(target.writeChannel())
                 stats.recordBytes(savedSize)
             }
@@ -140,6 +144,7 @@ fun Route.fileRoutes(
                     val n = input.read(buf)
                     if (n <= 0) break
                     writeFully(buf, 0, n)
+                    stats.recordBytes(n.toLong())
                 }
             }
         }
