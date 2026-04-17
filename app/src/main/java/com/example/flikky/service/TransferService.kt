@@ -8,13 +8,18 @@ import android.os.IBinder
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.server.KtorServer
 import com.example.flikky.server.PinAuth
+import com.example.flikky.server.dto.StatusDto
 import com.example.flikky.util.IdGen
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 
 class TransferService : Service() {
 
@@ -84,6 +89,24 @@ class TransferService : Service() {
 
         val pin = auth.currentPin() ?: "------"
         _running.value = Running(ip, port, pin)
+
+        scope.launch {
+            while (isActive) {
+                val snap = ServiceLocator.session.snapshot.value
+                val uptime = (System.currentTimeMillis() - snap.serviceStartedAt) / 1000
+                val status = StatusDto(
+                    startedAt = snap.serviceStartedAt,
+                    uptime = uptime,
+                    fileCount = ServiceLocator.stats.fileCount(),
+                    totalBytes = ServiceLocator.stats.totalBytes(),
+                    bytesPerSecond = ServiceLocator.stats.bytesPerSecond(),
+                    clientConnected = snap.clientConnected,
+                )
+                val payload = Json.encodeToString(StatusDto.serializer(), status)
+                server.wsHub.broadcast("status", payload)
+                delay(1000)
+            }
+        }
 
         val notif = NotificationHelper.build(
             context = this,

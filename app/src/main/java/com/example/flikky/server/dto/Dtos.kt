@@ -46,6 +46,7 @@ data class WsEvent(
 @Serializable
 data class StatusDto(
     val startedAt: Long,
+    val uptime: Long,
     val fileCount: Int,
     val totalBytes: Long,
     val bytesPerSecond: Long,
