@@ -15,6 +15,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import com.example.flikky.server.routes.authRoutes
+import com.example.flikky.server.routes.fileRoutes
 import com.example.flikky.server.routes.messageRoutes
 import kotlinx.serialization.json.Json
 
@@ -33,6 +34,7 @@ class KtorServer(
         private set
 
     internal val wsHub = com.example.flikky.server.routes.WsHub()
+    internal val fileStore = AndroidFileStore(context)
 
     fun start(): Int {
         var lastError: Throwable? = null
@@ -61,6 +63,14 @@ class KtorServer(
                             broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
                             nowMs = nowMs,
                         )
+                        fileRoutes(
+                            session = session,
+                            pinAuth = pinAuth,
+                            store = fileStore,
+                            stats = stats,
+                            broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
+                            nowMs = nowMs,
+                        )
                     }
                 }
                 server.start(wait = false)
@@ -79,4 +89,25 @@ class KtorServer(
         engine = null
         boundPort = -1
     }
+}
+
+class AndroidFileStore(private val context: android.content.Context) :
+    com.example.flikky.server.routes.FileStore {
+    private val pending = java.util.concurrent.ConcurrentHashMap<String, com.example.flikky.server.routes.PushedFile>()
+
+    override fun fileDir(): java.io.File =
+        java.io.File(context.filesDir, "transfer").apply { mkdirs() }
+
+    override fun registerPushFromPhone(
+        fileId: String,
+        name: String,
+        size: Long,
+        mime: String,
+        input: () -> java.io.InputStream,
+    ) {
+        pending[fileId] = com.example.flikky.server.routes.PushedFile(name, size, mime, input())
+    }
+
+    override fun takePushedFile(fileId: String): com.example.flikky.server.routes.PushedFile? =
+        pending.remove(fileId)
 }
