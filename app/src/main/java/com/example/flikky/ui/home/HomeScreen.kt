@@ -1,5 +1,11 @@
 package com.example.flikky.ui.home
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,7 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
@@ -18,6 +26,22 @@ fun HomeScreen(
     onStarted: () -> Unit,
     viewModel: HomeViewModel = viewModel(),
 ) {
+    val context = LocalContext.current
+
+    fun startAndNavigate() {
+        viewModel.startService()
+        onStarted()
+    }
+
+    val notifPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) {
+            Toast.makeText(context, "通知权限被拒：服务仍运行，但通知栏不会显示状态", Toast.LENGTH_LONG).show()
+        }
+        startAndNavigate()
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -31,8 +55,15 @@ fun HomeScreen(
         )
         Button(
             onClick = {
-                viewModel.startService()
-                onStarted()
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val granted = ContextCompat.checkSelfPermission(
+                        context, Manifest.permission.POST_NOTIFICATIONS
+                    ) == PackageManager.PERMISSION_GRANTED
+                    if (granted) startAndNavigate()
+                    else notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    startAndNavigate()
+                }
             },
             modifier = Modifier.padding(top = 32.dp),
         ) {
