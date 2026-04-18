@@ -36,6 +36,7 @@ object NotificationHelper {
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(text)
+            .setStyle(Notification.BigTextStyle().bigText(text))
             .setOngoing(true)
             .setContentIntent(pi)
             .build()

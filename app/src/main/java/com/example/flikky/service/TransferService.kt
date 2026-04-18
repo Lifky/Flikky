@@ -111,7 +111,7 @@ class TransferService : Service() {
         val notif = NotificationHelper.build(
             context = this,
             title = "Flikky 服务运行中",
-            text = "http://$ip:$port   PIN $pin",
+            text = "URL  http://$ip:$port\nPIN  $pin",
         )
         startForeground(
             NotificationHelper.NOTIFICATION_ID,
