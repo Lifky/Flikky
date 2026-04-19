@@ -1,5 +1,7 @@
 # Flikky
 
+**English** | [简体中文](./README.zh-CN.md)
+
 Local-area-network file & message transfer between an Android phone and any browser. Zero install on the receiving side, zero internet required, designed for short-lived ad-hoc sharing.
 
 The phone runs an embedded HTTP server. Any browser on the same Wi-Fi opens the URL printed on the phone, enters a one-shot 6-digit PIN, and a session begins. Text and files flow both ways in real time.
