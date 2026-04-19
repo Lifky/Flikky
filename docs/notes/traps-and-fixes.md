@@ -143,3 +143,40 @@ android.disallowKotlinSourceSets=false
 ```
 
 **教训：** 工具链新主版本（Kotlin 2.2 + AGP 9 + KSP2）组合落地时，**先跑一次 minimal smoke case**（Room 的 `@Entity` + `@Database` 能 KSP 生成）再往上堆业务。我的 v1.1 plan 里 Task 2 只要求"`assembleDebug` 通过"而没要求"KSP 生成一个 @Database 通过"，所以第一次 wire 时没早暴露这两个坑——下次写 plan 里这类任务要把 smoke case 放在一起。
+
+---
+
+## T9. Robolectric 4.14 不支持 targetSdk 36
+
+**现象：** Robolectric 测试跑起来立刻 `IllegalArgumentException: SDK 36 not supported`。
+
+**原因：** Robolectric 4.14（2025-01）只打包到 SDK 35 的 Android 资源。targetSdk = 36 默认让 Robolectric 尝试用 SDK 36 的壳子，没有就炸。
+
+**修复：** 所有 Robolectric 测试类加类级注解：
+```kotlin
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
+class YourTest { ... }
+```
+`33` 是项目 minSdk，也是 Robolectric 4.14 稳定支持的版本。DAO / Repository 测试不依赖 SDK 语义，这个 pin 无副作用；要测 SDK-specific behavior 的用 androidTest 跑真机即可。
+
+**未来：** 升到 Robolectric 4.15+ 后 SDK 36 支持会进来；那时可以去掉 `@Config`。
+
+---
+
+## T10. Robolectric 还要 `androidx.test:core` 作为独立 testImpl
+
+**现象：** `ApplicationProvider.getApplicationContext<Context>()` 在测试里 `ClassNotFoundException`。
+
+**原因：** Robolectric 4.14 **不再**传递 `androidx.test:core`（历史上是会传）。`ApplicationProvider` 在 `androidx.test:core` 里，需要显式声明。
+
+**修复：** `libs.versions.toml` + `app/build.gradle.kts` 加：
+```toml
+androidxTest = "1.5.0"
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTest" }
+```
+```kotlin
+testImplementation(libs.androidx.test.core)
+```
+
+**教训：** JVM 单测用 Robolectric 时要把 `androidx.test:core` 当一等依赖，不要假设传递进来。
