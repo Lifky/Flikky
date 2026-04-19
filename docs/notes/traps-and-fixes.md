@@ -122,3 +122,24 @@ JAVA_HOME="/c/Program Files/Java/jdk-17" ./gradlew ...
 **修复：** `git reset --soft HEAD~1` 回退提交，加 `.idea/`/`/app/release/`/`*.apk`/`*.aab` 到 `.gitignore`，只精确 add 修改的源码文件。
 
 **教训：** `-A` 方便但会吞掉所有未跟踪文件。写过 .gitignore 也抵不过这一枪。**只用精确路径 add，例外极少**。
+
+---
+
+## T8. AGP 9 + KSP2 踩坑组合 ⭐️
+
+**现象一：** `ksp = "2.2.10-1.0.30"` 在 Maven Central 找不到；build 报 "Plugin with id 'com.google.devtools.ksp' not found"。
+
+**原因：** KSP 的版本号命名是 `<kotlin-version>-<ksp-series-version>`。`x.y.z-1.0.w` 是 KSP1 系列；KSP1 从 Kotlin 2.3+/AGP 9+ 不再发布。对 Kotlin 2.2.10 + AGP 9.1.1 正确的是 **KSP2** 系列 `2.2.10-2.0.2`（2025-08）。
+
+**修复：** `libs.versions.toml` 里 `ksp = "2.2.10-2.0.2"`。
+
+**现象二：** 换对版本后 assembleDebug 又报 "Using kotlin.sourceSets DSL to add Kotlin sources is not allowed with built-in Kotlin"。
+
+**原因：** AGP 9 把 Kotlin 编译整合进 Android plugin（"built-in Kotlin"），默认禁止外部修改 `kotlin.sourceSets`。但 KSP2 需要这个 DSL 把生成目录挂到编译里。
+
+**修复：** `gradle.properties` 里加：
+```properties
+android.disallowKotlinSourceSets=false
+```
+
+**教训：** 工具链新主版本（Kotlin 2.2 + AGP 9 + KSP2）组合落地时，**先跑一次 minimal smoke case**（Room 的 `@Entity` + `@Database` 能 KSP 生成）再往上堆业务。我的 v1.1 plan 里 Task 2 只要求"`assembleDebug` 通过"而没要求"KSP 生成一个 @Database 通过"，所以第一次 wire 时没早暴露这两个坑——下次写 plan 里这类任务要把 smoke case 放在一起。
