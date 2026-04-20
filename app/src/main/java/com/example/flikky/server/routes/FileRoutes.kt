@@ -29,7 +29,7 @@ import java.io.File
 import java.util.UUID
 
 interface FileStore {
-    /** 目录路径：filesDir/sessions/$sessionId/files/，自动建目录。 */
+    /** filesDir/sessions/$sessionId/files/, auto-created. */
     fun fileDir(sessionId: Long): File
 }
 
@@ -38,6 +38,7 @@ fun Route.fileRoutes(
     pinAuth: PinAuth,
     store: FileStore,
     stats: TransferStats,
+    currentSessionId: () -> Long,
     broadcastEvent: suspend (type: String, payload: String) -> Unit,
     nowMs: () -> Long,
 ) {
@@ -46,16 +47,70 @@ fun Route.fileRoutes(
         return token != null && pinAuth.validateToken(token)
     }
 
-    // TODO: Task 19 will update fileDir() call to pass sessionId
     post("/api/files") {
         if (!authed(call)) { call.respond(HttpStatusCode.Unauthorized); return@post }
-        call.respond(HttpStatusCode.InternalServerError)
+        val sid = currentSessionId()
+        val multipart = call.receiveMultipart()
+        var savedName: String? = null
+        var savedSize: Long = 0L
+        var savedMime: String = "application/octet-stream"
+        val fileId = UUID.randomUUID().toString()
+        val target = File(store.fileDir(sid), fileId)
+
+        multipart.forEachPart { part ->
+            if (part is PartData.FileItem) {
+                savedName = part.originalFileName ?: "unnamed"
+                savedMime = part.contentType?.toString() ?: savedMime
+                savedSize = part.provider().copyAndClose(target.writeChannel())
+                stats.recordBytes(savedSize)
+            }
+            part.dispose()
+        }
+
+        val msg = Message.File(
+            id = IdGen.newMessageId(),
+            origin = Origin.BROWSER,
+            timestamp = nowMs(),
+            fileId = fileId,
+            name = savedName ?: "unnamed",
+            sizeBytes = savedSize,
+            mime = savedMime,
+            status = Message.File.Status.COMPLETED,
+        )
+        stats.incrementFileCount()
+        session.addMessage(msg)
+
+        val dto = FileMessageDto(
+            msg.id, msg.origin.name, msg.timestamp, msg.fileId, msg.name,
+            msg.sizeBytes, msg.mime, msg.status.name,
+        )
+        broadcastEvent("file_added",
+            kotlinx.serialization.json.Json.encodeToString(FileMessageDto.serializer(), dto))
+        call.respond(dto)
     }
 
-    // TODO: Task 19 will update fileDir() and remove takePushedFile() references
     get("/api/files/{id}") {
         if (!authed(call)) { call.respond(HttpStatusCode.Unauthorized); return@get }
         val id = call.parameters["id"] ?: run { call.respond(HttpStatusCode.BadRequest); return@get }
-        call.respond(HttpStatusCode.NotFound)
+        val sid = currentSessionId()
+
+        val file = File(store.fileDir(sid), id)
+        if (!file.exists()) { call.respond(HttpStatusCode.NotFound); return@get }
+        call.response.header(
+            HttpHeaders.ContentDisposition,
+            ContentDisposition.Attachment.withParameter("filename", id).toString(),
+        )
+        call.response.header(HttpHeaders.ContentLength, file.length().toString())
+        call.respondBytesWriter(contentType = ContentType.Application.OctetStream, status = HttpStatusCode.OK) {
+            file.inputStream().use { input ->
+                val buf = ByteArray(64 * 1024)
+                while (true) {
+                    val n = input.read(buf)
+                    if (n <= 0) break
+                    writeFully(buf, 0, n)
+                    stats.recordBytes(n.toLong())
+                }
+            }
+        }
     }
 }

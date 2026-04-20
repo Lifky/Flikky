@@ -21,6 +21,7 @@ import io.ktor.server.routing.post
 fun Route.messageRoutes(
     session: SessionState,
     pinAuth: PinAuth,
+    onPersist: suspend (Message) -> Unit,
     broadcastEvent: suspend (type: String, jsonPayload: String) -> Unit,
     nowMs: () -> Long,
 ) {

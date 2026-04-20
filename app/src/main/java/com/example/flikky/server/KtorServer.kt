@@ -6,6 +6,7 @@ import com.example.flikky.server.routes.authRoutes
 import com.example.flikky.server.routes.fileRoutes
 import com.example.flikky.server.routes.messageRoutes
 import com.example.flikky.server.routes.wsRoutes
+import com.example.flikky.session.Message
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
 import io.ktor.http.HttpStatusCode
@@ -32,6 +33,8 @@ class KtorServer(
     private val stats: TransferStats,
     private val fileStore: FileStore,
     private val assetLoader: (String) -> ByteArray,
+    private val currentSessionId: () -> Long,
+    private val onPersistMessage: suspend (Message) -> Unit,
     private val nowMs: () -> Long = System::currentTimeMillis,
 ) {
     private var engine: EmbeddedServer<*, *>? = null
@@ -71,6 +74,7 @@ class KtorServer(
                         messageRoutes(
                             session = session,
                             pinAuth = pinAuth,
+                            onPersist = onPersistMessage,
                             broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
                             nowMs = nowMs,
                         )
@@ -79,6 +83,7 @@ class KtorServer(
                             pinAuth = pinAuth,
                             store = fileStore,
                             stats = stats,
+                            currentSessionId = currentSessionId,
                             broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
                             nowMs = nowMs,
                         )
