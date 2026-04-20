@@ -19,11 +19,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class TransferService : Service() {
 
-    data class Running(val ip: String, val port: Int, val pin: String)
+    data class Running(val ip: String, val port: Int, val pin: String, val sessionId: Long)
 
     inner class Binding : Binder() {
         val running: StateFlow<Running?> get() = _running
@@ -37,6 +41,7 @@ class TransferService : Service() {
     private var ktor: KtorServer? = null
     private var pinAuth: PinAuth? = null
     private var controller: TransferController? = null
+    private var currentSessionId: Long = -1L
 
     override fun onBind(intent: Intent?): IBinder = binding
 
@@ -44,13 +49,7 @@ class TransferService : Service() {
         val action = intent?.action ?: return START_NOT_STICKY
         when (action) {
             ACTION_START -> startTransfer()
-            ACTION_STOP -> {
-                ktor?.stop(); ktor = null
-                controller = null
-                _running.value = null
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-            }
+            ACTION_STOP -> stopTransfer()
         }
         return START_NOT_STICKY
     }
@@ -60,6 +59,19 @@ class TransferService : Service() {
         NotificationHelper.ensureChannel(this)
         val ip = ServiceLocator.networkInfo.currentWifiIpv4()
             ?: run { stopSelf(); return }
+
+        val now = System.currentTimeMillis()
+        val name = defaultSessionName(now)
+        val sid = runBlocking {
+            runCatching {
+                val id = ServiceLocator.repository.beginSession(name, startedAt = now)
+                ServiceLocator.repository.fifoSweep()
+                id
+            }.getOrNull()
+        }
+        if (sid == null) { stopSelf(); return }
+        currentSessionId = sid
+        ServiceLocator.session.startNew(sid)
 
         val auth = PinAuth(
             nowMs = System::currentTimeMillis,
@@ -75,6 +87,10 @@ class TransferService : Service() {
             stats = ServiceLocator.stats,
             fileStore = ServiceLocator.fileStore,
             assetLoader = { path -> assets.open(path).use { it.readBytes() } },
+            currentSessionId = { currentSessionId },
+            onPersistMessage = { msg ->
+                ServiceLocator.repository.appendMessage(currentSessionId, msg)
+            },
         )
         val port = server.start()
         ktor = server
@@ -83,12 +99,13 @@ class TransferService : Service() {
             session = ServiceLocator.session,
             stats = ServiceLocator.stats,
             fileStore = ServiceLocator.fileStore,
+            repository = ServiceLocator.repository,
             wsHub = server.wsHub,
             nowMs = System::currentTimeMillis,
         )
 
         val pin = auth.currentPin() ?: "------"
-        _running.value = Running(ip, port, pin)
+        _running.value = Running(ip, port, pin, sid)
 
         scope.launch {
             while (isActive) {
@@ -120,11 +137,26 @@ class TransferService : Service() {
         )
     }
 
-    override fun onDestroy() {
+    private fun stopTransfer() {
         ktor?.stop(); ktor = null
-        pinAuth = null
         controller = null
+        val sid = currentSessionId
+        if (sid > 0) {
+            runCatching {
+                runBlocking { ServiceLocator.repository.endSession(sid, endedAt = System.currentTimeMillis()) }
+            }
+        }
+        currentSessionId = -1L
         _running.value = null
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
+    override fun onDestroy() {
+        if (ktor != null) {
+            stopTransfer()
+        }
+        pinAuth = null
         ServiceLocator.reset()
         scope.cancel()
         super.onDestroy()
@@ -133,5 +165,8 @@ class TransferService : Service() {
     companion object {
         const val ACTION_START = "com.example.flikky.START"
         const val ACTION_STOP = "com.example.flikky.STOP"
+
+        private val FMT = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+        fun defaultSessionName(nowMs: Long): String = "${FMT.format(Date(nowMs))} 会话"
     }
 }
