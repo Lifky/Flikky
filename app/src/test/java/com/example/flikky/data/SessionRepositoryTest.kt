@@ -162,4 +162,39 @@ class SessionRepositoryTest {
 
         org.junit.Assert.assertTrue(!java.io.File(tmp.root, "sessions/9999").exists())
     }
+
+    @Test fun rename_trims_truncates_and_falls_back_on_empty() = runTest {
+        val sid = repo.beginSession("orig", startedAt = 1L)
+        repo.rename(sid, "   hello   ")
+        org.junit.Assert.assertEquals("hello", db.sessionDao().getById(sid)!!.name)
+
+        repo.rename(sid, "")
+        org.junit.Assert.assertEquals("会话", db.sessionDao().getById(sid)!!.name)
+
+        val long = "a".repeat(60)
+        repo.rename(sid, long)
+        org.junit.Assert.assertEquals(40, db.sessionDao().getById(sid)!!.name.length)
+    }
+
+    @Test fun setPinned_toggles() = runTest {
+        val sid = repo.beginSession("s", startedAt = 1L)
+        repo.setPinned(sid, true)
+        org.junit.Assert.assertTrue(db.sessionDao().getById(sid)!!.pinned)
+        repo.setPinned(sid, false)
+        org.junit.Assert.assertFalse(db.sessionDao().getById(sid)!!.pinned)
+    }
+
+    @Test fun deleteSession_removes_row_messages_and_files() = runTest {
+        val sid = repo.beginSession("s", startedAt = 1L)
+        db.messageDao().insert(com.example.flikky.data.db.entities.MessageEntity(
+            id = 99L, sessionId = sid, origin = "PHONE", timestamp = 2L,
+            kind = "TEXT", content = "x"))
+        store.fileDir(sid)
+
+        repo.deleteSession(sid)
+
+        org.junit.Assert.assertNull(db.sessionDao().getById(sid))
+        org.junit.Assert.assertEquals(0, db.messageDao().countBySession(sid))
+        org.junit.Assert.assertTrue(!java.io.File(tmp.root, "sessions/$sid").exists())
+    }
 }

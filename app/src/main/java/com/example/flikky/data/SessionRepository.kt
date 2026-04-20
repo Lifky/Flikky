@@ -86,4 +86,25 @@ class SessionRepository(
             if (sessionDao.getById(sid) == null) fileStore.deleteSessionDir(sid)
         }
     }
+
+    suspend fun rename(sessionId: Long, newName: String) {
+        val row = sessionDao.getById(sessionId) ?: return
+        val trimmed = newName.trim().ifEmpty { DEFAULT_NAME_FALLBACK }.take(40)
+        sessionDao.update(row.copy(name = trimmed))
+    }
+
+    suspend fun setPinned(sessionId: Long, pinned: Boolean) {
+        val row = sessionDao.getById(sessionId) ?: return
+        sessionDao.update(row.copy(pinned = pinned))
+    }
+
+    suspend fun deleteSession(sessionId: Long) {
+        val row = sessionDao.getById(sessionId) ?: return
+        sessionDao.delete(row)
+        fileStore.deleteSessionDir(sessionId)
+    }
+
+    companion object {
+        const val DEFAULT_NAME_FALLBACK = "会话"
+    }
 }
