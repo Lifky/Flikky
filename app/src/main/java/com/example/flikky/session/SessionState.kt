@@ -7,14 +7,29 @@ import kotlinx.coroutines.flow.update
 class SessionState(private val nowMs: () -> Long) {
     data class Snapshot(
         val serviceStartedAt: Long,
+        val currentSessionId: Long?,
         val messages: List<Message>,
         val clientConnected: Boolean,
     )
 
     private val _snapshot = MutableStateFlow(
-        Snapshot(serviceStartedAt = nowMs(), messages = emptyList(), clientConnected = false)
+        Snapshot(
+            serviceStartedAt = nowMs(),
+            currentSessionId = null,
+            messages = emptyList(),
+            clientConnected = false,
+        )
     )
     val snapshot: StateFlow<Snapshot> = _snapshot
+
+    fun startNew(sessionId: Long) {
+        _snapshot.value = Snapshot(
+            serviceStartedAt = nowMs(),
+            currentSessionId = sessionId,
+            messages = emptyList(),
+            clientConnected = false,
+        )
+    }
 
     fun addMessage(msg: Message) {
         _snapshot.update { it.copy(messages = it.messages + msg) }
@@ -33,6 +48,7 @@ class SessionState(private val nowMs: () -> Long) {
     fun reset() {
         _snapshot.value = Snapshot(
             serviceStartedAt = nowMs(),
+            currentSessionId = null,
             messages = emptyList(),
             clientConnected = false,
         )
