@@ -43,4 +43,18 @@ class SessionRepository(
         )
         sessionDao.update(updated)
     }
+
+    /**
+     * Retain at most `retainLimit` non-pinned finished sessions; drop the oldest ones
+     * (with their file directories). Pinned and in-progress sessions are untouched.
+     */
+    suspend fun fifoSweep() {
+        val oldestFirst = sessionDao.nonPinnedOldestFirst()
+        val excess = oldestFirst.size - retainLimit
+        if (excess <= 0) return
+        oldestFirst.take(excess).forEach { s ->
+            sessionDao.delete(s)
+            fileStore.deleteSessionDir(s.id)
+        }
+    }
 }

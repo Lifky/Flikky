@@ -7,6 +7,7 @@ import com.example.flikky.data.db.FlikkyDatabase
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import kotlinx.coroutines.test.runTest
+import app.cash.turbine.test
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -81,5 +82,52 @@ class SessionRepositoryTest {
         org.junit.Assert.assertTrue(java.io.File(tmp.root, "sessions/$sid").exists())
         repo.endSession(sid, endedAt = 200L)
         org.junit.Assert.assertTrue(!java.io.File(tmp.root, "sessions/$sid").exists())
+    }
+
+    @Test fun fifoSweep_keeps_20_non_pinned_plus_all_pinned() = runTest {
+        val ids = (1..25).map { i ->
+            db.sessionDao().insert(
+                com.example.flikky.data.db.entities.SessionEntity(
+                    startedAt = i * 100L,
+                    endedAt   = i * 100L + 10L,
+                    name      = "s$i",
+                    pinned    = (i in listOf(3, 8, 15)),
+                )
+            )
+        }
+        ids.forEach { store.fileDir(it) }
+
+        repo.fifoSweep()
+
+        val remaining = db.sessionDao().nonPinnedOldestFirst().map { it.name }
+        org.junit.Assert.assertFalse(remaining.contains("s1"))
+        org.junit.Assert.assertFalse(remaining.contains("s2"))
+        org.junit.Assert.assertEquals(20, remaining.size)
+
+        db.sessionDao().observeAll().test {
+            val rows = awaitItem()
+            org.junit.Assert.assertEquals(23, rows.size)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        org.junit.Assert.assertTrue(!java.io.File(tmp.root, "sessions/${ids[0]}").exists())
+        org.junit.Assert.assertTrue(!java.io.File(tmp.root, "sessions/${ids[1]}").exists())
+    }
+
+    @Test fun fifoSweep_ignores_unfinished_sessions() = runTest {
+        db.sessionDao().insert(
+            com.example.flikky.data.db.entities.SessionEntity(
+                startedAt = 100L, endedAt = 200L, name = "done"))
+        val liveId = db.sessionDao().insert(
+            com.example.flikky.data.db.entities.SessionEntity(
+                startedAt = 50L, endedAt = null, name = "live"))
+        val aggressive = SessionRepository(
+            sessionDao = db.sessionDao(),
+            messageDao = db.messageDao(),
+            fileStore = store,
+            now = now, retainLimit = 0,
+        )
+        aggressive.fifoSweep()
+        org.junit.Assert.assertNotNull(db.sessionDao().getById(liveId))
     }
 }
