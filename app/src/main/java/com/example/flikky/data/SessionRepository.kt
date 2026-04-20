@@ -57,4 +57,33 @@ class SessionRepository(
             fileStore.deleteSessionDir(s.id)
         }
     }
+
+    /**
+     * Called at app start. Two tasks:
+     *  - close any `endedAt IS NULL` sessions: if they have messages, compute endedAt
+     *    and stats; if zero messages, roll back as empty
+     *  - delete filesystem session dirs not present in DB (stray dirs)
+     */
+    suspend fun finalizeOrphans() {
+        sessionDao.listUnfinished().forEach { row ->
+            val messages = messageDao.listBySession(row.id)
+            if (messages.isEmpty()) {
+                sessionDao.delete(row)
+                fileStore.deleteSessionDir(row.id)
+            } else {
+                val files = messages.filter { it.kind == "FILE" }
+                val endedAt = maxOf(row.startedAt, messages.maxOf { it.timestamp })
+                sessionDao.update(row.copy(
+                    endedAt = endedAt,
+                    messageCount = messages.size,
+                    fileCount = files.size,
+                    totalBytes = files.sumOf { it.fileSize ?: 0L },
+                    previewText = messageDao.firstTextContent(row.id)?.take(40),
+                ))
+            }
+        }
+        fileStore.listSessionDirs().forEach { sid ->
+            if (sessionDao.getById(sid) == null) fileStore.deleteSessionDir(sid)
+        }
+    }
 }

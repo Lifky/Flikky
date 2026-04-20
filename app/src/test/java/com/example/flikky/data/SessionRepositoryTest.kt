@@ -130,4 +130,36 @@ class SessionRepositoryTest {
         aggressive.fifoSweep()
         org.junit.Assert.assertNotNull(db.sessionDao().getById(liveId))
     }
+
+    @Test fun finalizeOrphans_closes_unfinished_with_messages_and_rolls_back_empty() = runTest {
+        val filled = db.sessionDao().insert(
+            com.example.flikky.data.db.entities.SessionEntity(
+                startedAt = 100L, endedAt = null, name = "filled"))
+        db.messageDao().insert(com.example.flikky.data.db.entities.MessageEntity(
+            id = 1L, sessionId = filled, origin = "PHONE", timestamp = 150L,
+            kind = "TEXT", content = "hi"))
+
+        val empty = db.sessionDao().insert(
+            com.example.flikky.data.db.entities.SessionEntity(
+                startedAt = 200L, endedAt = null, name = "empty"))
+        store.fileDir(empty)
+
+        repo.finalizeOrphans()
+
+        val filledRow = db.sessionDao().getById(filled)!!
+        org.junit.Assert.assertEquals(150L, filledRow.endedAt)
+        org.junit.Assert.assertEquals("hi", filledRow.previewText)
+
+        org.junit.Assert.assertNull(db.sessionDao().getById(empty))
+        org.junit.Assert.assertTrue(!java.io.File(tmp.root, "sessions/$empty").exists())
+    }
+
+    @Test fun finalizeOrphans_removes_stray_session_dirs() = runTest {
+        java.io.File(tmp.root, "sessions/9999/files").mkdirs()
+        java.io.File(tmp.root, "sessions/9999/files/x").writeBytes(byteArrayOf(1))
+
+        repo.finalizeOrphans()
+
+        org.junit.Assert.assertTrue(!java.io.File(tmp.root, "sessions/9999").exists())
+    }
 }
