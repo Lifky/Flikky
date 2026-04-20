@@ -67,4 +67,19 @@ class SessionRepositoryTest {
         assertEquals(1_000L, row.totalBytes)
         assertEquals("hello world", row.previewText)
     }
+
+    @Test fun endSession_deletes_row_when_empty() = runTest {
+        val sid = repo.beginSession("empty", startedAt = 100L)
+        repo.endSession(sid, endedAt = 200L)
+        val row = db.sessionDao().getById(sid)
+        org.junit.Assert.assertNull(row)
+    }
+
+    @Test fun endSession_empty_removes_session_dir() = runTest {
+        val sid = repo.beginSession("empty", startedAt = 100L)
+        store.fileDir(sid)
+        org.junit.Assert.assertTrue(java.io.File(tmp.root, "sessions/$sid").exists())
+        repo.endSession(sid, endedAt = 200L)
+        org.junit.Assert.assertTrue(!java.io.File(tmp.root, "sessions/$sid").exists())
+    }
 }

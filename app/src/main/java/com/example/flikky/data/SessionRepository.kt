@@ -28,6 +28,11 @@ class SessionRepository(
     suspend fun endSession(sessionId: Long, endedAt: Long) {
         val row = sessionDao.getById(sessionId) ?: return
         val messages = messageDao.listBySession(sessionId)
+        if (messages.isEmpty()) {
+            sessionDao.delete(row)
+            fileStore.deleteSessionDir(sessionId)
+            return
+        }
         val files = messages.filter { it.kind == "FILE" }
         val updated = row.copy(
             endedAt = endedAt,
