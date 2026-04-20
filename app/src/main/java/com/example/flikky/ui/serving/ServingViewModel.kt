@@ -89,10 +89,9 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { controller?.sendText(text) }
     }
 
-    // TODO: Task 19 will restore offerFile() implementation
     fun offerFile(uri: Uri) {
-        // val resolver = getApplication<Application>().contentResolver
-        // viewModelScope.launch { controller?.offerFile(uri, resolver) }
+        val resolver = getApplication<Application>().contentResolver
+        viewModelScope.launch { controller?.offerFile(uri, resolver) }
     }
 
     /**
@@ -104,7 +103,11 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     fun openFile(msg: Message.File) {
         if (msg.origin != Origin.BROWSER || msg.status != Message.File.Status.COMPLETED) return
         val ctx = getApplication<Application>()
-        val f = File(File(ctx.filesDir, "transfer"), msg.fileId)
+        val sid = ServiceLocator.session.snapshot.value.currentSessionId ?: run {
+            Toast.makeText(ctx, "无会话上下文", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val f = File(File(File(ctx.filesDir, "sessions/$sid"), "files"), msg.fileId)
         if (!f.exists()) {
             Toast.makeText(ctx, "文件不存在（服务重启后浏览器上传的文件会丢失）", Toast.LENGTH_SHORT).show()
             return
