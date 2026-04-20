@@ -180,3 +180,27 @@ testImplementation(libs.androidx.test.core)
 ```
 
 **教训：** JVM 单测用 Robolectric 时要把 `androidx.test:core` 当一等依赖，不要假设传递进来。
+
+---
+
+## T11. AndroidViewModel 默认工厂反射，Kotlin 默认参数的构造函数炸
+
+**现象：** APP 启动进入首页立即崩溃。
+```
+Caused by: java.lang.NoSuchMethodException:
+com.example.flikky.ui.home.HomeViewModel.<init> [class android.app.Application]
+```
+
+**原因：** `AndroidViewModelFactory` 通过 `getConstructor(Application::class.java)` 反射查找匹配的构造函数。
+`HomeViewModel(app, repository = ServiceLocator.repository)` 看似"只要 app 也能用"，但 Kotlin 默认参数**不会**在字节码里生成 `(Application)` 单参版本——它生成的是 `(Application, SessionRepository)` 加一个带 synthetic marker int 的 `$default` 合成构造函数，两者都不匹配 `(Application)` 签名。JVM 单测直接 `HomeViewModel(app, repo)` 不走反射，所以测不出来——这是**集成死角**。
+
+**修复：** 加 `@JvmOverloads`：
+```kotlin
+class HomeViewModel @JvmOverloads constructor(
+    app: Application,
+    private val repository: SessionRepository = ServiceLocator.repository,
+) : AndroidViewModel(app)
+```
+Kotlin 会同时生成 `(Application)` 和 `(Application, SessionRepository)` 两个真实 JVM 构造函数。前者给默认工厂反射匹配，后者给测试注入。
+
+**教训：** 任何依靠默认 `ViewModelProvider` 实例化的 `AndroidViewModel` 子类，构造函数若带默认参数的额外依赖，必须加 `@JvmOverloads`——否则反射只认最严格签名。或者把依赖改成属性初始化、不走构造函数。单测覆盖不到这条路径，一定要有装机冒烟或 Compose UI 测试。

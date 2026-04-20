@@ -12,7 +12,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
-class HomeViewModel(
+class HomeViewModel @JvmOverloads constructor(
     app: Application,
     private val repository: SessionRepository = ServiceLocator.repository,
 ) : AndroidViewModel(app) {
