@@ -197,4 +197,28 @@ class SessionRepositoryTest {
         org.junit.Assert.assertEquals(0, db.messageDao().countBySession(sid))
         org.junit.Assert.assertTrue(!java.io.File(tmp.root, "sessions/$sid").exists())
     }
+
+    @Test fun observeSessions_emits_ordered_list() = runTest {
+        repo.beginSession("a", startedAt = 100L)
+        repo.beginSession("b", startedAt = 200L)
+        repo.observeSessions().test {
+            val got = awaitItem().map { it.name }
+            org.junit.Assert.assertEquals(listOf("b", "a"), got)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test fun observeMessages_maps_entities_to_domain_model() = runTest {
+        val sid = repo.beginSession("s", startedAt = 1L)
+        repo.appendMessage(sid, Message.Text(
+            id = 10, origin = Origin.BROWSER, timestamp = 100L, content = "yo"))
+        repo.observeMessages(sid).test {
+            val got = awaitItem()
+            org.junit.Assert.assertEquals(1, got.size)
+            val msg = got.first() as Message.Text
+            org.junit.Assert.assertEquals("yo", msg.content)
+            org.junit.Assert.assertEquals(Origin.BROWSER, msg.origin)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }

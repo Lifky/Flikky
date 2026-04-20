@@ -4,6 +4,8 @@ import com.example.flikky.data.db.MessageDao
 import com.example.flikky.data.db.SessionDao
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.session.Message
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 /**
  * 业务入口：所有 UI/Service 调 Repository，不碰 DAO。依赖 now 和 retainLimit 注入，便于测试。
@@ -103,6 +105,14 @@ class SessionRepository(
         sessionDao.delete(row)
         fileStore.deleteSessionDir(sessionId)
     }
+
+    fun observeSessions(): Flow<List<SessionEntity>> = sessionDao.observeAll()
+
+    fun observeSession(sessionId: Long): Flow<SessionEntity?> = sessionDao.observeById(sessionId)
+
+    fun observeMessages(sessionId: Long): Flow<List<Message>> =
+        messageDao.observeBySession(sessionId)
+            .map { list -> list.map { it.toMessage() } }
 
     companion object {
         const val DEFAULT_NAME_FALLBACK = "会话"
