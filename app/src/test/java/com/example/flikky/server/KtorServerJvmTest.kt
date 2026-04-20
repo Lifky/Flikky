@@ -56,6 +56,7 @@ class KtorServerJvmTest {
                 messageRoutes(
                     session = session,
                     pinAuth = pin,
+                    onPersist = { _ -> },
                     broadcastEvent = { _, _ -> },
                     nowMs = { 0L },
                 )

@@ -40,6 +40,7 @@ fun Route.messageRoutes(
             content = req.text,
         )
         session.addMessage(msg)
+        runCatching { onPersist(msg) }
         val dto = TextMessageDto(msg.id, msg.origin.name, msg.timestamp, msg.content)
         broadcastEvent("text_added", kotlinx.serialization.json.Json.encodeToString(TextMessageDto.serializer(), dto))
         call.respond(dto)
