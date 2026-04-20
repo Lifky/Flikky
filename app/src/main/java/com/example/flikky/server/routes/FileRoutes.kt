@@ -29,23 +29,9 @@ import java.io.File
 import java.util.UUID
 
 interface FileStore {
-    fun fileDir(): File
-    fun registerPushFromPhone(
-        fileId: String,
-        name: String,
-        size: Long,
-        mime: String,
-        input: () -> java.io.InputStream,
-    )
-    fun takePushedFile(fileId: String): PushedFile?
+    /** 目录路径：filesDir/sessions/$sessionId/files/，自动建目录。 */
+    fun fileDir(sessionId: Long): File
 }
-
-data class PushedFile(
-    val name: String,
-    val size: Long,
-    val mime: String,
-    val input: java.io.InputStream,
-)
 
 fun Route.fileRoutes(
     session: SessionState,
@@ -60,93 +46,16 @@ fun Route.fileRoutes(
         return token != null && pinAuth.validateToken(token)
     }
 
+    // TODO: Task 19 will update fileDir() call to pass sessionId
     post("/api/files") {
         if (!authed(call)) { call.respond(HttpStatusCode.Unauthorized); return@post }
-        val multipart = call.receiveMultipart()
-        var savedName: String? = null
-        var savedSize: Long = 0L
-        var savedMime: String = "application/octet-stream"
-        val fileId = UUID.randomUUID().toString()
-        val target = File(store.fileDir(), fileId)
-
-        multipart.forEachPart { part ->
-            if (part is PartData.FileItem) {
-                savedName = part.originalFileName ?: "unnamed"
-                savedMime = part.contentType?.toString() ?: savedMime
-                // v1 限制：Ktor 3.x multipart 没有轻量流式 copy+tick 回调；
-                // 用 copyAndClose 一次性传输、结束后一次性 recordBytes。
-                // 后果：大文件上传期间状态栏瞬时速率会为 0，落盘完成瞬间冒出一格，窗口内迅速衰减。
-                // 不影响功能、不影响总字节统计；v1.1 再优化（可实现 CountingByteWriteChannel）。
-                savedSize = part.provider().copyAndClose(target.writeChannel())
-                stats.recordBytes(savedSize)
-            }
-            part.dispose()
-        }
-
-        val msg = Message.File(
-            id = IdGen.newMessageId(),
-            origin = Origin.BROWSER,
-            timestamp = nowMs(),
-            fileId = fileId,
-            name = savedName ?: "unnamed",
-            sizeBytes = savedSize,
-            mime = savedMime,
-            status = Message.File.Status.COMPLETED,
-        )
-        stats.incrementFileCount()
-        session.addMessage(msg)
-
-        val dto = FileMessageDto(
-            msg.id, msg.origin.name, msg.timestamp, msg.fileId, msg.name, msg.sizeBytes, msg.mime, msg.status.name,
-        )
-        broadcastEvent("file_added", kotlinx.serialization.json.Json.encodeToString(FileMessageDto.serializer(), dto))
-        call.respond(dto)
+        call.respond(HttpStatusCode.InternalServerError)
     }
 
+    // TODO: Task 19 will update fileDir() and remove takePushedFile() references
     get("/api/files/{id}") {
         if (!authed(call)) { call.respond(HttpStatusCode.Unauthorized); return@get }
         val id = call.parameters["id"] ?: run { call.respond(HttpStatusCode.BadRequest); return@get }
-
-        val phonePush = store.takePushedFile(id)
-        if (phonePush != null) {
-            call.response.header(
-                HttpHeaders.ContentDisposition,
-                ContentDisposition.Attachment.withParameter("filename", phonePush.name).toString(),
-            )
-            call.response.header(HttpHeaders.ContentLength, phonePush.size.toString())
-            val mime = ContentType.parse(phonePush.mime)
-            call.respondBytesWriter(contentType = mime, status = HttpStatusCode.OK) {
-                phonePush.input.use { input ->
-                    val buf = ByteArray(64 * 1024)
-                    while (true) {
-                        val n = input.read(buf)
-                        if (n <= 0) break
-                        writeFully(buf, 0, n)
-                        stats.recordBytes(n.toLong())
-                    }
-                }
-            }
-            stats.incrementFileCount()
-            return@get
-        }
-
-        val upload = File(store.fileDir(), id)
-        if (!upload.exists()) { call.respond(HttpStatusCode.NotFound); return@get }
-        call.response.header(
-            HttpHeaders.ContentDisposition,
-            ContentDisposition.Attachment.withParameter("filename", id).toString(),
-        )
-        call.response.header(HttpHeaders.ContentLength, upload.length().toString())
-        call.respondBytesWriter(contentType = ContentType.Application.OctetStream, status = HttpStatusCode.OK) {
-            upload.inputStream().use { input ->
-                val buf = ByteArray(64 * 1024)
-                while (true) {
-                    val n = input.read(buf)
-                    if (n <= 0) break
-                    writeFully(buf, 0, n)
-                    stats.recordBytes(n.toLong())
-                }
-            }
-        }
+        call.respond(HttpStatusCode.NotFound)
     }
 }

@@ -3,7 +3,7 @@ package com.example.flikky.service
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.OpenableColumns
-import com.example.flikky.server.AndroidFileStore
+import com.example.flikky.data.SessionFileStore
 import com.example.flikky.server.dto.FileMessageDto
 import com.example.flikky.server.dto.TextMessageDto
 import com.example.flikky.server.routes.WsHub
@@ -18,7 +18,7 @@ import java.util.UUID
 class TransferController(
     private val session: SessionState,
     private val stats: TransferStats,
-    private val fileStore: AndroidFileStore,
+    private val fileStore: SessionFileStore,
     private val wsHub: WsHub,
     private val nowMs: () -> Long,
 ) {
@@ -35,6 +35,8 @@ class TransferController(
         wsHub.broadcast("text_added", Json.encodeToString(TextMessageDto.serializer(), dto))
     }
 
+    // TODO: Task 19 will implement this using SessionFileStore.archiveFromStream()
+    /*
     suspend fun offerFile(uri: Uri, resolver: ContentResolver) {
         var name = "unnamed"; var size = -1L
         resolver.query(uri, null, null, null, null)?.use { c ->
@@ -47,10 +49,6 @@ class TransferController(
         }
         val mime = resolver.getType(uri) ?: "application/octet-stream"
         val fileId = UUID.randomUUID().toString()
-        fileStore.registerPushFromPhone(
-            fileId = fileId, name = name, size = size, mime = mime,
-            input = { resolver.openInputStream(uri) ?: error("cannot open uri") },
-        )
         val msg = Message.File(
             id = IdGen.newMessageId(),
             origin = Origin.PHONE,
@@ -68,4 +66,5 @@ class TransferController(
         )
         wsHub.broadcast("file_added", Json.encodeToString(FileMessageDto.serializer(), dto))
     }
+    */
 }

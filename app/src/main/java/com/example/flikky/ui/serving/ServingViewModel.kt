@@ -89,9 +89,10 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { controller?.sendText(text) }
     }
 
+    // TODO: Task 19 will restore offerFile() implementation
     fun offerFile(uri: Uri) {
-        val resolver = getApplication<Application>().contentResolver
-        viewModelScope.launch { controller?.offerFile(uri, resolver) }
+        // val resolver = getApplication<Application>().contentResolver
+        // viewModelScope.launch { controller?.offerFile(uri, resolver) }
     }
 
     /**

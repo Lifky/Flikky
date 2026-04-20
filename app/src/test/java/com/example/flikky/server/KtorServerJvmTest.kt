@@ -1,7 +1,6 @@
 package com.example.flikky.server
 
 import com.example.flikky.server.routes.FileStore
-import com.example.flikky.server.routes.PushedFile
 import com.example.flikky.server.routes.authRoutes
 import com.example.flikky.server.routes.messageRoutes
 import com.example.flikky.session.SessionState
@@ -34,11 +33,11 @@ class KtorServerJvmTest {
 
     private class FakeStore : FileStore {
         private val dir: File = Files.createTempDirectory("flikky").toFile()
-        override fun fileDir(): File = dir
-        override fun registerPushFromPhone(
-            fileId: String, name: String, size: Long, mime: String, input: () -> java.io.InputStream
-        ) = Unit
-        override fun takePushedFile(fileId: String): PushedFile? = null
+        override fun fileDir(sessionId: Long): File {
+            val sessDir = File(File(dir, "sessions/$sessionId"), "files")
+            sessDir.mkdirs()
+            return sessDir
+        }
     }
 
     @Test
