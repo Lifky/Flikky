@@ -204,3 +204,38 @@ class HomeViewModel @JvmOverloads constructor(
 Kotlin 会同时生成 `(Application)` 和 `(Application, SessionRepository)` 两个真实 JVM 构造函数。前者给默认工厂反射匹配，后者给测试注入。
 
 **教训：** 任何依靠默认 `ViewModelProvider` 实例化的 `AndroidViewModel` 子类，构造函数若带默认参数的额外依赖，必须加 `@JvmOverloads`——否则反射只认最严格签名。或者把依赖改成属性初始化、不走构造函数。单测覆盖不到这条路径，一定要有装机冒烟或 Compose UI 测试。
+
+---
+
+## T12. FileProvider `file_paths.xml` 没跟磁盘结构一起迁移
+
+**现象：** v1.1 装机后点击文件气泡崩溃，logcat：
+```
+IllegalArgumentException: Failed to find configured root that contains
+  /data/data/com.example.flikky/files/sessions/2/files/{uuid}
+```
+
+**原因：** v1.0 文件路径是 `filesDir/transfer/{fileId}`，`file_paths.xml` 声明了 `<files-path name="transfer" path="transfer/"/>`。v1.1 把磁盘结构迁到了 `filesDir/sessions/{sid}/files/{fileId}`，**但 `file_paths.xml` 没同步更新**。`FileProvider.getUriForFile` 用 prefix 匹配找不到根，抛 `IllegalArgumentException`。加上调用处没有 try/catch，APP 直接闪退。
+
+**修复：**
+```xml
+<!-- app/src/main/res/xml/file_paths.xml -->
+<paths>
+    <files-path name="session_files" path="sessions/" />
+</paths>
+```
+同时给所有 `FileProvider.getUriForFile` 的调用点套 try/catch（即便路径配对了，万一文件名含奇怪字符也可能抛）。
+
+**教训：** 磁盘结构和 `file_paths.xml` 是**双生文件**，任何一个改了另一个必须跟着改，而且 `FileProvider.getUriForFile` 调用一定要有异常兜底——这是一条纯字符串 prefix 匹配，错了只能运行期才发现。写单测时 JVM 跑 Robolectric 可以覆盖到路径匹配。
+
+---
+
+## T13. 消息路径不对称：`session.addMessage` 和 `repository.appendMessage` 必须成对
+
+**现象：** 浏览器只上传文件（不发任何文本）的会话，用户停服后整个会话从主页消失，目录也被删。
+
+**原因：** v1.1 里所有消息都要走"内存 `session.addMessage` + DB `repository.appendMessage`"双写，`endSession` 以 DB 消息行数判断是否"空会话"。`TransferController.sendText/offerFile`（手机端发送）和 `MessageRoutes`（浏览器发文本）都正确双写，**但 `FileRoutes` 里浏览器 POST 文件只 `session.addMessage(msg)` 就完事了，漏掉了 DB 持久化**。结果 DB 里一条消息行都没有，`endSession` 判定空会话 → `sessionDao.delete` + `fileStore.deleteSessionDir` 一锅端，文件也丢了。
+
+**修复：** `fileRoutes` 签名加 `onPersist: suspend (Message) -> Unit`，`session.addMessage(msg)` 之后立刻 `runCatching { onPersist(msg) }`；`KtorServer` 里把主流程的 `onPersistMessage` 一起传进去（和 `messageRoutes` 对称）。
+
+**教训：** 任何有"双写/双路径"设计的地方必须**把两条路径的调用绑定在同一工具函数里**，别让调用方自行挑选调哪条。v1.2 如果还有新的消息来源（比如系统消息、撤回标记），最好抽一个 `addAndPersist(msg)` 的小封装，避免再犯。code review 时要有一条规则：搜 `session.addMessage` 的每处调用，必须紧邻一次 `appendMessage`。
