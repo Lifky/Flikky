@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,10 +53,12 @@ fun MessageBubble(msg: Message, onClick: () -> Unit) {
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             when (msg) {
-                is Message.Text -> Text(
-                    text = msg.content, color = fg,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                is Message.Text -> SelectionContainer {
+                    Text(
+                        text = msg.content, color = fg,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
                 is Message.File -> FileBubbleContent(msg = msg, fg = fg, mine = mine)
             }
         }
