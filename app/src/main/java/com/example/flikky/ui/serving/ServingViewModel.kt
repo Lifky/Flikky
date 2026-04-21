@@ -113,7 +113,12 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         val authority = "${ctx.packageName}.fileprovider"
-        val uri = FileProvider.getUriForFile(ctx, authority, f, msg.name)
+        val uri = try {
+            FileProvider.getUriForFile(ctx, authority, f, msg.name)
+        } catch (e: IllegalArgumentException) {
+            Toast.makeText(ctx, "无法暴露此文件（FileProvider 路径未配置）", Toast.LENGTH_SHORT).show()
+            return
+        }
         val intent = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, msg.mime.ifBlank { "application/octet-stream" })
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)

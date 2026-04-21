@@ -84,6 +84,7 @@ class KtorServer(
                             store = fileStore,
                             stats = stats,
                             currentSessionId = currentSessionId,
+                            onPersist = onPersistMessage,
                             broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
                             nowMs = nowMs,
                         )

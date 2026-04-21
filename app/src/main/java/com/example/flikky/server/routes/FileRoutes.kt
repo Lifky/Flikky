@@ -39,6 +39,7 @@ fun Route.fileRoutes(
     store: FileStore,
     stats: TransferStats,
     currentSessionId: () -> Long,
+    onPersist: suspend (Message) -> Unit,
     broadcastEvent: suspend (type: String, payload: String) -> Unit,
     nowMs: () -> Long,
 ) {
@@ -79,6 +80,7 @@ fun Route.fileRoutes(
         )
         stats.incrementFileCount()
         session.addMessage(msg)
+        runCatching { onPersist(msg) }
 
         val dto = FileMessageDto(
             msg.id, msg.origin.name, msg.timestamp, msg.fileId, msg.name,
