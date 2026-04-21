@@ -104,7 +104,16 @@
     async function sendFile(file) {
         const form = new FormData();
         form.append('file', file, file.name);
-        await fetch('/api/files', { method: 'POST', body: form });
+        try {
+            const res = await fetch('/api/files', { method: 'POST', body: form });
+            if (!res.ok) {
+                console.error('upload failed', res.status, file.name);
+                alert(`上传失败（${res.status}）：${file.name}`);
+            }
+        } catch (e) {
+            console.error('upload error', e, file.name);
+            alert(`上传出错：${file.name}`);
+        }
     }
 
     sendBtn.addEventListener('click', sendText);

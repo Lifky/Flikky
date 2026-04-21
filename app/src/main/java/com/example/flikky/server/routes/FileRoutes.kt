@@ -51,7 +51,8 @@ fun Route.fileRoutes(
     post("/api/files") {
         if (!authed(call)) { call.respond(HttpStatusCode.Unauthorized); return@post }
         val sid = currentSessionId()
-        val multipart = call.receiveMultipart()
+        // Ktor 3.0 默认 50 MiB 上限；LAN 单用户场景下解除，按磁盘空间为天花板。
+        val multipart = call.receiveMultipart(formFieldLimit = Long.MAX_VALUE)
         var savedName: String? = null
         var savedSize: Long = 0L
         var savedMime: String = "application/octet-stream"

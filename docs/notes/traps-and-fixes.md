@@ -239,3 +239,25 @@ IllegalArgumentException: Failed to find configured root that contains
 **修复：** `fileRoutes` 签名加 `onPersist: suspend (Message) -> Unit`，`session.addMessage(msg)` 之后立刻 `runCatching { onPersist(msg) }`；`KtorServer` 里把主流程的 `onPersistMessage` 一起传进去（和 `messageRoutes` 对称）。
 
 **教训：** 任何有"双写/双路径"设计的地方必须**把两条路径的调用绑定在同一工具函数里**，别让调用方自行挑选调哪条。v1.2 如果还有新的消息来源（比如系统消息、撤回标记），最好抽一个 `addAndPersist(msg)` 的小封装，避免再犯。code review 时要有一条规则：搜 `session.addMessage` 的每处调用，必须紧邻一次 `appendMessage`。
+
+---
+
+## T14. Ktor 3.0 `receiveMultipart` 默认 50 MiB 上限，超过静默失败
+
+**现象：** 浏览器选 110 MB 的压缩包上传后，浏览器消息列表没出现消息泡，APP 端也没收到——像完全没传输过一样。
+
+**原因：** Ktor 3.0 对 `ApplicationCall.receiveMultipart()` 默认加了 50 MiB 上限（`formFieldLimit = -1L` 被解释为此默认值）。超过后服务端抛 `IOException`，被 `StatusPages` 兜底转成 500。但前端 `await fetch('/api/files', ...)` 既没检查响应码也没处理 reject——前端完全依赖 WebSocket 的 `file_added` 广播来 append 消息泡，而服务端 post handler 因异常根本没走到 `broadcastEvent`，所以 UI "什么都没发生"。
+
+**修复：**
+```kotlin
+// Ktor 3.0 默认 50 MiB 上限；LAN 单用户场景下解除，按磁盘空间为天花板。
+val multipart = call.receiveMultipart(formFieldLimit = Long.MAX_VALUE)
+```
+同时前端补了 fetch 非 2xx 响应的 alert 提示，让"上传失败"不再静默。
+
+**教训：**
+- Ktor 主版本升级（2.x → 3.0）的"默认值加限制"是最阴险的一类变更——旧代码能编译、小文件能跑，只在大文件压力场景下失败。升级时必须把 release note 的 **Breaking changes** 一项项对照。
+- 所有 `await fetch(...)` **必须**检查 `res.ok` 或 `res.status`，否则服务端 4xx/5xx 会被前端当成成功继续走逻辑。
+- 前端完全依赖 WS 推送更新 UI 的设计，意味着任何 HTTP side effect（上传、发消息）一旦在服务端出错，UI 永远不会更新——这在默认情况下没有 fallback 提示。至少要在请求失败时给用户一个可见信号。
+
+**遗留问题：** Ktor issue #4788 报告 CIO multipart 速度约 ~20MB/s 上限（千兆 LAN 实测），这是 Ktor 的限制，不是 Flikky 的问题。v1.x 不追求极限速度，接受。
