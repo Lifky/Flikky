@@ -2,8 +2,10 @@
     const summaryEl = document.getElementById('summary');
     const listEl = document.getElementById('session-list');
     const btn = document.getElementById('download-btn');
-    const snackbar = document.getElementById('snackbar');
     const hintEl = document.getElementById('export-hint');
+
+    const showError = (msg) => window.flikky.showError(msg);
+    const showInfo = (msg) => window.flikky.showInfo(msg);
 
     function formatSize(b) {
         if (b == null || Number.isNaN(b)) return '0 B';
@@ -11,12 +13,6 @@
         if (b >= 1024 * 1024) return (b / 1048576).toFixed(1) + ' MB';
         if (b >= 1024) return (b / 1024).toFixed(1) + ' KB';
         return b + ' B';
-    }
-
-    function toast(msg) {
-        if (!snackbar) return;
-        snackbar.textContent = msg;
-        snackbar.open = true;
     }
 
     function setSummaryText(text) {
@@ -74,7 +70,7 @@
             resp = await fetch('/api/export/info', { credentials: 'same-origin' });
         } catch (_) {
             setSummaryText('网络错误，无法读取导出信息');
-            toast('网络错误，请检查连接');
+            showError('网络错误，请检查连接');
             return;
         }
         if (resp.status === 401) {
@@ -84,12 +80,12 @@
         if (resp.status === 409) {
             setSummaryText('导出会话已失效');
             disableDownloadWith('不可下载');
-            toast('导出会话已失效，请在手机上重新发起');
+            showError('导出会话已失效，请在手机上重新发起');
             return;
         }
         if (!resp.ok) {
             setSummaryText(`加载失败 (${resp.status})`);
-            toast(`加载失败 (${resp.status})`);
+            showError(`加载失败 (${resp.status})`);
             return;
         }
         let info;
@@ -97,7 +93,7 @@
             info = await resp.json();
         } catch (_) {
             setSummaryText('响应解析失败');
-            toast('响应解析失败');
+            showError('响应解析失败');
             return;
         }
         renderSummary(info);
@@ -122,7 +118,7 @@
         if (btn.disabled) return;
         disableDownloadWith('下载中…');
         triggerDownload();
-        toast('下载已开始，可在浏览器下载管理器查看进度');
+        showInfo('下载已开始，可在浏览器下载管理器查看进度');
         if (hintEl) {
             hintEl.textContent = '下载已开始；完成后可关闭此页面。手机端服务会在传输结束后自动停止。';
         }

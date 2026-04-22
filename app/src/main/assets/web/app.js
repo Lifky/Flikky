@@ -108,11 +108,11 @@
             const res = await fetch('/api/files', { method: 'POST', body: form });
             if (!res.ok) {
                 console.error('upload failed', res.status, file.name);
-                alert(`上传失败（${res.status}）：${file.name}`);
+                window.flikky.showError(`上传失败（${res.status}）：${file.name}`);
             }
         } catch (e) {
             console.error('upload error', e, file.name);
-            alert(`上传出错：${file.name}`);
+            window.flikky.showError(`上传出错：${file.name}`);
         }
     }
 
