@@ -4,6 +4,7 @@ import android.app.Application
 import app.cash.turbine.test
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.entities.SessionEntity
+import com.example.flikky.session.SessionState
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -16,6 +17,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class HomeViewModelTest {
+    private fun stubSession(): SessionState = SessionState(nowMs = { 0L })
+
     @Test fun sessions_flow_is_forwarded_from_repository() = runTest {
         val app = mockk<Application>(relaxed = true)
         val repo = mockk<SessionRepository>()
@@ -24,7 +27,7 @@ class HomeViewModelTest {
         )
         every { repo.observeSessions() } returns flow
 
-        val vm = HomeViewModel(app, repo)
+        val vm = HomeViewModel(app, repo, stubSession())
         vm.sessions.test {
             val got = awaitItem()
             assertEquals(1, got.size)
@@ -39,7 +42,7 @@ class HomeViewModelTest {
         every { repo.observeSessions() } returns MutableStateFlow(emptyList())
         coEvery { repo.rename(any(), any()) } just Runs
 
-        val vm = HomeViewModel(app, repo)
+        val vm = HomeViewModel(app, repo, stubSession())
         vm.rename(sessionId = 42L, newName = "hi").join()
         coVerify { repo.rename(42L, "hi") }
     }
