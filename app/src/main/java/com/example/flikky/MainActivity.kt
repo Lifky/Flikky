@@ -35,6 +35,8 @@ class MainActivity : ComponentActivity() {
                             HomeScreen(
                                 onOpenSession = { id -> nav.navigate("history/$id") },
                                 onStartService = { nav.navigate("serving") },
+                                // TODO(M6 T18): nav.navigate("exporting") once the route lands.
+                                onStartExport = {},
                             )
                         }
                         composable("serving") {
