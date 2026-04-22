@@ -2,8 +2,13 @@ package com.example.flikky.data
 
 import com.example.flikky.data.db.MessageDao
 import com.example.flikky.data.db.SessionDao
+import com.example.flikky.data.db.entities.MessageEntity
 import com.example.flikky.data.db.entities.SessionEntity
+import com.example.flikky.export.ExportSnapshot
+import com.example.flikky.export.MessageExport
+import com.example.flikky.export.SessionExport
 import com.example.flikky.session.Message
+import com.example.flikky.session.Origin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -113,6 +118,55 @@ class SessionRepository(
     fun observeMessages(sessionId: Long): Flow<List<Message>> =
         messageDao.observeBySession(sessionId)
             .map { list -> list.map { it.toMessage() } }
+
+    /**
+     * 组装一批会话的导出快照。
+     *
+     * 过滤规则：
+     * - `endedAt IS NULL`（进行中会话）跳过，不写入 snapshot。UI 层应已灰掉此类选项，
+     *   repo 层再兜底一次，避免误导出不完整会话。
+     * - 不存在的 id 静默忽略。
+     *
+     * 不读文件二进制内容——ZipExporter 运行时通过 fileResolver lambda 再按需读。
+     * snapshot.exportedAt = now()。
+     */
+    suspend fun exportSnapshot(ids: List<Long>): ExportSnapshot {
+        val sessions = mutableListOf<SessionExport>()
+        for (id in ids) {
+            val row = sessionDao.getById(id) ?: continue
+            if (row.endedAt == null) continue
+            val messages = messageDao.listBySession(row.id)
+            sessions.add(row.toSessionExport(messages))
+        }
+        return ExportSnapshot(sessions = sessions, exportedAt = now())
+    }
+
+    private fun SessionEntity.toSessionExport(messages: List<MessageEntity>): SessionExport =
+        SessionExport(
+            id = id,
+            name = name,
+            startedAt = startedAt,
+            endedAt = endedAt,
+            pinned = pinned,
+            messages = messages.map { it.toMessageExport() },
+        )
+
+    private fun MessageEntity.toMessageExport(): MessageExport = when (kind) {
+        "TEXT" -> MessageExport.Text(
+            ts = timestamp,
+            origin = Origin.valueOf(origin),
+            content = content ?: "",
+        )
+        "FILE" -> MessageExport.File(
+            ts = timestamp,
+            origin = Origin.valueOf(origin),
+            fileId = fileId ?: error("FILE message missing fileId"),
+            name = fileName ?: "",
+            mime = fileMime ?: "application/octet-stream",
+            sizeBytes = fileSize ?: 0L,
+        )
+        else -> error("Unknown message kind: $kind")
+    }
 
     companion object {
         const val DEFAULT_NAME_FALLBACK = "会话"
