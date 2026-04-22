@@ -113,6 +113,7 @@ class TransferService : Service() {
         val port = server.start()
         ktor = server
         currentMode = ServiceMode.Transfer
+        ServiceLocator.session.updateBoundPort(port)
 
         controller = TransferController(
             session = ServiceLocator.session,
@@ -209,6 +210,7 @@ class TransferService : Service() {
         val port = server.start()
         ktor = server
         currentMode = ServiceMode.Export
+        ServiceLocator.session.updateBoundPort(port)
         // _running is the transfer-mode signal consumed by ServingViewModel.
         // Export mode has its own UI (ExportingScreen) that reads SessionState.exportMode
         // directly, so we intentionally leave _running null here.

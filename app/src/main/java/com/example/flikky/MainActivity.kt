@@ -13,6 +13,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.flikky.ui.exporting.ExportingScreen
 import com.example.flikky.ui.history.HistoryScreen
 import com.example.flikky.ui.home.HomeScreen
 import com.example.flikky.ui.serving.ServingScreen
@@ -35,12 +36,16 @@ class MainActivity : ComponentActivity() {
                             HomeScreen(
                                 onOpenSession = { id -> nav.navigate("history/$id") },
                                 onStartService = { nav.navigate("serving") },
-                                // TODO(M6 T18): nav.navigate("exporting") once the route lands.
-                                onStartExport = {},
+                                onStartExport = { nav.navigate("exporting") },
                             )
                         }
                         composable("serving") {
                             ServingScreen(onStopped = { nav.popBackStack("home", inclusive = false) })
+                        }
+                        composable("exporting") {
+                            ExportingScreen(
+                                onBack = { nav.popBackStack("home", inclusive = false) },
+                            )
                         }
                         composable(
                             route = "history/{id}",

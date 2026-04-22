@@ -40,4 +40,22 @@ class SessionStateTest {
         state.setClientConnected(false)
         assertFalse(state.snapshot.value.clientConnected)
     }
+
+    @Test
+    fun `updateBoundPort writes into snapshot and startNew clears it`() {
+        val state = SessionState(nowMs = { 0L })
+        assertEquals(0, state.snapshot.value.boundPort)
+
+        state.updateBoundPort(8091)
+        assertEquals(8091, state.snapshot.value.boundPort)
+
+        state.startNew(sessionId = 7L)
+        assertEquals(0, state.snapshot.value.boundPort)
+
+        state.updateBoundPort(8083)
+        assertEquals(8083, state.snapshot.value.boundPort)
+
+        state.reset()
+        assertEquals(0, state.snapshot.value.boundPort)
+    }
 }

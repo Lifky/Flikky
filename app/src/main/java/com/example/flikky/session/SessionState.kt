@@ -13,6 +13,13 @@ class SessionState(private val nowMs: () -> Long) {
         val currentSessionId: Long?,
         val messages: List<Message>,
         val clientConnected: Boolean,
+        /**
+         * Port the in-process Ktor server is actually bound to, or 0 when no
+         * server is up. KtorServer scans [8080, 8099] for the first free port,
+         * so this is the only authoritative source for the URL shown in the UI.
+         * Defaulted so existing test sites (and older snapshots) behave unchanged.
+         */
+        val boundPort: Int = 0,
     )
 
     private val _snapshot = MutableStateFlow(
@@ -21,6 +28,7 @@ class SessionState(private val nowMs: () -> Long) {
             currentSessionId = null,
             messages = emptyList(),
             clientConnected = false,
+            boundPort = 0,
         )
     )
     val snapshot: StateFlow<Snapshot> = _snapshot
@@ -31,7 +39,18 @@ class SessionState(private val nowMs: () -> Long) {
             currentSessionId = sessionId,
             messages = emptyList(),
             clientConnected = false,
+            boundPort = 0,
         )
+    }
+
+    /**
+     * Called by [com.example.flikky.service.TransferService] right after
+     * [com.example.flikky.server.KtorServer.start] returns the actual bound
+     * port — for both transfer and export modes. UI layer reads this to build
+     * the browser URL. Resets to 0 on [reset].
+     */
+    fun updateBoundPort(port: Int) {
+        _snapshot.update { it.copy(boundPort = port) }
     }
 
     fun addMessage(msg: Message) {
@@ -54,6 +73,7 @@ class SessionState(private val nowMs: () -> Long) {
             currentSessionId = null,
             messages = emptyList(),
             clientConnected = false,
+            boundPort = 0,
         )
     }
 
