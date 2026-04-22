@@ -76,6 +76,46 @@ html, body { height: 100%; margin: 0; padding: 0; }
     opacity: .8;
 }
 
+/* Uploading state — progress bar and percent share the bubble footer. */
+.file-bubble.uploading {
+    flex-wrap: wrap;
+}
+.file-bubble.uploading .progress-bar {
+    flex-basis: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 6px;
+}
+.file-bubble.uploading .progress-fill {
+    height: 100%;
+    background: rgb(var(--mdui-color-on-primary));
+    width: 0%;
+    transition: width 0.15s ease-out;
+}
+.file-bubble.uploading .progress-pct {
+    flex-basis: 100%;
+    text-align: right;
+    font-size: 12px;
+    opacity: .85;
+    margin-top: 2px;
+}
+
+/* Failed state — keep the bubble but flag it and expose a retry link. */
+.file-bubble.failed {
+    flex-wrap: wrap;
+    border: 1px solid rgb(var(--mdui-color-error));
+}
+.file-bubble.failed .retry-btn {
+    flex-basis: 100%;
+    color: rgb(var(--mdui-color-error));
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 13px;
+    margin-top: 4px;
+}
+
 .chat-input-row {
     display: flex;
     gap: 8px;

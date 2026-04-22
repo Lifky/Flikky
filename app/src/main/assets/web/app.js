@@ -45,6 +45,97 @@
         div.appendChild(size);
         list.appendChild(div);
         list.scrollTop = list.scrollHeight;
+        return div;
+    }
+
+    function renderUploadingBubble(opts) {
+        const div = document.createElement('div');
+        div.className = 'file-bubble me uploading';
+        div.dataset.localId = opts.localId;
+
+        const a = document.createElement('a');
+        a.textContent = opts.name;
+        // No href yet — upload still in flight, no downloadable URL.
+
+        const size = document.createElement('span');
+        size.className = 'size';
+        size.textContent = formatSize(opts.total);
+
+        const bar = document.createElement('div');
+        bar.className = 'progress-bar';
+        const fill = document.createElement('div');
+        fill.className = 'progress-fill';
+        bar.appendChild(fill);
+
+        const pct = document.createElement('span');
+        pct.className = 'progress-pct';
+        pct.textContent = '0%';
+
+        div.appendChild(a);
+        div.appendChild(size);
+        div.appendChild(bar);
+        div.appendChild(pct);
+
+        list.appendChild(div);
+        list.scrollTop = list.scrollHeight;
+        return div;
+    }
+
+    function updateBubbleProgress(bubble, loaded, total) {
+        if (!total || total <= 0) return;
+        const ratio = Math.min(1, loaded / total);
+        const fill = bubble.querySelector('.progress-fill');
+        const pct = bubble.querySelector('.progress-pct');
+        if (fill) fill.style.width = (ratio * 100).toFixed(1) + '%';
+        if (pct) pct.textContent = Math.floor(ratio * 100) + '%';
+    }
+
+    function markBubbleCompleted(bubble, dto) {
+        // Stamp fileId so later WS file_added events are deduped.
+        bubble.dataset.fileId = dto.fileId;
+        bubble.classList.remove('uploading');
+
+        // Drop progress bits.
+        const bar = bubble.querySelector('.progress-bar');
+        if (bar) bar.remove();
+        const pct = bubble.querySelector('.progress-pct');
+        if (pct) pct.remove();
+
+        // Promote the name anchor to a real download link.
+        const a = bubble.querySelector('a');
+        if (a) {
+            a.href = `/api/files/${dto.fileId}`;
+            a.download = dto.name;
+            a.textContent = dto.name;
+        }
+        const size = bubble.querySelector('.size');
+        if (size) size.textContent = formatSize(dto.sizeBytes);
+    }
+
+    function markBubbleFailed(bubble, file, status) {
+        bubble.classList.remove('uploading');
+        bubble.classList.add('failed');
+
+        const bar = bubble.querySelector('.progress-bar');
+        if (bar) bar.remove();
+        const pct = bubble.querySelector('.progress-pct');
+        if (pct) pct.remove();
+
+        const retry = document.createElement('a');
+        retry.className = 'retry-btn';
+        retry.href = '#';
+        retry.textContent = '上传失败，点击重试';
+        retry.addEventListener('click', (e) => {
+            e.preventDefault();
+            bubble.remove();
+            sendFile(file);
+        });
+        bubble.appendChild(retry);
+
+        if (window.flikky && window.flikky.showError) {
+            const suffix = status ? ` (${status})` : '';
+            window.flikky.showError(`上传失败：${file.name}${suffix}`);
+        }
     }
 
     function onWsEvent(ev) {
@@ -55,6 +146,13 @@
             seen.add(key);
             renderText(ev.payload, ev.payload.origin === 'BROWSER');
         } else if (ev.type === 'file_added') {
+            const fileId = ev.payload && ev.payload.fileId;
+            if (fileId && list.querySelector(`[data-file-id="${fileId}"]`)) {
+                // This client already mounted the bubble (local XHR completed).
+                // Marking as seen guards against any late duplicate dispatch.
+                seen.add(key);
+                return;
+            }
             seen.add(key);
             renderFile(ev.payload, ev.payload.origin === 'BROWSER');
         } else if (ev.type === 'status') {
@@ -69,7 +167,11 @@
         if (!r.ok) return;
         const data = await r.json();
         for (const t of data.texts) { seen.add(`text_added:${t.id}`); renderText(t, t.origin === 'BROWSER'); }
-        for (const f of data.files) { seen.add(`file_added:${f.id}`); renderFile(f, f.origin === 'BROWSER'); }
+        for (const f of data.files) {
+            seen.add(`file_added:${f.id}`);
+            const bubble = renderFile(f, f.origin === 'BROWSER');
+            if (bubble) bubble.dataset.fileId = f.fileId;
+        }
     }
 
     function setConn(text) { conn.textContent = text; }
@@ -101,19 +203,31 @@
         }
     }
 
-    async function sendFile(file) {
+    function sendFile(file) {
+        const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const bubble = renderUploadingBubble({ localId, name: file.name, total: file.size });
         const form = new FormData();
         form.append('file', file, file.name);
-        try {
-            const res = await fetch('/api/files', { method: 'POST', body: form });
-            if (!res.ok) {
-                console.error('upload failed', res.status, file.name);
-                window.flikky.showError(`上传失败（${res.status}）：${file.name}`);
+
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) updateBubbleProgress(bubble, e.loaded, e.total);
+        };
+        xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                    const dto = JSON.parse(xhr.responseText);
+                    markBubbleCompleted(bubble, dto);
+                } catch (_) {
+                    markBubbleFailed(bubble, file);
+                }
+            } else {
+                markBubbleFailed(bubble, file, xhr.status);
             }
-        } catch (e) {
-            console.error('upload error', e, file.name);
-            window.flikky.showError(`上传出错：${file.name}`);
-        }
+        };
+        xhr.onerror = () => markBubbleFailed(bubble, file);
+        xhr.open('POST', '/api/files');
+        xhr.send(form);
     }
 
     sendBtn.addEventListener('click', sendText);
@@ -121,8 +235,10 @@
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }
     });
     fileBtn.addEventListener('click', () => filePicker.click());
-    filePicker.addEventListener('change', async () => {
-        for (const f of filePicker.files) { await sendFile(f); }
+    filePicker.addEventListener('change', () => {
+        // Kick each file off in parallel — each XHR drives its own bubble,
+        // so serial await would only hide the per-file progress behind head-of-line blocking.
+        for (const f of filePicker.files) sendFile(f);
         filePicker.value = '';
     });
 
