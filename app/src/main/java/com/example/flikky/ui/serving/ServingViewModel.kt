@@ -16,6 +16,7 @@ import com.example.flikky.di.ServiceLocator
 import com.example.flikky.service.TransferController
 import com.example.flikky.service.TransferService
 import com.example.flikky.session.Message
+import com.example.flikky.session.NetworkStatus
 import com.example.flikky.session.Origin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,7 @@ data class ServingUiState(
     val bytesPerSecond: Long = 0L,
     val clientConnected: Boolean = false,
     val messages: List<Message> = emptyList(),
+    val networkStatus: NetworkStatus = NetworkStatus.Ok,
 )
 
 class ServingViewModel(app: Application) : AndroidViewModel(app) {
@@ -79,6 +81,7 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
                 bytesPerSecond = ServiceLocator.stats.bytesPerSecond(),
                 clientConnected = snap.clientConnected,
                 messages = snap.messages,
+                networkStatus = snap.networkStatus,
             )
         }.onEach { _ui.value = it }.launchIn(viewModelScope)
     }
@@ -135,6 +138,11 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     fun stopService() {
         val ctx = getApplication<Application>()
         ctx.startService(Intent(ctx, TransferService::class.java).apply { action = TransferService.ACTION_STOP })
+    }
+
+    /** "我知道了" on the NetworkStatusBanner — fold Switched back to Ok. */
+    fun acknowledgeNetworkSwitch() {
+        ServiceLocator.session.acknowledgeNetworkSwitch()
     }
 
     override fun onCleared() {

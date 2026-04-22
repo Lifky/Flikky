@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.session.Message
 import com.example.flikky.ui.components.MessageBubble
+import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.StatusBar
 
 @Composable
@@ -45,6 +46,10 @@ fun ServingScreen(
     ) { uri -> uri?.let { viewModel.offerFile(it) } }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        NetworkStatusBanner(
+            status = ui.networkStatus,
+            onAcknowledge = { viewModel.acknowledgeNetworkSwitch() },
+        )
         Column(
             modifier = Modifier.padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),

@@ -11,6 +11,7 @@ import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.export.MessageExport
 import com.example.flikky.network.NetworkInfo
 import com.example.flikky.service.TransferService
+import com.example.flikky.session.NetworkStatus
 import com.example.flikky.session.SessionState
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +35,7 @@ data class ExportingUiState(
     val totalBytes: Long = 0L,
     val bytesSent: Long = 0L,
     val sessionIds: List<Long> = emptyList(),
+    val networkStatus: NetworkStatus = NetworkStatus.Ok,
 ) {
     enum class Phase { Armed, Sending, Done, Gone }
 }
@@ -48,14 +50,19 @@ class ExportingViewModel @JvmOverloads constructor(
     val ui: StateFlow<ExportingUiState> = combine(
         sessionState.exportMode,
         sessionState.snapshot,
-    ) { mode, snap -> mode.toUiState(snap.boundPort) }
+    ) { mode, snap -> mode.toUiState(snap.boundPort).copy(networkStatus = snap.networkStatus) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
-            initialValue = sessionState.exportMode.value.toUiState(
-                sessionState.snapshot.value.boundPort,
-            ),
+            initialValue = sessionState.exportMode.value
+                .toUiState(sessionState.snapshot.value.boundPort)
+                .copy(networkStatus = sessionState.snapshot.value.networkStatus),
         )
+
+    /** "我知道了" on the NetworkStatusBanner — fold Switched back to Ok. */
+    fun acknowledgeNetworkSwitch() {
+        sessionState.acknowledgeNetworkSwitch()
+    }
 
     /**
      * Fire ACTION_STOP at the running TransferService. Same mechanism the

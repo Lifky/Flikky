@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.flikky.ui.components.NetworkStatusBanner
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -54,10 +55,16 @@ fun ExportingScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(topBarTitleFor(ui.phase)) },
-                colors = TopAppBarDefaults.topAppBarColors(),
-            )
+            Column {
+                TopAppBar(
+                    title = { Text(topBarTitleFor(ui.phase)) },
+                    colors = TopAppBarDefaults.topAppBarColors(),
+                )
+                NetworkStatusBanner(
+                    status = ui.networkStatus,
+                    onAcknowledge = { viewModel.acknowledgeNetworkSwitch() },
+                )
+            }
         },
     ) { padding ->
         AnimatedContent(
