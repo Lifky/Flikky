@@ -1,8 +1,11 @@
 package com.example.flikky.server
 
+import com.example.flikky.export.ExportMode
+import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.server.routes.FileStore
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.server.routes.authRoutes
+import com.example.flikky.server.routes.exportRoutes
 import com.example.flikky.server.routes.fileRoutes
 import com.example.flikky.server.routes.messageRoutes
 import com.example.flikky.server.routes.wsRoutes
@@ -20,6 +23,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import kotlinx.serialization.json.Json
@@ -36,6 +40,8 @@ class KtorServer(
     private val currentSessionId: () -> Long,
     private val onPersistMessage: suspend (Message) -> Unit,
     private val nowMs: () -> Long = System::currentTimeMillis,
+    private val mode: ServiceMode = ServiceMode.Transfer,
+    private val onZipSent: suspend () -> Unit = {},
 ) {
     private var engine: EmbeddedServer<*, *>? = null
     var boundPort: Int = -1
@@ -71,24 +77,10 @@ class KtorServer(
                     }
                     routing {
                         authRoutes(pinAuth, readAsset = assetLoader)
-                        messageRoutes(
-                            session = session,
-                            pinAuth = pinAuth,
-                            onPersist = onPersistMessage,
-                            broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
-                            nowMs = nowMs,
-                        )
-                        fileRoutes(
-                            session = session,
-                            pinAuth = pinAuth,
-                            store = fileStore,
-                            stats = stats,
-                            currentSessionId = currentSessionId,
-                            onPersist = onPersistMessage,
-                            broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
-                            nowMs = nowMs,
-                        )
-                        wsRoutes(pinAuth, session, wsHub)
+                        when (mode) {
+                            ServiceMode.Transfer -> installTransferRoutes()
+                            ServiceMode.Export -> installExportRoutes()
+                        }
                     }
                 }
                 server.start(wait = false)
@@ -100,6 +92,44 @@ class KtorServer(
             }
         }
         throw IllegalStateException("No port available in $startPort..$endPort", lastError)
+    }
+
+    private fun Route.installTransferRoutes() {
+        messageRoutes(
+            session = session,
+            pinAuth = pinAuth,
+            onPersist = onPersistMessage,
+            broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
+            nowMs = nowMs,
+        )
+        fileRoutes(
+            session = session,
+            pinAuth = pinAuth,
+            store = fileStore,
+            stats = stats,
+            currentSessionId = currentSessionId,
+            onPersist = onPersistMessage,
+            broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
+            nowMs = nowMs,
+        )
+        wsRoutes(pinAuth, session, wsHub)
+    }
+
+    private fun Route.installExportRoutes() {
+        exportRoutes(
+            sessionState = session,
+            pinAuth = pinAuth,
+            readAsset = assetLoader,
+            exportedBy = { _ ->
+                (session.exportMode.value as? ExportMode.Armed)?.snapshot
+                    ?: ExportSnapshot(exportedAt = nowMs(), sessions = emptyList())
+            },
+            fileResolver = { sessionId, fileId ->
+                fileStore.fileDir(sessionId).resolve(fileId).takeIf { it.exists() }
+            },
+            onZipSent = onZipSent,
+            now = nowMs,
+        )
     }
 
     fun stop() {
