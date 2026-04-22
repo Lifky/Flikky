@@ -85,3 +85,43 @@ html, body { height: 100%; margin: 0; padding: 0; }
     border-top: 1px solid rgb(var(--mdui-color-outline-variant));
 }
 .chat-input-row mdui-text-field { flex: 1; }
+
+/* --- Export page --- */
+.export-wrap {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+.export-main {
+    max-width: 680px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-sizing: border-box;
+}
+.export-card { display: block; padding: 20px; }
+.export-card-title {
+    margin: 0 0 12px;
+    font-size: 18px;
+    font-weight: 500;
+}
+.export-summary {
+    font-size: 15px;
+    color: rgb(var(--mdui-color-on-surface));
+    line-height: 1.5;
+}
+.export-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 8px;
+}
+.export-actions mdui-button { min-width: 240px; }
+.export-hint {
+    margin: 0;
+    font-size: 12px;
+    color: rgb(var(--mdui-color-on-surface-variant));
+    text-align: center;
+}

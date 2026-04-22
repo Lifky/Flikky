@@ -1,13 +1,42 @@
-<!doctype html>
-<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="zh-CN" class="mdui-theme-auto">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Flikky Export</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Flikky 导出</title>
+    <link rel="stylesheet" href="/static/vendor/mdui.css">
+    <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-  <h1>Flikky Export</h1>
-  <p>占位页 — 正式界面将在 M3 T8 提供。</p>
-  <p><a href="/api/export/zip">下载 zip</a></p>
+    <div class="export-wrap">
+        <mdui-top-app-bar scroll-behavior="elevate">
+            <mdui-top-app-bar-title>Flikky 导出</mdui-top-app-bar-title>
+        </mdui-top-app-bar>
+
+        <main class="export-main">
+            <mdui-card id="summary-card" variant="filled" class="export-card">
+                <h2 class="export-card-title">即将下载</h2>
+                <div id="summary" class="export-summary">读取中…</div>
+            </mdui-card>
+
+            <mdui-card variant="outlined" id="sessions-card" class="export-card">
+                <h3 class="export-card-title">会话清单</h3>
+                <mdui-list id="session-list"></mdui-list>
+            </mdui-card>
+
+            <div class="export-actions">
+                <mdui-button id="download-btn" variant="filled" disabled>准备中…</mdui-button>
+            </div>
+
+            <p class="export-hint" id="export-hint">
+                提示：下载由浏览器处理，开始后可保持此页面开启直至保存完成。
+            </p>
+        </main>
+    </div>
+
+    <mdui-snackbar id="snackbar" placement="bottom"></mdui-snackbar>
+
+    <script src="/static/vendor/mdui.global.js"></script>
+    <script src="/static/export.js"></script>
 </body>
 </html>

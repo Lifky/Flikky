@@ -22,6 +22,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import kotlinx.serialization.Serializable
 
 /**
  * Routes serving the browser-facing export flow (v1.2 §2.2 / §3.1).
@@ -61,6 +62,18 @@ fun Route.exportRoutes(
             STUB_EXPORT_HTML.toByteArray(Charsets.UTF_8)
         }
         call.respondBytes(bytes, ContentType.Text.Html)
+    }
+
+    get("/api/export/info") {
+        if (!authed(call)) { call.respond(HttpStatusCode.Unauthorized); return@get }
+
+        val armed = sessionState.exportMode.value as? ExportMode.Armed
+        if (armed == null) {
+            call.respond(HttpStatusCode.Conflict, mapOf("error" to "not_armed"))
+            return@get
+        }
+
+        call.respond(buildInfoDto(armed.snapshot))
     }
 
     get("/api/export/zip") {
@@ -131,3 +144,45 @@ private val STUB_EXPORT_HTML: String =
         "<p>占位页 — 正式界面将在 M3 T8 提供。</p>" +
         "<p><a href=\"/api/export/zip\">下载 zip</a></p>" +
         "</body></html>"
+
+@Serializable
+internal data class ExportInfoDto(
+    val sessionCount: Int,
+    val messageCount: Int,
+    val fileCount: Int,
+    val totalBytes: Long,
+    val sessions: List<ExportInfoSessionDto>,
+)
+
+@Serializable
+internal data class ExportInfoSessionDto(
+    val id: Long,
+    val name: String,
+    val startedAt: Long,
+    val endedAt: Long?,
+    val messageCount: Int,
+    val fileCount: Int,
+    val totalBytes: Long,
+)
+
+private fun buildInfoDto(snapshot: ExportSnapshot): ExportInfoDto {
+    val sessionDtos = snapshot.sessions.map { s ->
+        val fileMessages = s.messages.filterIsInstance<com.example.flikky.export.MessageExport.File>()
+        ExportInfoSessionDto(
+            id = s.id,
+            name = s.name,
+            startedAt = s.startedAt,
+            endedAt = s.endedAt,
+            messageCount = s.messages.size,
+            fileCount = fileMessages.size,
+            totalBytes = fileMessages.sumOf { it.sizeBytes },
+        )
+    }
+    return ExportInfoDto(
+        sessionCount = sessionDtos.size,
+        messageCount = sessionDtos.sumOf { it.messageCount },
+        fileCount = sessionDtos.sumOf { it.fileCount },
+        totalBytes = sessionDtos.sumOf { it.totalBytes },
+        sessions = sessionDtos,
+    )
+}
