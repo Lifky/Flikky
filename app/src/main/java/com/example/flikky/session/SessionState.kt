@@ -7,6 +7,23 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
+/**
+ * Lifecycle of the Wi-Fi link under the running server, exposed to the UI so
+ * ServingScreen / ExportingScreen can render a status banner.
+ *
+ *  - [Ok]: IPv4 hasn't changed since the server was bound.
+ *  - [Switching]: a rebind is in progress (Ktor stopped, new engine not up yet).
+ *  - [Lost]: we used to have IPv4 and now don't — user probably lost Wi-Fi.
+ *  - [Switched]: rebind finished; UI shows the new URL + "我知道了" button
+ *    whose callback is [SessionState.acknowledgeNetworkSwitch].
+ */
+sealed class NetworkStatus {
+    object Ok : NetworkStatus()
+    object Switching : NetworkStatus()
+    object Lost : NetworkStatus()
+    data class Switched(val newUrl: String) : NetworkStatus()
+}
+
 class SessionState(private val nowMs: () -> Long) {
     data class Snapshot(
         val serviceStartedAt: Long,
@@ -20,6 +37,12 @@ class SessionState(private val nowMs: () -> Long) {
          * Defaulted so existing test sites (and older snapshots) behave unchanged.
          */
         val boundPort: Int = 0,
+        /**
+         * Current network link status — drives the status banner in
+         * ServingScreen / ExportingScreen. Defaulted so older tests and
+         * snapshot consumers stay unchanged.
+         */
+        val networkStatus: NetworkStatus = NetworkStatus.Ok,
     )
 
     private val _snapshot = MutableStateFlow(
@@ -29,6 +52,7 @@ class SessionState(private val nowMs: () -> Long) {
             messages = emptyList(),
             clientConnected = false,
             boundPort = 0,
+            networkStatus = NetworkStatus.Ok,
         )
     )
     val snapshot: StateFlow<Snapshot> = _snapshot
@@ -40,6 +64,7 @@ class SessionState(private val nowMs: () -> Long) {
             messages = emptyList(),
             clientConnected = false,
             boundPort = 0,
+            networkStatus = NetworkStatus.Ok,
         )
     }
 
@@ -74,7 +99,25 @@ class SessionState(private val nowMs: () -> Long) {
             messages = emptyList(),
             clientConnected = false,
             boundPort = 0,
+            networkStatus = NetworkStatus.Ok,
         )
+    }
+
+    /**
+     * Set the current network link status. Called from TransferService's
+     * NetworkCallback as the rebinder decides Ok/Switching/Lost/Switched.
+     */
+    fun updateNetworkStatus(status: NetworkStatus) {
+        _snapshot.update { it.copy(networkStatus = status) }
+    }
+
+    /**
+     * UI's "我知道了" button on the Switched banner folds state back to Ok.
+     * No-op when the status is already Ok; from Switching/Lost we also allow
+     * the ack to demote to Ok (the banner is advisory, not authoritative).
+     */
+    fun acknowledgeNetworkSwitch() {
+        _snapshot.update { it.copy(networkStatus = NetworkStatus.Ok) }
     }
 
     private val _exportMode = MutableStateFlow<ExportMode>(ExportMode.Idle)

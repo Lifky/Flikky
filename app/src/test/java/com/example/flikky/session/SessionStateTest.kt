@@ -58,4 +58,39 @@ class SessionStateTest {
         state.reset()
         assertEquals(0, state.snapshot.value.boundPort)
     }
+
+    @Test
+    fun `default networkStatus is Ok`() {
+        val state = SessionState(nowMs = { 0L })
+        assertEquals(NetworkStatus.Ok, state.snapshot.value.networkStatus)
+    }
+
+    @Test
+    fun `updateNetworkStatus walks Switching-Switched and acknowledgeNetworkSwitch returns to Ok`() {
+        val state = SessionState(nowMs = { 0L })
+
+        state.updateNetworkStatus(NetworkStatus.Switching)
+        assertEquals(NetworkStatus.Switching, state.snapshot.value.networkStatus)
+
+        val switched = NetworkStatus.Switched("http://192.168.2.10:8081")
+        state.updateNetworkStatus(switched)
+        assertEquals(switched, state.snapshot.value.networkStatus)
+
+        state.acknowledgeNetworkSwitch()
+        assertEquals(NetworkStatus.Ok, state.snapshot.value.networkStatus)
+    }
+
+    @Test
+    fun `networkStatus Lost clears back to Ok via reset and startNew`() {
+        val state = SessionState(nowMs = { 0L })
+        state.updateNetworkStatus(NetworkStatus.Lost)
+        assertEquals(NetworkStatus.Lost, state.snapshot.value.networkStatus)
+
+        state.startNew(sessionId = 42L)
+        assertEquals(NetworkStatus.Ok, state.snapshot.value.networkStatus)
+
+        state.updateNetworkStatus(NetworkStatus.Lost)
+        state.reset()
+        assertEquals(NetworkStatus.Ok, state.snapshot.value.networkStatus)
+    }
 }
