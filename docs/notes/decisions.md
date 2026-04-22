@@ -186,3 +186,59 @@
 ## D17. v1.1 保留上限 = 20（硬编码）
 
 不做设置页。**理由：** 以 FIFO 20 条应付先；若未来用户反馈需要可配置，v1.2 加设置页 + SharedPreferences。
+
+---
+
+## D18. v1.2 导出服务 = `TransferService` + `ACTION_EXPORT` mode（2026-04-22）
+
+不起独立 `ExportService`，复用 `TransferService` 加一个 `ACTION_EXPORT` 分支，与 `ACTION_START` 互斥。
+
+**理由：** 独立 Service 意味着多一套 notification / PIN / 端口 / lifecycle——v1.x 单用户场景用户一次只干一件事；互斥是需求而非限制。
+
+**副作用：** 导出期间不能同时开传输；v1.3 再看要不要并行。
+
+---
+
+## D19. 导出交付 = 流式单 zip + messages.txt + messages.json 双格式（2026-04-22）
+
+勾选多会话 → 一个 zip 下载。zip 内 `sessions/{id}_{safeName}/{messages.txt, messages.json, files/}`，根 `README.txt`。
+
+**理由：** 一次点击拿到一份可存档归档；txt 人看、json 机器读（v1.3 可能的"导回 APP"留路径）；流式避免整份载内存。
+
+**副作用：** 中途取消 → 半个 zip，无断点续传。LAN 单用户重来一次就行，接受。
+
+---
+
+## D20. 导出完成 = "保留 / 删除" 二择 + 删除二次确认（2026-04-22）
+
+`DoneScreen` 两按钮；点"删除本地"额外弹 `AlertDialog` 确认。
+
+**理由：** 删除不可逆；完成页选择项放这里而非勾选时，避免误操作；视觉突出"保留本地"降低误删；点删除多一层确认与可逆动作（退出多选等）分档。
+
+---
+
+## D21. B1 上传进度 = 前端乐观 UI + `XMLHttpRequest.upload.onprogress`（2026-04-22）
+
+不走服务端分块广播 WS 进度方案。浏览器本地立刻 append uploading 泡 + XHR progress 更新；服务端返回 fileId → 泡上 `data-file-id`；WS `file_added` 按 fileId dedup。
+
+**理由：** 服务端分块广播引入多客户端流量放大 + dedup 复杂度；XHR 是浏览器原生唯一能拿 upload progress 的 API；dedup key 直接用服务端返回的 fileId，不引入新状态。
+
+**副作用：** 手机端 APP 看不到浏览器上传中间进度（只看到最终文件）。用户反馈未要求，接受。
+
+---
+
+## D22. Wi-Fi 切换 = 停旧 Ktor + 起新 Ktor，不做连接迁移（2026-04-22）
+
+`ConnectivityManager.NetworkCallback` 检测到 IPv4 变化 → stop Ktor → `KtorServer(host = newIp)` 新实例 → start → 广播新 URL 给 UI。旧浏览器连接必然断，用户需在新 URL 重新打开。
+
+**理由：** Ktor CIO 没有 rebind 能力，host 是构造参数必须重构实例；尝试"跨 IP 保留 WS"复杂度远超收益。
+
+**副作用：** 切换期间 < 1s 断连窗口；浏览器用户手动再开一次。`Lost` 不主动停 Ktor（等 IP 回来）。
+
+---
+
+## D23. 导出期间不做"暂停传输 → 导出 → 恢复"的状态保存（2026-04-22）
+
+同 D18 呼应，一次一件事。
+
+**理由：** 保存 running session state + 恢复传输状态会显著增加 TransferService 复杂度；v1.2 流程里不是高频需求。并行等 v1.3。
