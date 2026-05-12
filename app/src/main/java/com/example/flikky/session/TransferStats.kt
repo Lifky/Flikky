@@ -33,6 +33,18 @@ class TransferStats(private val nowMs: () -> Long) {
     @Synchronized
     fun fileCount(): Int = fileCount
 
+    /**
+     * 清零所有内部统计。ServiceLocator.reset 在 Service 销毁时调，
+     * 这样下次启服从干净状态开始。代价：旧 stats 实例被 UI 缓存的引用
+     * 也会"自动归零"——但这是有意为之（避免新启服时残留旧数字）。
+     */
+    @Synchronized
+    fun reset() {
+        samples.clear()
+        totalBytes = 0L
+        fileCount = 0
+    }
+
     private fun evict() {
         val cutoff = nowMs() - WINDOW_MS
         while (samples.isNotEmpty() && samples.first().timestampMs < cutoff) {
