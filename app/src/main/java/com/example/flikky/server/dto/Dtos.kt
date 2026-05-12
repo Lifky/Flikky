@@ -6,7 +6,13 @@ import kotlinx.serialization.Serializable
 data class AuthRequest(val pin: String)
 
 @Serializable
-data class AuthResponse(val ok: Boolean, val error: String? = null, val retryAfterSec: Int? = null)
+data class AuthResponse(
+    val ok: Boolean,
+    val error: String? = null,
+    val retryAfterSec: Int? = null,
+    /** Where the browser should navigate after a successful login. v1.2 differs by mode. */
+    val redirectTo: String? = null,
+)
 
 @Serializable
 data class SendTextRequest(val text: String)

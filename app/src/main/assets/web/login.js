@@ -32,7 +32,8 @@
             });
             const data = await resp.json().catch(() => ({}));
             if (resp.ok && data.ok) {
-                window.location.href = '/app';
+                // 服务端按 ServiceMode 决定跳哪里：Transfer → /app，Export → /export。
+                window.location.href = data.redirectTo || '/app';
                 return;
             }
             const err = data.error;

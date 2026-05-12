@@ -76,7 +76,16 @@ class KtorServer(
                         call.response.headers.append("Cross-Origin-Resource-Policy", "same-origin")
                     }
                     routing {
-                        authRoutes(pinAuth, readAsset = assetLoader)
+                        authRoutes(
+                            pinAuth = pinAuth,
+                            readAsset = assetLoader,
+                            redirectAfterLogin = {
+                                when (mode) {
+                                    ServiceMode.Transfer -> "/app"
+                                    ServiceMode.Export -> "/export"
+                                }
+                            },
+                        )
                         when (mode) {
                             ServiceMode.Transfer -> installTransferRoutes()
                             ServiceMode.Export -> installExportRoutes()

@@ -22,6 +22,8 @@ const val AUTH_COOKIE = "flikky_token"
 fun Route.authRoutes(
     pinAuth: PinAuth,
     readAsset: (String) -> ByteArray,
+    /** Where the browser should land after a successful PIN — depends on ServiceMode. */
+    redirectAfterLogin: () -> String = { "/app" },
 ) {
     get("/") {
         val bytes = readAsset("web/login.html")
@@ -42,7 +44,7 @@ fun Route.authRoutes(
                         extensions = mapOf("SameSite" to "Strict"),
                     )
                 )
-                call.respond(AuthResponse(ok = true))
+                call.respond(AuthResponse(ok = true, redirectTo = redirectAfterLogin()))
             }
             PinAuth.Result.Wrong -> call.respond(HttpStatusCode.Unauthorized, AuthResponse(false, "wrong_pin"))
             PinAuth.Result.Locked -> call.respond(HttpStatusCode.TooManyRequests, AuthResponse(false, "locked", 30))
