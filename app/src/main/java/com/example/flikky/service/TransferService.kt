@@ -69,6 +69,23 @@ class TransferService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action ?: return START_NOT_STICKY
+        // 兜底：Context.startForegroundService 调出后系统硬性要求 5 秒内调 startForeground，
+        // 否则抛 ForegroundServiceDidNotStartInTimeException。所有 onStartCommand 分支的
+        // early return 都必须先占住前台槽位。这里无脑先 startForeground 一个临时通知；
+        // 业务分支若决定继续运行，会用真正的通知 replace；若 stopSelf，临时通知随 stopForeground 一并清掉。
+        NotificationHelper.ensureChannel(this)
+        if (currentMode == null) {
+            val placeholder = NotificationHelper.build(
+                context = this,
+                title = "Flikky",
+                text = "正在启动…",
+            )
+            startForeground(
+                NotificationHelper.NOTIFICATION_ID,
+                placeholder,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+            )
+        }
         when (action) {
             ACTION_START -> handleStart()
             ACTION_STOP -> handleStop()
@@ -80,8 +97,7 @@ class TransferService : Service() {
     private fun handleStart() {
         if (currentMode == ServiceMode.Export) {
             Log.w(TAG, "ACTION_START refused: export in progress")
-            NotificationHelper.ensureChannel(this)
-            // No startForeground here — export path already holds the foreground slot.
+            // No-op: keep the running export foreground notification.
             return
         }
         if (ktor != null) return
@@ -89,9 +105,13 @@ class TransferService : Service() {
     }
 
     private fun startTransfer() {
-        NotificationHelper.ensureChannel(this)
         val ip = ServiceLocator.networkInfo.currentWifiIpv4()
-            ?: run { stopSelf(); return }
+            ?: run {
+                Log.e(TAG, "startTransfer aborted: no Wi-Fi IPv4")
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
+                return
+            }
 
         val now = System.currentTimeMillis()
         val name = defaultSessionName(now)
@@ -102,7 +122,12 @@ class TransferService : Service() {
                 id
             }.getOrNull()
         }
-        if (sid == null) { stopSelf(); return }
+        if (sid == null) {
+            Log.e(TAG, "startTransfer aborted: beginSession failed")
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        }
         currentSessionId = sid
         ServiceLocator.session.startNew(sid)
 
@@ -167,6 +192,7 @@ class TransferService : Service() {
     private fun handleExport() {
         if (currentMode == ServiceMode.Transfer) {
             Log.w(TAG, "ACTION_EXPORT refused: transfer in progress")
+            // Don't stopSelf — transfer is alive and owns the foreground.
             return
         }
         if (currentMode == ServiceMode.Export || ktor != null) {
@@ -178,15 +204,16 @@ class TransferService : Service() {
         val armed = ServiceLocator.session.exportMode.value as? ExportMode.Armed
         if (armed == null) {
             Log.e(TAG, "ACTION_EXPORT without Armed state (was ${ServiceLocator.session.exportMode.value})")
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return
         }
 
-        NotificationHelper.ensureChannel(this)
         val ip = ServiceLocator.networkInfo.currentWifiIpv4()
             ?: run {
                 Log.e(TAG, "ACTION_EXPORT aborted: no Wi-Fi IPv4")
                 ServiceLocator.session.clearExport()
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return
             }
@@ -403,6 +430,26 @@ class TransferService : Service() {
             if (prev != null) {
                 _running.value = prev.copy(ip = newIp, port = port)
             }
+        }
+        // 通知栏 URL 也要随 rebind 刷新；不刷的话用户看到的还是旧 IP。
+        val notif = when (mode) {
+            ServiceMode.Transfer -> NotificationHelper.build(
+                context = this,
+                title = "Flikky 服务运行中",
+                text = "URL  http://$newIp:$port\nPIN  打开 APP 查看",
+            )
+            ServiceMode.Export -> {
+                val armed = ServiceLocator.session.exportMode.value as? ExportMode.Armed
+                NotificationHelper.build(
+                    context = this,
+                    title = ExportNotificationText.TITLE,
+                    text = armed?.let { ExportNotificationText.body(it.snapshot) } ?: "正在提供导出",
+                )
+            }
+        }
+        val notifId = if (mode == ServiceMode.Export) EXPORT_NOTIFICATION_ID else NotificationHelper.NOTIFICATION_ID
+        runCatching {
+            (getSystemService(NOTIFICATION_SERVICE) as? android.app.NotificationManager)?.notify(notifId, notif)
         }
         ServiceLocator.session.updateNetworkStatus(
             NetworkStatus.Switched(newUrl = "http://$newIp:$port")
