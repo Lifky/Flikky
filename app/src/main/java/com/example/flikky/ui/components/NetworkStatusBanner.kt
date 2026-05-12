@@ -31,23 +31,26 @@ fun NetworkStatusBanner(
 ) {
     if (status is NetworkStatus.Ok) return
 
+    // Banner 用语义色（非主题派生）：用户在 v1.2 验收时反馈 tertiaryContainer
+    // 在 dynamic-color 主题下不够鲜明，难以一眼区分三种状态。这里固定语义色：
+    // 黄=切换中、蓝=已切换、红=失联——和系统通知的"信息/警告/错误"语义对齐。
     val (bg, fg, text, showAck) = when (status) {
         is NetworkStatus.Ok -> return // unreachable
         is NetworkStatus.Switching -> BannerStyle(
-            bg = MaterialTheme.colorScheme.tertiaryContainer,
-            fg = MaterialTheme.colorScheme.onTertiaryContainer,
+            bg = Color(0xFFFFF59D),   // amber 200
+            fg = Color(0xFF5D4037),   // brown 700
             text = "正在切换网络…",
             showAck = false,
         )
         is NetworkStatus.Lost -> BannerStyle(
-            bg = MaterialTheme.colorScheme.errorContainer,
-            fg = MaterialTheme.colorScheme.onErrorContainer,
+            bg = Color(0xFFFFCDD2),   // red 100
+            fg = Color(0xFFB71C1C),   // red 900
             text = "已失联，等待网络恢复",
             showAck = false,
         )
         is NetworkStatus.Switched -> BannerStyle(
-            bg = MaterialTheme.colorScheme.tertiaryContainer,
-            fg = MaterialTheme.colorScheme.onTertiaryContainer,
+            bg = Color(0xFFBBDEFB),   // blue 100
+            fg = Color(0xFF0D47A1),   // blue 900
             text = "网络已切换，URL 已更新为 ${status.newUrl}，请让浏览器重新打开",
             showAck = true,
         )

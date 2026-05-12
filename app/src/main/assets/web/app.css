@@ -102,10 +102,16 @@ html, body { height: 100%; margin: 0; padding: 0; }
     margin-top: 2px;
 }
 
-/* Failed state — keep the bubble but flag it and expose a retry link. */
-.file-bubble.failed {
+/* Failed state — paint the entire bubble in error-container so the
+ * error is obvious at a glance. 1px border on a primary-tinted bubble
+ * was nearly invisible, hence the full re-color. */
+.file-bubble.failed,
+.file-bubble.failed.me {
     flex-wrap: wrap;
-    border: 1px solid rgb(var(--mdui-color-error));
+    background: rgb(var(--mdui-color-error-container));
+    color: rgb(var(--mdui-color-on-error-container));
+    outline: 2px solid rgb(var(--mdui-color-error));
+    outline-offset: -2px;
 }
 .file-bubble.failed .retry-btn {
     flex-basis: 100%;
