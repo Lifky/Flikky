@@ -51,6 +51,9 @@ fun Route.fileRoutes(
     post("/api/files") {
         if (!authed(call)) { call.respond(HttpStatusCode.Unauthorized); return@post }
         val sid = currentSessionId()
+        // 浏览器自己生成的 client id 透传过来，broadcast 时附在 payload 里，
+        // 让上传者跳过自己的 file_added 广播避免双气泡。
+        val senderId = call.request.headers["X-Client-Id"]
         // Ktor 3.0 默认 50 MiB 上限；LAN 单用户场景下解除，按磁盘空间为天花板。
         val multipart = call.receiveMultipart(formFieldLimit = Long.MAX_VALUE)
         var savedName: String? = null
@@ -86,10 +89,12 @@ fun Route.fileRoutes(
         val dto = FileMessageDto(
             msg.id, msg.origin.name, msg.timestamp, msg.fileId, msg.name,
             msg.sizeBytes, msg.mime, msg.status.name,
+            senderId = senderId,
         )
         broadcastEvent("file_added",
             kotlinx.serialization.json.Json.encodeToString(FileMessageDto.serializer(), dto))
-        call.respond(dto)
+        // 响应给上传者本身的 DTO 不带 senderId — 他不需要识别自己。
+        call.respond(dto.copy(senderId = null))
     }
 
     get("/api/files/{id}") {

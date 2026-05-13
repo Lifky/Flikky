@@ -32,6 +32,8 @@ fun Route.messageRoutes(
 
     post("/api/messages") {
         if (!requireAuth(call)) { call.respond(HttpStatusCode.Unauthorized); return@post }
+        // 同 FileRoutes：senderId 透传到广播 payload 给前端 dedup 用。
+        val senderId = call.request.headers["X-Client-Id"]
         val req = call.receive<SendTextRequest>()
         val msg = Message.Text(
             id = IdGen.newMessageId(),
@@ -41,9 +43,9 @@ fun Route.messageRoutes(
         )
         session.addMessage(msg)
         runCatching { onPersist(msg) }
-        val dto = TextMessageDto(msg.id, msg.origin.name, msg.timestamp, msg.content)
+        val dto = TextMessageDto(msg.id, msg.origin.name, msg.timestamp, msg.content, senderId = senderId)
         broadcastEvent("text_added", kotlinx.serialization.json.Json.encodeToString(TextMessageDto.serializer(), dto))
-        call.respond(dto)
+        call.respond(dto.copy(senderId = null))
     }
 
     get("/api/messages") {

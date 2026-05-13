@@ -23,6 +23,12 @@ data class TextMessageDto(
     val origin: String,
     val timestamp: Long,
     val content: String,
+    /**
+     * Echo of the X-Client-Id header from the upload request, so the same
+     * browser session can skip its own broadcast in onWsEvent (avoids double
+     * bubble). Null for historical messages and phone-originated events.
+     */
+    val senderId: String? = null,
 )
 
 @Serializable
@@ -35,6 +41,8 @@ data class FileMessageDto(
     val sizeBytes: Long,
     val mime: String,
     val status: String,
+    /** See [TextMessageDto.senderId]. */
+    val senderId: String? = null,
 )
 
 @Serializable
