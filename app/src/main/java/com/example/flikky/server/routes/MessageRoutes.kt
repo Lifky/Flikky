@@ -57,6 +57,32 @@ fun Route.messageRoutes(
         val files = snap.messages.filterIsInstance<Message.File>().map {
             FileMessageDto(it.id, it.origin.name, it.timestamp, it.fileId, it.name, it.sizeBytes, it.mime, it.status.name)
         }
-        call.respond(MessagesResponse(texts, files))
+        // Unified, ts-sorted view so the frontend renders chronologically on
+        // reload — the old (texts, files) shape forced clients to interleave
+        // by kind, which surfaces files after texts regardless of when they
+        // were actually sent.
+        val ordered = snap.messages.sortedBy { it.timestamp }.map { m ->
+            when (m) {
+                is Message.Text -> com.example.flikky.server.dto.MessageDto(
+                    kind = "text",
+                    id = m.id,
+                    origin = m.origin.name,
+                    timestamp = m.timestamp,
+                    content = m.content,
+                )
+                is Message.File -> com.example.flikky.server.dto.MessageDto(
+                    kind = "file",
+                    id = m.id,
+                    origin = m.origin.name,
+                    timestamp = m.timestamp,
+                    fileId = m.fileId,
+                    name = m.name,
+                    sizeBytes = m.sizeBytes,
+                    mime = m.mime,
+                    status = m.status.name,
+                )
+            }
+        }
+        call.respond(MessagesResponse(texts, files, ordered))
     }
 }

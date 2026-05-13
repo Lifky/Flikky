@@ -49,6 +49,27 @@ data class FileMessageDto(
 data class MessagesResponse(
     val texts: List<TextMessageDto>,
     val files: List<FileMessageDto>,
+    /**
+     * Unified, timestamp-sorted view of all messages so the client can render
+     * them in the right order without inferring kind interleaving from two
+     * separate lists. Each entry has either `content` (text) or `fileId`+`name`
+     * (file); discriminated by which fields are present.
+     */
+    val ordered: List<MessageDto> = emptyList(),
+)
+
+@Serializable
+data class MessageDto(
+    val kind: String,   // "text" or "file"
+    val id: Long,
+    val origin: String,
+    val timestamp: Long,
+    val content: String? = null,
+    val fileId: String? = null,
+    val name: String? = null,
+    val sizeBytes: Long? = null,
+    val mime: String? = null,
+    val status: String? = null,
 )
 
 @Serializable
