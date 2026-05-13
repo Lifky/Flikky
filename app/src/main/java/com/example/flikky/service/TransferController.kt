@@ -23,7 +23,14 @@ class TransferController(
     private val stats: TransferStats,
     private val fileStore: SessionFileStore,
     private val repository: SessionRepository,
-    private val wsHub: WsHub,
+    /**
+     * Lambda 而不是直接持有 [WsHub]：rebind 时 TransferService 会换新 KtorServer +
+     * 新 wsHub，但 controller 是 startTransfer 阶段一次性创建的；若闭包死引用旧 hub，
+     * APP→browser 方向的广播会发到已废弃的 hub，浏览器永远收不到 APP 发的消息（直到
+     * 浏览器手动刷新走 /api/messages 历史接口才看到）。每次 broadcast 时由 lambda
+     * 取当前 hub，rebind 自动跟随。
+     */
+    private val wsHub: () -> WsHub?,
     private val nowMs: () -> Long,
 ) {
     suspend fun sendText(text: String) {
@@ -38,7 +45,7 @@ class TransferController(
         session.addMessage(msg)
         runCatching { repository.appendMessage(sid, msg) }
         val dto = TextMessageDto(msg.id, msg.origin.name, msg.timestamp, msg.content)
-        wsHub.broadcast("text_added", Json.encodeToString(TextMessageDto.serializer(), dto))
+        wsHub()?.broadcast("text_added", Json.encodeToString(TextMessageDto.serializer(), dto))
     }
 
     suspend fun offerFile(uri: Uri, resolver: ContentResolver) {
@@ -82,6 +89,6 @@ class TransferController(
             msg.id, msg.origin.name, msg.timestamp, msg.fileId,
             msg.name, msg.sizeBytes, msg.mime, msg.status.name,
         )
-        wsHub.broadcast("file_added", Json.encodeToString(FileMessageDto.serializer(), dto))
+        wsHub()?.broadcast("file_added", Json.encodeToString(FileMessageDto.serializer(), dto))
     }
 }

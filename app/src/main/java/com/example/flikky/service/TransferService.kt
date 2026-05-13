@@ -152,7 +152,9 @@ class TransferService : Service() {
             stats = ServiceLocator.stats,
             fileStore = ServiceLocator.fileStore,
             repository = ServiceLocator.repository,
-            wsHub = server.wsHub,
+            // 用 lambda 取 field-level ktor.wsHub —— 同 statusBroadcastJob 的修复，
+            // 让 rebind 后 controller 自动跟随新 wsHub，不再朝旧 hub 广播。
+            wsHub = { ktor?.wsHub },
             nowMs = System::currentTimeMillis,
         )
 
