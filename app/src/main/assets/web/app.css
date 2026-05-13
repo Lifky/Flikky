@@ -121,10 +121,10 @@ html, body { height: 100%; margin: 0; padding: 0; }
     color: rgb(var(--mdui-color-on-tertiary-container));
 }
 .conn-banner[data-kind="terminated"] {
-    /* 服务端主动停止 — 用户已经知道发生了什么，淡灰色卡片提示即可。 */
+    /* 服务端主动停止 — 用户已经知道发生了什么，纯 surface 卡片。MD3 推荐
+     * informational message 使用 surface-container 层级而非 error 色调。 */
     background: rgb(var(--mdui-color-surface-container-high));
-    color: rgb(var(--mdui-color-on-surface));
-    border-left: 4px solid rgb(var(--mdui-color-error));
+    color: rgb(var(--mdui-color-on-surface-variant));
 }
 
 /* Failed state — paint the entire bubble in error-container so the

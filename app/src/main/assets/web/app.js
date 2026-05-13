@@ -254,6 +254,28 @@
     // 旧 URL 反正连不上。区分这两种语义是 user 在 test3 之后的核心反馈。
     let serverStopped = false;
 
+    // 应用层心跳：Wi-Fi 突然断开时 OS 不会立即关 socket，浏览器 readyState 还是
+    // OPEN，onclose 要等 Ktor 的 30 秒 ping-pong 超时才触发。服务端每秒推一次
+    // status event，所以浏览器侧只要记最后收到 frame 的时刻，超过 4 秒就主动
+    // close 让重连流程接手。
+    const FRAME_TIMEOUT_MS = 4000;
+    const FRAME_CHECK_INTERVAL_MS = 1000;
+    let lastFrameAt = 0;
+    let heartbeatTimer = null;
+    function startHeartbeat() {
+        stopHeartbeat();
+        heartbeatTimer = setInterval(() => {
+            if (currentWs && currentWs.readyState === 1) {
+                if (Date.now() - lastFrameAt > FRAME_TIMEOUT_MS) {
+                    try { currentWs.close(); } catch (_) { /* onclose 接手 */ }
+                }
+            }
+        }, FRAME_CHECK_INTERVAL_MS);
+    }
+    function stopHeartbeat() {
+        if (heartbeatTimer != null) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    }
+
     function openWs() {
         if (currentWs && (currentWs.readyState === 0 || currentWs.readyState === 1)) return;
         if (reconnectTimer != null) { clearTimeout(reconnectTimer); reconnectTimer = null; }
@@ -264,6 +286,8 @@
             wsConnected = true;
             setConn('已连接');
             setSendEnabled(true);
+            lastFrameAt = Date.now();
+            startHeartbeat();
             // 重连后追平断开期间手机端发的消息（seen 集合 dedup 防重复渲染）。
             loadHistory().catch(() => {});
             if (hadConnected) {
@@ -281,6 +305,7 @@
             wsConnected = false;
             setConn('已断开');
             setSendEnabled(false);
+            stopHeartbeat();
             if (serverStopped) {
                 // 服务端主动停止 — banner 在 server_stopped event handler 里
                 // 已经更新成"服务已停止"。不重连：用户下次启动服务时是全新
@@ -296,6 +321,7 @@
             // 不在 onerror 里做重试 — 让 onclose 兜底，避免双重 timer。
         };
         ws.onmessage = (e) => {
+            lastFrameAt = Date.now();
             try { onWsEvent(JSON.parse(e.data)); } catch (_) {}
         };
     }
