@@ -286,7 +286,13 @@ class TransferService : Service() {
             currentSessionId = -1L
         }
         if (mode == ServiceMode.Export) {
-            runCatching { ServiceLocator.session.clearExport() }
+            // 只在用户取消（Armed/Sending）时清；如果 zip 已发完（Done）保留
+            // exportMode 让 ExportingScreen 渲染"保留/删除"完成屏。用户在屏上
+            // 选择后会通过 ExportingViewModel.acknowledge() 自己清。
+            val em = ServiceLocator.session.exportMode.value
+            if (em is ExportMode.Armed || em is ExportMode.Sending) {
+                runCatching { ServiceLocator.session.clearExport() }
+            }
         }
         currentMode = null
         pinAuth = null

@@ -51,9 +51,14 @@ object ServiceLocator {
      * 同样原因导致停服后 HomeViewModel.isTransferOrExportRunning 仍误报
      * "正在运行"（旧实例的 currentSessionId 残留）。
      */
+    /**
+     * 注意：不在这里调 session.clearExport()。当服务因 zip 发完而 stopSelf 时，
+     * exportMode 必须保持 Done(session) 让 ExportingScreen 渲染 "保留 / 删除"
+     * 二择屏；只有用户 acknowledge（acknowledge() 或新一轮 startExport 兜底）
+     * 才清。`isTransferOrExportRunning()` 把 Done 视为已结束，下次启动不被阻塞。
+     */
     fun reset() {
         session.reset()
-        session.clearExport()
         stats.reset()
     }
 }

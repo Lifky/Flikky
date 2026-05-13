@@ -47,6 +47,14 @@ class HomeViewModel @JvmOverloads constructor(
         ctx.startForegroundService(intent)
     }
 
+    /** 主页直接停止当前进行中传输（点击会话项右侧的停止按钮触发）。 */
+    fun stopService() {
+        val ctx = getApplication<Application>()
+        ctx.startService(Intent(ctx, TransferService::class.java).apply {
+            action = TransferService.ACTION_STOP
+        })
+    }
+
     fun rename(sessionId: Long, newName: String): Job =
         viewModelScope.launch { repository.rename(sessionId, newName) }
 
@@ -114,6 +122,9 @@ class HomeViewModel @JvmOverloads constructor(
             pin = pinGenerator(),
             createdAt = now(),
         )
+        // 上一轮导出若停在 Done（用户回主页前没 acknowledge）会让 armExport 抛
+        // IllegalStateException——兜底先清干净，再 arm。
+        sessionState.clearExport()
         sessionState.armExport(exportSession, snapshot)
 
         val ctx = getApplication<Application>()
@@ -128,15 +139,15 @@ class HomeViewModel @JvmOverloads constructor(
     }
 
     private fun isTransferOrExportRunning(): Boolean {
-        // `serviceStartedAt` is seeded to nowMs() at SessionState construction/reset so the
-        // raw timestamp isn't a clean "transfer running" signal. The signal that a transfer
-        // session is in flight is `currentSessionId != null` — TransferService.startTransfer
-        // calls SessionState.startNew(sid) and onDestroy calls ServiceLocator.reset() which
-        // replaces the SessionState with a fresh one whose currentSessionId is null.
         val snap = sessionState.snapshot.value
         if (snap.currentSessionId != null) return true
-        // Likewise block when an export is already armed/sending/done (not yet cleared).
-        return sessionState.exportMode.value !is ExportMode.Idle
+        // Block when an active export is Armed or Sending. Done is "finished, waiting
+        // for the user to dismiss" — not a running export, so the next startExport
+        // should proceed (and clearExport() is called in startExport as a safety net).
+        return when (sessionState.exportMode.value) {
+            is ExportMode.Armed, is ExportMode.Sending -> true
+            else -> false
+        }
     }
 
     /** Batch delete for the post-export "delete local copies" flow. */
