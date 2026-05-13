@@ -77,8 +77,16 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    // 是否有进行中会话——影响 FAB 文案、点击行为、会话项的 trailing 按钮。
+    val hasInProgress = sessions.any { it.endedAt == null }
+
     fun startAndNavigate() {
         viewModel.startService()
+        onStartService()
+    }
+
+    fun resumeNavigate() {
+        // 已有进行中服务，只跳到 ServingScreen 不重新启服。
         onStartService()
     }
 
@@ -115,7 +123,10 @@ fun HomeScreen(
             if (!selecting) {
                 ExtendedFloatingActionButton(
                     onClick = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        if (hasInProgress) {
+                            // 已有正在进行的会话——FAB 是"继续服务"，直接进 ServingScreen。
+                            resumeNavigate()
+                        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                             val granted = ContextCompat.checkSelfPermission(
                                 context, Manifest.permission.POST_NOTIFICATIONS
                             ) == PackageManager.PERMISSION_GRANTED
@@ -125,8 +136,8 @@ fun HomeScreen(
                             startAndNavigate()
                         }
                     },
-                    text = { Text("启动服务") },
-                    icon = { Text("＋") },
+                    text = { Text(if (hasInProgress) "继续服务" else "启动服务") },
+                    icon = { Text(if (hasInProgress) "▶" else "＋") },
                 )
             }
         },
@@ -170,11 +181,15 @@ fun HomeScreen(
                         s = s,
                         selecting = selecting,
                         checked = s.id in selectedIds,
-                        onNormalClick = { onOpenSession(s.id) },
+                        onNormalClick = {
+                            // 进行中会话点击 → 进 ServingScreen 继续；其他点开 history.
+                            if (s.endedAt == null) resumeNavigate() else onOpenSession(s.id)
+                        },
                         onToggleSelection = { viewModel.toggleSelection(s.id) },
                         onRename = { name -> viewModel.rename(s.id, name) },
                         onTogglePin = { viewModel.setPinned(s.id, !s.pinned) },
                         onDelete = { viewModel.deleteSession(s.id) },
+                        onStopInProgress = { viewModel.stopService() },
                     )
                 }
             }
@@ -277,6 +292,7 @@ private fun SessionRow(
     onRename: (String) -> Unit,
     onTogglePin: () -> Unit,
     onDelete: () -> Unit,
+    onStopInProgress: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
@@ -323,7 +339,7 @@ private fun SessionRow(
                     modifier = Modifier.padding(end = 8.dp),
                 )
             }
-            Column(Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f)) {
                 Text(
                     text = (if (s.pinned) "📌 " else "") + s.name,
                     style = MaterialTheme.typography.titleMedium,
@@ -340,9 +356,16 @@ private fun SessionRow(
                 Text(
                     text = if (inProgress) "进行中" else formatRelative(s.startedAt),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (inProgress) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
                 )
+            }
+            // 进行中会话项右侧加"停止"按钮，符合用户直觉的就地操作。
+            if (inProgress && !selecting) {
+                TextButton(onClick = onStopInProgress) {
+                    Text("停止", color = MaterialTheme.colorScheme.error)
+                }
             }
         }
         DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
