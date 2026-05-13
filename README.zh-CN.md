@@ -10,8 +10,9 @@
 
 - **v1.0** — 最小连通闭环：启动服务、URL + PIN 配对、双向文本与文件、MD3 聊天气泡、前台服务常驻通知、完整安全基线。
 - **v1.1** — *已发布（2026-04-21）* — Room 会话归档、主页会话列表（置顶 / 重命名 / 删除）、历史详情只读查看、APP 启动时 crash-recovery、FIFO 保留最近 20 条非置顶会话（置顶不占配额）。
+- **v1.2** — *已发布（2026-05-13）* — 多会话批量导出到 PC（流式 zip）、浏览器上传实时进度气泡、mdui snackbar、WiFi 自动重绑 + 状态 banner、进行中会话主页交互（继续 / 行内停止）、WS 应用层心跳 + server_stopped 区分主动停止与网络断开。
 
-设计文档见 `docs/others/superpowers/specs/`，复盘与决策记录见 `docs/others/notes/`。
+设计文档与复盘/验收清单保存在本地的 `docs/others/`（已 gitignored），公开仓库仅含源码。
 
 ## 进度
 
@@ -30,10 +31,16 @@
 - [x] FIFO 保留最近 20 条非置顶会话；置顶不占配额 *(v1.1)*
 - [x] APP 启动时 crash-recovery：`finalizeOrphans()` 补齐未关闭会话、回滚空会话、清理孤立文件目录 *(v1.1)*
 - [x] 文字消息可复制（长按触发系统复制 / 全选菜单） *(v1.1)*
-- [ ] 多会话批量导出到电脑 *(v1.2 规划)*
-- [ ] 浏览器上传大文件的实时进度气泡 *(v1.2，backlog B1)*
-- [ ] 消息搜索 *(v1.2 / v1.3)*
+- [x] 多会话批量导出到 PC，流式 zip（`messages.txt` + `messages.json` + `files/`） *(v1.2)*
+- [x] `/api/export/info` 概览 endpoint + 浏览器 `/export` 页（mdui 风格） *(v1.2)*
+- [x] 导出完成「保留本地 / 删除本地」二择，删除带 AlertDialog 二次确认 *(v1.2)*
+- [x] 浏览器上传实时进度气泡（XHR `upload.onprogress` + X-Client-Id senderId dedup） *(v1.2)*
+- [x] WiFi 自动重绑：`ConnectivityManager.NetworkCallback` → 停 / 重建 Ktor，banner 报 Lost / Switching / Switched *(v1.2)*
+- [x] 进行中会话主页交互：点击进 ServingScreen 继续 / 行内「停止」按钮 / FAB 切换"继续服务" *(v1.2)*
+- [x] WS 应用层心跳（4 秒 frame 超时）+ `server_stopped` event 区分用户主动停止与网络断开 *(v1.2)*
+- [ ] 消息搜索 *(v1.3)*
 - [ ] 消息撤回 *(v1.3)*
+- [ ] 从 zip 导入回 APP *(v1.3，backlog B8)*
 - [ ] HTTPS 自签证书 *(v2)*
 - [ ] 本地归档 at-rest encryption *(v2)*
 
@@ -44,9 +51,12 @@
 - [x] 文件按 `sessionId` 分目录（`filesDir/sessions/{id}/files/{fileId}`），FIFO 淘汰即 `rm -rf` *(v1.1)*
 - [x] `SessionEntity` 冗余聚合字段（`messageCount` / `fileCount` / `totalBytes` / `previewText`），主页列表不必反向扫 messages 表 *(v1.1)*
 - [x] Ktor multipart 解除默认 50 MiB 上限（LAN 单用户场景，磁盘空间才是真天花板） *(v1.1)*
-- [ ] 手机推送文件的 tee 改异步（消除选中到可下载的拷贝延迟） *(v1.2，backlog)*
-- [ ] 浏览器端 native `alert` 替换为 mdui snackbar *(v1.2，backlog B2)*
-- [ ] WiFi 切换后服务器自动重绑 *(post-v1.1)*
+- [x] 浏览器端 native `alert` 替换为 mdui snackbar（`window.flikky.showError/showInfo`） *(v1.2)*
+- [x] 通知栏文案在 WiFi rebind 后刷新到新 IP *(v1.2)*
+- [x] `/api/messages` 返回时间戳合并排序的 `ordered` 视图，刷新后文本/文件按时间顺序混排 *(v1.2)*
+- [x] `MAX_RECONNECT_ATTEMPTS` 上限 + 应用层心跳检测死 WS *(v1.2)*
+- [ ] 手机推送文件的 tee 改异步（消除选中到可下载的拷贝延迟） *(v1.3，backlog B7)*
+- [ ] 浏览器应用层 ping-pong 替代 timeout 心跳 *(v1.3，backlog B5)*
 
 ### fix
 
@@ -57,6 +67,13 @@
 - [x] v1.1 T12：v1.1 改了文件路径但 `file_paths.xml` 还是 v1.0 的 `transfer/` → `FileProvider.getUriForFile` 抛异常；同时给 `openFile` 加 try/catch 兜底
 - [x] v1.1 T13：`FileRoutes` POST 只更新内存 session、漏调 DB 持久化 → `endSession` 把"浏览器只发文件"的会话当空会话回滚，文件一起删 → 给 `fileRoutes` 加 `onPersist`，从 `KtorServer` 串进来
 - [x] v1.1 T14：Ktor 3.0 默认 `receiveMultipart()` 静默上限 50 MiB → 改 `formFieldLimit = Long.MAX_VALUE`；浏览器 `fetch` 失败时 alert 暴露非 2xx 响应
+- [x] v1.2 ServiceLocator.reset 替换 instance → HomeViewModel 缓存死引用 → 二次导出崩溃 + 停服后 UI 仍认为传输在跑。reset 现在复用 instance + clearExport 由具体调用方控制
+- [x] v1.2 `ForegroundServiceDidNotStartInTime`：early-return 路径漏调 startForeground。`onStartCommand` 顶端无条件 startForeground 占槽位，业务路径决定保留或 stopForeground + stopSelf
+- [x] v1.2 浏览器 PIN 登录后在 Export mode 也跳 `/app`：`AuthResponse.redirectTo` 按 ServiceMode 返回
+- [x] v1.2 浏览器上传成功后双消息泡（uploader 收到自己的 WS 广播）：POST 透传 `X-Client-Id` header，broadcast payload 携带 senderId；浏览器 WS 收到 senderId == myClientId 跳过
+- [x] v1.2 闭包死引用一族 bug：`statusBroadcastJob` / `TransferController.wsHub` 在 startTransfer 时 capture 局部 `server.wsHub`，rebind 后还朝旧 hub 广播。两处改为 lambda 从 field-level 取 `ktor?.wsHub`
+- [x] v1.2 浏览器拿着死的 half-open WS（OS 没立即撕 TCP，`readyState` 仍 OPEN）：应用层 4 秒 frame 超时主动 close 触发重连
+- [x] v1.2 用户主动停止后浏览器死循环重连：服务端 close WS 前发 `server_stopped` event，浏览器 set flag 跳过 reconnect timer；兜底 `MAX_RECONNECT_ATTEMPTS = 6`
 
 ## 亮点
 
@@ -70,8 +87,8 @@
 ## 已知限制（设计内取舍，非缺陷）
 
 - HTTP 明文传输（HTTPS 自签证书在 v2 里加）。
-- 浏览器 → 手机上传的瞬时速率只在传输结束时记录一次（Ktor 3 multipart 当前 API 未暴露流式 `tee`），传输过程中速率栏会显示 0。
-- WiFi 切换后服务器不会自动重绑，需手动重启服务。
+- 手机 → 浏览器上传的瞬时速率只在传输结束时记录一次（Ktor 3 multipart 当前 API 未暴露流式 `tee`）；浏览器 → 手机方向 v1.2 起已有实时进度气泡。
+- WiFi 切换（IP 变了）会断开在飞的 WS，浏览器需打开 banner 提示的新 URL；同 IP 恢复几秒内自动重连。 *(v1.2)*
 - 非置顶会话保留上限硬编码 20 条，暂不支持用户配置（设置页推迟到后续版本；要改数量需改常量并重新打包）。
 
 ## 技术栈
@@ -104,17 +121,17 @@
 
 ```
 app/src/main/java/com/example/flikky/
-├── ui/          Compose Screen 与 ViewModel（home、serving、history、components）
-├── service/     前台服务、controller、通知
-├── server/      Ktor server、routes、DTO、PIN 认证
-├── session/     内存状态与 Message 模型
+├── ui/          Compose Screen 与 ViewModel（home、serving、history、exporting、components）
+├── service/     前台服务、controller、通知、export notification text
+├── server/      Ktor server、routes（含 ExportRoutes）、DTO、PIN 认证、ServiceMode
+├── session/     内存状态、Message 模型、NetworkStatus
 ├── data/        Room DB、Entity、DAO、SessionRepository、SessionFileStore
-├── network/     WiFi IPv4 获取
+├── export/      ExportSession / ExportMode / ExportSnapshot / ZipExporter / formatters
+├── network/     WiFi IPv4 获取、NetworkRebinder（rebind intent 状态机）
 ├── util/        纯 Kotlin 工具（不依赖 Android 框架）
 └── di/          ServiceLocator
-app/src/main/assets/web/   浏览器前端（含离线打包的 mdui）
-docs/others/superpowers/          设计文档、实施计划、验收清单
-docs/others/notes/                复盘、踩坑记录、决策记录、backlog
+app/src/main/assets/web/   浏览器前端（含离线打包的 mdui、export.html、snackbar.js）
+docs/others/               本地设计/复盘/验收清单目录（gitignored）
 ```
 
 ## 致谢
