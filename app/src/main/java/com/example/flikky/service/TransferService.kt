@@ -172,7 +172,10 @@ class TransferService : Service() {
                     clientConnected = snap.clientConnected,
                 )
                 val payload = Json.encodeToString(StatusDto.serializer(), status)
-                server.wsHub.broadcast("status", payload)
+                // 必须用 field-level [ktor] 取当前 wsHub —— 闭包捕获 startTransfer
+                // 局部 server.wsHub 会让 rebind 后 status 持续推到旧 hub，新 hub
+                // 永远收不到帧，浏览器心跳 4 秒超时 → close → reconnect 死循环。
+                ktor?.wsHub?.broadcast("status", payload)
                 delay(1000)
             }
         }

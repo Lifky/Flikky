@@ -253,6 +253,10 @@
     // 这种情况下浏览器不该尝试重连 —— 下次启动的服务是新会话，新 PIN，
     // 旧 URL 反正连不上。区分这两种语义是 user 在 test3 之后的核心反馈。
     let serverStopped = false;
+    // 重连尝试上限。万一 server_stopped event 由于 race 没及时到达浏览器，
+    // 这一层兜底确保不会进入无限重连。9 秒内连不上 → 判定服务已不可达。
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 6;
 
     // 应用层心跳：Wi-Fi 突然断开时 OS 不会立即关 socket，浏览器 readyState 还是
     // OPEN，onclose 要等 Ktor 的 30 秒 ping-pong 超时才触发。服务端每秒推一次
@@ -287,6 +291,7 @@
             setConn('已连接');
             setSendEnabled(true);
             lastFrameAt = Date.now();
+            reconnectAttempts = 0;   // 成功一次就清零计数
             startHeartbeat();
             // 重连后追平断开期间手机端发的消息（seen 集合 dedup 防重复渲染）。
             loadHistory().catch(() => {});
@@ -312,8 +317,15 @@
                 // 会话，旧 URL 反正连不上，循环重连只会刷屏 + 浪费 socket。
                 return;
             }
+            if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                // 兜底：如果 server_stopped event 因为 race 丢了，6 次重连失败
+                // 后判定服务已不可达，不再循环。用户回 APP 查看是否还在跑。
+                showBanner('terminated', '连接已断开，服务可能已关闭');
+                return;
+            }
+            reconnectAttempts++;
             if (hadConnected) {
-                showBanner('disconnected', '连接已断开，正在尝试重连…');
+                showBanner('disconnected', `连接已断开，正在尝试重连…（${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}）`);
             }
             reconnectTimer = setTimeout(() => { reconnectTimer = null; openWs(); }, 1500);
         };
