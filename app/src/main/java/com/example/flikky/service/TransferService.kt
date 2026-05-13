@@ -270,6 +270,17 @@ class TransferService : Service() {
 
     private fun stopActiveServer() {
         val mode = currentMode
+        // Before tearing down Ktor, tell live WS clients this is a deliberate
+        // stop so they DON'T enter the reconnect loop — user's next service
+        // launch is a fresh session with a new PIN/URL.
+        // The rebind path goes around stopActiveServer entirely (it calls
+        // ktor.stop() inline), so transient restarts still look like a
+        // network blip to the browser and trigger normal reconnect.
+        ktor?.wsHub?.let { hub ->
+            runCatching {
+                runBlocking { hub.broadcastStopAndClose() }
+            }
+        }
         ktor?.stop(); ktor = null
         controller = null
         statusBroadcastJob?.cancel(); statusBroadcastJob = null

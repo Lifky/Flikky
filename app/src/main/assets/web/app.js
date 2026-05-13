@@ -156,6 +156,13 @@
     }
 
     function onWsEvent(ev) {
+        // 服务端主动停止 — 抢在 ws.onclose 之前标记，让重连流程跳过这个 WS。
+        if (ev.type === 'server_stopped') {
+            serverStopped = true;
+            showBanner('terminated', '服务已停止，连接已断开');
+            setSendEnabled(false);
+            return;
+        }
         const payloadId = ev.payload && ev.payload.id;
         const key = `${ev.type}:${payloadId}`;
         if (payloadId != null && seen.has(key)) return;
@@ -242,6 +249,10 @@
     let currentWs = null;
     let reconnectTimer = null;
     let hadConnected = false;
+    // 服务端发了 server_stopped event 表示是用户主动停止（而非网络断开）。
+    // 这种情况下浏览器不该尝试重连 —— 下次启动的服务是新会话，新 PIN，
+    // 旧 URL 反正连不上。区分这两种语义是 user 在 test3 之后的核心反馈。
+    let serverStopped = false;
 
     function openWs() {
         if (currentWs && (currentWs.readyState === 0 || currentWs.readyState === 1)) return;
@@ -270,6 +281,12 @@
             wsConnected = false;
             setConn('已断开');
             setSendEnabled(false);
+            if (serverStopped) {
+                // 服务端主动停止 — banner 在 server_stopped event handler 里
+                // 已经更新成"服务已停止"。不重连：用户下次启动服务时是全新
+                // 会话，旧 URL 反正连不上，循环重连只会刷屏 + 浪费 socket。
+                return;
+            }
             if (hadConnected) {
                 showBanner('disconnected', '连接已断开，正在尝试重连…');
             }

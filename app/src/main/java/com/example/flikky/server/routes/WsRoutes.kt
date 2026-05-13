@@ -24,6 +24,33 @@ class WsHub {
         val snapshot = mutex.withLock { sessions.toList() }
         snapshot.forEach { s -> runCatching { s.send(Frame.Text(frame)) } }
     }
+
+    /**
+     * Tell every connected browser the server is stopping intentionally, then
+     * close the WebSocket cleanly. The `server_stopped` event lets the client
+     * tell the two disconnect causes apart:
+     *
+     *  - deliberate teardown (user tapped 停止服务 / export zip finished) →
+     *    next service launch is a brand-new session with a fresh PIN/URL,
+     *    auto-reconnect is wrong;
+     *  - network blip (Wi-Fi drop, rebind on IP change) → reconnect is exactly
+     *    what we want.
+     *
+     * Called by [com.example.flikky.service.TransferService.stopActiveServer]
+     * — NOT from the rebind path so transient Ktor restarts look like a
+     * network blip and trigger the normal reconnect flow.
+     */
+    suspend fun broadcastStopAndClose() {
+        val goodbye = """{"type":"server_stopped","payload":{}}"""
+        val snapshot = mutex.withLock { sessions.toList() }
+        snapshot.forEach { s -> runCatching { s.send(Frame.Text(goodbye)) } }
+        snapshot.forEach { s ->
+            runCatching {
+                s.close(CloseReason(CloseReason.Codes.NORMAL, "server stopped"))
+            }
+        }
+        mutex.withLock { sessions.clear() }
+    }
 }
 
 fun Route.wsRoutes(
