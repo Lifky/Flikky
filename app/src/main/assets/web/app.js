@@ -11,6 +11,20 @@
 
     const seen = new Set();
 
+    // 浏览器自己的 client id 一直随生命周期。所有出站请求带上 X-Client-Id，
+    // 服务端 broadcast 的 file_added / text_added payload 会回传 senderId，
+    // 自己发的事件 dedup 跳过避免双气泡。
+    const myClientId = (window.crypto && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'cid-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
+
+    // WS 在线状态：影响发送按钮和上传按钮是否可点。
+    let wsConnected = false;
+    function setSendEnabled(enabled) {
+        sendBtn.disabled = !enabled;
+        fileBtn.disabled = !enabled;
+    }
+
     function formatSize(b) {
         if (b >= 1024 * 1024) return (b / 1048576).toFixed(1) + ' MB';
         if (b >= 1024) return (b / 1024).toFixed(1) + ' KB';
@@ -55,7 +69,7 @@
 
         const a = document.createElement('a');
         a.textContent = opts.name;
-        // No href yet — upload still in flight, no downloadable URL.
+        a.setAttribute('aria-disabled', 'true');
 
         const size = document.createElement('span');
         size.className = 'size';
@@ -91,21 +105,19 @@
     }
 
     function markBubbleCompleted(bubble, dto) {
-        // Stamp fileId so later WS file_added events are deduped.
         bubble.dataset.fileId = dto.fileId;
         bubble.classList.remove('uploading');
 
-        // Drop progress bits.
         const bar = bubble.querySelector('.progress-bar');
         if (bar) bar.remove();
         const pct = bubble.querySelector('.progress-pct');
         if (pct) pct.remove();
 
-        // Promote the name anchor to a real download link.
         const a = bubble.querySelector('a');
         if (a) {
             a.href = `/api/files/${dto.fileId}`;
             a.download = dto.name;
+            a.removeAttribute('aria-disabled');
             a.textContent = dto.name;
         }
         const size = bubble.querySelector('.size');
@@ -121,16 +133,18 @@
         const pct = bubble.querySelector('.progress-pct');
         if (pct) pct.remove();
 
-        const retry = document.createElement('a');
-        retry.className = 'retry-btn';
-        retry.href = '#';
-        retry.textContent = '上传失败，点击重试';
-        retry.addEventListener('click', (e) => {
-            e.preventDefault();
+        // 失败提示去掉下划线超链接形式，改为整个气泡可点击重试。
+        const hint = document.createElement('span');
+        hint.className = 'retry-hint';
+        hint.textContent = '上传失败，点击重试';
+        bubble.appendChild(hint);
+        bubble.style.cursor = 'pointer';
+        bubble.title = '点击重试';
+        bubble.addEventListener('click', function retryHandler() {
+            bubble.removeEventListener('click', retryHandler);
             bubble.remove();
             sendFile(file);
         });
-        bubble.appendChild(retry);
 
         if (window.flikky && window.flikky.showError) {
             const suffix = status ? ` (${status})` : '';
@@ -142,14 +156,17 @@
         const payloadId = ev.payload && ev.payload.id;
         const key = `${ev.type}:${payloadId}`;
         if (payloadId != null && seen.has(key)) return;
+        // 自己发的广播跳过——已经在 XHR/fetch onload 时本地渲染过。
+        if (ev.payload && ev.payload.senderId && ev.payload.senderId === myClientId) {
+            seen.add(key);
+            return;
+        }
         if (ev.type === 'text_added') {
             seen.add(key);
             renderText(ev.payload, ev.payload.origin === 'BROWSER');
         } else if (ev.type === 'file_added') {
             const fileId = ev.payload && ev.payload.fileId;
             if (fileId && list.querySelector(`[data-file-id="${fileId}"]`)) {
-                // This client already mounted the bubble (local XHR completed).
-                // Marking as seen guards against any late duplicate dispatch.
                 seen.add(key);
                 return;
             }
@@ -166,9 +183,16 @@
         const r = await fetch('/api/messages');
         if (!r.ok) return;
         const data = await r.json();
-        for (const t of data.texts) { seen.add(`text_added:${t.id}`); renderText(t, t.origin === 'BROWSER'); }
+        for (const t of data.texts) {
+            const key = `text_added:${t.id}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            renderText(t, t.origin === 'BROWSER');
+        }
         for (const f of data.files) {
-            seen.add(`file_added:${f.id}`);
+            const key = `file_added:${f.id}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
             const bubble = renderFile(f, f.origin === 'BROWSER');
             if (bubble) bubble.dataset.fileId = f.fileId;
         }
@@ -179,8 +203,19 @@
     function openWs() {
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${proto}//${location.host}/ws`);
-        ws.onopen = () => setConn('已连接');
-        ws.onclose = () => { setConn('已断开'); setTimeout(openWs, 1500); };
+        ws.onopen = () => {
+            wsConnected = true;
+            setConn('已连接');
+            setSendEnabled(true);
+            // 重连后追平断开期间手机端发的消息 — 通过 seen 集合 dedup 防止重复渲染。
+            loadHistory().catch(() => {});
+        };
+        ws.onclose = () => {
+            wsConnected = false;
+            setConn('已断开');
+            setSendEnabled(false);
+            setTimeout(openWs, 1500);
+        };
         ws.onmessage = (e) => {
             try { onWsEvent(JSON.parse(e.data)); } catch (_) {}
         };
@@ -189,16 +224,37 @@
     async function sendText() {
         const text = (input.value || '').trim();
         if (!text) return;
+        if (!wsConnected) {
+            if (window.flikky && window.flikky.showError) {
+                window.flikky.showError('连接已断开，请稍候');
+            }
+            return;
+        }
         sendBtn.disabled = true;
         try {
             const r = await fetch('/api/messages', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-Client-Id': myClientId },
                 body: JSON.stringify({ text }),
             });
-            if (r.ok) input.value = '';
+            if (r.ok) {
+                try {
+                    const dto = await r.json();
+                    // 本地立即渲染自己的消息，避免等服务端 WS 广播来回。
+                    // WS 后续到达的同 id 事件会被 seen 集合 dedup。
+                    if (dto && typeof dto.id === 'number') {
+                        seen.add(`text_added:${dto.id}`);
+                        renderText(dto, true);
+                    }
+                } catch (_) { /* ignore parse errors */ }
+                input.value = '';
+            }
+        } catch (e) {
+            if (window.flikky && window.flikky.showError) {
+                window.flikky.showError('发送失败');
+            }
         } finally {
-            sendBtn.disabled = false;
+            sendBtn.disabled = !wsConnected;
             input.focus();
         }
     }
@@ -210,6 +266,8 @@
         form.append('file', file, file.name);
 
         const xhr = new XMLHttpRequest();
+        // 大文件 + 慢 Wi-Fi 也要给足时间；30 分钟覆盖 100 MB 以上正常上传场景。
+        xhr.timeout = 30 * 60 * 1000;
         xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) updateBubbleProgress(bubble, e.loaded, e.total);
         };
@@ -226,7 +284,12 @@
             }
         };
         xhr.onerror = () => markBubbleFailed(bubble, file);
+        xhr.ontimeout = () => markBubbleFailed(bubble, file, 'timeout');
+        // 网络断开 / WS 已 close 时 abort，立即变红失败而不是卡进度条。
+        xhr.upload.onerror = () => markBubbleFailed(bubble, file);
+        xhr.upload.onabort = () => markBubbleFailed(bubble, file);
         xhr.open('POST', '/api/files');
+        xhr.setRequestHeader('X-Client-Id', myClientId);
         xhr.send(form);
     }
 
@@ -236,11 +299,11 @@
     });
     fileBtn.addEventListener('click', () => filePicker.click());
     filePicker.addEventListener('change', () => {
-        // Kick each file off in parallel — each XHR drives its own bubble,
-        // so serial await would only hide the per-file progress behind head-of-line blocking.
         for (const f of filePicker.files) sendFile(f);
         filePicker.value = '';
     });
 
+    // 初始禁用，等 WS 连上后启用。
+    setSendEnabled(false);
     loadHistory().then(openWs);
 })();
