@@ -102,6 +102,25 @@ html, body { height: 100%; margin: 0; padding: 0; }
     margin-top: 2px;
 }
 
+/* Connection banner — sits above the chat list to surface disconnected /
+ * reconnected state with a card-like affordance (test3 ask). Hidden by
+ * default via the [hidden] attribute. */
+.conn-banner {
+    margin: 8px 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.conn-banner[data-kind="disconnected"] {
+    background: rgb(var(--mdui-color-error-container));
+    color: rgb(var(--mdui-color-on-error-container));
+}
+.conn-banner[data-kind="restored"] {
+    background: rgb(var(--mdui-color-tertiary-container));
+    color: rgb(var(--mdui-color-on-tertiary-container));
+}
+
 /* Failed state — paint the entire bubble in error-container so the
  * error is obvious at a glance. The whole bubble becomes a click target
  * for retry (test2 feedback: underline-link was awkward,整个气泡可点更直觉). */

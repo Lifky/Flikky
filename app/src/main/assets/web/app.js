@@ -125,6 +125,9 @@
     }
 
     function markBubbleFailed(bubble, file, status) {
+        // 幂等：XHR 的 onerror / upload.onerror / upload.onabort / ontimeout 在
+        // 网络异常时可能连续触发，旧版会重复添加 retry-hint 显示两行"上传失败"。
+        if (bubble.classList.contains('failed')) return;
         bubble.classList.remove('uploading');
         bubble.classList.add('failed');
 
@@ -133,7 +136,7 @@
         const pct = bubble.querySelector('.progress-pct');
         if (pct) pct.remove();
 
-        // 失败提示去掉下划线超链接形式，改为整个气泡可点击重试。
+        // 失败提示：整个气泡可点击重试，不用下划线超链接。
         const hint = document.createElement('span');
         hint.className = 'retry-hint';
         hint.textContent = '上传失败，点击重试';
@@ -183,6 +186,26 @@
         const r = await fetch('/api/messages');
         if (!r.ok) return;
         const data = await r.json();
+        // 服务端 v1.2 起新增 `ordered`（按 timestamp 升序的混合列表）。优先用它，
+        // 否则回退到 texts+files 各自顺序——但回退路径会丢失跨 kind 的时间顺序，
+        // 仅做兼容。
+        if (Array.isArray(data.ordered) && data.ordered.length) {
+            for (const m of data.ordered) {
+                if (m.kind === 'text') {
+                    const key = `text_added:${m.id}`;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    renderText(m, m.origin === 'BROWSER');
+                } else if (m.kind === 'file') {
+                    const key = `file_added:${m.id}`;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    const bubble = renderFile(m, m.origin === 'BROWSER');
+                    if (bubble) bubble.dataset.fileId = m.fileId;
+                }
+            }
+            return;
+        }
         for (const t of data.texts) {
             const key = `text_added:${t.id}`;
             if (seen.has(key)) continue;
@@ -200,21 +223,60 @@
 
     function setConn(text) { conn.textContent = text; }
 
+    // 断网卡片：醒目位置展示连接状态。
+    const banner = document.getElementById('conn-banner');
+    function showBanner(kind, text) {
+        if (!banner) return;
+        banner.textContent = text;
+        banner.dataset.kind = kind;   // 'disconnected' | 'restored'
+        banner.hidden = false;
+    }
+    function hideBanner() {
+        if (!banner) return;
+        banner.hidden = true;
+    }
+
+    // WS 重入保护：openWs 在已 connecting/connected 时不再开新连接。
+    // 防止 onclose → setTimeout 与外部 retry 的多个时间线让多个 WebSocket 并存
+    // → 每个广播帧被多次 dispatch → 多个相同消息泡。
+    let currentWs = null;
+    let reconnectTimer = null;
+    let hadConnected = false;
+
     function openWs() {
+        if (currentWs && (currentWs.readyState === 0 || currentWs.readyState === 1)) return;
+        if (reconnectTimer != null) { clearTimeout(reconnectTimer); reconnectTimer = null; }
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${proto}//${location.host}/ws`);
+        currentWs = ws;
         ws.onopen = () => {
             wsConnected = true;
             setConn('已连接');
             setSendEnabled(true);
-            // 重连后追平断开期间手机端发的消息 — 通过 seen 集合 dedup 防止重复渲染。
+            // 重连后追平断开期间手机端发的消息（seen 集合 dedup 防重复渲染）。
             loadHistory().catch(() => {});
+            if (hadConnected) {
+                // 仅在"曾经连过又重连"时弹"已恢复"卡片，避免首次连上也弹。
+                showBanner('restored', '已重新连接');
+                setTimeout(() => { if (banner && banner.dataset.kind === 'restored') hideBanner(); }, 3000);
+            } else {
+                hideBanner();
+            }
+            hadConnected = true;
         };
         ws.onclose = () => {
+            if (currentWs !== ws) return;   // 旧句柄 onclose，忽略
+            currentWs = null;
             wsConnected = false;
             setConn('已断开');
             setSendEnabled(false);
-            setTimeout(openWs, 1500);
+            if (hadConnected) {
+                showBanner('disconnected', '连接已断开，正在尝试重连…');
+            }
+            reconnectTimer = setTimeout(() => { reconnectTimer = null; openWs(); }, 1500);
+        };
+        ws.onerror = () => {
+            // 不在 onerror 里做重试 — 让 onclose 兜底，避免双重 timer。
         };
         ws.onmessage = (e) => {
             try { onWsEvent(JSON.parse(e.data)); } catch (_) {}
