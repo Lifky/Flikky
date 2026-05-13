@@ -1,6 +1,6 @@
 # Flikky
 
-Android LAN 文件传输 APP。设计文档：`docs/superpowers/specs/2026-04-17-flikky-v1-design.md`
+Android LAN 文件传输 APP。设计文档：`docs/others/superpowers/specs/2026-04-17-flikky-v1-design.md`
 
 ## 技术栈
 - Kotlin 2.2 + Jetpack Compose + Material 3

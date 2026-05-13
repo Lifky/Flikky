@@ -11,7 +11,7 @@
 - **v1.0** — 最小连通闭环：启动服务、URL + PIN 配对、双向文本与文件、MD3 聊天气泡、前台服务常驻通知、完整安全基线。
 - **v1.1** — *已发布（2026-04-21）* — Room 会话归档、主页会话列表（置顶 / 重命名 / 删除）、历史详情只读查看、APP 启动时 crash-recovery、FIFO 保留最近 20 条非置顶会话（置顶不占配额）。
 
-设计文档见 `docs/superpowers/specs/`，复盘与决策记录见 `docs/notes/`。
+设计文档见 `docs/others/superpowers/specs/`，复盘与决策记录见 `docs/others/notes/`。
 
 ## 进度
 
@@ -89,7 +89,7 @@
 | 最低/目标 | SDK 33 / 36                                                   |
 | 模块结构  | 单 `:app` 模块，不过度拆分                                    |
 
-每一项选择的「为什么」见 `docs/notes/decisions.md`。
+每一项选择的「为什么」见 `docs/others/notes/decisions.md`。
 
 ## 构建
 
@@ -113,8 +113,8 @@ app/src/main/java/com/example/flikky/
 ├── util/        纯 Kotlin 工具（不依赖 Android 框架）
 └── di/          ServiceLocator
 app/src/main/assets/web/   浏览器前端（含离线打包的 mdui）
-docs/superpowers/          设计文档、实施计划、验收清单
-docs/notes/                复盘、踩坑记录、决策记录、backlog
+docs/others/superpowers/          设计文档、实施计划、验收清单
+docs/others/notes/                复盘、踩坑记录、决策记录、backlog
 ```
 
 ## 致谢

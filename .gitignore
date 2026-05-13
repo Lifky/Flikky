@@ -15,4 +15,4 @@ local.properties
 *.aab
 
 # Local-only notes (business context, not for public repo)
-需求.md
+docs/others/

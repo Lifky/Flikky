@@ -11,7 +11,7 @@ The phone runs an embedded HTTP server. Any browser on the same Wi-Fi opens the 
 - **v1.0** — minimum viable loop: start service, browser pairs via URL + PIN, two-way text and file transfer, MD3 chat bubbles, foreground-service notification, security baseline.
 - **v1.1** — *released (2026-04-21)* — session archival backed by Room, home session list with pin / rename / delete, read-only history view, crash-recovery on app start, FIFO retention (20 non-pinned) + pinned-not-counted.
 
-See `docs/superpowers/specs/` for design docs and `docs/notes/` for retrospectives, decisions and trap reports.
+See `docs/others/superpowers/specs/` for design docs and `docs/others/notes/` for retrospectives, decisions and trap reports.
 
 ## Progress
 
@@ -89,7 +89,7 @@ See `docs/superpowers/specs/` for design docs and `docs/notes/` for retrospectiv
 | Min/Target SDK   | 33 / 36                                                   |
 | Single module    | `:app` — no over-modularization                           |
 
-See `docs/notes/decisions.md` for *why* each pick.
+See `docs/others/notes/decisions.md` for *why* each pick.
 
 ## Build
 
@@ -113,8 +113,8 @@ app/src/main/java/com/example/flikky/
 ├── util/        Pure-Kotlin helpers (no Android dependency)
 └── di/          ServiceLocator
 app/src/main/assets/web/   Browser front-end (incl. mdui vendored offline)
-docs/superpowers/          Design docs, plans, verification checklists
-docs/notes/                Retrospectives, traps & fixes, decisions, backlog
+docs/others/superpowers/          Design docs, plans, verification checklists
+docs/others/notes/                Retrospectives, traps & fixes, decisions, backlog
 ```
 
 ## Acknowledgements
