@@ -393,12 +393,17 @@ class TransferService : Service() {
         when (val intent = rebinder.onLink(info)) {
             is RebindIntent.StayPut -> Unit
             is RebindIntent.Lost -> {
-                // Don't stop Ktor — if Wi-Fi comes back on the same IP we
-                // stay bound and the next onLinkPropertiesChanged will
-                // restore us to Ok by silence (no rebind intent is emitted
-                // because StayPut happens on the echo). If the IP changes
-                // we'll get a Rebind next.
+                // Ktor stays bound to the (now unreachable) IP — Wi-Fi often
+                // comes back on the same address; tearing down would orphan
+                // live WS sessions for no gain.
                 ServiceLocator.session.updateNetworkStatus(NetworkStatus.Lost)
+            }
+            is RebindIntent.Restored -> {
+                // Same IP returned after a transient outage. Ktor was never
+                // stopped — just clear the lost banner. Don't restart anything;
+                // doing so would blow up the WebSocket sessions the browser is
+                // about to reconnect onto.
+                ServiceLocator.session.updateNetworkStatus(NetworkStatus.Ok)
             }
             is RebindIntent.Rebind -> rebindTo(intent.newIp)
         }

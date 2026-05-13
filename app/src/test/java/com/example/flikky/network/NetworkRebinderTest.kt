@@ -35,12 +35,14 @@ class NetworkRebinderTest {
     }
 
     @Test
-    fun `primed ip going away emits Lost and clears snapshot`() {
+    fun `primed ip going away emits Lost but keeps snapshot for same-ip recovery`() {
         val r = NetworkRebinder()
         r.prime("192.168.1.5")
         val intent = r.onLink(LinkInfo(ipv4 = null))
         assertTrue(intent is RebindIntent.Lost)
-        assertNull(r.snapshot())
+        // currentIp kept so that the next event with the same IP is Restored,
+        // not Rebind (Ktor wasn't stopped, no need to restart).
+        assertEquals("192.168.1.5", r.snapshot())
     }
 
     @Test
@@ -65,14 +67,40 @@ class NetworkRebinderTest {
     }
 
     @Test
+    fun `lost then same ip back emits Restored not Rebind`() {
+        val r = NetworkRebinder()
+        r.prime("192.168.1.50")
+        assertTrue(r.onLink(LinkInfo(null)) is RebindIntent.Lost)
+        val back = r.onLink(LinkInfo("192.168.1.50"))
+        assertTrue("expected Restored, got $back", back is RebindIntent.Restored)
+        assertEquals("192.168.1.50", r.snapshot())
+    }
+
+    @Test
+    fun `lost then different ip emits Rebind`() {
+        val r = NetworkRebinder()
+        r.prime("192.168.1.50")
+        assertTrue(r.onLink(LinkInfo(null)) is RebindIntent.Lost)
+        val back = r.onLink(LinkInfo("192.168.2.20"))
+        assertTrue(back is RebindIntent.Rebind)
+        assertEquals("192.168.2.20", (back as RebindIntent.Rebind).newIp)
+    }
+
+    @Test
+    fun `consecutive lost events collapse to StayPut`() {
+        val r = NetworkRebinder()
+        r.prime("192.168.1.50")
+        assertTrue(r.onLink(LinkInfo(null)) is RebindIntent.Lost)
+        assertTrue(r.onLink(LinkInfo(null)) is RebindIntent.StayPut)
+    }
+
+    @Test
     fun `rebind then lost then recover walks full cycle`() {
         val r = NetworkRebinder()
         r.prime("192.168.1.5")
         assertTrue(r.onLink(LinkInfo("192.168.1.50")) is RebindIntent.Rebind)
         assertTrue(r.onLink(LinkInfo(null)) is RebindIntent.Lost)
-        assertNull(r.snapshot())
         val back = r.onLink(LinkInfo("192.168.1.50"))
-        assertTrue(back is RebindIntent.Rebind)
-        assertEquals("192.168.1.50", (back as RebindIntent.Rebind).newIp)
+        assertTrue("expected Restored, got $back", back is RebindIntent.Restored)
     }
 }
