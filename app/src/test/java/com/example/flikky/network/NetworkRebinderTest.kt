@@ -35,14 +35,12 @@ class NetworkRebinderTest {
     }
 
     @Test
-    fun `primed ip going away emits Lost but keeps snapshot for same-ip recovery`() {
+    fun `primed ip going away emits Lost and clears snapshot`() {
         val r = NetworkRebinder()
         r.prime("192.168.1.5")
         val intent = r.onLink(LinkInfo(ipv4 = null))
         assertTrue(intent is RebindIntent.Lost)
-        // currentIp kept so that the next event with the same IP is Restored,
-        // not Rebind (Ktor wasn't stopped, no need to restart).
-        assertEquals("192.168.1.5", r.snapshot())
+        assertNull(r.snapshot())
     }
 
     @Test
@@ -67,13 +65,16 @@ class NetworkRebinderTest {
     }
 
     @Test
-    fun `lost then same ip back emits Restored not Rebind`() {
+    fun `lost then same ip back emits Rebind so Ktor restarts listening socket`() {
+        // The OS tore down the listening socket on Lost. Even if the same IP
+        // comes back, a Rebind is the right action — there's nothing alive to
+        // accept new connections otherwise.
         val r = NetworkRebinder()
         r.prime("192.168.1.50")
         assertTrue(r.onLink(LinkInfo(null)) is RebindIntent.Lost)
         val back = r.onLink(LinkInfo("192.168.1.50"))
-        assertTrue("expected Restored, got $back", back is RebindIntent.Restored)
-        assertEquals("192.168.1.50", r.snapshot())
+        assertTrue("expected Rebind, got $back", back is RebindIntent.Rebind)
+        assertEquals("192.168.1.50", (back as RebindIntent.Rebind).newIp)
     }
 
     @Test
@@ -100,7 +101,9 @@ class NetworkRebinderTest {
         r.prime("192.168.1.5")
         assertTrue(r.onLink(LinkInfo("192.168.1.50")) is RebindIntent.Rebind)
         assertTrue(r.onLink(LinkInfo(null)) is RebindIntent.Lost)
+        assertNull(r.snapshot())
         val back = r.onLink(LinkInfo("192.168.1.50"))
-        assertTrue("expected Restored, got $back", back is RebindIntent.Restored)
+        assertTrue(back is RebindIntent.Rebind)
+        assertEquals("192.168.1.50", (back as RebindIntent.Rebind).newIp)
     }
 }

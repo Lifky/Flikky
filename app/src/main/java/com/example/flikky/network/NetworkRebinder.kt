@@ -19,19 +19,19 @@ sealed class RebindIntent {
     /** No change relative to the last link event. */
     object StayPut : RebindIntent()
 
-    /** A new IPv4 arrived (or we changed IP). Service should rebind Ktor to [newIp]. */
+    /**
+     * A new IPv4 arrived. Service must rebind Ktor.
+     *
+     * Crucially, this also fires when the *same* IP comes back after a [Lost]:
+     * the listening socket Ktor bound is dead the moment the underlying Wi-Fi
+     * interface goes away (OS tears it down), so even an "identical" reconnect
+     * needs a fresh `KtorServer.start()`. The Browser's WS was already killed
+     * by the same OS event; trying to preserve it is pointless.
+     */
     data class Rebind(val newIp: String) : RebindIntent()
 
     /** We used to have an IPv4 and now we don't. Service should flag the UI as "lost". */
     object Lost : RebindIntent()
-
-    /**
-     * After a [Lost] the SAME IPv4 came back (e.g. user toggled Wi-Fi without
-     * changing networks). Ktor was never stopped, so the Service should NOT
-     * restart it — just clear the "lost" UI flag. Critical for not blowing up
-     * the live WebSocket sessions on a transient outage.
-     */
-    object Restored : RebindIntent()
 }
 
 /**
@@ -46,54 +46,36 @@ sealed class RebindIntent {
  *    produces one [onLink] call. Duplicate IPs are collapsed to StayPut.
  */
 class NetworkRebinder {
-    /**
-     * Last IPv4 we believe the OS surfaced to us. We keep this populated even
-     * across a transient [Lost] so that "same IP comes back" can be told apart
-     * from "different IP arrives after no-IP". [lost] is the only field that
-     * tracks whether we are currently in the lost state.
-     */
+    /** Last bound IPv4, or null if we're currently in a Lost state / never observed one. */
     private var currentIp: String? = null
-    private var lost: Boolean = false
 
     /** Feed one link event; returns the action the service should take. */
     fun onLink(info: LinkInfo): RebindIntent {
         val prev = currentIp
         val next = info.ipv4
         return when {
-            // No-op echoes.
             next == null && prev == null -> RebindIntent.StayPut
-            // We had an IP and lost it. Keep currentIp populated so a same-IP
-            // return is distinguishable from a fresh arrival.
-            next == null && prev != null && !lost -> {
-                lost = true
+            next == null && prev != null -> {
+                currentIp = null
                 RebindIntent.Lost
             }
-            next == null && lost -> RebindIntent.StayPut
-            // Fresh IPv4 arrived (cold start / very first IP we ever see).
             next != null && prev == null -> {
+                // Either cold start or recovery after a Lost. In both cases the
+                // listening socket Ktor previously had is no longer accepting,
+                // so a Rebind is the correct action even when `next` happens
+                // to match the IP we were bound to before the outage.
                 currentIp = next
-                lost = false
                 RebindIntent.Rebind(next)
             }
-            // Same IP came back after a Lost — Ktor was never stopped, just
-            // clear the lost flag. No rebind, no Ktor restart, no wsHub reset.
-            next != null && prev != null && next == prev && lost -> {
-                lost = false
-                RebindIntent.Restored
-            }
-            // Same IP and we never lost it: just an echo.
-            next != null && prev != null && next == prev && !lost -> RebindIntent.StayPut
-            // Genuine IP change — Wi-Fi network actually swapped.
             next != null && prev != null && next != prev -> {
                 currentIp = next
-                lost = false
                 RebindIntent.Rebind(next)
             }
             else -> RebindIntent.StayPut
         }
     }
 
-    /** Current known IP, or null if we never observed an IPv4. For tests/diagnostics. */
+    /** Current known IP, or null if we believe there is no IPv4. For tests/diagnostics. */
     fun snapshot(): String? = currentIp
 
     /**
@@ -103,6 +85,5 @@ class NetworkRebinder {
      */
     fun prime(ip: String) {
         currentIp = ip
-        lost = false
     }
 }
