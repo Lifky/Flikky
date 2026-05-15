@@ -41,13 +41,19 @@
         const div = document.createElement('div');
         div.className = 'bubble ' + (mine ? 'me' : 'them');
         div.textContent = msg.content;
+        div.dataset.messageId = msg.id;
+        div.dataset.kind = 'text';
         list.appendChild(div);
         list.scrollTop = list.scrollHeight;
+        if (mine) attachRecallHandler(div, msg.id);
+        return div;
     }
 
     function renderFile(msg, mine) {
         const div = document.createElement('div');
         div.className = 'file-bubble ' + (mine ? 'me' : 'them');
+        div.dataset.messageId = msg.id;
+        div.dataset.kind = 'file';
         const a = document.createElement('a');
         a.href = `/api/files/${msg.fileId}`;
         a.download = msg.name;
@@ -59,7 +65,108 @@
         div.appendChild(size);
         list.appendChild(div);
         list.scrollTop = list.scrollHeight;
+        if (mine) attachRecallHandler(div, msg.id);
         return div;
+    }
+
+    // v1.3 B4 撤回 UI：长按自己气泡 → 弹一个简单 floating menu → 撤回。
+    // 不用 mdui-menu 因为它的 anchor 模型对动态创建的 bubble 节点不友好；
+    // 自己的 div 用 pointer 坐标固定定位最直接。
+    function attachRecallHandler(bubble, messageId) {
+        let longPressTimer = null;
+        let pressX = 0, pressY = 0;
+        bubble.addEventListener('pointerdown', (e) => {
+            // 鼠标只接受左键；触摸 / 笔不区分。
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            // 文件气泡里的 <a> 点击下载，不要被长按拦截——但移动设备上 <a>
+            // 同样能触发 pointerdown，所以我们改在 pointerup 前看是否到 500ms。
+            pressX = e.clientX; pressY = e.clientY;
+            if (longPressTimer) clearTimeout(longPressTimer);
+            longPressTimer = setTimeout(() => {
+                longPressTimer = null;
+                showRecallMenu(messageId, e.clientX, e.clientY);
+            }, 500);
+        });
+        const cancel = () => {
+            if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+        };
+        bubble.addEventListener('pointerup', cancel);
+        bubble.addEventListener('pointerleave', cancel);
+        bubble.addEventListener('pointercancel', cancel);
+        bubble.addEventListener('pointermove', (e) => {
+            // 拖动超过 10px 视为非长按。
+            if (Math.abs(e.clientX - pressX) > 10 || Math.abs(e.clientY - pressY) > 10) cancel();
+        });
+    }
+
+    function showRecallMenu(messageId, x, y) {
+        closeRecallMenu();
+        const menu = document.createElement('div');
+        menu.className = 'recall-menu';
+        menu.id = 'recall-menu';
+        // 避免菜单溢出屏幕右/下边缘——简单偏移即可。
+        menu.style.left = Math.min(x, window.innerWidth - 120) + 'px';
+        menu.style.top = Math.min(y, window.innerHeight - 60) + 'px';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = '撤回';
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeRecallMenu();
+            recallMessage(messageId);
+        });
+        menu.appendChild(btn);
+        document.body.appendChild(menu);
+        // 下一帧再装外部点击关闭，避免本次 pointerdown / click 立刻关掉自己。
+        setTimeout(() => {
+            document.addEventListener('pointerdown', dismissRecallMenu, { capture: true });
+        }, 0);
+    }
+
+    function dismissRecallMenu(e) {
+        const menu = document.getElementById('recall-menu');
+        if (menu && !menu.contains(e.target)) closeRecallMenu();
+    }
+
+    function closeRecallMenu() {
+        document.removeEventListener('pointerdown', dismissRecallMenu, { capture: true });
+        const m = document.getElementById('recall-menu');
+        if (m) m.remove();
+    }
+
+    async function recallMessage(messageId) {
+        try {
+            const r = await fetch(`/api/messages/${messageId}`, {
+                method: 'DELETE',
+                headers: { 'X-Client-Id': myClientId },
+            });
+            if (r.ok || r.status === 409) {
+                // 200 = 刚撤；409 = 已撤（idempotent）。本地直接替占位符。
+                renderRecalled(messageId);
+            } else if (r.status === 403) {
+                if (window.flikky && window.flikky.showError) window.flikky.showError('只能撤回自己发的消息');
+            } else if (r.status === 404) {
+                if (window.flikky && window.flikky.showError) window.flikky.showError('消息不存在');
+            } else {
+                if (window.flikky && window.flikky.showError) window.flikky.showError('撤回失败');
+            }
+        } catch (_) {
+            if (window.flikky && window.flikky.showError) window.flikky.showError('撤回失败：网络错误');
+        }
+    }
+
+    // v1.3 T15：把已渲染气泡替换为撤回占位符。被三个路径调用：
+    //  - 本浏览器调 DELETE 成功后乐观渲染
+    //  - 收到 message_recalled WS event（另一端撤回）
+    //  - loadHistory 未来如果服务端返回 recalledAt 也走这里（v1.3 GET 暂不带，见 backlog）
+    // 用 textContent 替换可保留气泡尺寸结构，避免列表跳变。
+    function renderRecalled(messageId) {
+        const node = list.querySelector(`[data-message-id="${messageId}"]`);
+        if (!node || node.classList.contains('recalled')) return;
+        // 移除所有子节点（包括文件气泡的 a / span / progress bar 等）
+        while (node.firstChild) node.removeChild(node.firstChild);
+        node.classList.add('recalled');
+        node.textContent = '[消息已撤回]';
     }
 
     function renderUploadingBubble(opts) {
@@ -174,6 +281,14 @@
         // 自己发的广播跳过——已经在 XHR/fetch onload 时本地渲染过。
         if (ev.payload && ev.payload.senderId && ev.payload.senderId === myClientId) {
             seen.add(key);
+            return;
+        }
+        if (ev.type === 'message_recalled') {
+            // v1.3 B4 撤回事件：另一端撤回时由服务端广播。本端 DELETE 成功路径
+            // 已经直接调 renderRecalled，这里覆盖"对端撤回"分支。renderRecalled
+            // 幂等，重复调用无副作用。
+            const p = ev.payload || {};
+            if (typeof p.messageId === 'number') renderRecalled(p.messageId);
             return;
         }
         if (ev.type === 'text_added') {
