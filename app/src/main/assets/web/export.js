@@ -3,9 +3,15 @@
     const listEl = document.getElementById('session-list');
     const btn = document.getElementById('download-btn');
     const hintEl = document.getElementById('export-hint');
+    const bannerEl = document.getElementById('export-banner');
 
-    const showError = (msg) => window.flikky.showError(msg);
-    const showInfo = (msg) => window.flikky.showInfo(msg);
+    // snackbar.js may or may not be loaded (defensive — page works without it).
+    const showError = (msg) => {
+        if (window.flikky && window.flikky.showError) window.flikky.showError(msg);
+    };
+    const showInfo = (msg) => {
+        if (window.flikky && window.flikky.showInfo) window.flikky.showInfo(msg);
+    };
 
     function formatSize(b) {
         if (b == null || Number.isNaN(b)) return '0 B';
@@ -114,8 +120,107 @@
         document.body.removeChild(a);
     }
 
+    // v1.3 B9 (T26): export-page health probe.
+    //
+    // Why: the export browser tab has no WebSocket — it relies on a single REST
+    // call (loadInfo) and then sits idle until the user clicks 下载. If the
+    // phone disappears (wifi loss, service stopped, screen-off doze) between
+    // info-load and click, the download click silently 404s. The probe surfaces
+    // that loss before the user wastes a click.
+    //
+    // Design knobs:
+    //  - 5s interval matches the spec (§3.4) and is gentle enough not to burn
+    //    phone radio while user is just reading the summary.
+    //  - 连续 2 次失败才算断开 — single transient blip (e.g. handoff between
+    //    APs) shouldn't flash a scary banner.
+    //  - 下载启动后探测继续跑，但不再回写按钮文字。原生 GET 流由浏览器接管，
+    //    我们拿不到完成事件，按钮停在 '下载中…' 直到用户主动刷新（既有行为）。
+    const HEALTH_INTERVAL_MS = 5000;
+    let healthFailCount = 0;
+    let healthDisconnected = false;
+    let healthTimer = null;
+    let downloadStarted = false;
+
+    function showExportBanner(text) {
+        if (!bannerEl) return;
+        bannerEl.textContent = text; // 安全红线：禁止 innerHTML
+        bannerEl.hidden = false;
+    }
+
+    function hideExportBanner() {
+        if (!bannerEl) return;
+        bannerEl.hidden = true;
+    }
+
+    function setDownloadEnabled(enabled) {
+        // 下载已经点过的话，按钮文字是 '下载中…' / disabled，浏览器在跑流，
+        // 这里不应该回写它的状态——即便短暂连不上，下载本体也未必失败。
+        if (downloadStarted) return;
+        if (!btn) return;
+        btn.disabled = !enabled;
+    }
+
+    async function checkHealth() {
+        let r;
+        try {
+            r = await fetch('/api/export/info', {
+                cache: 'no-store',
+                credentials: 'same-origin',
+            });
+        } catch (_) {
+            // 真正的网络层失败（断网、DNS、TCP reset）才算"连接断开"。
+            healthFailCount++;
+            if (healthFailCount >= 2 && !healthDisconnected) {
+                healthDisconnected = true;
+                showExportBanner('与手机连接已断开，请检查网络');
+                setDownloadEnabled(false);
+                showError('与手机的连接已断开');
+            }
+            return;
+        }
+        // 401 / 409 是服务端"正常"应答（认证过期 / 导出失效），不是网络问题。
+        // 这两种状态由 loadInfo 的初次调用负责处理，探测层退出即可。
+        if (r.status === 401 || r.status === 409) {
+            stopHealthProbe();
+            return;
+        }
+        if (!r.ok) {
+            healthFailCount++;
+            if (healthFailCount >= 2 && !healthDisconnected) {
+                healthDisconnected = true;
+                showExportBanner('与手机连接已断开，请检查网络');
+                setDownloadEnabled(false);
+                showError('与手机的连接已断开');
+            }
+            return;
+        }
+        // 成功路径：若之前是断开态，触发恢复 UX；否则只清零计数器。
+        if (healthDisconnected) {
+            healthDisconnected = false;
+            healthFailCount = 0;
+            hideExportBanner();
+            setDownloadEnabled(true);
+            showInfo('连接已恢复');
+        } else {
+            healthFailCount = 0;
+        }
+    }
+
+    function startHealthProbe() {
+        if (healthTimer != null) return;
+        healthTimer = setInterval(checkHealth, HEALTH_INTERVAL_MS);
+    }
+
+    function stopHealthProbe() {
+        if (healthTimer != null) {
+            clearInterval(healthTimer);
+            healthTimer = null;
+        }
+    }
+
     btn.addEventListener('click', () => {
         if (btn.disabled) return;
+        downloadStarted = true;
         disableDownloadWith('下载中…');
         triggerDownload();
         showInfo('下载已开始，可在浏览器下载管理器查看进度');
@@ -124,5 +229,8 @@
         }
     });
 
+    window.addEventListener('beforeunload', stopHealthProbe);
+
     loadInfo();
+    startHealthProbe();
 })();
