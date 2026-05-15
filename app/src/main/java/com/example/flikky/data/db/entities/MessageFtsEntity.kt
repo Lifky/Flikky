@@ -25,6 +25,11 @@ import androidx.room.PrimaryKey
 @Fts4(
     contentEntity = MessageEntity::class,
     tokenizer = FtsOptions.TOKENIZER_UNICODE61,
+    // NOTE: we intentionally pass ONLY `remove_diacritics=1` here. The KSP-time
+    // SQLite used by Room's schema verifier does not recognize the additional
+    // `categories='L* N* Co'` argument, so we apply that argument at runtime
+    // instead — both via MIGRATION_1_2 (for upgraders) and via the database
+    // Callback.onCreate (for fresh installs). See FlikkyDatabase.
     tokenizerArgs = ["remove_diacritics=1"],
 )
 data class MessageFtsEntity(
