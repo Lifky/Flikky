@@ -78,6 +78,32 @@ data class WsEvent(
     val payload: kotlinx.serialization.json.JsonElement,
 )
 
+/**
+ * v1.3 D26：DELETE /api/messages/{id} 的成功响应。失败分支用通用 error JSON。
+ * 单独类型让 KtorServer 注入的 recall handler 与 server 包解耦——
+ * server 包不需要看到 data 层的 RecallOutcome。
+ */
+@Serializable
+data class RecallResponse(
+    val messageId: Long,
+    val sessionId: Long,
+    val recalledAt: Long,
+)
+
+/**
+ * Server 包内部的撤回结果枚举。data/SessionRepository.RecallOutcome 在调用
+ * 边界（KtorServer 注入 lambda 处）转成本枚举，避免 server 反向依赖 data。
+ *
+ * 注意：刻意不加 @Serializable——这只是用作 lambda 返回值，不需要序列化。
+ * 加了反而要求子类必须可序列化，但 Success/AlreadyRecalled 已经走 RecallResponse 输出。
+ */
+sealed class ServerRecallOutcome {
+    data class Success(val messageId: Long, val sessionId: Long, val recalledAt: Long) : ServerRecallOutcome()
+    object NotFound : ServerRecallOutcome()
+    object Denied : ServerRecallOutcome()
+    data class AlreadyRecalled(val messageId: Long, val sessionId: Long, val recalledAt: Long) : ServerRecallOutcome()
+}
+
 @Serializable
 data class StatusDto(
     val startedAt: Long,

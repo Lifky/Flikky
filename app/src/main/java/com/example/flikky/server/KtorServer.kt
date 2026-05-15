@@ -2,6 +2,7 @@ package com.example.flikky.server
 
 import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSnapshot
+import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.routes.FileStore
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.server.routes.authRoutes
@@ -39,6 +40,13 @@ class KtorServer(
     private val assetLoader: (String) -> ByteArray,
     private val currentSessionId: () -> Long,
     private val onPersistMessage: suspend (Message) -> Unit,
+    /**
+     * v1.3 D26：撤回处理器。TransferService 注入桥接 SessionRepository.recallMessage
+     * 并把 data 层 RecallOutcome 转成 [ServerRecallOutcome]。Export 模式注入 stub
+     * 返回 NotFound——export.html 不暴露撤回 UI，此参数永不会被实际调用。
+     */
+    private val onRecallMessage: suspend (messageId: Long, callerSenderId: String) -> ServerRecallOutcome =
+        { _, _ -> ServerRecallOutcome.NotFound },
     private val nowMs: () -> Long = System::currentTimeMillis,
     private val mode: ServiceMode = ServiceMode.Transfer,
     private val onZipSent: suspend () -> Unit = {},
@@ -110,6 +118,7 @@ class KtorServer(
             onPersist = onPersistMessage,
             broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
             nowMs = nowMs,
+            recallHandler = onRecallMessage,
         )
         fileRoutes(
             session = session,

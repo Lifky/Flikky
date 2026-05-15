@@ -13,6 +13,7 @@ import android.os.Binder
 import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
+import com.example.flikky.data.SessionRepository
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.export.ExportMode
 import com.example.flikky.network.LinkInfo
@@ -21,6 +22,7 @@ import com.example.flikky.network.RebindIntent
 import com.example.flikky.server.KtorServer
 import com.example.flikky.server.PinAuth
 import com.example.flikky.server.ServiceMode
+import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.StatusDto
 import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
@@ -334,6 +336,19 @@ class TransferService : Service() {
         onPersistMessage = { msg: Message ->
             ServiceLocator.repository.appendMessage(currentSessionId, msg)
         },
+        onRecallMessage = { messageId, callerSenderId ->
+            // 桥接 data 层 RecallOutcome → server 层 ServerRecallOutcome，保持
+            // server 包不反向依赖 data 包（CLAUDE.md「不把 Android Context 穿透到
+            // server 包」同源原则的对偶：data 层细节也不外泄）。
+            when (val out = ServiceLocator.repository.recallMessage(messageId, callerSenderId)) {
+                is SessionRepository.RecallOutcome.Success ->
+                    ServerRecallOutcome.Success(out.messageId, out.sessionId, out.recalledAt)
+                is SessionRepository.RecallOutcome.NotFound -> ServerRecallOutcome.NotFound
+                is SessionRepository.RecallOutcome.Denied -> ServerRecallOutcome.Denied
+                is SessionRepository.RecallOutcome.AlreadyRecalled ->
+                    ServerRecallOutcome.AlreadyRecalled(out.messageId, out.sessionId, out.recalledAt)
+            }
+        },
         mode = ServiceMode.Transfer,
     )
 
@@ -350,6 +365,9 @@ class TransferService : Service() {
         assetLoader = { path -> assets.open(path).use { it.readBytes() } },
         currentSessionId = { -1L },
         onPersistMessage = { /* no-op in export mode — export routes don't write messages */ },
+        // Export 模式不挂 messageRoutes，撤回处理器永不被调用；显式 stub 是为了让
+        // 读代码的人立刻看到这点，不必去 KtorServer 翻默认值。
+        onRecallMessage = { _, _ -> ServerRecallOutcome.NotFound },
         mode = ServiceMode.Export,
         onZipSent = { handleZipSent() },
     )

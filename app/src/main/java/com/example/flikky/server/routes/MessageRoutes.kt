@@ -3,7 +3,9 @@ package com.example.flikky.server.routes
 import com.example.flikky.server.PinAuth
 import com.example.flikky.server.dto.FileMessageDto
 import com.example.flikky.server.dto.MessagesResponse
+import com.example.flikky.server.dto.RecallResponse
 import com.example.flikky.server.dto.SendTextRequest
+import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.TextMessageDto
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
@@ -15,6 +17,7 @@ import io.ktor.server.application.call
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
@@ -24,6 +27,12 @@ fun Route.messageRoutes(
     onPersist: suspend (Message) -> Unit,
     broadcastEvent: suspend (type: String, jsonPayload: String) -> Unit,
     nowMs: () -> Long,
+    /**
+     * v1.3 D26：撤回处理器。返回 [ServerRecallOutcome] 是 server-local 类型，
+     * 调用方（KtorServer / TransferService）负责把 data 层的 RecallOutcome 转过来，
+     * server 包因此不依赖 data 包。
+     */
+    recallHandler: suspend (messageId: Long, callerSenderId: String) -> ServerRecallOutcome,
 ) {
     fun requireAuth(call: ApplicationCall): Boolean {
         val token = call.request.cookies[AUTH_COOKIE]
@@ -85,5 +94,38 @@ fun Route.messageRoutes(
             }
         }
         call.respond(MessagesResponse(texts, files, ordered))
+    }
+
+    /**
+     * v1.3 D26：浏览器端撤回消息。同 fileRoutes / 上面的 post，X-Client-Id 必填——
+     * 既用于鉴权（必须等于消息原始 senderId），也用于让本浏览器自己 dedup 后续 WS 广播。
+     *
+     * 成功后立刻广播 message_recalled，让所有客户端把对应消息渲染为 [消息已撤回] 占位。
+     * 失败分支不广播；AlreadyRecalled 视作 idempotent，返回 409 + 原 recalledAt 让客户端
+     * 直接对齐已撤回状态。
+     */
+    delete("/api/messages/{id}") {
+        if (!requireAuth(call)) { call.respond(HttpStatusCode.Unauthorized); return@delete }
+        val id = call.parameters["id"]?.toLongOrNull()
+            ?: run { call.respond(HttpStatusCode.BadRequest, mapOf("error" to "invalid_id")); return@delete }
+        val senderId = call.request.headers["X-Client-Id"]
+            ?: run { call.respond(HttpStatusCode.BadRequest, mapOf("error" to "missing_client_id")); return@delete }
+
+        when (val outcome = recallHandler(id, senderId)) {
+            is ServerRecallOutcome.Success -> {
+                val resp = RecallResponse(outcome.messageId, outcome.sessionId, outcome.recalledAt)
+                call.respond(HttpStatusCode.OK, resp)
+                broadcastEvent(
+                    "message_recalled",
+                    kotlinx.serialization.json.Json.encodeToString(RecallResponse.serializer(), resp),
+                )
+            }
+            is ServerRecallOutcome.NotFound -> call.respond(HttpStatusCode.NotFound, mapOf("error" to "not_found"))
+            is ServerRecallOutcome.Denied -> call.respond(HttpStatusCode.Forbidden, mapOf("error" to "denied"))
+            is ServerRecallOutcome.AlreadyRecalled -> call.respond(
+                HttpStatusCode.Conflict,
+                RecallResponse(outcome.messageId, outcome.sessionId, outcome.recalledAt),
+            )
+        }
     }
 }

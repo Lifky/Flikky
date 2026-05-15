@@ -59,6 +59,7 @@ class KtorServerJvmTest {
                     onPersist = { _ -> },
                     broadcastEvent = { _, _ -> },
                     nowMs = { 0L },
+                    recallHandler = { _, _ -> com.example.flikky.server.dto.ServerRecallOutcome.NotFound },
                 )
             }
         }
