@@ -41,6 +41,16 @@ class WsHub {
      * — NOT from the rebind path so transient Ktor restarts look like a
      * network blip and trigger the normal reconnect flow.
      */
+    /**
+     * v1.3 B4：撤回事件广播。两端收到后把对应消息 DOM/Compose 节点替换为
+     * 「[消息已撤回]」占位符。手机端走 DB 监听自动更新；这里只是为了让浏览器
+     * 立即看到撤回，不必等 polling。
+     */
+    suspend fun broadcastRecall(sessionId: Long, messageId: Long) {
+        val payload = """{"sessionId":$sessionId,"messageId":$messageId}"""
+        broadcast("message_recalled", payload)
+    }
+
     suspend fun broadcastStopAndClose() {
         val goodbye = """{"type":"server_stopped","payload":{}}"""
         val snapshot = mutex.withLock { sessions.toList() }
