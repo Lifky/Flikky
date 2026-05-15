@@ -33,6 +33,12 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE sessionId = :sid ORDER BY timestamp ASC")
     suspend fun listBySession(sid: Long): List<MessageEntity>
 
+    @Query("SELECT * FROM messages WHERE id = :id")
+    suspend fun getById(id: Long): MessageEntity?
+
+    @Query("UPDATE messages SET recalledAt = :recalledAt WHERE id = :id")
+    suspend fun markRecalled(id: Long, recalledAt: Long)
+
     @Query("SELECT COUNT(*) FROM messages WHERE sessionId = :sid")
     suspend fun countBySession(sid: Long): Int
 

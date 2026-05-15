@@ -223,6 +223,70 @@ class SessionRepository(
         }
     }
 
+    /**
+     * recallMessage 的四种结果（D26）。Success / AlreadyRecalled 都携带 recalledAt
+     * 以便上层广播一致的撤回事件；NotFound / Denied 是错误分支。
+     */
+    sealed class RecallOutcome {
+        data class Success(
+            val messageId: Long,
+            val sessionId: Long,
+            val recalledAt: Long,
+        ) : RecallOutcome()
+        object NotFound : RecallOutcome()
+        object Denied : RecallOutcome()
+        data class AlreadyRecalled(
+            val messageId: Long,
+            val sessionId: Long,
+            val recalledAt: Long,
+        ) : RecallOutcome()
+    }
+
+    /**
+     * 撤回单条消息（v1.3 D26）。
+     *
+     * 鉴权：调用方传入的 `callerSenderId` 必须严格等于消息 `senderId`。
+     * `senderId` 为 null 的旧消息（pre-v1.3 数据）无法撤回 → Denied，不能让任何
+     * 客户端撤回身份不明的历史消息。
+     *
+     * 副作用：
+     * - 文本消息：仅写 `messages.recalledAt`，FTS 行由触发器 `messages_fts_au`
+     *   自动 DELETE（new.recalledAt 非 null 时不会重新插入）。
+     * - 文件消息：同时删盘 + 更新 SessionEntity 聚合字段（fileCount-1, totalBytes -= fileSize）。
+     *   删盘失败不阻塞撤回——逻辑上消息已撤回，磁盘残留交给后续清理。
+     *
+     * 幂等：已撤回的消息再次调用返回 AlreadyRecalled（带原 recalledAt），不写库。
+     */
+    suspend fun recallMessage(messageId: Long, callerSenderId: String): RecallOutcome {
+        val msg = messageDao.getById(messageId) ?: return RecallOutcome.NotFound
+        msg.recalledAt?.let {
+            return RecallOutcome.AlreadyRecalled(msg.id, msg.sessionId, it)
+        }
+        if (msg.senderId == null || msg.senderId != callerSenderId) {
+            return RecallOutcome.Denied
+        }
+
+        val recalledAt = now()
+        messageDao.markRecalled(messageId, recalledAt)
+
+        if (msg.kind == "FILE") {
+            val sessionRow = sessionDao.getById(msg.sessionId)
+            msg.fileId?.let { fileStore.deleteMessageFile(msg.sessionId, it) }
+            if (sessionRow != null) {
+                val newFileCount = (sessionRow.fileCount - 1).coerceAtLeast(0)
+                val newTotalBytes = (sessionRow.totalBytes - (msg.fileSize ?: 0L)).coerceAtLeast(0L)
+                sessionDao.update(
+                    sessionRow.copy(
+                        fileCount = newFileCount,
+                        totalBytes = newTotalBytes,
+                    )
+                )
+            }
+        }
+
+        return RecallOutcome.Success(messageId, msg.sessionId, recalledAt)
+    }
+
     companion object {
         const val DEFAULT_NAME_FALLBACK = "会话"
     }

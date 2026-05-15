@@ -32,6 +32,16 @@ class SessionFileStore(
         return !dir.exists() || dir.deleteRecursively()
     }
 
+    /**
+     * 删除特定 message 的文件（v1.3 撤回流程调用）。幂等：文件本来就不存在也返回 true。
+     * 返回 true 表示调用结束后文件已不存在；false 表示删除失败（例如权限问题）。
+     */
+    fun deleteMessageFile(sessionId: Long, fileId: String): Boolean {
+        val file = File(fileDir(sessionId), fileId)
+        if (!file.exists()) return true
+        return file.delete()
+    }
+
     /** 枚举 filesDir/sessions 下的所有 sessionId 目录（用于孤儿清理）。 */
     fun listSessionDirs(): List<Long> {
         val root = File(filesDir, "sessions")
