@@ -213,3 +213,50 @@ html, body { height: 100%; margin: 0; padding: 0; }
 .export-banner[hidden] {
     display: none;
 }
+
+/* v1.3 B4 撤回占位符。保留气泡尺寸与气泡颜色，但用斜体灰色暗示
+ * "这里曾有消息但已撤回"。me/them 都适用——文案"[消息已撤回]"
+ * 自带方括号防止跟正常消息混淆。 */
+.bubble.recalled,
+.file-bubble.recalled {
+    font-style: italic;
+    opacity: 0.6;
+    color: rgb(var(--mdui-color-on-surface-variant));
+    cursor: default;
+}
+.bubble.me.recalled,
+.file-bubble.me.recalled {
+    /* 撤回后从 primary 退回到中性背景，让"已撤回"视觉更弱 */
+    background: rgb(var(--mdui-color-surface-container-high));
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+/* v1.3 B4 长按撤回菜单。fixed 定位到 pointer 坐标；单按钮的最小菜单 */
+.recall-menu {
+    position: fixed;
+    z-index: 9999;
+    background: rgb(var(--mdui-color-surface-container-high));
+    color: rgb(var(--mdui-color-on-surface));
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    padding: 4px;
+    min-width: 96px;
+}
+.recall-menu button {
+    display: block;
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: inherit;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+}
+.recall-menu button:hover,
+.recall-menu button:focus-visible {
+    background: rgb(var(--mdui-color-surface-container-highest));
+    outline: none;
+}
