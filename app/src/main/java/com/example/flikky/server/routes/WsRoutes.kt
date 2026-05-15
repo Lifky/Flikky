@@ -8,6 +8,7 @@ import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
+import io.ktor.websocket.readText
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -53,6 +54,8 @@ class WsHub {
     }
 }
 
+private val pingPattern = Regex("""\{\s*"type"\s*:\s*"ping"\s*,\s*"id"\s*:\s*(\d+)\s*\}""")
+
 fun Route.wsRoutes(
     pinAuth: PinAuth,
     session: SessionState,
@@ -68,7 +71,17 @@ fun Route.wsRoutes(
         session.setClientConnected(true)
         try {
             for (frame in incoming) {
-                // v1 ignores inbound; ping/pong handled by Ktor
+                if (frame !is Frame.Text) continue
+                val text = frame.readText()
+                // v1.3 B5：应用层 ping/pong。浏览器 setInterval 每秒检查"空闲 3 秒"后
+                // 主动发 {"type":"ping","id":N}；服务端立即回 {"type":"pong","id":N}。
+                // 让浏览器主动检测半开 TCP（OS 没立即撕，readyState 仍 OPEN），不再依赖
+                // v1.2 的"4 秒 frame 超时被动 close"。regex 实现避免 JSON 解析依赖。
+                val match = pingPattern.matchEntire(text.trim())
+                if (match != null) {
+                    val id = match.groupValues[1]
+                    send(Frame.Text("""{"type":"pong","id":$id}"""))
+                }
             }
         } finally {
             hub.remove(this)
