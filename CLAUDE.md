@@ -26,6 +26,43 @@ Android LAN 文件传输 APP。设计文档：`docs/others/superpowers/specs/202
 - 不提交 `.idea/`、`local.properties`、`/build/`
 - 不把 Android Context 穿透到 `server/` 包——服务器代码应通过接口接收依赖
 
+### 跨 Wi-Fi rebind 的引用规范
+
+`TransferService` 监听 Wi-Fi 变化，IP 切换时会停旧 `KtorServer` + 起新 `KtorServer`。期间 `WsHub` / `routes` 整组被替换；只有 `TransferService` field（`ktor` / `controller` / `pinAuth` 等）跨实例存活。
+
+任何在 `TransferService` 内构造、生命周期跨过 rebind 的对象，**禁止直接持有 `KtorServer` 内部成员的引用**。必须通过 `() -> T?` lambda 间接访问，每次调用现取。
+
+✅ 正确：
+```kotlin
+controller = TransferController(
+    wsHub = { ktor?.wsHub },   // lambda：调用时解析当前 field
+    ...
+)
+scope.launch {
+    while (isActive) {
+        ktor?.wsHub?.broadcast("status", payload)   // field 直接访问
+        delay(1000)
+    }
+}
+```
+
+❌ 错误：
+```kotlin
+val server = buildTransferKtor(...)   // startTransfer 局部变量
+controller = TransferController(
+    wsHub = server.wsHub,   // 闭包捕获死引用，rebind 后指向已废弃的 hub
+    ...
+)
+scope.launch {
+    while (isActive) {
+        server.wsHub.broadcast(...)   // 同理
+        delay(1000)
+    }
+}
+```
+
+v1.2 因这个 bug 累计踩坑三次（`statusBroadcastJob` / `TransferController.wsHub` / 边界回调）；现有保护单测见 `service/TransferControllerRebindReferenceTest.kt`，复盘见 `docs/others/notes/retrospective.md` v1.2 段。新增任何"跨 rebind 存活"的依赖必须遵守本规范并补单测。
+
 ## 安全红线
 - 服务器只绑 WiFi 网卡 IPv4，不监听 0.0.0.0
 - PIN 单次使用，认证成功后立刻作废
