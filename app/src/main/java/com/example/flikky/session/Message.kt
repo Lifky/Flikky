@@ -18,6 +18,12 @@ sealed class Message {
      * Nullable for pre-v1.3 rows.
      */
     abstract val senderId: String?
+    /**
+     * Recall timestamp (v1.3). Non-null means this message has been retracted;
+     * UI renders the bubble as a "[消息已撤回]" placeholder. Repository drops
+     * recalled rows from the FTS index too, so search results never surface them.
+     */
+    abstract val recalledAt: Long?
 
     @Serializable
     data class Text(
@@ -26,6 +32,7 @@ sealed class Message {
         override val timestamp: Long,
         val content: String,
         override val senderId: String? = null,
+        override val recalledAt: Long? = null,
     ) : Message()
 
     @Serializable
@@ -39,6 +46,7 @@ sealed class Message {
         val mime: String,
         val status: Status,
         override val senderId: String? = null,
+        override val recalledAt: Long? = null,
     ) : Message() {
         enum class Status { OFFERED, IN_PROGRESS, COMPLETED, FAILED }
     }

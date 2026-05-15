@@ -1,7 +1,10 @@
 package com.example.flikky.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,30 +19,46 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun MessageBubble(msg: Message, onClick: () -> Unit) {
+fun MessageBubble(
+    msg: Message,
+    onClick: () -> Unit,
+    onLongPress: (() -> Unit)? = null,
+) {
     val mine = msg.origin == Origin.PHONE
+    val recalled = msg.recalledAt != null
     val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.8f).dp
     val shape = RoundedCornerShape(
         topStart = 18.dp, topEnd = 18.dp,
         bottomStart = if (mine) 18.dp else 4.dp,
         bottomEnd = if (mine) 4.dp else 18.dp,
     )
-    val bg = if (mine) MaterialTheme.colorScheme.primary
-             else MaterialTheme.colorScheme.surfaceContainerHigh
-    val fg = if (mine) MaterialTheme.colorScheme.onPrimary
-             else MaterialTheme.colorScheme.onSurface
+    // 撤回后从 primary 退回中性背景，让"已撤回"视觉退到二线（与浏览器端一致）。
+    val bg = when {
+        recalled -> MaterialTheme.colorScheme.surfaceContainerHigh
+        mine -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    val fg = when {
+        recalled -> MaterialTheme.colorScheme.onSurfaceVariant
+        mine -> MaterialTheme.colorScheme.onPrimary
+        else -> MaterialTheme.colorScheme.onSurface
+    }
 
+    val interaction = remember { MutableInteractionSource() }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start,
@@ -49,17 +68,30 @@ fun MessageBubble(msg: Message, onClick: () -> Unit) {
                 .widthIn(max = maxWidth)
                 .clip(shape)
                 .background(bg)
-                .clickable(enabled = msg is Message.File) { onClick() }
+                .combinedClickable(
+                    interactionSource = interaction,
+                    indication = null,
+                    onClick = {
+                        if (!recalled && msg is Message.File) onClick()
+                    },
+                    onLongClick = if (!recalled && onLongPress != null) onLongPress else null,
+                )
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            when (msg) {
-                is Message.Text -> SelectionContainer {
+            when {
+                recalled -> Text(
+                    text = "[消息已撤回]",
+                    color = fg,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontStyle = FontStyle.Italic,
+                )
+                msg is Message.Text -> SelectionContainer {
                     Text(
                         text = msg.content, color = fg,
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
-                is Message.File -> FileBubbleContent(msg = msg, fg = fg, mine = mine)
+                msg is Message.File -> FileBubbleContent(msg = msg, fg = fg, mine = mine)
             }
         }
     }
