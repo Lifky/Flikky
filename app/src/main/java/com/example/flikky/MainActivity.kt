@@ -16,6 +16,7 @@ import androidx.navigation.navArgument
 import com.example.flikky.ui.exporting.ExportingScreen
 import com.example.flikky.ui.history.HistoryScreen
 import com.example.flikky.ui.home.HomeScreen
+import com.example.flikky.ui.search.SearchScreen
 import com.example.flikky.ui.serving.ServingScreen
 import com.example.flikky.ui.theme.FlikkyTheme
 
@@ -37,6 +38,7 @@ class MainActivity : ComponentActivity() {
                                 onOpenSession = { id -> nav.navigate("history/$id") },
                                 onStartService = { nav.navigate("serving") },
                                 onStartExport = { nav.navigate("exporting") },
+                                onOpenSearch = { nav.navigate("search") },
                             )
                         }
                         composable("serving") {
@@ -47,13 +49,29 @@ class MainActivity : ComponentActivity() {
                                 onBack = { nav.popBackStack("home", inclusive = false) },
                             )
                         }
+                        composable("search") {
+                            SearchScreen(
+                                onBack = { nav.popBackStack() },
+                                onOpenHit = { sessionId, messageId ->
+                                    nav.navigate("history/$sessionId?highlight=$messageId")
+                                },
+                            )
+                        }
                         composable(
-                            route = "history/{id}",
-                            arguments = listOf(navArgument("id") { type = NavType.LongType }),
+                            route = "history/{id}?highlight={messageId}",
+                            arguments = listOf(
+                                navArgument("id") { type = NavType.LongType },
+                                navArgument("messageId") {
+                                    type = NavType.LongType
+                                    defaultValue = -1L
+                                },
+                            ),
                         ) { backStack ->
                             val id = backStack.arguments!!.getLong("id")
+                            val highlight = backStack.arguments!!.getLong("messageId").takeIf { it > 0L }
                             HistoryScreen(
                                 sessionId = id,
+                                highlightMessageId = highlight,
                                 onBack = { nav.popBackStack() },
                             )
                         }
