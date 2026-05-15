@@ -156,6 +156,11 @@
     }
 
     function onWsEvent(ev) {
+        // v1.3 应用层 pong：服务端 echo {"type":"pong","id":N}，无 payload 包裹。
+        if (ev.type === 'pong') {
+            handlePong(ev.id);
+            return;
+        }
         // 服务端主动停止 — 抢在 ws.onclose 之前标记，让重连流程跳过这个 WS。
         if (ev.type === 'server_stopped') {
             serverStopped = true;
@@ -258,26 +263,59 @@
     let reconnectAttempts = 0;
     const MAX_RECONNECT_ATTEMPTS = 6;
 
-    // 应用层心跳：Wi-Fi 突然断开时 OS 不会立即关 socket，浏览器 readyState 还是
-    // OPEN，onclose 要等 Ktor 的 30 秒 ping-pong 超时才触发。服务端每秒推一次
-    // status event，所以浏览器侧只要记最后收到 frame 的时刻，超过 4 秒就主动
-    // close 让重连流程接手。
-    const FRAME_TIMEOUT_MS = 4000;
-    const FRAME_CHECK_INTERVAL_MS = 1000;
+    // v1.3 B5 应用层 ping/pong：替换 v1.2 的"4 秒 frame 超时被动 close"。
+    // v1.2 依赖服务端 1Hz status 广播作为心跳——但那是隐式约定，业务流量频率变了
+    // 就会误判。改为浏览器主动发 ping，服务端回 pong：语义明确、不依赖业务流量。
+    //
+    // 触发模式：空闲触发——连续 3 秒没收到任何 frame 才发 ping，省电省带宽。
+    // pong 超时 2 秒；连续 2 次 pong 失败 → 强制 close → 触发重连。
+    const HEARTBEAT_IDLE_MS = 3000;
+    const HEARTBEAT_PING_TIMEOUT_MS = 2000;
+    const HEARTBEAT_MAX_FAILS = 2;
+    const HEARTBEAT_TICK_MS = 1000;
     let lastFrameAt = 0;
     let heartbeatTimer = null;
+    let pingSeq = 0;
+    let pendingPings = new Map();   // seq -> sentAtMs
+    let pingFailCount = 0;
+    function resetHeartbeatCounters() {
+        pingSeq = 0;
+        pendingPings = new Map();
+        pingFailCount = 0;
+    }
     function startHeartbeat() {
         stopHeartbeat();
+        resetHeartbeatCounters();
         heartbeatTimer = setInterval(() => {
-            if (currentWs && currentWs.readyState === 1) {
-                if (Date.now() - lastFrameAt > FRAME_TIMEOUT_MS) {
-                    try { currentWs.close(); } catch (_) { /* onclose 接手 */ }
+            if (!currentWs || currentWs.readyState !== 1) return;
+            const now = Date.now();
+            // 空闲足够久就主动 ping
+            if (now - lastFrameAt >= HEARTBEAT_IDLE_MS && pendingPings.size === 0) {
+                const seq = ++pingSeq;
+                pendingPings.set(seq, now);
+                try {
+                    currentWs.send(JSON.stringify({ type: 'ping', id: seq }));
+                } catch (_) { /* 发不出 → 下面超时分支自己处理 */ }
+            }
+            // 检查 pending ping 超时
+            for (const [seq, sentAt] of pendingPings) {
+                if (now - sentAt > HEARTBEAT_PING_TIMEOUT_MS) {
+                    pendingPings.delete(seq);
+                    pingFailCount++;
+                    if (pingFailCount >= HEARTBEAT_MAX_FAILS) {
+                        try { currentWs.close(); } catch (_) { /* onclose 接手 */ }
+                        return;
+                    }
                 }
             }
-        }, FRAME_CHECK_INTERVAL_MS);
+        }, HEARTBEAT_TICK_MS);
     }
     function stopHeartbeat() {
         if (heartbeatTimer != null) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+    }
+    function handlePong(id) {
+        pendingPings.delete(id);
+        pingFailCount = 0;
     }
 
     function openWs() {
