@@ -168,6 +168,61 @@ class SessionRepository(
         else -> error("Unknown message kind: $kind")
     }
 
+    /**
+     * 跨会话消息搜索结果（v1.3 D24）。`snippet` 已根据 kind 提取：
+     * TEXT 取 `content.take(80)`，FILE 取 `fileName`（缺失则空串）。
+     */
+    data class SearchHit(
+        val sessionId: Long,
+        val sessionName: String,
+        val messageId: Long,
+        val snippet: String,
+        val timestamp: Long,
+        val kind: String,
+    )
+
+    /**
+     * 跨会话消息搜索。空 query → 空列表。
+     *
+     * 分支策略（D24）：
+     * - query.length >= 5 → 走 FTS4 MATCH（messages_fts 虚表 + unicode61 分词）
+     * - query.length < 5  → 走 LIKE %query% 兜底。FTS unicode61 把 CJK 拆成单字
+     *   ("你好" 会召回所有含 "你" 或 "好" 的消息，召回过宽)，短词走 LIKE 更精确。
+     *
+     * 撤回过滤：由 DAO 的 `WHERE m.recalledAt IS NULL` 保证，调用方无需感知。
+     * 排序：由 DAO 的 `ORDER BY m.timestamp DESC LIMIT 200` 保证，新消息优先。
+     *
+     * TODO(v1.4): 当前 LIKE 分支不转义 `%` `_` `\`，用户输入这些字符会被当作通配。
+     * v1.3 用户场景（局域网短文本搜索）罕见此问题，故先不实现 ESCAPE 子句；
+     * 后续如果引入"严格匹配"开关，再改为 raw query + `ESCAPE '\\'`。
+     */
+    suspend fun search(query: String): List<SearchHit> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return emptyList()
+
+        val rows: List<com.example.flikky.data.db.MessageSearchResult> =
+            if (trimmed.length >= 5) {
+                messageDao.searchMessagesFts(trimmed)
+            } else {
+                messageDao.searchMessagesLike("%$trimmed%")
+            }
+
+        return rows.map { r ->
+            SearchHit(
+                sessionId = r.sessionId,
+                sessionName = r.sessionName,
+                messageId = r.messageId,
+                snippet = when (r.kind) {
+                    "TEXT" -> r.content?.take(80) ?: ""
+                    "FILE" -> r.fileName ?: ""
+                    else -> ""
+                },
+                timestamp = r.timestamp,
+                kind = r.kind,
+            )
+        }
+    }
+
     companion object {
         const val DEFAULT_NAME_FALLBACK = "会话"
     }
