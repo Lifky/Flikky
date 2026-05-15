@@ -40,6 +40,7 @@ fun Route.messageRoutes(
             origin = Origin.BROWSER,
             timestamp = nowMs(),
             content = req.text,
+            senderId = senderId,
         )
         session.addMessage(msg)
         runCatching { onPersist(msg) }

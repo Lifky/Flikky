@@ -28,4 +28,5 @@ data class MessageEntity(
     val fileMime: String? = null,
     val fileStatus: String? = null,
     val recalledAt: Long? = null,
+    val senderId: String? = null,
 )

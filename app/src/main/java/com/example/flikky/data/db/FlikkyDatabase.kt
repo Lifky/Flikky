@@ -81,8 +81,9 @@ abstract class FlikkyDatabase : RoomDatabase() {
 
         val MIGRATION_1_2: Migration = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // 1) Add recalledAt column to messages
+                // 1) Add recalledAt + senderId columns to messages
                 db.execSQL("ALTER TABLE messages ADD COLUMN recalledAt INTEGER DEFAULT NULL")
+                db.execSQL("ALTER TABLE messages ADD COLUMN senderId TEXT DEFAULT NULL")
 
                 // 2) Create FTS4 virtual table.
                 //    unicode61 with diacritic removal handles Latin scripts well, but by

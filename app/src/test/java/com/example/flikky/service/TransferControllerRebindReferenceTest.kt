@@ -61,6 +61,7 @@ class TransferControllerRebindReferenceTest {
             repository = repository,
             wsHub = { currentHub },
             nowMs = { 1_000L },
+            senderId = "phone-test",
         )
 
         controller.sendText("before rebind")

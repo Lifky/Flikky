@@ -8,12 +8,14 @@ internal fun Message.toEntity(sessionId: Long): MessageEntity = when (this) {
     is Message.Text -> MessageEntity(
         id = id, sessionId = sessionId, origin = origin.name, timestamp = timestamp,
         kind = "TEXT", content = content,
+        senderId = senderId,
     )
     is Message.File -> MessageEntity(
         id = id, sessionId = sessionId, origin = origin.name, timestamp = timestamp,
         kind = "FILE",
         fileId = fileId, fileName = name, fileSize = sizeBytes,
         fileMime = mime, fileStatus = status.name,
+        senderId = senderId,
     )
 }
 
@@ -21,6 +23,7 @@ internal fun MessageEntity.toMessage(): Message = when (kind) {
     "TEXT" -> Message.Text(
         id = id, origin = Origin.valueOf(origin), timestamp = timestamp,
         content = content ?: "",
+        senderId = senderId,
     )
     "FILE" -> Message.File(
         id = id, origin = Origin.valueOf(origin), timestamp = timestamp,
@@ -30,6 +33,7 @@ internal fun MessageEntity.toMessage(): Message = when (kind) {
         mime = fileMime ?: "application/octet-stream",
         status = fileStatus?.let { Message.File.Status.valueOf(it) }
             ?: Message.File.Status.COMPLETED,
+        senderId = senderId,
     )
     else -> error("Unknown message kind: $kind")
 }

@@ -11,6 +11,7 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Binder
 import android.os.IBinder
+import android.provider.Settings
 import android.util.Log
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.export.ExportMode
@@ -156,6 +157,7 @@ class TransferService : Service() {
             // 让 rebind 后 controller 自动跟随新 wsHub，不再朝旧 hub 广播。
             wsHub = { ktor?.wsHub },
             nowMs = System::currentTimeMillis,
+            senderId = phoneSenderId(),
         )
 
         val pin = auth.currentPin() ?: "------"
@@ -486,6 +488,20 @@ class TransferService : Service() {
         ServiceLocator.reset()
         scope.cancel()
         super.onDestroy()
+    }
+
+    /**
+     * Stable phone-side identity for recall authorization (D31).
+     * `Settings.Secure.ANDROID_ID` is a public API and yields a per-app, per-user
+     * 64-bit hex string that survives reinstalls of the same user profile but
+     * resets on factory reset. Falls back to "unknown" if the system returns
+     * null (rare; happens on some emulators before first boot completes).
+     */
+    private fun phoneSenderId(): String {
+        val androidId = runCatching {
+            Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+        }.getOrNull()
+        return "phone-${androidId ?: "unknown"}"
     }
 
     companion object {

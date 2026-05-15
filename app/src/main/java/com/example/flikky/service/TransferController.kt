@@ -32,6 +32,14 @@ class TransferController(
      */
     private val wsHub: () -> WsHub?,
     private val nowMs: () -> Long,
+    /**
+     * Stable phone-side identity stamped onto every Message this controller
+     * creates. v1.3 recall authorization compares this against the message's
+     * senderId, so the same physical device can always recall its own
+     * historical messages — even across service restarts. Set by
+     * TransferService to `"phone-${Settings.Secure.ANDROID_ID}"` (D31).
+     */
+    private val senderId: String,
 ) {
     suspend fun sendText(text: String) {
         if (text.isBlank()) return
@@ -41,6 +49,7 @@ class TransferController(
             origin = Origin.PHONE,
             timestamp = nowMs(),
             content = text,
+            senderId = senderId,
         )
         session.addMessage(msg)
         runCatching { repository.appendMessage(sid, msg) }
@@ -80,6 +89,7 @@ class TransferController(
             sizeBytes = realSize,
             mime = mime,
             status = Message.File.Status.COMPLETED,
+            senderId = senderId,
         )
         session.addMessage(msg)
         stats.incrementFileCount()

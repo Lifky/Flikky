@@ -81,6 +81,7 @@ fun Route.fileRoutes(
             sizeBytes = savedSize,
             mime = savedMime,
             status = Message.File.Status.COMPLETED,
+            senderId = senderId,
         )
         stats.incrementFileCount()
         session.addMessage(msg)
