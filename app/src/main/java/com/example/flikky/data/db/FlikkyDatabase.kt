@@ -53,30 +53,39 @@ abstract class FlikkyDatabase : RoomDatabase() {
         }
 
         /**
-         * Fresh-install hook: Room creates `messages_fts` from the FTS entity's
-         * `tokenizerArgs`, which can only safely include `remove_diacritics=1`
-         * (the KSP-time SQLite rejects `categories='L* N* Co'`). At runtime the
-         * real SQLite supports the richer arg set, so we drop Room's auto table
-         * and recreate it with the full tokenizer config, then attach our triggers.
+         * Fresh-install hook. Room自动用 [MessageFtsEntity.tokenizerArgs] 建好
+         * `messages_fts` 表，tokenizer 是 `unicode61 'remove_diacritics=1'`——
+         * 这是 Android SQLite 唯一安全支持的参数集（v1.3 装机崩溃证明：
+         * `categories='L* N* Co'` 等高级参数需要带 ICU 的 SQLite，Android 内置
+         * SQLite 不支持）。
+         *
+         * Room 还会自动生成 content-sync triggers 把 messages 表的变化镜像到
+         * messages_fts；但 Room 的 trigger 不知道 recalledAt 字段，撤回的消息
+         * 仍会留在 FTS 中。本回调动态扫描并 DROP 所有 Room 自动 trigger，
+         * 换成我们自己的 messages_fts_ai/ad/au，让撤回时同步从 FTS 移除。
          */
         private val onCreateCallback = object : Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
-                // Tear down Room's auto-generated FTS triggers — they reference the
-                // about-to-be-dropped table and would be left dangling otherwise.
-                db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_messages_fts_BEFORE_UPDATE")
-                db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_messages_fts_BEFORE_DELETE")
-                db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_messages_fts_AFTER_UPDATE")
-                db.execSQL("DROP TRIGGER IF EXISTS room_fts_content_sync_messages_fts_AFTER_INSERT")
-                db.execSQL("DROP TABLE IF EXISTS messages_fts")
-                db.execSQL(
-                    "CREATE VIRTUAL TABLE messages_fts USING fts4(" +
-                        "content, fileName, " +
-                        "tokenize=unicode61 'remove_diacritics=1' \"categories=L* N* Co\")"
-                )
-                // No backfill needed on fresh install — there are no messages yet.
+                dropRoomAutoFtsTriggers(db)
                 createFtsTriggers(db)
             }
+        }
+
+        /**
+         * 动态扫 sqlite_master 找 Room 自动生成的 fts content-sync triggers
+         * 并 DROP。命名前缀 `room_fts_content_sync_` 但具体 phase 后缀依
+         * Room 版本而变，硬编码不稳，dynamic query 最稳。
+         */
+        private fun dropRoomAutoFtsTriggers(db: SupportSQLiteDatabase) {
+            val names = mutableListOf<String>()
+            db.query(
+                "SELECT name FROM sqlite_master WHERE type='trigger' " +
+                    "AND name LIKE 'room_fts_content_sync_%'"
+            ).use { c ->
+                while (c.moveToNext()) names.add(c.getString(0))
+            }
+            for (n in names) db.execSQL("DROP TRIGGER IF EXISTS `$n`")
         }
 
         val MIGRATION_1_2: Migration = object : Migration(1, 2) {
@@ -85,17 +94,16 @@ abstract class FlikkyDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE messages ADD COLUMN recalledAt INTEGER DEFAULT NULL")
                 db.execSQL("ALTER TABLE messages ADD COLUMN senderId TEXT DEFAULT NULL")
 
-                // 2) Create FTS4 virtual table.
-                //    unicode61 with diacritic removal handles Latin scripts well, but by
-                //    default treats CJK Unified Ideographs (Unicode category Lo) as
-                //    separators, leaving zero searchable tokens for Chinese text. The
-                //    `categories='L* N* Co'` argument adds Lo (and other letter/number
-                //    classes) to the token set, giving us free single-character
-                //    tokenization for CJK while still tokenizing ASCII normally.
+                // 2) Create FTS4 virtual table. Only `remove_diacritics=1` is portable
+                //    across Android SQLite builds — `categories='L* N* Co'` requires
+                //    SQLite built with ICU, which Android does NOT ship. unicode61
+                //    treats CJK characters as separators by default; that means
+                //    Chinese queries get zero FTS tokens. SessionRepository.search
+                //    routes any non-ASCII query through the LIKE fallback to cover
+                //    this limitation — see search() for the branch.
                 db.execSQL(
                     "CREATE VIRTUAL TABLE messages_fts USING fts4(" +
-                        "content, fileName, " +
-                        "tokenize=unicode61 'remove_diacritics=1' \"categories=L* N* Co\")"
+                        "content, fileName, tokenize=unicode61 'remove_diacritics=1')"
                 )
 
                 // 3) Backfill from existing messages (skip recalled ones — there shouldn't be any at v1->v2)
@@ -105,8 +113,9 @@ abstract class FlikkyDatabase : RoomDatabase() {
                         "WHERE recalledAt IS NULL"
                 )
 
-                // 4) Install AFTER INSERT / DELETE / UPDATE triggers that mirror the
-                //    onCreate path, so fresh-install and upgrade behavior match.
+                // 4) Install our recalledAt-aware triggers. Upgrade path doesn't run
+                //    onCreate so it never sees Room's auto triggers — only the fresh
+                //    install Callback has to drop those.
                 createFtsTriggers(db)
             }
         }

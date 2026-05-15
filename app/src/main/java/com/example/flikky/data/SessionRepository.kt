@@ -184,24 +184,27 @@ class SessionRepository(
     /**
      * 跨会话消息搜索。空 query → 空列表。
      *
-     * 分支策略（D24）：
-     * - query.length >= 5 → 走 FTS4 MATCH（messages_fts 虚表 + unicode61 分词）
-     * - query.length < 5  → 走 LIKE %query% 兜底。FTS unicode61 把 CJK 拆成单字
-     *   ("你好" 会召回所有含 "你" 或 "好" 的消息，召回过宽)，短词走 LIKE 更精确。
+     * 分支策略（D24，v1.3 装机修订）：
+     * - 纯 ASCII 且长度 >= 5 → 走 FTS4 MATCH
+     * - 含非 ASCII（CJK 等）或长度 < 5 → 走 LIKE %query% 兜底
+     *
+     * 修订理由：Android SQLite 不带 ICU，unicode61 tokenizer 无法识别 CJK 字符
+     * （Unicode 'Lo' 类别），中文输入走 FTS 永远拿不到结果。任何包含非 ASCII 字符
+     * 的 query 直接走 LIKE。装机崩溃确认 `categories='L* N* Co'` 参数 Android
+     * SQLite 不接受，所以不能靠 tokenizer 解决 CJK 分词。
      *
      * 撤回过滤：由 DAO 的 `WHERE m.recalledAt IS NULL` 保证，调用方无需感知。
      * 排序：由 DAO 的 `ORDER BY m.timestamp DESC LIMIT 200` 保证，新消息优先。
      *
      * TODO(v1.4): 当前 LIKE 分支不转义 `%` `_` `\`，用户输入这些字符会被当作通配。
-     * v1.3 用户场景（局域网短文本搜索）罕见此问题，故先不实现 ESCAPE 子句；
-     * 后续如果引入"严格匹配"开关，再改为 raw query + `ESCAPE '\\'`。
      */
     suspend fun search(query: String): List<SearchHit> {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return emptyList()
 
+        val pureAsciiLong = trimmed.length >= 5 && trimmed.all { it.code < 128 }
         val rows: List<com.example.flikky.data.db.MessageSearchResult> =
-            if (trimmed.length >= 5) {
+            if (pureAsciiLong) {
                 messageDao.searchMessagesFts(trimmed)
             } else {
                 messageDao.searchMessagesLike("%$trimmed%")
