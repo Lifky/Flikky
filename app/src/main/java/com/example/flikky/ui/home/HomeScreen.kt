@@ -68,6 +68,7 @@ fun HomeScreen(
     onOpenSession: (Long) -> Unit,
     onStartService: () -> Unit,
     onStartExport: () -> Unit = {},
+    onOpenSearch: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -116,7 +117,10 @@ fun HomeScreen(
                     selectAllEnabled = validSessionIds.isNotEmpty(),
                 )
             } else {
-                NormalTopBar(onEnterSelecting = { viewModel.enterSelecting() })
+                NormalTopBar(
+                    onEnterSelecting = { viewModel.enterSelecting() },
+                    onOpenSearch = onOpenSearch,
+                )
             }
         },
         floatingActionButton = {
@@ -199,10 +203,11 @@ fun HomeScreen(
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun NormalTopBar(onEnterSelecting: () -> Unit) {
+private fun NormalTopBar(onEnterSelecting: () -> Unit, onOpenSearch: () -> Unit) {
     TopAppBar(
         title = { Text("Flikky") },
         actions = {
+            IconButton(onClick = onOpenSearch) { Text("🔍") }
             TextButton(onClick = onEnterSelecting) { Text("导出") }
         },
         colors = TopAppBarDefaults.topAppBarColors(),
