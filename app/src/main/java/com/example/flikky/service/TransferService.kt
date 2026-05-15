@@ -161,6 +161,9 @@ class TransferService : Service() {
             nowMs = System::currentTimeMillis,
             senderId = phoneSenderId(),
         )
+        // v1.3：HistoryViewModel 撤回入口通过 ServiceLocator 拿 controller。
+        // 见 ServiceLocator.currentController 的 KDoc。
+        ServiceLocator.currentController = controller
 
         val pin = auth.currentPin() ?: "------"
         _running.value = Running(ip, port, pin, sid)
@@ -292,6 +295,7 @@ class TransferService : Service() {
         }
         ktor?.stop(); ktor = null
         controller = null
+        ServiceLocator.currentController = null
         statusBroadcastJob?.cancel(); statusBroadcastJob = null
 
         if (mode == ServiceMode.Transfer) {

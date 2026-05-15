@@ -5,6 +5,7 @@ import com.example.flikky.data.SessionFileStore
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.FlikkyDatabase
 import com.example.flikky.network.NetworkInfo
+import com.example.flikky.service.TransferController
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
 
@@ -22,6 +23,18 @@ object ServiceLocator {
         private set
     lateinit var repository: SessionRepository
         private set
+
+    /**
+     * 当前运行中的 [TransferController] 引用，由 [com.example.flikky.service.TransferService]
+     * 在 startTransfer 设置、stopActiveServer 清空。v1.3 撤回流程下，HistoryViewModel
+     * 不通过 service binding 而是直接从这里拿——撤回操作是单次调用且只读，
+     * binding 完整生命周期管理开销过大。
+     *
+     * 跨 Wi-Fi rebind 时 controller 实例不变（service 内部 field 复用），所以这里
+     * 不需要 lambda 间接访问（CLAUDE.md 跨-rebind 规范针对的是 KtorServer 内部
+     * 成员，TransferController 本身跨 rebind 同一实例）。
+     */
+    @Volatile var currentController: TransferController? = null
 
     fun init(app: Context) {
         appContext = app.applicationContext
@@ -60,5 +73,6 @@ object ServiceLocator {
     fun reset() {
         session.reset()
         stats.reset()
+        currentController = null
     }
 }
