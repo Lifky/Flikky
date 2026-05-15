@@ -195,3 +195,21 @@ html, body { height: 100%; margin: 0; padding: 0; }
     color: rgb(var(--mdui-color-on-surface-variant));
     text-align: center;
 }
+
+/* v1.3 B9 (T27): export health-probe disconnect banner. Mirrors the
+ * chat-side .conn-banner[data-kind="disconnected"] palette (MD3 error
+ * container) so users get the same visual language across both pages.
+ * No vertical margin — the parent .export-main is a flex column with
+ * gap:16px and supplies the spacing. */
+.export-banner {
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    text-align: center;
+    background: rgb(var(--mdui-color-error-container));
+    color: rgb(var(--mdui-color-on-error-container));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.export-banner[hidden] {
+    display: none;
+}

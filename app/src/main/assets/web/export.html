@@ -14,6 +14,11 @@
         </mdui-top-app-bar>
 
         <main class="export-main">
+            <!-- v1.3 B9 (T27): health-probe disconnect banner. Toggled by
+                 export.js via the `hidden` attribute; text written through
+                 textContent (no innerHTML, per browser red lines). -->
+            <div id="export-banner" class="export-banner" role="status" aria-live="polite" hidden></div>
+
             <mdui-card id="summary-card" variant="filled" class="export-card">
                 <h2 class="export-card-title">即将下载</h2>
                 <div id="summary" class="export-summary">读取中…</div>
