@@ -13,11 +13,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * v1.3 T11：TransferController.recallMessage 的 minimal 回归保护。
+ * v1.3 D26 修订：TransferController.recallMessage 的 minimal 回归保护。
  *
  *  - Success 路径必须广播 message_recalled，否则浏览器要等下次轮询才更新。
- *  - 非 Success 路径（Denied/NotFound/AlreadyRecalled）不能广播，否则浏览器会
- *    错误地把别人正常的消息渲染为已撤回。
+ *  - 非 Success 路径（Denied/NotFound）不能广播，否则浏览器会错误地从 UI 中
+ *    移除别人的正常消息。
  *
  * 不重复覆盖 repository 的撤回语义本身——`SessionRepositoryRecallTest` 已覆盖。
  */
@@ -46,7 +46,7 @@ class TransferControllerRecallTest {
         val hub = mockk<WsHub>(relaxed = true)
         val repository = mockk<SessionRepository>()
         coEvery { repository.recallMessage(123L, "phone-test") } returns
-            SessionRepository.RecallOutcome.Success(messageId = 123L, sessionId = 42L, recalledAt = 9_000L)
+            SessionRepository.RecallOutcome.Success(messageId = 123L, sessionId = 42L)
 
         val controller = controllerWith(repository, hub)
         val out = controller.recallMessage(123L)
@@ -83,19 +83,6 @@ class TransferControllerRecallTest {
         coVerify(exactly = 0) { hub.broadcast(any(), any()) }
     }
 
-    @Test
-    fun `recallMessage AlreadyRecalled does not broadcast`() = runTest {
-        val hub = mockk<WsHub>(relaxed = true)
-        val repository = mockk<SessionRepository>()
-        coEvery { repository.recallMessage(123L, "phone-test") } returns
-            SessionRepository.RecallOutcome.AlreadyRecalled(messageId = 123L, sessionId = 42L, recalledAt = 5_000L)
-
-        val controller = controllerWith(repository, hub)
-        val out = controller.recallMessage(123L)
-
-        assertTrue("outcome should be AlreadyRecalled but was $out", out is SessionRepository.RecallOutcome.AlreadyRecalled)
-        // Idempotent — clients already know the message is recalled, no re-broadcast needed.
-        coVerify(exactly = 0) { hub.broadcastRecall(any(), any()) }
-        coVerify(exactly = 0) { hub.broadcast(any(), any()) }
-    }
+    // AlreadyRecalled 分支已随 v1.3 D26 修订（撤回 = 真删）一并移除：
+    // 真删后再次撤回是 NotFound，已有的 NotFound 测试覆盖。
 }

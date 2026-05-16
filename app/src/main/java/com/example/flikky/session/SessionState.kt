@@ -88,6 +88,17 @@ class SessionState(private val nowMs: () -> Long) {
         }
     }
 
+    /**
+     * v1.3 撤回内存同步：从当前会话的消息列表里移除指定消息。
+     * TransferController.recallMessage 在 repository 真删 DB 后调用，让
+     * ServingScreen / WS 广播都能立即反映"消息消失"。
+     */
+    fun removeMessage(id: Long) {
+        _snapshot.update { s ->
+            s.copy(messages = s.messages.filterNot { it.id == id })
+        }
+    }
+
     fun setClientConnected(connected: Boolean) {
         _snapshot.update { it.copy(clientConnected = connected) }
     }

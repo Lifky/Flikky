@@ -25,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.flikky.session.Message
@@ -39,24 +38,16 @@ fun MessageBubble(
     onLongPress: (() -> Unit)? = null,
 ) {
     val mine = msg.origin == Origin.PHONE
-    val recalled = msg.recalledAt != null
     val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.8f).dp
     val shape = RoundedCornerShape(
         topStart = 18.dp, topEnd = 18.dp,
         bottomStart = if (mine) 18.dp else 4.dp,
         bottomEnd = if (mine) 4.dp else 18.dp,
     )
-    // 撤回后从 primary 退回中性背景，让"已撤回"视觉退到二线（与浏览器端一致）。
-    val bg = when {
-        recalled -> MaterialTheme.colorScheme.surfaceContainerHigh
-        mine -> MaterialTheme.colorScheme.primary
-        else -> MaterialTheme.colorScheme.surfaceContainerHigh
-    }
-    val fg = when {
-        recalled -> MaterialTheme.colorScheme.onSurfaceVariant
-        mine -> MaterialTheme.colorScheme.onPrimary
-        else -> MaterialTheme.colorScheme.onSurface
-    }
+    val bg = if (mine) MaterialTheme.colorScheme.primary
+             else MaterialTheme.colorScheme.surfaceContainerHigh
+    val fg = if (mine) MaterialTheme.colorScheme.onPrimary
+             else MaterialTheme.colorScheme.onSurface
 
     val interaction = remember { MutableInteractionSource() }
     Row(
@@ -71,27 +62,19 @@ fun MessageBubble(
                 .combinedClickable(
                     interactionSource = interaction,
                     indication = null,
-                    onClick = {
-                        if (!recalled && msg is Message.File) onClick()
-                    },
-                    onLongClick = if (!recalled && onLongPress != null) onLongPress else null,
+                    onClick = { if (msg is Message.File) onClick() },
+                    onLongClick = onLongPress,
                 )
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
-            when {
-                recalled -> Text(
-                    text = "[消息已撤回]",
-                    color = fg,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontStyle = FontStyle.Italic,
-                )
-                msg is Message.Text -> SelectionContainer {
+            when (msg) {
+                is Message.Text -> SelectionContainer {
                     Text(
                         text = msg.content, color = fg,
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
-                msg is Message.File -> FileBubbleContent(msg = msg, fg = fg, mine = mine)
+                is Message.File -> FileBubbleContent(msg = msg, fg = fg, mine = mine)
             }
         }
     }

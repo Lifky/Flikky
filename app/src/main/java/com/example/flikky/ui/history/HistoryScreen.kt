@@ -129,10 +129,8 @@ fun HistoryScreen(
                     animationSpec = tween(durationMillis = 600),
                     label = "search-highlight",
                 )
-                var recallMenuOpen by remember(msg.id) { mutableStateOf(false) }
-                // 只对"自己发的、未撤回的"消息提供撤回菜单。其余长按无效，让 UI 体感
-                // 干净：用户长按对方消息或已撤回消息没反应符合预期。
-                val canRecall = msg.origin == Origin.PHONE && msg.recalledAt == null
+                var menuOpen by remember(msg.id) { mutableStateOf(false) }
+                var confirmDelete by remember(msg.id) { mutableStateOf(false) }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -143,22 +141,41 @@ fun HistoryScreen(
                         onClick = {
                             if (msg is Message.File) openFile(ctx, sessionId, msg)
                         },
-                        onLongPress = if (canRecall) {
-                            { recallMenuOpen = true }
-                        } else null,
+                        onLongPress = { menuOpen = true },
                     )
                     DropdownMenu(
-                        expanded = recallMenuOpen,
-                        onDismissRequest = { recallMenuOpen = false },
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("撤回") },
+                            text = { Text("删除此消息") },
                             onClick = {
-                                recallMenuOpen = false
-                                viewModel.recallMessage(msg.id)
+                                menuOpen = false
+                                confirmDelete = true
                             },
                         )
                     }
+                }
+                if (confirmDelete) {
+                    AlertDialog(
+                        onDismissRequest = { confirmDelete = false },
+                        title = { Text("删除此消息") },
+                        text = {
+                            Text(
+                                if (msg is Message.File) "将删除此消息及其本地文件，不可撤销。"
+                                else "将删除此消息，不可撤销。"
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                confirmDelete = false
+                                viewModel.deleteMessage(msg.id)
+                            }) { Text("删除") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { confirmDelete = false }) { Text("取消") }
+                        },
+                    )
                 }
             }
         }

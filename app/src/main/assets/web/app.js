@@ -113,7 +113,7 @@
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             closeRecallMenu();
-            recallMessage(messageId);
+            confirmRecallMessage(messageId);
         });
         menu.appendChild(btn);
         document.body.appendChild(menu);
@@ -134,19 +134,45 @@
         if (m) m.remove();
     }
 
-    async function recallMessage(messageId) {
+    /**
+     * v1.3 D26 修订：撤回前必须二次确认（与手机端 AlertDialog 对齐）。
+     * 用 mdui-dialog 弹一个简单的确认窗。点击"撤回"才真正调 DELETE。
+     */
+    function confirmRecallMessage(messageId) {
+        const dialog = document.getElementById('recall-confirm-dialog');
+        if (!dialog) {
+            // 回退：mdui 没加载，直接走 native confirm。
+            if (window.confirm('撤回这条消息？两端都会消失，不可恢复。')) {
+                doRecallMessage(messageId);
+            }
+            return;
+        }
+        const okBtn = dialog.querySelector('[data-action="confirm"]');
+        const cancelBtn = dialog.querySelector('[data-action="cancel"]');
+        const onOk = () => { cleanup(); doRecallMessage(messageId); };
+        const onCancel = () => { cleanup(); };
+        function cleanup() {
+            dialog.open = false;
+            okBtn.removeEventListener('click', onOk);
+            cancelBtn.removeEventListener('click', onCancel);
+        }
+        okBtn.addEventListener('click', onOk);
+        cancelBtn.addEventListener('click', onCancel);
+        dialog.open = true;
+    }
+
+    async function doRecallMessage(messageId) {
         try {
             const r = await fetch(`/api/messages/${messageId}`, {
                 method: 'DELETE',
                 headers: { 'X-Client-Id': myClientId },
             });
-            if (r.ok || r.status === 409) {
-                // 200 = 刚撤；409 = 已撤（idempotent）。本地直接替占位符。
-                renderRecalled(messageId);
+            if (r.ok || r.status === 404) {
+                // 200 刚撤；404 已删（idempotent）。本地节点直接消失 + snackbar 提示。
+                removeMessageNode(messageId);
+                if (window.flikky && window.flikky.showInfo) window.flikky.showInfo('消息已撤回');
             } else if (r.status === 403) {
                 if (window.flikky && window.flikky.showError) window.flikky.showError('只能撤回自己发的消息');
-            } else if (r.status === 404) {
-                if (window.flikky && window.flikky.showError) window.flikky.showError('消息不存在');
             } else {
                 if (window.flikky && window.flikky.showError) window.flikky.showError('撤回失败');
             }
@@ -155,18 +181,13 @@
         }
     }
 
-    // v1.3 T15：把已渲染气泡替换为撤回占位符。被三个路径调用：
-    //  - 本浏览器调 DELETE 成功后乐观渲染
-    //  - 收到 message_recalled WS event（另一端撤回）
-    //  - loadHistory 未来如果服务端返回 recalledAt 也走这里（v1.3 GET 暂不带，见 backlog）
-    // 用 textContent 替换可保留气泡尺寸结构，避免列表跳变。
-    function renderRecalled(messageId) {
+    // v1.3 D26 修订：撤回 = 消息节点完全消失（不留占位符）。被两条路径调用：
+    //  - 本浏览器调 DELETE 成功 → 移除节点 + showInfo "消息已撤回"
+    //  - 收到 message_recalled WS event（对端撤回）→ 移除节点 + showInfo "对方撤回了一条消息"
+    // 调用方负责 snackbar 文案；本函数只管 DOM 清理，且幂等。
+    function removeMessageNode(messageId) {
         const node = list.querySelector(`[data-message-id="${messageId}"]`);
-        if (!node || node.classList.contains('recalled')) return;
-        // 移除所有子节点（包括文件气泡的 a / span / progress bar 等）
-        while (node.firstChild) node.removeChild(node.firstChild);
-        node.classList.add('recalled');
-        node.textContent = '[消息已撤回]';
+        if (node) node.remove();
     }
 
     function renderUploadingBubble(opts) {
@@ -284,11 +305,19 @@
             return;
         }
         if (ev.type === 'message_recalled') {
-            // v1.3 B4 撤回事件：另一端撤回时由服务端广播。本端 DELETE 成功路径
-            // 已经直接调 renderRecalled，这里覆盖"对端撤回"分支。renderRecalled
-            // 幂等，重复调用无副作用。
+            // v1.3 D26 修订：服务端广播。本端 DELETE 成功路径已经自己 remove 节点了，
+            // 这里覆盖"对端撤回"分支。removeMessageNode 幂等。
+            // 文案区分：本端是"消息已撤回"（doRecallMessage 里发），对端是
+            // "对方撤回了一条消息"。判断：如果该 messageId 节点还在，说明本端
+            // 没主动撤过 → 是对端撤回。
             const p = ev.payload || {};
-            if (typeof p.messageId === 'number') renderRecalled(p.messageId);
+            if (typeof p.messageId === 'number') {
+                const stillThere = list.querySelector(`[data-message-id="${p.messageId}"]`);
+                removeMessageNode(p.messageId);
+                if (stillThere && window.flikky && window.flikky.showInfo) {
+                    window.flikky.showInfo('对方撤回了一条消息');
+                }
+            }
             return;
         }
         if (ev.type === 'text_added') {

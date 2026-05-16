@@ -97,12 +97,14 @@ fun Route.messageRoutes(
     }
 
     /**
-     * v1.3 D26：浏览器端撤回消息。同 fileRoutes / 上面的 post，X-Client-Id 必填——
-     * 既用于鉴权（必须等于消息原始 senderId），也用于让本浏览器自己 dedup 后续 WS 广播。
+     * v1.3 D26 修订：浏览器端撤回消息。X-Client-Id 必填——既用于鉴权（必须等于
+     * 消息原始 senderId），也用于让本浏览器自己 dedup 后续 WS 广播。
      *
-     * 成功后立刻广播 message_recalled，让所有客户端把对应消息渲染为 [消息已撤回] 占位。
-     * 失败分支不广播；AlreadyRecalled 视作 idempotent，返回 409 + 原 recalledAt 让客户端
-     * 直接对齐已撤回状态。
+     * 撤回 = 真删（不再有"撤回标记"）。成功后广播 message_recalled，让所有客户端
+     * 把对应消息节点完全移除 + snackbar 提醒。失败分支不广播。
+     *
+     * 不再有 409 / AlreadyRecalled —— 真删后重复请求得到 NotFound，浏览器把
+     * NotFound 当 idempotent 成功处理（节点已经移除了）。
      */
     delete("/api/messages/{id}") {
         if (!requireAuth(call)) { call.respond(HttpStatusCode.Unauthorized); return@delete }
@@ -113,7 +115,7 @@ fun Route.messageRoutes(
 
         when (val outcome = recallHandler(id, senderId)) {
             is ServerRecallOutcome.Success -> {
-                val resp = RecallResponse(outcome.messageId, outcome.sessionId, outcome.recalledAt)
+                val resp = RecallResponse(outcome.messageId, outcome.sessionId)
                 call.respond(HttpStatusCode.OK, resp)
                 broadcastEvent(
                     "message_recalled",
@@ -122,10 +124,6 @@ fun Route.messageRoutes(
             }
             is ServerRecallOutcome.NotFound -> call.respond(HttpStatusCode.NotFound, mapOf("error" to "not_found"))
             is ServerRecallOutcome.Denied -> call.respond(HttpStatusCode.Forbidden, mapOf("error" to "denied"))
-            is ServerRecallOutcome.AlreadyRecalled -> call.respond(
-                HttpStatusCode.Conflict,
-                RecallResponse(outcome.messageId, outcome.sessionId, outcome.recalledAt),
-            )
         }
     }
 }

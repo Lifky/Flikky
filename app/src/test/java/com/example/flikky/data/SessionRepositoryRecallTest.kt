@@ -94,8 +94,8 @@ class SessionRepositoryRecallTest {
         val outcome = repo.recallMessage(messageId = 1L, callerSenderId = "intruder")
 
         assertEquals(SessionRepository.RecallOutcome.Denied, outcome)
-        val after = db.messageDao().getById(1L)!!
-        assertNull("recalledAt must remain null on Denied", after.recalledAt)
+        // 真删模型下：Denied 不动行；getById 仍能拿到原消息。
+        assertNotNull("Denied must not delete the row", db.messageDao().getById(1L))
     }
 
     @Test fun null_senderId_legacy_message_cannot_be_recalled() = runTest {
@@ -106,45 +106,38 @@ class SessionRepositoryRecallTest {
         val outcome = repo.recallMessage(messageId = 1L, callerSenderId = "sender-1")
 
         assertEquals(SessionRepository.RecallOutcome.Denied, outcome)
-        assertNull(db.messageDao().getById(1L)!!.recalledAt)
+        assertNotNull(db.messageDao().getById(1L))
     }
 
-    @Test fun text_message_recall_succeeds_and_writes_recalledAt() = runTest {
+    @Test fun text_message_recall_hard_deletes_row() = runTest {
+        // v1.3 D26 修订：Success = 真删行（不再写 recalledAt 标记）。
         val sid = insertSession()
         insertText(sid, id = 1L, content = "hi", senderId = "sender-1")
 
-        clock = 7_777L
         val outcome = repo.recallMessage(messageId = 1L, callerSenderId = "sender-1")
 
         assertTrue(outcome is SessionRepository.RecallOutcome.Success)
         val success = outcome as SessionRepository.RecallOutcome.Success
         assertEquals(1L, success.messageId)
         assertEquals(sid, success.sessionId)
-        assertEquals(7_777L, success.recalledAt)
 
-        val after = db.messageDao().getById(1L)!!
-        assertEquals(7_777L, after.recalledAt)
+        assertNull("row should be hard-deleted", db.messageDao().getById(1L))
     }
 
-    @Test fun already_recalled_message_returns_AlreadyRecalled_unchanged() = runTest {
+    @Test fun second_recall_after_hard_delete_returns_NotFound() = runTest {
+        // 真删后再撤等价 idempotent：行已不存在 → NotFound。上层把它当成功处理
+        // （消息节点已经移除了，没什么需要做的）。
         val sid = insertSession()
-        insertText(sid, id = 1L, content = "x", senderId = "sender-1", recalledAt = 3_333L)
+        insertText(sid, id = 1L, content = "x", senderId = "sender-1")
 
-        clock = 9_999L
-        val outcome = repo.recallMessage(messageId = 1L, callerSenderId = "sender-1")
+        val first = repo.recallMessage(messageId = 1L, callerSenderId = "sender-1")
+        assertTrue(first is SessionRepository.RecallOutcome.Success)
 
-        assertTrue(outcome is SessionRepository.RecallOutcome.AlreadyRecalled)
-        val already = outcome as SessionRepository.RecallOutcome.AlreadyRecalled
-        assertEquals(1L, already.messageId)
-        assertEquals(sid, already.sessionId)
-        // 关键：返回的是原 recalledAt，不是 now()。
-        assertEquals(3_333L, already.recalledAt)
-
-        // DB 没被覆盖。
-        assertEquals(3_333L, db.messageDao().getById(1L)!!.recalledAt)
+        val second = repo.recallMessage(messageId = 1L, callerSenderId = "sender-1")
+        assertEquals(SessionRepository.RecallOutcome.NotFound, second)
     }
 
-    @Test fun file_message_recall_deletes_file_and_decrements_aggregates() = runTest {
+    @Test fun file_message_recall_deletes_row_and_file_and_decrements_aggregates() = runTest {
         val sid = insertSession(fileCount = 1, totalBytes = 1_234L)
         insertFile(sid, id = 1L, fileId = "fA", fileName = "a.bin", size = 1_234L)
 
@@ -153,16 +146,14 @@ class SessionRepositoryRecallTest {
         onDisk.writeBytes(ByteArray(1_234))
         assertTrue("setup: file must exist", onDisk.exists())
 
-        clock = 8_888L
         val outcome = repo.recallMessage(messageId = 1L, callerSenderId = "sender-1")
 
         assertTrue(outcome is SessionRepository.RecallOutcome.Success)
-        assertEquals(8_888L, db.messageDao().getById(1L)!!.recalledAt)
-
-        // 文件已被删除。
+        // 行真删
+        assertNull("row should be hard-deleted", db.messageDao().getById(1L))
+        // 文件已被删除
         assertFalse("file should be deleted on recall", onDisk.exists())
-
-        // 聚合字段减一减字节。
+        // 聚合字段减一减字节
         val sessionAfter = db.sessionDao().getById(sid)!!
         assertEquals(0, sessionAfter.fileCount)
         assertEquals(0L, sessionAfter.totalBytes)
@@ -192,7 +183,7 @@ class SessionRepositoryRecallTest {
 
         val outcome = repo.recallMessage(messageId = 1L, callerSenderId = "sender-1")
         assertTrue(outcome is SessionRepository.RecallOutcome.Success)
-        assertNotNull(db.messageDao().getById(1L)!!.recalledAt)
+        assertNull(db.messageDao().getById(1L))
 
         val sessionAfter = db.sessionDao().getById(sid)!!
         assertEquals(0, sessionAfter.fileCount)

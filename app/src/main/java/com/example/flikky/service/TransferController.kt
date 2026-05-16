@@ -115,23 +115,20 @@ class TransferController(
     }
 
     /**
-     * v1.3 T11 手机端撤回入口。HistoryViewModel 调本方法（不直接调 repository），
-     * 因为撤回成功后要触发 WS 广播让浏览器同步成 [消息已撤回] 占位。
+     * v1.3 撤回入口（D26 修订：从"软删 + 占位符"改为"真删 + 节点消失"）。
      *
-     * 鉴权交给 repository：[SessionRepository.recallMessage] 用消息上记录的 senderId
-     * 比对本 controller 的 [senderId]，跨服务重启依然能撤回自己历史消息。
+     * 流程：
+     * 1) repository.recallMessage 真删 DB 行（鉴权 senderId 匹配）+ 文件删盘
+     * 2) session.removeMessage 同步 ServingScreen 的 messages flow
+     * 3) wsHub 广播 message_recalled，让浏览器收到后移除节点 + snackbar 提醒
      *
-     * 返回 [RecallOutcome] 让上层决定 UI 反馈：Success / AlreadyRecalled 静默更新即可；
-     * NotFound / Denied 上层可以 Toast 或弹 dialog。
-     *
-     * 注意：内存 [SessionState.snapshot].messages 不在此处更新——历史列表通过
-     * repository 的 observeMessages flow 重新拉取，DB 已写入 recalledAt 后 flow
-     * 会自动收到下一帧。否则需要给 SessionState 加专门的 "mark recalled" API，
-     * 与 v1.3 数据模型一并复杂化，无必要。
+     * 失败分支（NotFound / Denied）不广播、不动 session；上层根据 outcome
+     * 决定提示文案。
      */
     suspend fun recallMessage(messageId: Long): RecallOutcome {
         val outcome = repository.recallMessage(messageId, senderId)
         if (outcome is RecallOutcome.Success) {
+            session.removeMessage(outcome.messageId)
             wsHub()?.broadcastRecall(outcome.sessionId, outcome.messageId)
         }
         return outcome

@@ -227,50 +227,35 @@ class SessionRepository(
     }
 
     /**
-     * recallMessage 的四种结果（D26）。Success / AlreadyRecalled 都携带 recalledAt
-     * 以便上层广播一致的撤回事件；NotFound / Denied 是错误分支。
+     * recallMessage 的三种结果（v1.3 D26 修订）。Success 不再携带 recalledAt——
+     * 撤回是真删（DELETE FROM messages），没有时间戳可保留；上层广播只需
+     * (sessionId, messageId) 让两端从 UI 中移除对应节点。
      */
     sealed class RecallOutcome {
-        data class Success(
-            val messageId: Long,
-            val sessionId: Long,
-            val recalledAt: Long,
-        ) : RecallOutcome()
+        data class Success(val messageId: Long, val sessionId: Long) : RecallOutcome()
         object NotFound : RecallOutcome()
         object Denied : RecallOutcome()
-        data class AlreadyRecalled(
-            val messageId: Long,
-            val sessionId: Long,
-            val recalledAt: Long,
-        ) : RecallOutcome()
     }
 
     /**
-     * 撤回单条消息（v1.3 D26）。
+     * 撤回单条消息（v1.3 D26 修订：从"软删 + 占位符"改为"真删 + UI 完全消失"）。
      *
      * 鉴权：调用方传入的 `callerSenderId` 必须严格等于消息 `senderId`。
-     * `senderId` 为 null 的旧消息（pre-v1.3 数据）无法撤回 → Denied，不能让任何
-     * 客户端撤回身份不明的历史消息。
+     * `senderId` 为 null 的旧消息（pre-v1.3 数据）无法撤回 → Denied。
      *
      * 副作用：
-     * - 文本消息：仅写 `messages.recalledAt`，FTS 行由触发器 `messages_fts_au`
-     *   自动 DELETE（new.recalledAt 非 null 时不会重新插入）。
+     * - 真删 messages 行；messages_fts_ad 触发器自动清 FTS。
      * - 文件消息：同时删盘 + 更新 SessionEntity 聚合字段（fileCount-1, totalBytes -= fileSize）。
-     *   删盘失败不阻塞撤回——逻辑上消息已撤回，磁盘残留交给后续清理。
+     *   删盘失败不阻塞撤回——逻辑上消息已撤回，磁盘残留交给 fifoSweep 兜底。
      *
-     * 幂等：已撤回的消息再次调用返回 AlreadyRecalled（带原 recalledAt），不写库。
+     * 不再有 AlreadyRecalled 分支——真删后再次调用是 NotFound（行已不存在），上层
+     * 把 NotFound 当作 idempotent 成功处理（消息已经"撤回"了，浏览器节点也已移除）。
      */
     suspend fun recallMessage(messageId: Long, callerSenderId: String): RecallOutcome {
         val msg = messageDao.getById(messageId) ?: return RecallOutcome.NotFound
-        msg.recalledAt?.let {
-            return RecallOutcome.AlreadyRecalled(msg.id, msg.sessionId, it)
-        }
         if (msg.senderId == null || msg.senderId != callerSenderId) {
             return RecallOutcome.Denied
         }
-
-        val recalledAt = now()
-        messageDao.markRecalled(messageId, recalledAt)
 
         if (msg.kind == "FILE") {
             val sessionRow = sessionDao.getById(msg.sessionId)
@@ -287,7 +272,33 @@ class SessionRepository(
             }
         }
 
-        return RecallOutcome.Success(messageId, msg.sessionId, recalledAt)
+        messageDao.deleteById(messageId)
+        return RecallOutcome.Success(messageId, msg.sessionId)
+    }
+
+    /**
+     * v1.3 History 单条消息删除入口。与撤回的区别：
+     * - 不鉴权（History 是本地操作，不分谁发的）
+     * - 不广播 WS（服务可能没在跑；即便在跑也不通知浏览器，纯本地清理）
+     * - 文件消息同样删盘 + 更新聚合
+     */
+    suspend fun deleteMessage(messageId: Long) {
+        val msg = messageDao.getById(messageId) ?: return
+        if (msg.kind == "FILE") {
+            val sessionRow = sessionDao.getById(msg.sessionId)
+            msg.fileId?.let { fileStore.deleteMessageFile(msg.sessionId, it) }
+            if (sessionRow != null) {
+                val newFileCount = (sessionRow.fileCount - 1).coerceAtLeast(0)
+                val newTotalBytes = (sessionRow.totalBytes - (msg.fileSize ?: 0L)).coerceAtLeast(0L)
+                sessionDao.update(
+                    sessionRow.copy(
+                        fileCount = newFileCount,
+                        totalBytes = newTotalBytes,
+                    )
+                )
+            }
+        }
+        messageDao.deleteById(messageId)
     }
 
     companion object {

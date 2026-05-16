@@ -36,8 +36,14 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE id = :id")
     suspend fun getById(id: Long): MessageEntity?
 
-    @Query("UPDATE messages SET recalledAt = :recalledAt WHERE id = :id")
-    suspend fun markRecalled(id: Long, recalledAt: Long)
+    /**
+     * v1.3 撤回 / History 单条删除统一入口。真删行：messages_fts_ad 触发器
+     * 自动清 FTS。recalledAt 字段在 v1.3 中段废弃（验收反馈：撤回应该是
+     * "完全消失"而不是"标记占位符"，见 retrospective），保留 column 仅为
+     * schema 向前兼容，无代码再写入。
+     */
+    @Query("DELETE FROM messages WHERE id = :id")
+    suspend fun deleteById(id: Long)
 
     @Query("SELECT COUNT(*) FROM messages WHERE sessionId = :sid")
     suspend fun countBySession(sid: Long): Int

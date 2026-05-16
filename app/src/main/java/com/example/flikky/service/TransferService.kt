@@ -342,15 +342,16 @@ class TransferService : Service() {
         },
         onRecallMessage = { messageId, callerSenderId ->
             // 桥接 data 层 RecallOutcome → server 层 ServerRecallOutcome，保持
-            // server 包不反向依赖 data 包（CLAUDE.md「不把 Android Context 穿透到
-            // server 包」同源原则的对偶：data 层细节也不外泄）。
+            // server 包不反向依赖 data 包。
+            // v1.3 D26 修订：撤回 = 真删，repository 也同步从 SessionState 内存
+            // 移除消息让 ServingScreen 立即看到节点消失。
             when (val out = ServiceLocator.repository.recallMessage(messageId, callerSenderId)) {
-                is SessionRepository.RecallOutcome.Success ->
-                    ServerRecallOutcome.Success(out.messageId, out.sessionId, out.recalledAt)
+                is SessionRepository.RecallOutcome.Success -> {
+                    ServiceLocator.session.removeMessage(out.messageId)
+                    ServerRecallOutcome.Success(out.messageId, out.sessionId)
+                }
                 is SessionRepository.RecallOutcome.NotFound -> ServerRecallOutcome.NotFound
                 is SessionRepository.RecallOutcome.Denied -> ServerRecallOutcome.Denied
-                is SessionRepository.RecallOutcome.AlreadyRecalled ->
-                    ServerRecallOutcome.AlreadyRecalled(out.messageId, out.sessionId, out.recalledAt)
             }
         },
         mode = ServiceMode.Transfer,

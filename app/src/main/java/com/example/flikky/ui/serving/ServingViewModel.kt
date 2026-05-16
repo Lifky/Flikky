@@ -12,19 +12,23 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.flikky.data.SessionRepository
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.service.TransferController
 import com.example.flikky.service.TransferService
 import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
 import com.example.flikky.session.Origin
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -42,6 +46,13 @@ data class ServingUiState(
 class ServingViewModel(app: Application) : AndroidViewModel(app) {
     private val _ui = MutableStateFlow(ServingUiState())
     val ui: StateFlow<ServingUiState> = _ui
+
+    /**
+     * One-shot UI events (snackbar 文案)。Channel + receiveAsFlow 比 SharedFlow
+     * 更适合"不可丢、消费一次"的场景：撤回提醒不能因为重组错过。
+     */
+    private val _events = Channel<String>(Channel.BUFFERED)
+    val events: Flow<String> = _events.receiveAsFlow()
 
     private var running: TransferService.Running? = null
     private var controller: TransferController? = null
@@ -95,6 +106,26 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     fun offerFile(uri: Uri) {
         val resolver = getApplication<Application>().contentResolver
         viewModelScope.launch { controller?.offerFile(uri, resolver) }
+    }
+
+    /**
+     * v1.3 D26 修订：撤回入口（仅 ServingScreen 提供）。
+     * controller 为 null 不该发生（ServingScreen 只在服务运行中可见），但加防御。
+     */
+    fun recallMessage(messageId: Long) {
+        val ctrl = controller ?: run {
+            _events.trySend("无法撤回：服务已停止"); return
+        }
+        viewModelScope.launch {
+            when (ctrl.recallMessage(messageId)) {
+                is SessionRepository.RecallOutcome.Success ->
+                    _events.trySend("消息已撤回")
+                is SessionRepository.RecallOutcome.NotFound ->
+                    _events.trySend("消息已撤回")  // 真删后再撤等价 idempotent 成功
+                is SessionRepository.RecallOutcome.Denied ->
+                    _events.trySend("只能撤回自己发的消息")
+            }
+        }
     }
 
     /**

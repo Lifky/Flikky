@@ -43,6 +43,13 @@
 
     <mdui-snackbar id="snackbar" placement="bottom"></mdui-snackbar>
 
+    <!-- v1.3 D26: 撤回二次确认 dialog。两端一致：手机端 AlertDialog ⇄ 浏览器 mdui-dialog -->
+    <mdui-dialog id="recall-confirm-dialog" close-on-overlay-click="true" close-on-esc="true" headline="撤回这条消息？">
+        <div style="padding: 0 24px 8px;">撤回后两端都会消失，不可恢复。</div>
+        <mdui-button slot="action" data-action="cancel" variant="text">取消</mdui-button>
+        <mdui-button slot="action" data-action="confirm" variant="text">撤回</mdui-button>
+    </mdui-dialog>
+
     <script src="/static/vendor/mdui.global.js"></script>
     <script src="/static/snackbar.js"></script>
     <script src="/static/app.js"></script>

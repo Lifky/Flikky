@@ -133,7 +133,7 @@ class MessageRoutesRecallTest {
         application(
             setupApp(
                 recallHandler = { messageId, _ ->
-                    ServerRecallOutcome.Success(messageId = messageId, sessionId = 7L, recalledAt = 1_700_000_000L)
+                    ServerRecallOutcome.Success(messageId = messageId, sessionId = 7L)
                 },
                 captureBroadcast = { type, payload ->
                     broadcastType = type
@@ -151,41 +151,11 @@ class MessageRoutesRecallTest {
         val obj = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
         assertEquals(123L, obj["messageId"]!!.jsonPrimitive.long)
         assertEquals(7L, obj["sessionId"]!!.jsonPrimitive.long)
-        assertEquals(1_700_000_000L, obj["recalledAt"]!!.jsonPrimitive.long)
 
         assertEquals("message_recalled", broadcastType)
         assertNotNull(broadcastPayload)
         val payload = Json.parseToJsonElement(broadcastPayload!!).jsonObject
         assertEquals(123L, payload["messageId"]!!.jsonPrimitive.long)
         assertEquals(7L, payload["sessionId"]!!.jsonPrimitive.long)
-        assertEquals(1_700_000_000L, payload["recalledAt"]!!.jsonPrimitive.long)
-    }
-
-    @Test
-    fun `DELETE AlreadyRecalled returns 409 with original recalledAt and does not broadcast`() = testApplication {
-        var broadcastType: String? = null
-        application(
-            setupApp(
-                recallHandler = { messageId, _ ->
-                    ServerRecallOutcome.AlreadyRecalled(messageId = messageId, sessionId = 7L, recalledAt = 1_600_000_000L)
-                },
-                captureBroadcast = { type, _ -> broadcastType = type },
-            ),
-        )
-        val http = createClient { install(HttpCookies) }
-        authenticate(http)
-
-        val resp: HttpResponse = http.delete("/api/messages/123") {
-            header("X-Client-Id", "phone-abc")
-        }
-        assertEquals(HttpStatusCode.Conflict, resp.status)
-        val obj = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
-        assertEquals(123L, obj["messageId"]!!.jsonPrimitive.long)
-        assertEquals(7L, obj["sessionId"]!!.jsonPrimitive.long)
-        assertEquals(1_600_000_000L, obj["recalledAt"]!!.jsonPrimitive.long)
-
-        // Idempotent retry — no fresh broadcast (clients are presumed already in sync).
-        assertNull("AlreadyRecalled must not re-broadcast: type=$broadcastType", broadcastType)
-        assertTrue(true) // keep junit happy if asserts above flagged
     }
 }

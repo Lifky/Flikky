@@ -214,22 +214,7 @@ html, body { height: 100%; margin: 0; padding: 0; }
     display: none;
 }
 
-/* v1.3 B4 撤回占位符。保留气泡尺寸与气泡颜色，但用斜体灰色暗示
- * "这里曾有消息但已撤回"。me/them 都适用——文案"[消息已撤回]"
- * 自带方括号防止跟正常消息混淆。 */
-.bubble.recalled,
-.file-bubble.recalled {
-    font-style: italic;
-    opacity: 0.6;
-    color: rgb(var(--mdui-color-on-surface-variant));
-    cursor: default;
-}
-.bubble.me.recalled,
-.file-bubble.me.recalled {
-    /* 撤回后从 primary 退回到中性背景，让"已撤回"视觉更弱 */
-    background: rgb(var(--mdui-color-surface-container-high));
-    color: rgb(var(--mdui-color-on-surface-variant));
-}
+/* v1.3 D26 修订：撤回 = 节点完全消失，不再保留 .recalled 占位符样式。 */
 
 /* v1.3 B4 长按撤回菜单。fixed 定位到 pointer 坐标；单按钮的最小菜单 */
 .recall-menu {

@@ -79,29 +79,26 @@ data class WsEvent(
 )
 
 /**
- * v1.3 D26：DELETE /api/messages/{id} 的成功响应。失败分支用通用 error JSON。
- * 单独类型让 KtorServer 注入的 recall handler 与 server 包解耦——
- * server 包不需要看到 data 层的 RecallOutcome。
+ * v1.3 D26 修订：DELETE /api/messages/{id} 的成功响应。撤回 = 真删，不再有
+ * recalledAt 时间戳；客户端拿到 (sessionId, messageId) 即可移除节点。
  */
 @Serializable
 data class RecallResponse(
     val messageId: Long,
     val sessionId: Long,
-    val recalledAt: Long,
 )
 
 /**
  * Server 包内部的撤回结果枚举。data/SessionRepository.RecallOutcome 在调用
  * 边界（KtorServer 注入 lambda 处）转成本枚举，避免 server 反向依赖 data。
  *
- * 注意：刻意不加 @Serializable——这只是用作 lambda 返回值，不需要序列化。
- * 加了反而要求子类必须可序列化，但 Success/AlreadyRecalled 已经走 RecallResponse 输出。
+ * 真删后没有 AlreadyRecalled 分支——重复请求的消息行已不存在，等价 NotFound。
+ * 上层把 NotFound 当 idempotent 成功处理（节点已经被移除了）。
  */
 sealed class ServerRecallOutcome {
-    data class Success(val messageId: Long, val sessionId: Long, val recalledAt: Long) : ServerRecallOutcome()
+    data class Success(val messageId: Long, val sessionId: Long) : ServerRecallOutcome()
     object NotFound : ServerRecallOutcome()
     object Denied : ServerRecallOutcome()
-    data class AlreadyRecalled(val messageId: Long, val sessionId: Long, val recalledAt: Long) : ServerRecallOutcome()
 }
 
 @Serializable
