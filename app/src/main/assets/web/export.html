@@ -41,6 +41,11 @@
 
     <mdui-snackbar id="snackbar" placement="bottom"></mdui-snackbar>
 
+    <mdui-dialog id="export-cancel-dialog" close-on-overlay-click="true" close-on-esc="true" headline="导出已取消">
+        <div style="padding: 0 24px 8px;">手机端已取消本次导出，如需重新导出请回到手机端操作。</div>
+        <mdui-button slot="action" data-action="ok" variant="text">我知道了</mdui-button>
+    </mdui-dialog>
+
     <script src="/static/vendor/mdui.global.js"></script>
     <script src="/static/snackbar.js"></script>
     <script src="/static/export.js"></script>

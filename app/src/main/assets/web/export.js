@@ -249,6 +249,17 @@
     const EXPORT_WS_PING_INTERVAL = 3000;
     const EXPORT_WS_PONG_TIMEOUT = 2000;
 
+    function showCancelDialog() {
+        const dialog = document.getElementById('export-cancel-dialog');
+        if (!dialog) return;
+        const okBtn = dialog.querySelector('[data-action="ok"]');
+        if (okBtn) {
+            const handler = () => { dialog.open = false; okBtn.removeEventListener('click', handler); };
+            okBtn.addEventListener('click', handler);
+        }
+        dialog.open = true;
+    }
+
     function markExportDisconnected() {
         if (healthDisconnected) return;
         healthDisconnected = true;
@@ -311,8 +322,9 @@
                     stopHealthProbe();
                     exportWs = null;
                     try { ws.close(); } catch (_) {}
-                    disableDownloadWith('服务已停止');
-                    showExportBanner('导出服务已停止');
+                    disableDownloadWith('已取消');
+                    hideExportBanner();
+                    showCancelDialog();
                     return;
                 }
             } catch (_) {}
