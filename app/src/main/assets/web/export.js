@@ -236,6 +236,16 @@
     const EXPORT_WS_FRAME_TIMEOUT = 2000;
     let exportWsLastFrame = 0;
     let exportWsHeartbeat = null;
+
+    function markExportDisconnected() {
+        if (healthDisconnected) return;
+        healthDisconnected = true;
+        healthFailCount = 99;
+        showExportBanner('与手机连接已断开，请检查网络');
+        setDownloadEnabled(false);
+        showError('与手机的连接已断开');
+    }
+
     function openExportWs() {
         if (exportWs && (exportWs.readyState === 0 || exportWs.readyState === 1)) return;
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -245,7 +255,11 @@
             exportWsLastFrame = Date.now();
             exportWsHeartbeat = setInterval(() => {
                 if (ws.readyState === 1 && Date.now() - exportWsLastFrame > EXPORT_WS_FRAME_TIMEOUT) {
+                    // 立即 disable + banner，不等 onclose（TCP 超时可能几十秒）
+                    if (exportWsHeartbeat) { clearInterval(exportWsHeartbeat); exportWsHeartbeat = null; }
+                    markExportDisconnected();
                     try { ws.close(); } catch (_) {}
+                    setTimeout(openExportWs, 3000);
                 }
             }, 1000);
             if (healthDisconnected) {
@@ -259,14 +273,9 @@
         ws.onmessage = () => { exportWsLastFrame = Date.now(); };
         ws.onclose = () => {
             if (exportWsHeartbeat) { clearInterval(exportWsHeartbeat); exportWsHeartbeat = null; }
-            if (!healthDisconnected) {
-                healthDisconnected = true;
-                healthFailCount = 99;
-                showExportBanner('与手机连接已断开，请检查网络');
-                setDownloadEnabled(false);
-                showError('与手机的连接已断开');
-            }
-            // 3 秒后尝试重连（复用 health probe 的恢复路径）
+            // heartbeat 超时路径已经做过 markExportDisconnected → healthDisconnected=true。
+            // 只有非超时触发的 close（server stop 等）才需要走这里。
+            markExportDisconnected();
             setTimeout(openExportWs, 3000);
         };
         ws.onerror = () => {};

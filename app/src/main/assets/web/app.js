@@ -447,8 +447,23 @@
             if (!currentWs || currentWs.readyState !== 1) return;
             const now = Date.now();
             // Frame 超时快速检测：status broadcast 每秒来一次，2 秒没来 = 链路断。
+            // 关键：立即 disable 按钮 + 显示 banner，不等 ws.onclose。
+            // WiFi 断开后 ws.close() 要等 TCP 超时才触发 onclose（几十秒），
+            // 那时候用户早就失去耐心了。先改 UI 状态再关 socket。
             if (now - lastFrameAt > FRAME_TIMEOUT_MS) {
+                wsConnected = false;
+                setSendEnabled(false);
+                setConn('已断开');
+                if (hadConnected) {
+                    showBanner('disconnected', '连接已断开，正在尝试重连…');
+                }
+                stopHeartbeat();
                 try { currentWs.close(); } catch (_) {}
+                // 不等 onclose，直接启动重连。onclose 后面到了会 noop（currentWs 已换）。
+                reconnectAttempts++;
+                if (!serverStopped && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    reconnectTimer = setTimeout(() => { reconnectTimer = null; openWs(); }, 1500);
+                }
                 return;
             }
             // 空闲足够久就主动 ping（覆盖 status broadcast 停了但链路没断的场景）
@@ -465,7 +480,16 @@
                     pendingPings.delete(seq);
                     pingFailCount++;
                     if (pingFailCount >= HEARTBEAT_MAX_FAILS) {
-                        try { currentWs.close(); } catch (_) { /* onclose 接手 */ }
+                        wsConnected = false;
+                        setSendEnabled(false);
+                        setConn('已断开');
+                        if (hadConnected) showBanner('disconnected', '连接已断开，正在尝试重连…');
+                        stopHeartbeat();
+                        try { currentWs.close(); } catch (_) {}
+                        reconnectAttempts++;
+                        if (!serverStopped && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                            reconnectTimer = setTimeout(() => { reconnectTimer = null; openWs(); }, 1500);
+                        }
                         return;
                     }
                 }
@@ -507,19 +531,24 @@
         ws.onclose = () => {
             if (currentWs !== ws) return;   // 旧句柄 onclose，忽略
             currentWs = null;
+            stopHeartbeat();
+            // heartbeat 超时路径已经做过 disable + banner + 启动重连——
+            // 这时 wsConnected 已经是 false。只有"非超时触发的 close"
+            // （如 server 正常关、首次连接失败）才需要走下面的逻辑。
+            if (!wsConnected) {
+                // heartbeat 已处理过，只需确保没漏掉 server_stopped 边界。
+                if (serverStopped) {
+                    showBanner('terminated', '服务已停止，连接已断开');
+                }
+                return;
+            }
             wsConnected = false;
             setConn('已断开');
             setSendEnabled(false);
-            stopHeartbeat();
             if (serverStopped) {
-                // 服务端主动停止 — banner 在 server_stopped event handler 里
-                // 已经更新成"服务已停止"。不重连：用户下次启动服务时是全新
-                // 会话，旧 URL 反正连不上，循环重连只会刷屏 + 浪费 socket。
                 return;
             }
             if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-                // 兜底：如果 server_stopped event 因为 race 丢了，6 次重连失败
-                // 后判定服务已不可达，不再循环。用户回 APP 查看是否还在跑。
                 showBanner('terminated', '连接已断开，服务可能已关闭');
                 return;
             }
