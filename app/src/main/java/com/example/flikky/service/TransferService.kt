@@ -351,6 +351,7 @@ class TransferService : Service() {
             when (val out = ServiceLocator.repository.recallMessage(messageId, callerSenderId)) {
                 is SessionRepository.RecallOutcome.Success -> {
                     ServiceLocator.session.removeMessage(out.messageId)
+                    if (out.wasFile) ServiceLocator.stats.decrementFileCount()
                     ServiceLocator.notifyRecall("对方撤回了一条消息")
                     ServerRecallOutcome.Success(out.messageId, out.sessionId)
                 }

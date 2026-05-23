@@ -129,6 +129,7 @@ class TransferController(
         val outcome = repository.recallMessage(messageId, senderId)
         if (outcome is RecallOutcome.Success) {
             session.removeMessage(outcome.messageId)
+            if (outcome.wasFile) stats.decrementFileCount()
             wsHub()?.broadcastRecall(outcome.sessionId, outcome.messageId)
         }
         return outcome

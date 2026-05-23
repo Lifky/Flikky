@@ -144,7 +144,10 @@ class KtorServerExportModeTest {
     }
 
     @Test
-    fun `export mode does not mount websocket route`() = runBlocking {
+    fun `export mode mounts websocket route for health detection`() = runBlocking {
+        // v1.3 test2 修订：export mode 现在也挂 /ws，让浏览器通过 WS onclose
+        // 立即感知断网。Plain GET 到 /ws（无 Upgrade header）应返回 400/426
+        // 而非 404——证明路由已挂载。
         val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
         val session = SessionState(nowMs = { 0L })
         val s = buildServer(ServiceMode.Export, session, pin)
@@ -153,10 +156,13 @@ class KtorServerExportModeTest {
 
         HttpClient(CIO) { install(HttpCookies) }.use { http ->
             authenticate(http, port)
-            // Plain GET to /ws (no Upgrade header) should 404 when the route is not mounted.
-            // If the route were mounted, Ktor returns 400/426 for the missing upgrade instead.
             val resp: HttpResponse = http.get("http://127.0.0.1:$port/ws")
-            assertEquals(HttpStatusCode.NotFound, resp.status)
+            // Ktor 对 WS 路由返回 400 (missing Upgrade) 或 426 (Upgrade Required)；
+            // 不是 404，说明路由确实存在。
+            assertTrue(
+                "Expected 400/426 but got ${resp.status}",
+                resp.status == HttpStatusCode.BadRequest || resp.status.value == 426
+            )
         }
     }
 

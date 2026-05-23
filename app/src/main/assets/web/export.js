@@ -229,8 +229,55 @@
         }
     });
 
-    window.addEventListener('beforeunload', stopHealthProbe);
+    // v1.3 test2 修订：export 页也连 WS，让断网感知从 3 秒 fetch 探测
+    // 变为 WS onclose 立即响应（~2 秒，frame 超时与 /app 页一致）。
+    // WS 不做业务通信（不监听 text_added 等），仅用于链路存活检测。
+    let exportWs = null;
+    const EXPORT_WS_FRAME_TIMEOUT = 2000;
+    let exportWsLastFrame = 0;
+    let exportWsHeartbeat = null;
+    function openExportWs() {
+        if (exportWs && (exportWs.readyState === 0 || exportWs.readyState === 1)) return;
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${proto}//${location.host}/ws`);
+        exportWs = ws;
+        ws.onopen = () => {
+            exportWsLastFrame = Date.now();
+            exportWsHeartbeat = setInterval(() => {
+                if (ws.readyState === 1 && Date.now() - exportWsLastFrame > EXPORT_WS_FRAME_TIMEOUT) {
+                    try { ws.close(); } catch (_) {}
+                }
+            }, 1000);
+            if (healthDisconnected) {
+                healthDisconnected = false;
+                healthFailCount = 0;
+                hideExportBanner();
+                setDownloadEnabled(true);
+                showInfo('连接已恢复');
+            }
+        };
+        ws.onmessage = () => { exportWsLastFrame = Date.now(); };
+        ws.onclose = () => {
+            if (exportWsHeartbeat) { clearInterval(exportWsHeartbeat); exportWsHeartbeat = null; }
+            if (!healthDisconnected) {
+                healthDisconnected = true;
+                healthFailCount = 99;
+                showExportBanner('与手机连接已断开，请检查网络');
+                setDownloadEnabled(false);
+                showError('与手机的连接已断开');
+            }
+            // 3 秒后尝试重连（复用 health probe 的恢复路径）
+            setTimeout(openExportWs, 3000);
+        };
+        ws.onerror = () => {};
+    }
+
+    window.addEventListener('beforeunload', () => {
+        stopHealthProbe();
+        if (exportWs) try { exportWs.close(); } catch (_) {}
+    });
 
     loadInfo();
     startHealthProbe();
+    openExportWs();
 })();

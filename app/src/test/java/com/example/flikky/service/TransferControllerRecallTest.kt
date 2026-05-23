@@ -46,7 +46,7 @@ class TransferControllerRecallTest {
         val hub = mockk<WsHub>(relaxed = true)
         val repository = mockk<SessionRepository>()
         coEvery { repository.recallMessage(123L, "phone-test") } returns
-            SessionRepository.RecallOutcome.Success(messageId = 123L, sessionId = 42L)
+            SessionRepository.RecallOutcome.Success(messageId = 123L, sessionId = 42L, wasFile = false)
 
         val controller = controllerWith(repository, hub)
         val out = controller.recallMessage(123L)

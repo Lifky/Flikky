@@ -232,7 +232,7 @@ class SessionRepository(
      * (sessionId, messageId) 让两端从 UI 中移除对应节点。
      */
     sealed class RecallOutcome {
-        data class Success(val messageId: Long, val sessionId: Long) : RecallOutcome()
+        data class Success(val messageId: Long, val sessionId: Long, val wasFile: Boolean) : RecallOutcome()
         object NotFound : RecallOutcome()
         object Denied : RecallOutcome()
     }
@@ -279,8 +279,9 @@ class SessionRepository(
             }
         }
 
+        val wasFile = msg.kind == "FILE"
         messageDao.deleteById(messageId)
-        return RecallOutcome.Success(messageId, msg.sessionId)
+        return RecallOutcome.Success(messageId, msg.sessionId, wasFile)
     }
 
     /**

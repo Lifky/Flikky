@@ -31,6 +31,11 @@ class TransferStats(private val nowMs: () -> Long) {
     }
 
     @Synchronized
+    fun decrementFileCount() {
+        if (fileCount > 0) fileCount -= 1
+    }
+
+    @Synchronized
     fun fileCount(): Int = fileCount
 
     /**

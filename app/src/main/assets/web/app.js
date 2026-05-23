@@ -421,6 +421,11 @@
     //
     // 触发模式：空闲触发——连续 3 秒没收到任何 frame 才发 ping，省电省带宽。
     // pong 超时 2 秒；连续 2 次 pong 失败 → 强制 close → 触发重连。
+    // v1.3 test2 修订：加回 frame 超时检测（2 秒）与 ping/pong 并存。
+    // status broadcast 1Hz → 2 秒没收到任何 frame 就可判定链路断。
+    // 用户反馈 7 秒感知太慢，要求"立即"——2 秒是 1Hz 广播 2 个周期的
+    // 容忍，既避免单帧抖动误判又足够快。
+    const FRAME_TIMEOUT_MS = 2000;
     const HEARTBEAT_IDLE_MS = 3000;
     const HEARTBEAT_PING_TIMEOUT_MS = 2000;
     const HEARTBEAT_MAX_FAILS = 2;
@@ -441,7 +446,12 @@
         heartbeatTimer = setInterval(() => {
             if (!currentWs || currentWs.readyState !== 1) return;
             const now = Date.now();
-            // 空闲足够久就主动 ping
+            // Frame 超时快速检测：status broadcast 每秒来一次，2 秒没来 = 链路断。
+            if (now - lastFrameAt > FRAME_TIMEOUT_MS) {
+                try { currentWs.close(); } catch (_) {}
+                return;
+            }
+            // 空闲足够久就主动 ping（覆盖 status broadcast 停了但链路没断的场景）
             if (now - lastFrameAt >= HEARTBEAT_IDLE_MS && pendingPings.size === 0) {
                 const seq = ++pingSeq;
                 pendingPings.set(seq, now);
