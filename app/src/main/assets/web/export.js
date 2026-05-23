@@ -232,10 +232,15 @@
     // v1.3 test2 修订：export 页也连 WS，让断网感知从 3 秒 fetch 探测
     // 变为 WS onclose 立即响应（~2 秒，frame 超时与 /app 页一致）。
     // WS 不做业务通信（不监听 text_added 等），仅用于链路存活检测。
+    // Export WS：纯链路检测用。export mode 的 server 不推 status broadcast
+    // （statusBroadcastJob 只在 Transfer mode 启动），所以不能用 frame 超时。
+    // 改用主动 ping/pong：每 3 秒发 ping，pong 超时 2 秒 → 判定断开。
     let exportWs = null;
-    const EXPORT_WS_FRAME_TIMEOUT = 2000;
-    let exportWsLastFrame = 0;
-    let exportWsHeartbeat = null;
+    let exportWsPingTimer = null;
+    let exportWsPendingPing = false;
+    let exportWsPingTimeout = null;
+    const EXPORT_WS_PING_INTERVAL = 3000;
+    const EXPORT_WS_PONG_TIMEOUT = 2000;
 
     function markExportDisconnected() {
         if (healthDisconnected) return;
@@ -246,22 +251,36 @@
         showError('与手机的连接已断开');
     }
 
+    function stopExportWsPing() {
+        if (exportWsPingTimer) { clearInterval(exportWsPingTimer); exportWsPingTimer = null; }
+        if (exportWsPingTimeout) { clearTimeout(exportWsPingTimeout); exportWsPingTimeout = null; }
+        exportWsPendingPing = false;
+    }
+
+    function enterExportDisconnected() {
+        stopExportWsPing();
+        markExportDisconnected();
+        const old = exportWs;
+        exportWs = null;
+        try { old?.close(); } catch (_) {}
+        setTimeout(openExportWs, 3000);
+    }
+
     function openExportWs() {
         if (exportWs && (exportWs.readyState === 0 || exportWs.readyState === 1)) return;
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${proto}//${location.host}/ws`);
         exportWs = ws;
         ws.onopen = () => {
-            exportWsLastFrame = Date.now();
-            exportWsHeartbeat = setInterval(() => {
-                if (ws.readyState === 1 && Date.now() - exportWsLastFrame > EXPORT_WS_FRAME_TIMEOUT) {
-                    // 立即 disable + banner，不等 onclose（TCP 超时可能几十秒）
-                    if (exportWsHeartbeat) { clearInterval(exportWsHeartbeat); exportWsHeartbeat = null; }
-                    markExportDisconnected();
-                    try { ws.close(); } catch (_) {}
-                    setTimeout(openExportWs, 3000);
-                }
-            }, 1000);
+            // 启动 ping 定时器
+            exportWsPingTimer = setInterval(() => {
+                if (ws.readyState !== 1) return;
+                exportWsPendingPing = true;
+                try { ws.send(JSON.stringify({ type: 'ping', id: Date.now() })); } catch (_) {}
+                exportWsPingTimeout = setTimeout(() => {
+                    if (exportWsPendingPing) enterExportDisconnected();
+                }, EXPORT_WS_PONG_TIMEOUT);
+            }, EXPORT_WS_PING_INTERVAL);
             if (healthDisconnected) {
                 healthDisconnected = false;
                 healthFailCount = 0;
@@ -270,11 +289,15 @@
                 showInfo('连接已恢复');
             }
         };
-        ws.onmessage = () => { exportWsLastFrame = Date.now(); };
+        ws.onmessage = (e) => {
+            // 收到任何帧（包括 pong）都清 pending 标记
+            exportWsPendingPing = false;
+            if (exportWsPingTimeout) { clearTimeout(exportWsPingTimeout); exportWsPingTimeout = null; }
+        };
         ws.onclose = () => {
-            if (exportWsHeartbeat) { clearInterval(exportWsHeartbeat); exportWsHeartbeat = null; }
-            // heartbeat 超时路径已经做过 markExportDisconnected → healthDisconnected=true。
-            // 只有非超时触发的 close（server stop 等）才需要走这里。
+            if (exportWs !== ws) return;  // enterExportDisconnected 已置 null → noop
+            exportWs = null;
+            stopExportWsPing();
             markExportDisconnected();
             setTimeout(openExportWs, 3000);
         };
