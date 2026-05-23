@@ -227,6 +227,12 @@
         if (hintEl) {
             hintEl.textContent = '下载已开始；完成后可关闭此页面。手机端服务会在传输结束后自动停止。';
         }
+        // 下载开始后关闭链路检测——zip 走独立 HTTP GET 流，WS 断不断不影响它。
+        // server 传完 zip 后会 stopSelf()，WS 自然关掉；如果我们还在检测，
+        // WS onclose 会触发「连接已断开 + 重连循环」—— 那是正常的服务结束不是网络断。
+        stopHealthProbe();
+        stopExportWsPing();
+        if (exportWs) { try { exportWs.close(); } catch (_) {} exportWs = null; }
     });
 
     // v1.3 test2 修订：export 页也连 WS，让断网感知从 3 秒 fetch 探测
