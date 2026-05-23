@@ -105,9 +105,12 @@ fun Route.fileRoutes(
 
         val file = File(store.fileDir(sid), id)
         if (!file.exists()) { call.respond(HttpStatusCode.NotFound); return@get }
+        val originalName = session.snapshot.value.messages
+            .filterIsInstance<com.example.flikky.session.Message.File>()
+            .firstOrNull { it.fileId == id }?.name ?: id
         call.response.header(
             HttpHeaders.ContentDisposition,
-            ContentDisposition.Attachment.withParameter("filename", id).toString(),
+            ContentDisposition.Attachment.withParameter("filename", originalName).toString(),
         )
         call.response.header(HttpHeaders.ContentLength, file.length().toString())
         call.respondBytesWriter(contentType = ContentType.Application.OctetStream, status = HttpStatusCode.OK) {
