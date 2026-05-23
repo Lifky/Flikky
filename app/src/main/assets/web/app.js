@@ -234,6 +234,14 @@
 
     function markBubbleCompleted(bubble, dto) {
         bubble.dataset.fileId = dto.fileId;
+        // v1.3 修订：上传完成后设 data-message-id 并绑长按撤回。
+        // renderUploadingBubble 时没有 server-side id（还没上传），完成后 dto
+        // 带了 id。没有 data-message-id 的节点 removeMessageNode 找不到它。
+        if (dto.id != null) {
+            bubble.dataset.messageId = dto.id;
+            bubble.dataset.kind = 'file';
+            attachRecallHandler(bubble, dto.id);
+        }
         bubble.classList.remove('uploading');
 
         const bar = bubble.querySelector('.progress-bar');

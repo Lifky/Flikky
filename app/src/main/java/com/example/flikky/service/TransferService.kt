@@ -301,11 +301,14 @@ class TransferService : Service() {
         if (mode == ServiceMode.Transfer) {
             val sid = currentSessionId
             if (sid > 0) {
+                Log.d(TAG, "stopActiveServer: ending session $sid")
                 runCatching {
                     runBlocking {
                         ServiceLocator.repository.endSession(sid, endedAt = System.currentTimeMillis())
                     }
-                }
+                }.onFailure { Log.e(TAG, "endSession($sid) failed", it) }
+            } else {
+                Log.w(TAG, "stopActiveServer: currentSessionId=$sid, skipping endSession")
             }
             currentSessionId = -1L
         }
@@ -348,6 +351,7 @@ class TransferService : Service() {
             when (val out = ServiceLocator.repository.recallMessage(messageId, callerSenderId)) {
                 is SessionRepository.RecallOutcome.Success -> {
                     ServiceLocator.session.removeMessage(out.messageId)
+                    ServiceLocator.notifyRecall("对方撤回了一条消息")
                     ServerRecallOutcome.Success(out.messageId, out.sessionId)
                 }
                 is SessionRepository.RecallOutcome.NotFound -> ServerRecallOutcome.NotFound

@@ -254,7 +254,14 @@ class SessionRepository(
     suspend fun recallMessage(messageId: Long, callerSenderId: String): RecallOutcome {
         val msg = messageDao.getById(messageId) ?: return RecallOutcome.NotFound
         if (msg.senderId == null || msg.senderId != callerSenderId) {
-            return RecallOutcome.Denied
+            // v1.3 装机修订：浏览器 myClientId 因页面重载（WiFi rebind 换 URL）
+            // 会变成新 UUID，导致旧消息 senderId 不匹配。放宽为"origin=BROWSER
+            // 的消息允许任何提供了 clientId 的浏览器撤回"——Flikky 单 PIN 单用户
+            // 模型下不存在"多浏览器同时连"，所以风险可接受。
+            // 手机端 senderId = phone-{androidId}（固定），仍严格匹配。
+            if (msg.origin != "BROWSER" || callerSenderId.isEmpty()) {
+                return RecallOutcome.Denied
+            }
         }
 
         if (msg.kind == "FILE") {

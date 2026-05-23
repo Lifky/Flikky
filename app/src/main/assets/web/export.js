@@ -135,7 +135,7 @@
     //    APs) shouldn't flash a scary banner.
     //  - 下载启动后探测继续跑，但不再回写按钮文字。原生 GET 流由浏览器接管，
     //    我们拿不到完成事件，按钮停在 '下载中…' 直到用户主动刷新（既有行为）。
-    const HEALTH_INTERVAL_MS = 5000;
+    const HEALTH_INTERVAL_MS = 3000;
     let healthFailCount = 0;
     let healthDisconnected = false;
     let healthTimer = null;
@@ -170,7 +170,7 @@
         } catch (_) {
             // 真正的网络层失败（断网、DNS、TCP reset）才算"连接断开"。
             healthFailCount++;
-            if (healthFailCount >= 2 && !healthDisconnected) {
+            if (healthFailCount >= 1 && !healthDisconnected) {
                 healthDisconnected = true;
                 showExportBanner('与手机连接已断开，请检查网络');
                 setDownloadEnabled(false);
@@ -186,7 +186,7 @@
         }
         if (!r.ok) {
             healthFailCount++;
-            if (healthFailCount >= 2 && !healthDisconnected) {
+            if (healthFailCount >= 1 && !healthDisconnected) {
                 healthDisconnected = true;
                 showExportBanner('与手机连接已断开，请检查网络');
                 setDownloadEnabled(false);

@@ -78,6 +78,13 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
             Intent(ctx, TransferService::class.java), conn, Context.BIND_AUTO_CREATE
         )
 
+        // v1.3 对端撤回 snackbar：浏览器撤回消息后 TransferService 桥接
+        // emit 到 ServiceLocator.recallNotifications → 这里转发到 events channel
+        // → ServingScreen 弹 snackbar「对方撤回了一条消息」。
+        ServiceLocator.recallNotifications.onEach { msg ->
+            _events.trySend(msg)
+        }.launchIn(viewModelScope)
+
         combine(
             ServiceLocator.session.snapshot,
             tick1Hz(),

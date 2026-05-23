@@ -8,6 +8,9 @@ import com.example.flikky.network.NetworkInfo
 import com.example.flikky.service.TransferController
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 object ServiceLocator {
     private lateinit var appContext: Context
@@ -35,6 +38,15 @@ object ServiceLocator {
      * 成员，TransferController 本身跨 rebind 同一实例）。
      */
     @Volatile var currentController: TransferController? = null
+
+    /**
+     * v1.3 对端撤回通知渠道。TransferService 在 onRecallMessage 桥接
+     * 成功撤回时 emit；ServingViewModel 监听后弹 snackbar。
+     * extraBufferCapacity 避免 tryEmit 在无 collector 时丢弃。
+     */
+    private val _recallNotifications = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    val recallNotifications: SharedFlow<String> = _recallNotifications.asSharedFlow()
+    fun notifyRecall(message: String) { _recallNotifications.tryEmit(message) }
 
     fun init(app: Context) {
         appContext = app.applicationContext
