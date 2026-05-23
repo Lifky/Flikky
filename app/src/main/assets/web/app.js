@@ -440,6 +440,31 @@
         pendingPings = new Map();
         pingFailCount = 0;
     }
+    /**
+     * 立即切到"已断开"状态：disable 按钮 + banner + 丢弃旧 WS + 启动重连。
+     * heartbeat 超时和 ping 失败两条路径共用，确保逻辑一致。
+     *
+     * 关键：`currentWs = null` 让旧 WS 的 onclose 变 noop（`currentWs !== ws → return`）。
+     * 新 openWs 创建的 WS 如果也失败，它的 onclose 里 `currentWs === ws` 为 true →
+     * 走正常重连流程，循环直到 MAX_RECONNECT_ATTEMPTS 或连上。
+     */
+    function enterDisconnected() {
+        wsConnected = false;
+        setSendEnabled(false);
+        setConn('已断开');
+        if (hadConnected) showBanner('disconnected', '连接已断开，正在尝试重连…');
+        stopHeartbeat();
+        const old = currentWs;
+        currentWs = null;    // 让旧 WS onclose 变 noop
+        try { old?.close(); } catch (_) {}
+        reconnectAttempts++;
+        if (!serverStopped && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+            reconnectTimer = setTimeout(() => { reconnectTimer = null; openWs(); }, 1500);
+        } else if (!serverStopped) {
+            showBanner('terminated', '连接已断开，服务可能已关闭');
+        }
+    }
+
     function startHeartbeat() {
         stopHeartbeat();
         resetHeartbeatCounters();
@@ -451,19 +476,7 @@
             // WiFi 断开后 ws.close() 要等 TCP 超时才触发 onclose（几十秒），
             // 那时候用户早就失去耐心了。先改 UI 状态再关 socket。
             if (now - lastFrameAt > FRAME_TIMEOUT_MS) {
-                wsConnected = false;
-                setSendEnabled(false);
-                setConn('已断开');
-                if (hadConnected) {
-                    showBanner('disconnected', '连接已断开，正在尝试重连…');
-                }
-                stopHeartbeat();
-                try { currentWs.close(); } catch (_) {}
-                // 不等 onclose，直接启动重连。onclose 后面到了会 noop（currentWs 已换）。
-                reconnectAttempts++;
-                if (!serverStopped && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                    reconnectTimer = setTimeout(() => { reconnectTimer = null; openWs(); }, 1500);
-                }
+                enterDisconnected();
                 return;
             }
             // 空闲足够久就主动 ping（覆盖 status broadcast 停了但链路没断的场景）
@@ -480,16 +493,7 @@
                     pendingPings.delete(seq);
                     pingFailCount++;
                     if (pingFailCount >= HEARTBEAT_MAX_FAILS) {
-                        wsConnected = false;
-                        setSendEnabled(false);
-                        setConn('已断开');
-                        if (hadConnected) showBanner('disconnected', '连接已断开，正在尝试重连…');
-                        stopHeartbeat();
-                        try { currentWs.close(); } catch (_) {}
-                        reconnectAttempts++;
-                        if (!serverStopped && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                            reconnectTimer = setTimeout(() => { reconnectTimer = null; openWs(); }, 1500);
-                        }
+                        enterDisconnected();
                         return;
                     }
                 }
@@ -529,23 +533,16 @@
             hadConnected = true;
         };
         ws.onclose = () => {
-            if (currentWs !== ws) return;   // 旧句柄 onclose，忽略
+            // enterDisconnected 把 currentWs 设为 null → 旧 WS 到这里 noop。
+            // 只有「新 WS 连接失败」或「server 正常 close」才走到下面。
+            if (currentWs !== ws) return;
             currentWs = null;
-            stopHeartbeat();
-            // heartbeat 超时路径已经做过 disable + banner + 启动重连——
-            // 这时 wsConnected 已经是 false。只有"非超时触发的 close"
-            // （如 server 正常关、首次连接失败）才需要走下面的逻辑。
-            if (!wsConnected) {
-                // heartbeat 已处理过，只需确保没漏掉 server_stopped 边界。
-                if (serverStopped) {
-                    showBanner('terminated', '服务已停止，连接已断开');
-                }
-                return;
-            }
             wsConnected = false;
             setConn('已断开');
             setSendEnabled(false);
+            stopHeartbeat();
             if (serverStopped) {
+                showBanner('terminated', '服务已停止，连接已断开');
                 return;
             }
             if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
