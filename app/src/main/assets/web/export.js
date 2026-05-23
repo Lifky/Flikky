@@ -245,6 +245,7 @@
     let exportWsPingTimer = null;
     let exportWsPendingPing = false;
     let exportWsPingTimeout = null;
+    let exportServerStopped = false;
     const EXPORT_WS_PING_INTERVAL = 3000;
     const EXPORT_WS_PONG_TIMEOUT = 2000;
 
@@ -269,7 +270,9 @@
         const old = exportWs;
         exportWs = null;
         try { old?.close(); } catch (_) {}
-        setTimeout(openExportWs, 3000);
+        if (!exportServerStopped && !downloadStarted) {
+            setTimeout(openExportWs, 3000);
+        }
     }
 
     function openExportWs() {
@@ -296,14 +299,29 @@
             }
         };
         ws.onmessage = (e) => {
-            // 收到任何帧（包括 pong）都清 pending 标记
             exportWsPendingPing = false;
             if (exportWsPingTimeout) { clearTimeout(exportWsPingTimeout); exportWsPingTimeout = null; }
+            // server_stopped = 用户在手机端取消导出 / zip 传完后 server stopSelf。
+            // 这是正常结束不是网络断，不应重连。
+            try {
+                const msg = JSON.parse(e.data);
+                if (msg && msg.type === 'server_stopped') {
+                    exportServerStopped = true;
+                    stopExportWsPing();
+                    stopHealthProbe();
+                    exportWs = null;
+                    try { ws.close(); } catch (_) {}
+                    disableDownloadWith('服务已停止');
+                    showExportBanner('导出服务已停止');
+                    return;
+                }
+            } catch (_) {}
         };
         ws.onclose = () => {
-            if (exportWs !== ws) return;  // enterExportDisconnected 已置 null → noop
+            if (exportWs !== ws) return;
             exportWs = null;
             stopExportWsPing();
+            if (exportServerStopped || downloadStarted) return;
             markExportDisconnected();
             setTimeout(openExportWs, 3000);
         };
