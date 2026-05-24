@@ -11,6 +11,7 @@
 - **v1.0** — 最小连通闭环：启动服务、URL + PIN 配对、双向文本与文件、MD3 聊天气泡、前台服务常驻通知、完整安全基线。
 - **v1.1** — *已发布（2026-04-21）* — Room 会话归档、主页会话列表（置顶 / 重命名 / 删除）、历史详情只读查看、APP 启动时 crash-recovery、FIFO 保留最近 20 条非置顶会话（置顶不占配额）。
 - **v1.2** — *已发布（2026-05-13）* — 多会话批量导出到 PC（流式 zip）、浏览器上传实时进度气泡、mdui snackbar、WiFi 自动重绑 + 状态 banner、进行中会话主页交互（继续 / 行内停止）、WS 应用层心跳 + server_stopped 区分主动停止与网络断开。
+- **v1.3** — *已发布（2026-05-24）* — 跨会话消息搜索（FTS4 + LIKE fallback）、进行中服务消息撤回（真删 + 双端二次确认 + 即时同步）、History 单条消息删除、应用层 ping/pong 替代被动心跳、闭包死引用系统性审计 + 回归保护、导出页 WS 健康检测 + 取消导出 dialog。
 
 设计文档与复盘/验收清单保存在本地的 `docs/others/`（已 gitignored），公开仓库仅含源码。
 
@@ -38,9 +39,13 @@
 - [x] WiFi 自动重绑：`ConnectivityManager.NetworkCallback` → 停 / 重建 Ktor，banner 报 Lost / Switching / Switched *(v1.2)*
 - [x] 进行中会话主页交互：点击进 ServingScreen 继续 / 行内「停止」按钮 / FAB 切换"继续服务" *(v1.2)*
 - [x] WS 应用层心跳（4 秒 frame 超时）+ `server_stopped` event 区分用户主动停止与网络断开 *(v1.2)*
-- [ ] 消息搜索 *(v1.3)*
-- [ ] 消息撤回 *(v1.3)*
-- [ ] 从 zip 导入回 APP *(v1.3，backlog B8)*
+- [x] 跨会话消息搜索：FTS4 全文索引 + LIKE fallback（CJK 走 LIKE），搜索屏 debounce 输入 + 命中跳转 History + 滚动高亮 *(v1.3)*
+- [x] 进行中服务消息撤回：长按→确认 AlertDialog→真删 + 两端节点即时消失 + snackbar 提醒；History 单条消息删除 *(v1.3)*
+- [x] 应用层 ping/pong + 2 秒 frame 超时：断网 ~2 秒感知，替代 v1.2 的被动心跳 *(v1.3)*
+- [x] 闭包死引用系统性审计：TransferControllerRebindReferenceTest 回归保护 + CLAUDE.md 规范 *(v1.3)*
+- [x] 导出页健康检测：WS 连接（ping/pong）+ fetch 探测、取消导出 dialog、下载开始清理 *(v1.3)*
+- [x] `senderId` 全链路：手机端 `phone-{ANDROID_ID}` 跨重启不变，浏览器 `X-Client-Id` 按会话；撤回鉴权按 senderId 匹配 *(v1.3)*
+- [ ] 从 zip 导入回 APP *(v1.4，backlog B8)*
 - [ ] HTTPS 自签证书 *(v2)*
 - [ ] 本地归档 at-rest encryption *(v2)*
 
@@ -55,8 +60,9 @@
 - [x] 通知栏文案在 WiFi rebind 后刷新到新 IP *(v1.2)*
 - [x] `/api/messages` 返回时间戳合并排序的 `ordered` 视图，刷新后文本/文件按时间顺序混排 *(v1.2)*
 - [x] `MAX_RECONNECT_ATTEMPTS` 上限 + 应用层心跳检测死 WS *(v1.2)*
-- [ ] 手机推送文件的 tee 改异步（消除选中到可下载的拷贝延迟） *(v1.3，backlog B7)*
-- [ ] 浏览器应用层 ping-pong 替代 timeout 心跳 *(v1.3，backlog B5)*
+- [x] 浏览器断网 UI 即时更新（不等 TCP close），heartbeat 检测到超时立即 disable 按钮 + banner *(v1.3)*
+- [x] 文件下载 `Content-Disposition` 使用原始文件名而非 UUID *(v1.3)*
+- [ ] 手机推送文件的 tee 改异步（消除选中到可下载的拷贝延迟） *(v1.4，backlog B7)*
 
 ### fix
 
@@ -74,6 +80,12 @@
 - [x] v1.2 闭包死引用一族 bug：`statusBroadcastJob` / `TransferController.wsHub` 在 startTransfer 时 capture 局部 `server.wsHub`，rebind 后还朝旧 hub 广播。两处改为 lambda 从 field-level 取 `ktor?.wsHub`
 - [x] v1.2 浏览器拿着死的 half-open WS（OS 没立即撕 TCP，`readyState` 仍 OPEN）：应用层 4 秒 frame 超时主动 close 触发重连
 - [x] v1.2 用户主动停止后浏览器死循环重连：服务端 close WS 前发 `server_stopped` event，浏览器 set flag 跳过 reconnect timer；兜底 `MAX_RECONNECT_ATTEMPTS = 6`
+- [x] v1.3 FTS4 `categories='L* N* Co'` 在 Android SQLite（无 ICU）崩溃。回退到 `remove_diacritics=1`；CJK 搜索走 LIKE fallback
+- [x] v1.3 撤回功能从 History 软删 + 占位符 → ServingScreen 真删 + 即时消失 + 双端二次确认 dialog（验收反馈驱动的大返工）
+- [x] v1.3 `ws.close()` 在 TCP 半开时阻塞 30-60 秒才触发 onclose，UI 反馈严重滞后。heartbeat 检测到超时后立即更新 UI + 丢弃旧 WS + 启动重连
+- [x] v1.3 导出页 WS 用 frame 超时但 export mode 无 status broadcast → 即时断开循环。改为 ping/pong
+- [x] v1.3 导出页下载/取消后没关 WS → server 停掉触发重连循环。下载和 `server_stopped` 现在关 WS + 停探测
+- [x] v1.3 文件下载保存名是 UUID 而非原始文件名。`Content-Disposition` 从 session 内存查原始文件名
 
 ## 亮点
 

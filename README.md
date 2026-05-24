@@ -11,6 +11,7 @@ The phone runs an embedded HTTP server. Any browser on the same Wi-Fi opens the 
 - **v1.0** — minimum viable loop: start service, browser pairs via URL + PIN, two-way text and file transfer, MD3 chat bubbles, foreground-service notification, security baseline.
 - **v1.1** — *released (2026-04-21)* — session archival backed by Room, home session list with pin / rename / delete, read-only history view, crash-recovery on app start, FIFO retention (20 non-pinned) + pinned-not-counted.
 - **v1.2** — *released (2026-05-13)* — multi-session batch export to PC as a streaming zip, live upload-progress bubbles, mdui snackbar feedback, Wi-Fi auto-rebind with status banner, in-progress-session affordances on home (resume / inline stop), WS app-layer heartbeat + server-stopped event for clean disconnects.
+- **v1.3** — *released (2026-05-24)* — cross-session message search (FTS4 + LIKE fallback), message recall in active sessions (hard-delete + dual-side confirm + instant sync), per-message delete in history, app-layer ping/pong replacing passive frame timeout, closure-capture audit with regression guard, export-page health detection via WS + fetch probe.
 
 Design docs are kept in a local-only `docs/others/` tree; the public repo carries only the source.
 
@@ -38,9 +39,13 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] Wi-Fi auto-rebind: `ConnectivityManager.NetworkCallback` → stop / restart Ktor, banner reports Lost / Switching / Switched *(v1.2)*
 - [x] In-progress session affordances on home: tap to resume + inline 停止 button + FAB switches to 继续服务 *(v1.2)*
 - [x] WS app-layer heartbeat (4-second frame timeout) + `server_stopped` event so the browser distinguishes user-stop from network outage *(v1.2)*
-- [ ] Message search *(v1.3)*
-- [ ] Message recall *(v1.3)*
-- [ ] Import from zip back into the app *(v1.3, backlog B8)*
+- [x] Cross-session message search: FTS4 full-text index + LIKE fallback for CJK, search screen with debounced input, hit-to-history jump with scroll + highlight *(v1.3)*
+- [x] Message recall in active sessions: long-press → confirm dialog → hard-delete + both-side instant removal + snackbar notification; per-message delete in history *(v1.3)*
+- [x] App-layer ping/pong + 2-second frame timeout: instant disconnect detection (~2s), replaces v1.2's passive-only heartbeat *(v1.3)*
+- [x] Closure-capture systematic audit: TransferControllerRebindReferenceTest regression guard + CLAUDE.md convention *(v1.3)*
+- [x] Export-page health detection: WS connection (ping/pong) + fetch probe, cancel-export dialog, download-started cleanup *(v1.3)*
+- [x] `senderId` end-to-end: `phone-{ANDROID_ID}` stable across restarts, browser `X-Client-Id` per session; recall authorization by sender match *(v1.3)*
+- [ ] Import from zip back into the app *(v1.4, backlog B8)*
 - [ ] HTTPS with self-signed cert *(v2)*
 - [ ] At-rest encryption of local archive *(v2)*
 
@@ -55,8 +60,9 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] Notification text refreshed on every Wi-Fi rebind so the user sees the current IP *(v1.2)*
 - [x] `/api/messages` returns a timestamp-sorted `ordered` view so reload preserves chronological order across text/file kinds *(v1.2)*
 - [x] `MAX_RECONNECT_ATTEMPTS` ceiling + heartbeat-driven dead-WS detection so flaky links don't loop forever *(v1.2)*
-- [ ] Async tee for phone-pushed files (remove the copy-before-serve latency) *(v1.3, backlog B7)*
-- [ ] Application-layer ping/pong replacing the timeout-based heartbeat *(v1.3, backlog B5)*
+- [x] Browser disconnect UI fires immediately on frame timeout (not waiting for TCP close) *(v1.3)*
+- [x] File download `Content-Disposition` uses original filename instead of UUID *(v1.3)*
+- [ ] Async tee for phone-pushed files (remove the copy-before-serve latency) *(v1.4, backlog B7)*
 
 ### fix
 
@@ -74,6 +80,12 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] v1.2 closure-capture class of bugs: `statusBroadcastJob` and `TransferController.wsHub` both held the *original* `KtorServer.wsHub` after a rebind, so APP→browser broadcasts went to a dead hub. Both call sites now resolve `ktor?.wsHub` at broadcast time
 - [x] v1.2 browser thought a half-open WebSocket was alive (OS hadn't torn the TCP yet, `readyState` still `OPEN`). Added an app-layer 4-second frame timeout; missing frames force-close and trigger reconnect
 - [x] v1.2 user-initiated stop kept the browser in reconnect loop. Server broadcasts a `server_stopped` event before closing each WS; browser flips a flag and skips the reconnect timer; safety net: `MAX_RECONNECT_ATTEMPTS = 6`
+- [x] v1.3 FTS4 `categories='L* N* Co'` crashes on Android SQLite (no ICU). Dropped to `remove_diacritics=1` only; CJK search via LIKE fallback
+- [x] v1.3 recall reworked from History soft-delete + placeholder to ServingScreen hard-delete + instant removal + dual-side confirm dialog
+- [x] v1.3 `ws.close()` on half-open TCP blocks until TCP timeout (30-60s), delaying UI feedback. Heartbeat now updates UI *before* close; reconnect starts immediately
+- [x] v1.3 export WS used frame-timeout but export mode has no status broadcast → instant disconnect loop. Switched to ping/pong for export WS
+- [x] v1.3 export page download/cancel didn't stop WS → reconnect loop after server shutdown. Download and `server_stopped` now close WS + stop probe
+- [x] v1.3 file download saved with UUID filename instead of original name. `Content-Disposition` now reads original name from session messages
 
 ## Highlights
 
