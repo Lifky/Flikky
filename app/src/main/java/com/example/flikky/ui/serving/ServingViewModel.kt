@@ -54,6 +54,9 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     private val _events = Channel<String>(Channel.BUFFERED)
     val events: Flow<String> = _events.receiveAsFlow()
 
+    val fileTransferProgress: StateFlow<Map<Long, Float>> =
+        ServiceLocator.session.fileTransferProgress
+
     private var running: TransferService.Running? = null
     private var controller: TransferController? = null
 

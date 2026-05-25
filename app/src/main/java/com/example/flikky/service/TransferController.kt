@@ -7,6 +7,9 @@ import com.example.flikky.data.SessionFileStore
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.SessionRepository.RecallOutcome
 import com.example.flikky.server.dto.FileMessageDto
+import com.example.flikky.server.dto.FileProgressDto
+import com.example.flikky.server.dto.FileReadyDto
+import com.example.flikky.server.dto.FileRemovedDto
 import com.example.flikky.server.dto.TextMessageDto
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.session.Message
@@ -14,9 +17,11 @@ import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
 import com.example.flikky.util.IdGen
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import java.io.File
 import java.util.UUID
 
 /**
@@ -35,23 +40,10 @@ class TransferController(
     private val stats: TransferStats,
     private val fileStore: SessionFileStore,
     private val repository: SessionRepository,
-    /**
-     * Lambda 而不是直接持有 [WsHub]：rebind 时 TransferService 会换新 KtorServer +
-     * 新 wsHub，但 controller 是 startTransfer 阶段一次性创建的；若闭包死引用旧 hub，
-     * APP→browser 方向的广播会发到已废弃的 hub，浏览器永远收不到 APP 发的消息（直到
-     * 浏览器手动刷新走 /api/messages 历史接口才看到）。每次 broadcast 时由 lambda
-     * 取当前 hub，rebind 自动跟随。
-     */
     private val wsHub: () -> WsHub?,
     private val nowMs: () -> Long,
-    /**
-     * Stable phone-side identity stamped onto every Message this controller
-     * creates. v1.3 recall authorization compares this against the message's
-     * senderId, so the same physical device can always recall its own
-     * historical messages — even across service restarts. Set by
-     * TransferService to `"phone-${Settings.Secure.ANDROID_ID}"` (D31).
-     */
     private val senderId: String,
+    private val scope: CoroutineScope,
 ) {
     suspend fun sendText(text: String) {
         if (text.isBlank()) return
@@ -82,15 +74,7 @@ class TransferController(
         }
         val mime = resolver.getType(uri) ?: "application/octet-stream"
         val fileId = UUID.randomUUID().toString()
-
-        val archived = runCatching {
-            withContext(Dispatchers.IO) {
-                val input = resolver.openInputStream(uri) ?: error("cannot open uri")
-                fileStore.archiveFromStream(sid, fileId, input)
-            }
-        }
-        val target = archived.getOrNull() ?: return
-        val realSize = if (size > 0) size else target.length()
+        val knownSize = if (size > 0) size else 0L
 
         val msg = Message.File(
             id = IdGen.newMessageId(),
@@ -98,9 +82,9 @@ class TransferController(
             timestamp = nowMs(),
             fileId = fileId,
             name = name,
-            sizeBytes = realSize,
+            sizeBytes = knownSize,
             mime = mime,
-            status = Message.File.Status.COMPLETED,
+            status = Message.File.Status.IN_PROGRESS,
             senderId = senderId,
         )
         session.addMessage(msg)
@@ -112,6 +96,60 @@ class TransferController(
             msg.name, msg.sizeBytes, msg.mime, msg.status.name,
         )
         wsHub()?.broadcast("file_added", Json.encodeToString(FileMessageDto.serializer(), dto))
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                val input = resolver.openInputStream(uri) ?: error("cannot open uri")
+                val target = File(fileStore.fileDir(sid), fileId)
+                var totalCopied = 0L
+                val totalSize = knownSize
+                var lastReportedPct = -1
+
+                input.use { ins ->
+                    target.outputStream().use { out ->
+                        val buf = ByteArray(64 * 1024)
+                        while (true) {
+                            val n = ins.read(buf)
+                            if (n <= 0) break
+                            out.write(buf, 0, n)
+                            totalCopied += n
+                            stats.recordBytes(n.toLong())
+
+                            if (totalSize > 0) {
+                                val pct = ((totalCopied * 100) / totalSize).toInt()
+                                if (pct >= lastReportedPct + 5) {
+                                    lastReportedPct = pct
+                                    val ratio = totalCopied.toFloat() / totalSize
+                                    session.updateProgress(msg.id, ratio)
+                                    val progressDto = FileProgressDto(msg.id, totalCopied, totalSize)
+                                    wsHub()?.broadcast("file_progress",
+                                        Json.encodeToString(FileProgressDto.serializer(), progressDto))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                val realSize = if (totalSize > 0) totalSize else target.length()
+                session.updateMessage(msg.id) { m ->
+                    (m as Message.File).copy(status = Message.File.Status.COMPLETED, sizeBytes = realSize)
+                }
+                runCatching { repository.updateFileStatus(msg.id, "COMPLETED", realSize) }
+
+                val readyDto = FileReadyDto(msg.id, fileId, name, realSize)
+                wsHub()?.broadcast("file_ready",
+                    Json.encodeToString(FileReadyDto.serializer(), readyDto))
+                session.clearProgress(msg.id)
+            } catch (e: Exception) {
+                session.removeMessage(msg.id)
+                runCatching { repository.deleteMessageAndFile(msg.id, sid, fileId) }
+                stats.decrementFileCount()
+                val removedDto = FileRemovedDto(msg.id)
+                wsHub()?.broadcast("file_removed",
+                    Json.encodeToString(FileRemovedDto.serializer(), removedDto))
+                session.clearProgress(msg.id)
+            }
+        }
     }
 
     /**

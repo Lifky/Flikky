@@ -103,6 +103,14 @@ fun Route.fileRoutes(
         val id = call.parameters["id"] ?: run { call.respond(HttpStatusCode.BadRequest); return@get }
         val sid = currentSessionId()
 
+        val fileMsg = session.snapshot.value.messages
+            .filterIsInstance<com.example.flikky.session.Message.File>()
+            .firstOrNull { it.fileId == id }
+        if (fileMsg != null && fileMsg.status == com.example.flikky.session.Message.File.Status.IN_PROGRESS) {
+            call.respond(HttpStatusCode(409, "Conflict"), "File transfer in progress")
+            return@get
+        }
+
         val file = File(store.fileDir(sid), id)
         if (!file.exists()) { call.respond(HttpStatusCode.NotFound); return@get }
         val originalName = session.snapshot.value.messages

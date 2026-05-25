@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +38,7 @@ fun MessageBubble(
     msg: Message,
     onClick: () -> Unit,
     onLongPress: (() -> Unit)? = null,
+    transferProgress: Float? = null,
 ) {
     val mine = msg.origin == Origin.PHONE
     val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.8f).dp
@@ -74,14 +77,22 @@ fun MessageBubble(
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }
-                is Message.File -> FileBubbleContent(msg = msg, fg = fg, mine = mine)
+                is Message.File -> FileBubbleContent(
+                    msg = msg, fg = fg, mine = mine, transferProgress = transferProgress,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun FileBubbleContent(msg: Message.File, fg: Color, mine: Boolean) {
+private fun FileBubbleContent(
+    msg: Message.File,
+    fg: Color,
+    mine: Boolean,
+    transferProgress: Float? = null,
+) {
+    val isTransferring = msg.status == Message.File.Status.IN_PROGRESS
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(text = "📄", style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.width(10.dp))
@@ -95,12 +106,27 @@ private fun FileBubbleContent(msg: Message.File, fg: Color, mine: Boolean) {
             Text(
                 text = buildString {
                     append(formatSize(msg.sizeBytes))
-                    if (!mine && msg.status == Message.File.Status.COMPLETED) append("  ·  点击打开")
-                    else if (mine) append("  ·  已发送")
+                    when {
+                        isTransferring -> {
+                            val pct = ((transferProgress ?: 0f) * 100).toInt()
+                            append("  ·  传输中 $pct%")
+                        }
+                        !mine && msg.status == Message.File.Status.COMPLETED -> append("  ·  点击打开")
+                        mine && msg.status == Message.File.Status.COMPLETED -> append("  ·  已发送")
+                    }
                 },
                 color = fg.copy(alpha = 0.75f),
                 style = MaterialTheme.typography.bodySmall,
             )
+            if (isTransferring && transferProgress != null) {
+                Spacer(Modifier.height(4.dp))
+                LinearProgressIndicator(
+                    progress = { transferProgress },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = fg.copy(alpha = 0.9f),
+                    trackColor = fg.copy(alpha = 0.2f),
+                )
+            }
         }
     }
 }

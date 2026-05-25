@@ -25,6 +25,18 @@ sealed class NetworkStatus {
 }
 
 class SessionState(private val nowMs: () -> Long) {
+
+    private val _fileTransferProgress = MutableStateFlow<Map<Long, Float>>(emptyMap())
+    val fileTransferProgress: StateFlow<Map<Long, Float>> = _fileTransferProgress
+
+    fun updateProgress(messageId: Long, progress: Float) {
+        _fileTransferProgress.update { it + (messageId to progress) }
+    }
+
+    fun clearProgress(messageId: Long) {
+        _fileTransferProgress.update { it - messageId }
+    }
+
     data class Snapshot(
         val serviceStartedAt: Long,
         val currentSessionId: Long?,
@@ -112,6 +124,7 @@ class SessionState(private val nowMs: () -> Long) {
             boundPort = 0,
             networkStatus = NetworkStatus.Ok,
         )
+        _fileTransferProgress.value = emptyMap()
     }
 
     /**

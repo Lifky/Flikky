@@ -50,6 +50,7 @@ fun ServingScreen(
     viewModel: ServingViewModel = viewModel(),
 ) {
     val ui by viewModel.ui.collectAsState()
+    val progressMap by viewModel.fileTransferProgress.collectAsState()
     var draft by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
     var recallTarget by remember { mutableStateOf<Long?>(null) }
@@ -99,6 +100,7 @@ fun ServingScreen(
                             onLongPress = if (canRecall) {
                                 { menuOpen = true }
                             } else null,
+                            transferProgress = progressMap[msg.id],
                         )
                         DropdownMenu(
                             expanded = menuOpen,

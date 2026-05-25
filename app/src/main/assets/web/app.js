@@ -190,6 +190,41 @@
         if (node) node.remove();
     }
 
+    function renderTransferringBubble(msg) {
+        const div = document.createElement('div');
+        div.className = 'file-bubble them transferring';
+        div.dataset.messageId = msg.id;
+        div.dataset.kind = 'file';
+        if (msg.fileId) div.dataset.fileId = msg.fileId;
+
+        const a = document.createElement('a');
+        a.textContent = msg.name;
+        a.setAttribute('aria-disabled', 'true');
+
+        const size = document.createElement('span');
+        size.className = 'size';
+        size.textContent = formatSize(msg.sizeBytes);
+
+        const bar = document.createElement('div');
+        bar.className = 'progress-bar';
+        const fill = document.createElement('div');
+        fill.className = 'progress-fill';
+        bar.appendChild(fill);
+
+        const pct = document.createElement('span');
+        pct.className = 'progress-pct';
+        pct.textContent = '0%';
+
+        div.appendChild(a);
+        div.appendChild(size);
+        div.appendChild(bar);
+        div.appendChild(pct);
+
+        list.appendChild(div);
+        list.scrollTop = list.scrollHeight;
+        return div;
+    }
+
     function renderUploadingBubble(opts) {
         const div = document.createElement('div');
         div.className = 'file-bubble me uploading';
@@ -338,7 +373,30 @@
                 return;
             }
             seen.add(key);
-            renderFile(ev.payload, ev.payload.origin === 'BROWSER');
+            if (ev.payload.status === 'IN_PROGRESS') {
+                renderTransferringBubble(ev.payload);
+            } else {
+                renderFile(ev.payload, ev.payload.origin === 'BROWSER');
+            }
+        } else if (ev.type === 'file_progress') {
+            const p = ev.payload;
+            if (p && typeof p.messageId === 'number') {
+                const bubble = list.querySelector(`[data-message-id="${p.messageId}"]`);
+                if (bubble) updateBubbleProgress(bubble, p.bytesTransferred, p.totalBytes);
+            }
+        } else if (ev.type === 'file_ready') {
+            const p = ev.payload;
+            if (p && typeof p.messageId === 'number') {
+                const bubble = list.querySelector(`[data-message-id="${p.messageId}"]`);
+                if (bubble) {
+                    markBubbleCompleted(bubble, p);
+                }
+            }
+        } else if (ev.type === 'file_removed') {
+            const p = ev.payload;
+            if (p && typeof p.messageId === 'number') {
+                removeMessageNode(p.messageId);
+            }
         } else if (ev.type === 'status') {
             uptimeEl.textContent = formatUptime(ev.payload.uptime || 0);
             countEl.textContent = ev.payload.fileCount;
@@ -364,8 +422,12 @@
                     const key = `file_added:${m.id}`;
                     if (seen.has(key)) continue;
                     seen.add(key);
-                    const bubble = renderFile(m, m.origin === 'BROWSER');
-                    if (bubble) bubble.dataset.fileId = m.fileId;
+                    if (m.status === 'IN_PROGRESS') {
+                        renderTransferringBubble(m);
+                    } else {
+                        const bubble = renderFile(m, m.origin === 'BROWSER');
+                        if (bubble) bubble.dataset.fileId = m.fileId;
+                    }
                 }
             }
             return;

@@ -102,6 +102,26 @@ sealed class ServerRecallOutcome {
 }
 
 @Serializable
+data class FileProgressDto(
+    val messageId: Long,
+    val bytesTransferred: Long,
+    val totalBytes: Long,
+)
+
+@Serializable
+data class FileReadyDto(
+    val messageId: Long,
+    val fileId: String,
+    val name: String,
+    val sizeBytes: Long,
+)
+
+@Serializable
+data class FileRemovedDto(
+    val messageId: Long,
+)
+
+@Serializable
 data class StatusDto(
     val startedAt: Long,
     val uptime: Long,

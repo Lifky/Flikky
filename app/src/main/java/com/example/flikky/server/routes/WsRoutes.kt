@@ -51,6 +51,7 @@ class WsHub {
         broadcast("message_recalled", payload)
     }
 
+
     suspend fun broadcastStopAndClose() {
         val goodbye = """{"type":"server_stopped","payload":{}}"""
         val snapshot = mutex.withLock { sessions.toList() }
