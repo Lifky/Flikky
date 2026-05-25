@@ -45,6 +45,18 @@ interface MessageDao {
     @Query("DELETE FROM messages WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("UPDATE messages SET fileStatus = :status, fileSize = :sizeBytes WHERE id = :id")
+    suspend fun updateFileStatus(id: Long, status: String, sizeBytes: Long)
+
+    @Query("DELETE FROM messages WHERE id = :id AND fileStatus = :status")
+    suspend fun deleteByIdAndStatus(id: Long, status: String): Int
+
+    @Query("SELECT * FROM messages WHERE fileStatus = :status")
+    suspend fun listByStatus(status: String): List<MessageEntity>
+
+    @Insert
+    suspend fun insertAll(messages: List<MessageEntity>)
+
     @Query("SELECT COUNT(*) FROM messages WHERE sessionId = :sid")
     suspend fun countBySession(sid: Long): Int
 

@@ -6,11 +6,21 @@ import com.example.flikky.data.db.entities.MessageEntity
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.export.MessageExport
+import com.example.flikky.export.ParsedMessage
+import com.example.flikky.export.ParsedSession
 import com.example.flikky.export.SessionExport
+import com.example.flikky.export.ZipImporter
+import com.example.flikky.export.wireNameToOrigin
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
+import com.example.flikky.util.IdGen
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.util.UUID
+import java.util.zip.ZipFile
 
 /**
  * 业务入口：所有 UI/Service 调 Repository，不碰 DAO。依赖 now 和 retainLimit 注入，便于测试。
@@ -91,6 +101,30 @@ class SessionRepository(
         }
         fileStore.listSessionDirs().forEach { sid ->
             if (sessionDao.getById(sid) == null) fileStore.deleteSessionDir(sid)
+        }
+        // B7 v1.4: clean up IN_PROGRESS file messages left by crashed transfers.
+        // These represent files that were partially copied when the app died.
+        cleanupInProgressMessages()
+    }
+
+    private suspend fun cleanupInProgressMessages() {
+        val inProgressMessages = messageDao.listByStatus("IN_PROGRESS")
+        for (msg in inProgressMessages) {
+            msg.fileId?.let { fileStore.deleteMessageFile(msg.sessionId, it) }
+            messageDao.deleteById(msg.id)
+        }
+        if (inProgressMessages.isNotEmpty()) {
+            val affectedSessionIds = inProgressMessages.map { it.sessionId }.distinct()
+            for (sid in affectedSessionIds) {
+                val row = sessionDao.getById(sid) ?: continue
+                val messages = messageDao.listBySession(sid)
+                val files = messages.filter { it.kind == "FILE" }
+                sessionDao.update(row.copy(
+                    messageCount = messages.size,
+                    fileCount = files.size,
+                    totalBytes = files.sumOf { it.fileSize ?: 0L },
+                ))
+            }
         }
     }
 
@@ -307,6 +341,143 @@ class SessionRepository(
             }
         }
         messageDao.deleteById(messageId)
+    }
+
+    data class ImportResult(
+        val imported: List<ImportedSession>,
+        val skipped: List<SkippedSession>,
+        val errors: List<ImportError>,
+    )
+    data class ImportedSession(val originalName: String, val newId: Long, val messageCount: Int, val fileCount: Int)
+    data class SkippedSession(val name: String, val reason: String)
+    data class ImportError(val name: String, val error: String)
+
+    suspend fun importSessions(tempZipFile: File): ImportResult = withContext(Dispatchers.IO) {
+        val imported = mutableListOf<ImportedSession>()
+        val skipped = mutableListOf<SkippedSession>()
+        val errors = mutableListOf<ImportError>()
+
+        val zipFile = try { ZipFile(tempZipFile) } catch (e: Exception) {
+            errors.add(ImportError("zip", e.message ?: "Failed to open zip"))
+            return@withContext ImportResult(imported, skipped, errors)
+        }
+
+        try {
+            val parsedSessions = ZipImporter.parse(zipFile)
+
+            for (parsed in parsedSessions) {
+                try {
+                    val existing = sessionDao.findByNameAndStartedAt(parsed.name, parsed.startedAt)
+                    if (existing != null) {
+                        skipped.add(SkippedSession(parsed.name, "已存在"))
+                        continue
+                    }
+
+                    val newSessionId = sessionDao.insert(SessionEntity(
+                        startedAt = parsed.startedAt,
+                        endedAt = parsed.endedAt,
+                        name = parsed.name,
+                        pinned = parsed.pinned,
+                    ))
+
+                    val entities = mutableListOf<MessageEntity>()
+                    val fileMessages = parsed.messages.filterIsInstance<ParsedMessage.File>()
+                    var importedFileCount = 0
+                    var importedTotalBytes = 0L
+
+                    for (msg in parsed.messages) {
+                        val newMessageId = IdGen.newMessageId()
+                        when (msg) {
+                            is ParsedMessage.Text -> entities.add(MessageEntity(
+                                id = newMessageId,
+                                sessionId = newSessionId,
+                                origin = msg.origin,
+                                timestamp = msg.ts,
+                                kind = "TEXT",
+                                content = msg.content,
+                            ))
+                            is ParsedMessage.File -> {
+                                val newFileId = UUID.randomUUID().toString()
+                                val entry = ZipImporter.resolveFileEntry(
+                                    parsed.version, fileMessages, msg.fileId,
+                                    parsed.sessionDir, zipFile,
+                                )
+                                if (entry != null) {
+                                    val targetFile = File(fileStore.fileDir(newSessionId), newFileId)
+                                    ZipImporter.getEntryStream(zipFile, entry).use { input ->
+                                        targetFile.outputStream().use { out -> input.copyTo(out) }
+                                    }
+                                }
+                                importedFileCount++
+                                importedTotalBytes += msg.sizeBytes
+                                entities.add(MessageEntity(
+                                    id = newMessageId,
+                                    sessionId = newSessionId,
+                                    origin = msg.origin,
+                                    timestamp = msg.ts,
+                                    kind = "FILE",
+                                    fileId = newFileId,
+                                    fileName = msg.name,
+                                    fileSize = msg.sizeBytes,
+                                    fileMime = msg.mime,
+                                    fileStatus = "COMPLETED",
+                                ))
+                            }
+                        }
+                    }
+
+                    if (entities.isNotEmpty()) {
+                        messageDao.insertAll(entities)
+                    }
+
+                    val previewText = parsed.messages
+                        .filterIsInstance<ParsedMessage.Text>()
+                        .firstOrNull()?.content?.take(40)
+
+                    sessionDao.update(SessionEntity(
+                        id = newSessionId,
+                        startedAt = parsed.startedAt,
+                        endedAt = parsed.endedAt,
+                        name = parsed.name,
+                        pinned = parsed.pinned,
+                        messageCount = entities.size,
+                        fileCount = importedFileCount,
+                        totalBytes = importedTotalBytes,
+                        previewText = previewText,
+                    ))
+
+                    imported.add(ImportedSession(
+                        parsed.name, newSessionId, entities.size, importedFileCount,
+                    ))
+                } catch (e: Exception) {
+                    errors.add(ImportError(parsed.name, e.message ?: "Unknown error"))
+                }
+            }
+
+            fifoSweep()
+        } finally {
+            runCatching { zipFile.close() }
+        }
+
+        ImportResult(imported, skipped, errors)
+    }
+
+    suspend fun updateFileStatus(messageId: Long, status: String, sizeBytes: Long) {
+        messageDao.updateFileStatus(messageId, status, sizeBytes)
+    }
+
+    suspend fun deleteMessageAndFile(messageId: Long, sessionId: Long, fileId: String) {
+        val msg = messageDao.getById(messageId)
+        fileStore.deleteMessageFile(sessionId, fileId)
+        messageDao.deleteById(messageId)
+        if (msg != null) {
+            val sessionRow = sessionDao.getById(sessionId) ?: return
+            sessionDao.update(sessionRow.copy(
+                fileCount = (sessionRow.fileCount - 1).coerceAtLeast(0),
+                totalBytes = (sessionRow.totalBytes - (msg.fileSize ?: 0L)).coerceAtLeast(0L),
+                messageCount = (sessionRow.messageCount - 1).coerceAtLeast(0),
+            ))
+        }
     }
 
     companion object {

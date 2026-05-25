@@ -2,6 +2,7 @@ package com.example.flikky.ui.home
 
 import android.app.Application
 import android.content.Intent
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flikky.data.SessionRepository
@@ -153,5 +154,21 @@ class HomeViewModel @JvmOverloads constructor(
     /** Batch delete for the post-export "delete local copies" flow. */
     suspend fun deleteSessions(ids: List<Long>) {
         ids.forEach { repository.deleteSession(it) }
+    }
+
+    suspend fun importFromZip(uri: Uri): SessionRepository.ImportResult {
+        val ctx = getApplication<Application>()
+        val tempFile = java.io.File(ctx.filesDir, "import_temp.zip")
+        try {
+            ctx.contentResolver.openInputStream(uri)?.use { input ->
+                tempFile.outputStream().use { out -> input.copyTo(out) }
+            } ?: return SessionRepository.ImportResult(
+                emptyList(), emptyList(),
+                listOf(SessionRepository.ImportError("zip", "无法读取文件")),
+            )
+            return repository.importSessions(tempFile)
+        } finally {
+            tempFile.delete()
+        }
     }
 }

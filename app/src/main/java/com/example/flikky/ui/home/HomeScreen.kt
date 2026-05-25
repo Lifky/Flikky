@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
@@ -78,6 +79,34 @@ fun HomeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    var showImportDialog by remember { mutableStateOf(false) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            showImportDialog = true
+            scope.launch {
+                val result = viewModel.importFromZip(uri)
+                showImportDialog = false
+                val msg = buildString {
+                    if (result.imported.isNotEmpty())
+                        append("已导入 ${result.imported.size} 个会话")
+                    if (result.skipped.isNotEmpty()) {
+                        if (isNotEmpty()) append("，")
+                        append("跳过 ${result.skipped.size} 个重复")
+                    }
+                    if (result.errors.isNotEmpty()) {
+                        if (isNotEmpty()) append("，")
+                        append("${result.errors.size} 个失败")
+                    }
+                    if (isEmpty()) append("未找到可导入的会话")
+                }
+                snackbarHostState.showSnackbar(msg)
+            }
+        }
+    }
+
     // 是否有进行中会话——影响 FAB 文案、点击行为、会话项的 trailing 按钮。
     val hasInProgress = sessions.any { it.endedAt == null }
 
@@ -120,6 +149,7 @@ fun HomeScreen(
                 NormalTopBar(
                     onEnterSelecting = { viewModel.enterSelecting() },
                     onOpenSearch = onOpenSearch,
+                    onImport = { importLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed")) },
                 )
             }
         },
@@ -199,15 +229,29 @@ fun HomeScreen(
             }
         }
     }
+
+    if (showImportDialog) {
+        AlertDialog(
+            onDismissRequest = {},
+            confirmButton = {},
+            title = { Text("正在导入...") },
+            text = {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            },
+        )
+    }
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun NormalTopBar(onEnterSelecting: () -> Unit, onOpenSearch: () -> Unit) {
+private fun NormalTopBar(onEnterSelecting: () -> Unit, onOpenSearch: () -> Unit, onImport: () -> Unit) {
     TopAppBar(
         title = { Text("Flikky") },
         actions = {
             IconButton(onClick = onOpenSearch) { Text("🔍") }
+            IconButton(onClick = onImport) { Text("📥") }
             TextButton(onClick = onEnterSelecting) { Text("导出") }
         },
         colors = TopAppBarDefaults.topAppBarColors(),
