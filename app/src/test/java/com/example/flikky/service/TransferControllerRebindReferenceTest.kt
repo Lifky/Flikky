@@ -8,6 +8,7 @@ import com.example.flikky.session.TransferStats
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
@@ -62,6 +63,7 @@ class TransferControllerRebindReferenceTest {
             wsHub = { currentHub },
             nowMs = { 1_000L },
             senderId = "phone-test",
+            scope = TestScope(),
         )
 
         controller.sendText("before rebind")

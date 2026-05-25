@@ -75,7 +75,7 @@ class ZipExporterTest {
         assertTrue(readme.contains("Total messages: 0"))
         assertTrue(readme.contains("Total files: 0"))
         assertTrue(readme.contains("Total bytes: 0"))
-        assertTrue(readme.contains("Version: 1.2"))
+        assertTrue(readme.contains("Version: 1.4"))
     }
 
     // --- 2: single session, 1 text + 1 file ---
