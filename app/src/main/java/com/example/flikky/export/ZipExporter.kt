@@ -83,7 +83,7 @@ object ZipExporter {
 
         val sb = StringBuilder()
         sb.append("Flikky Export\n")
-        sb.append("Version: 1.2\n")
+        sb.append("Version: 1.4\n")
         sb.append("Exported at: ").append(exportedStr).append(" (").append(tzStr).append(")\n")
         sb.append("Sessions: ").append(sessionCount).append('\n')
         sb.append("Total messages: ").append(totalMessages).append('\n')
@@ -105,19 +105,24 @@ object ZipExporter {
         timeZone: TimeZone,
     ) {
         val dir = SESSIONS_DIR + session.id + "_" + safeName(session.name) + "/"
-
-        // messages.txt
-        writeTextEntry(zip, dir + "messages.txt", MessagesTextFormatter.format(session, timeZone))
-        // messages.json
-        writeTextEntry(zip, dir + "messages.json", MessagesJsonFormatter.format(session))
-
-        // files/
         val fileMessages = session.messages.filterIsInstance<MessageExport.File>()
-        if (fileMessages.isEmpty()) return
 
+        // Pre-compute deduplicated names so messages.json relativePath matches zip entries
         val seen = mutableMapOf<String, Int>()
+        val fileIdToRelativePath = mutableMapOf<String, String>()
+        val fileIdToEntryName = mutableMapOf<String, String>()
         for (fm in fileMessages) {
             val entryName = nextUniqueName(seen, fm.name)
+            fileIdToRelativePath[fm.fileId] = "files/$entryName"
+            fileIdToEntryName[fm.fileId] = entryName
+        }
+
+        writeTextEntry(zip, dir + "messages.txt", MessagesTextFormatter.format(session, timeZone))
+        writeTextEntry(zip, dir + "messages.json",
+            MessagesJsonFormatter.format(session, fileIdToRelativePath = fileIdToRelativePath))
+
+        for (fm in fileMessages) {
+            val entryName = fileIdToEntryName[fm.fileId] ?: fm.name
             val path = dir + "files/" + entryName
             val resolved = fileResolver(session.id, fm.fileId)
             if (resolved == null || !resolved.exists() || !resolved.isFile) {
