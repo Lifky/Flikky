@@ -674,7 +674,13 @@
         // 大文件 + 慢 Wi-Fi 也要给足时间；30 分钟覆盖 100 MB 以上正常上传场景。
         xhr.timeout = 30 * 60 * 1000;
         xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) updateBubbleProgress(bubble, e.loaded, e.total);
+            if (e.lengthComputable) {
+                updateBubbleProgress(bubble, e.loaded, e.total);
+                if (e.loaded >= e.total) {
+                    const pct = bubble.querySelector('.progress-pct');
+                    if (pct) pct.textContent = '处理中...';
+                }
+            }
         };
         xhr.onload = () => {
             if (xhr.status >= 200 && xhr.status < 300) {
@@ -695,6 +701,7 @@
         xhr.upload.onabort = () => markBubbleFailed(bubble, file);
         xhr.open('POST', '/api/files');
         xhr.setRequestHeader('X-Client-Id', myClientId);
+        xhr.setRequestHeader('X-File-Size', String(file.size));
         xhr.send(form);
     }
 

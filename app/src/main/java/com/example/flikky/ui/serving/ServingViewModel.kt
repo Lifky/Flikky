@@ -145,7 +145,7 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
      * 手机自己发送的文件（origin=PHONE）不走这条路径——那是用户从手机选出去的，自己已有。
      */
     fun openFile(msg: Message.File) {
-        if (msg.origin != Origin.BROWSER || msg.status != Message.File.Status.COMPLETED) return
+        if (msg.status != Message.File.Status.COMPLETED) return
         val ctx = getApplication<Application>()
         val sid = ServiceLocator.session.snapshot.value.currentSessionId ?: run {
             Toast.makeText(ctx, "无会话上下文", Toast.LENGTH_SHORT).show()

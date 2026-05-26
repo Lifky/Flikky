@@ -217,7 +217,7 @@ fun HistoryScreen(
 }
 
 private fun openFile(ctx: Context, sessionId: Long, msg: Message.File) {
-    if (msg.origin != Origin.BROWSER) return
+    if (msg.status != Message.File.Status.COMPLETED) return
     val f = File(File(File(ctx.filesDir, "sessions/$sessionId"), "files"), msg.fileId)
     if (!f.exists()) {
         Toast.makeText(ctx, "文件不存在", Toast.LENGTH_SHORT).show(); return

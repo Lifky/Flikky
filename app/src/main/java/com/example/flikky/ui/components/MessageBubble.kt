@@ -111,8 +111,7 @@ private fun FileBubbleContent(
                             val pct = ((transferProgress ?: 0f) * 100).toInt()
                             append("  ·  传输中 $pct%")
                         }
-                        !mine && msg.status == Message.File.Status.COMPLETED -> append("  ·  点击打开")
-                        mine && msg.status == Message.File.Status.COMPLETED -> append("  ·  已发送")
+                        msg.status == Message.File.Status.COMPLETED -> append("  ·  点击打开")
                     }
                 },
                 color = fg.copy(alpha = 0.75f),

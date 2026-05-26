@@ -2,6 +2,8 @@ package com.example.flikky.server.routes
 
 import com.example.flikky.server.PinAuth
 import com.example.flikky.server.dto.FileMessageDto
+import com.example.flikky.server.dto.FileProgressDto
+import com.example.flikky.server.dto.FileReadyDto
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
@@ -22,9 +24,9 @@ import io.ktor.server.response.respondBytesWriter
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
-import io.ktor.util.cio.writeChannel
-import io.ktor.utils.io.copyAndClose
+import io.ktor.utils.io.readAvailable
 import io.ktor.utils.io.writeFully
+import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.UUID
 
@@ -51,29 +53,80 @@ fun Route.fileRoutes(
     post("/api/files") {
         if (!authed(call)) { call.respond(HttpStatusCode.Unauthorized); return@post }
         val sid = currentSessionId()
-        // 浏览器自己生成的 client id 透传过来，broadcast 时附在 payload 里，
-        // 让上传者跳过自己的 file_added 广播避免双气泡。
         val senderId = call.request.headers["X-Client-Id"]
-        // Ktor 3.0 默认 50 MiB 上限；LAN 单用户场景下解除，按磁盘空间为天花板。
+        val declaredSize = call.request.headers["X-File-Size"]?.toLongOrNull() ?: 0L
         val multipart = call.receiveMultipart(formFieldLimit = Long.MAX_VALUE)
         var savedName: String? = null
         var savedSize: Long = 0L
         var savedMime: String = "application/octet-stream"
         val fileId = UUID.randomUUID().toString()
         val target = File(store.fileDir(sid), fileId)
+        var msgId: Long = 0L
+        var inProgressBroadcasted = false
 
         multipart.forEachPart { part ->
             if (part is PartData.FileItem) {
                 savedName = part.originalFileName ?: "unnamed"
                 savedMime = part.contentType?.toString() ?: savedMime
-                savedSize = part.provider().copyAndClose(target.writeChannel())
-                stats.recordBytes(savedSize)
+                val totalSize = if (declaredSize > 0) declaredSize else 0L
+
+                // Broadcast IN_PROGRESS immediately so phone sees the file bubble
+                msgId = IdGen.newMessageId()
+                val inProgressMsg = Message.File(
+                    id = msgId,
+                    origin = Origin.BROWSER,
+                    timestamp = nowMs(),
+                    fileId = fileId,
+                    name = savedName ?: "unnamed",
+                    sizeBytes = totalSize,
+                    mime = savedMime,
+                    status = Message.File.Status.IN_PROGRESS,
+                    senderId = senderId,
+                )
+                session.addMessage(inProgressMsg)
+                stats.incrementFileCount()
+                val inProgressDto = FileMessageDto(
+                    inProgressMsg.id, inProgressMsg.origin.name, inProgressMsg.timestamp,
+                    inProgressMsg.fileId, inProgressMsg.name, inProgressMsg.sizeBytes,
+                    inProgressMsg.mime, inProgressMsg.status.name,
+                    senderId = senderId,
+                )
+                broadcastEvent("file_added",
+                    Json.encodeToString(FileMessageDto.serializer(), inProgressDto))
+                inProgressBroadcasted = true
+
+                // Stream the body with progress reporting
+                val input = part.provider()
+                var totalCopied = 0L
+                var lastReportedPct = -1
+                target.outputStream().use { out ->
+                    val buf = ByteArray(64 * 1024)
+                    while (!input.isClosedForRead) {
+                        val n = input.readAvailable(buf, 0, buf.size)
+                        if (n <= 0) break
+                        out.write(buf, 0, n)
+                        totalCopied += n
+                        stats.recordBytes(n.toLong())
+                        if (totalSize > 0) {
+                            val pct = ((totalCopied * 100) / totalSize).toInt()
+                            if (pct >= lastReportedPct + 5) {
+                                lastReportedPct = pct
+                                session.updateProgress(msgId, totalCopied.toFloat() / totalSize)
+                                val progressDto = FileProgressDto(msgId, totalCopied, totalSize)
+                                broadcastEvent("file_progress",
+                                    Json.encodeToString(FileProgressDto.serializer(), progressDto))
+                            }
+                        }
+                    }
+                }
+                savedSize = totalCopied
             }
             part.dispose()
         }
 
-        val msg = Message.File(
-            id = IdGen.newMessageId(),
+        // Transition to COMPLETED
+        val completedMsg = Message.File(
+            id = msgId,
             origin = Origin.BROWSER,
             timestamp = nowMs(),
             fileId = fileId,
@@ -83,19 +136,20 @@ fun Route.fileRoutes(
             status = Message.File.Status.COMPLETED,
             senderId = senderId,
         )
-        stats.incrementFileCount()
-        session.addMessage(msg)
-        runCatching { onPersist(msg) }
+        session.updateMessage(msgId) { completedMsg }
+        session.clearProgress(msgId)
+        runCatching { onPersist(completedMsg) }
 
-        val dto = FileMessageDto(
-            msg.id, msg.origin.name, msg.timestamp, msg.fileId, msg.name,
-            msg.sizeBytes, msg.mime, msg.status.name,
-            senderId = senderId,
+        val readyDto = FileReadyDto(msgId, fileId, savedName ?: "unnamed", savedSize)
+        broadcastEvent("file_ready",
+            Json.encodeToString(FileReadyDto.serializer(), readyDto))
+
+        val responseDto = FileMessageDto(
+            completedMsg.id, completedMsg.origin.name, completedMsg.timestamp,
+            completedMsg.fileId, completedMsg.name, completedMsg.sizeBytes,
+            completedMsg.mime, completedMsg.status.name,
         )
-        broadcastEvent("file_added",
-            kotlinx.serialization.json.Json.encodeToString(FileMessageDto.serializer(), dto))
-        // 响应给上传者本身的 DTO 不带 senderId — 他不需要识别自己。
-        call.respond(dto.copy(senderId = null))
+        call.respond(responseDto)
     }
 
     get("/api/files/{id}") {
