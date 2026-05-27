@@ -92,18 +92,6 @@ fun ServingScreen(
                     var menuOpen by remember(msg.id) { mutableStateOf(false) }
                     val canRecall = msg.origin == Origin.PHONE
                     val isFailed = msg is Message.File && msg.status == Message.File.Status.FAILED
-                    var failCountdown by remember(msg.id) { mutableStateOf(if (isFailed) 5 else -1) }
-
-                    if (isFailed && failCountdown > 0) {
-                        LaunchedEffect(msg.id) {
-                            while (failCountdown > 0) {
-                                kotlinx.coroutines.delay(1000)
-                                failCountdown--
-                            }
-                            viewModel.removeFailedMessage(msg.id)
-                        }
-                    }
-
                     Box {
                         MessageBubble(
                             msg = msg,
@@ -112,7 +100,6 @@ fun ServingScreen(
                                 { menuOpen = true }
                             } else null,
                             transferProgress = progressMap[msg.id],
-                            failCountdown = if (isFailed) failCountdown else null,
                         )
                         DropdownMenu(
                             expanded = menuOpen,

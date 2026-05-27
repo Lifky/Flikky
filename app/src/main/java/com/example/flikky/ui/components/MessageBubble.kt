@@ -39,7 +39,6 @@ fun MessageBubble(
     onClick: () -> Unit,
     onLongPress: (() -> Unit)? = null,
     transferProgress: Float? = null,
-    failCountdown: Int? = null,
 ) {
     val mine = msg.origin == Origin.PHONE
     val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.8f).dp
@@ -81,7 +80,6 @@ fun MessageBubble(
                 is Message.File -> FileBubbleContent(
                     msg = msg, fg = fg, mine = mine,
                     transferProgress = transferProgress,
-                    failCountdown = failCountdown,
                 )
             }
         }
@@ -94,7 +92,6 @@ private fun FileBubbleContent(
     fg: Color,
     mine: Boolean,
     transferProgress: Float? = null,
-    failCountdown: Int? = null,
 ) {
     val isTransferring = msg.status == Message.File.Status.IN_PROGRESS
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -115,12 +112,7 @@ private fun FileBubbleContent(
                             val pct = ((transferProgress ?: 0f) * 100).toInt()
                             append("  ·  传输中 $pct%")
                         }
-                        msg.status == Message.File.Status.FAILED -> {
-                            append("  ·  传输失败")
-                            if (failCountdown != null && failCountdown > 0) {
-                                append(" (${failCountdown}s)")
-                            }
-                        }
+                        msg.status == Message.File.Status.FAILED -> append("  ·  传输失败")
                         msg.status == Message.File.Status.COMPLETED -> append("  ·  点击打开")
                     }
                 },
