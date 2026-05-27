@@ -4,6 +4,7 @@ import com.example.flikky.server.PinAuth
 import com.example.flikky.server.dto.FileMessageDto
 import com.example.flikky.server.dto.FileProgressDto
 import com.example.flikky.server.dto.FileReadyDto
+import com.example.flikky.server.dto.FileRemovedDto
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
@@ -64,67 +65,78 @@ fun Route.fileRoutes(
         var msgId: Long = 0L
         var inProgressBroadcasted = false
 
-        multipart.forEachPart { part ->
-            if (part is PartData.FileItem) {
-                savedName = part.originalFileName ?: "unnamed"
-                savedMime = part.contentType?.toString() ?: savedMime
-                val totalSize = if (declaredSize > 0) declaredSize else 0L
+        try {
+            multipart.forEachPart { part ->
+                if (part is PartData.FileItem) {
+                    savedName = part.originalFileName ?: "unnamed"
+                    savedMime = part.contentType?.toString() ?: savedMime
+                    val totalSize = if (declaredSize > 0) declaredSize else 0L
 
-                // Broadcast IN_PROGRESS immediately so phone sees the file bubble
-                msgId = IdGen.newMessageId()
-                val inProgressMsg = Message.File(
-                    id = msgId,
-                    origin = Origin.BROWSER,
-                    timestamp = nowMs(),
-                    fileId = fileId,
-                    name = savedName ?: "unnamed",
-                    sizeBytes = totalSize,
-                    mime = savedMime,
-                    status = Message.File.Status.IN_PROGRESS,
-                    senderId = senderId,
-                )
-                session.addMessage(inProgressMsg)
-                stats.incrementFileCount()
-                val inProgressDto = FileMessageDto(
-                    inProgressMsg.id, inProgressMsg.origin.name, inProgressMsg.timestamp,
-                    inProgressMsg.fileId, inProgressMsg.name, inProgressMsg.sizeBytes,
-                    inProgressMsg.mime, inProgressMsg.status.name,
-                    senderId = senderId,
-                )
-                broadcastEvent("file_added",
-                    Json.encodeToString(FileMessageDto.serializer(), inProgressDto))
-                inProgressBroadcasted = true
+                    msgId = IdGen.newMessageId()
+                    val inProgressMsg = Message.File(
+                        id = msgId,
+                        origin = Origin.BROWSER,
+                        timestamp = nowMs(),
+                        fileId = fileId,
+                        name = savedName ?: "unnamed",
+                        sizeBytes = totalSize,
+                        mime = savedMime,
+                        status = Message.File.Status.IN_PROGRESS,
+                        senderId = senderId,
+                    )
+                    session.addMessage(inProgressMsg)
+                    stats.incrementFileCount()
+                    val inProgressDto = FileMessageDto(
+                        inProgressMsg.id, inProgressMsg.origin.name, inProgressMsg.timestamp,
+                        inProgressMsg.fileId, inProgressMsg.name, inProgressMsg.sizeBytes,
+                        inProgressMsg.mime, inProgressMsg.status.name,
+                        senderId = senderId,
+                    )
+                    broadcastEvent("file_added",
+                        Json.encodeToString(FileMessageDto.serializer(), inProgressDto))
+                    inProgressBroadcasted = true
 
-                // Stream the body with progress reporting
-                val input = part.provider()
-                var totalCopied = 0L
-                var lastReportedPct = -1
-                target.outputStream().use { out ->
-                    val buf = ByteArray(64 * 1024)
-                    while (!input.isClosedForRead) {
-                        val n = input.readAvailable(buf, 0, buf.size)
-                        if (n <= 0) break
-                        out.write(buf, 0, n)
-                        totalCopied += n
-                        stats.recordBytes(n.toLong())
-                        if (totalSize > 0) {
-                            val pct = ((totalCopied * 100) / totalSize).toInt()
-                            if (pct >= lastReportedPct + 5) {
-                                lastReportedPct = pct
-                                session.updateProgress(msgId, totalCopied.toFloat() / totalSize)
-                                val progressDto = FileProgressDto(msgId, totalCopied, totalSize)
-                                broadcastEvent("file_progress",
-                                    Json.encodeToString(FileProgressDto.serializer(), progressDto))
+                    val input = part.provider()
+                    var totalCopied = 0L
+                    var lastReportedPct = -1
+                    target.outputStream().use { out ->
+                        val buf = ByteArray(64 * 1024)
+                        while (!input.isClosedForRead) {
+                            val n = input.readAvailable(buf, 0, buf.size)
+                            if (n <= 0) break
+                            out.write(buf, 0, n)
+                            totalCopied += n
+                            stats.recordBytes(n.toLong())
+                            if (totalSize > 0) {
+                                val pct = ((totalCopied * 100) / totalSize).toInt()
+                                if (pct >= lastReportedPct + 5) {
+                                    lastReportedPct = pct
+                                    session.updateProgress(msgId, totalCopied.toFloat() / totalSize)
+                                    val progressDto = FileProgressDto(msgId, totalCopied, totalSize)
+                                    broadcastEvent("file_progress",
+                                        Json.encodeToString(FileProgressDto.serializer(), progressDto))
+                                }
                             }
                         }
                     }
+                    savedSize = totalCopied
                 }
-                savedSize = totalCopied
+                part.dispose()
             }
-            part.dispose()
+        } catch (e: Exception) {
+            // Upload interrupted (browser refresh, WiFi drop, etc.)
+            if (inProgressBroadcasted && msgId > 0) {
+                session.removeMessage(msgId)
+                session.clearProgress(msgId)
+                stats.decrementFileCount()
+                target.delete()
+                val removedDto = FileRemovedDto(msgId)
+                broadcastEvent("file_removed",
+                    Json.encodeToString(FileRemovedDto.serializer(), removedDto))
+            }
+            return@post
         }
 
-        // Transition to COMPLETED
         val completedMsg = Message.File(
             id = msgId,
             origin = Origin.BROWSER,

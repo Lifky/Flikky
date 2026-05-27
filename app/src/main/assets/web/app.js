@@ -191,8 +191,9 @@
     }
 
     function renderTransferringBubble(msg) {
+        const mine = msg.origin === 'BROWSER';
         const div = document.createElement('div');
-        div.className = 'file-bubble them transferring';
+        div.className = 'file-bubble ' + (mine ? 'me' : 'them') + ' transferring';
         div.dataset.messageId = msg.id;
         div.dataset.kind = 'file';
         if (msg.fileId) div.dataset.fileId = msg.fileId;
@@ -472,6 +473,7 @@
     // 这种情况下浏览器不该尝试重连 —— 下次启动的服务是新会话，新 PIN，
     // 旧 URL 反正连不上。区分这两种语义是 user 在 test3 之后的核心反馈。
     let serverStopped = false;
+    let activeUploads = [];
     // 重连尝试上限。万一 server_stopped event 由于 race 没及时到达浏览器，
     // 这一层兜底确保不会进入无限重连。9 秒内连不上 → 判定服务已不可达。
     let reconnectAttempts = 0;
@@ -516,6 +518,8 @@
         setConn('已断开');
         if (hadConnected) showBanner('disconnected', '连接已断开，正在尝试重连…');
         stopHeartbeat();
+        activeUploads.forEach(xhr => { try { xhr.abort(); } catch(_) {} });
+        activeUploads = [];
         const old = currentWs;
         currentWs = null;    // 让旧 WS onclose 变 noop
         try { old?.close(); } catch (_) {}
@@ -671,7 +675,7 @@
         form.append('file', file, file.name);
 
         const xhr = new XMLHttpRequest();
-        // 大文件 + 慢 Wi-Fi 也要给足时间；30 分钟覆盖 100 MB 以上正常上传场景。
+        activeUploads.push(xhr);
         xhr.timeout = 30 * 60 * 1000;
         xhr.upload.onprogress = (e) => {
             if (e.lengthComputable) {
@@ -682,7 +686,11 @@
                 }
             }
         };
+        function removeFromActive() {
+            activeUploads = activeUploads.filter(x => x !== xhr);
+        }
         xhr.onload = () => {
+            removeFromActive();
             if (xhr.status >= 200 && xhr.status < 300) {
                 try {
                     const dto = JSON.parse(xhr.responseText);
@@ -694,11 +702,10 @@
                 markBubbleFailed(bubble, file, xhr.status);
             }
         };
-        xhr.onerror = () => markBubbleFailed(bubble, file);
-        xhr.ontimeout = () => markBubbleFailed(bubble, file, 'timeout');
-        // 网络断开 / WS 已 close 时 abort，立即变红失败而不是卡进度条。
-        xhr.upload.onerror = () => markBubbleFailed(bubble, file);
-        xhr.upload.onabort = () => markBubbleFailed(bubble, file);
+        xhr.onerror = () => { removeFromActive(); markBubbleFailed(bubble, file); };
+        xhr.ontimeout = () => { removeFromActive(); markBubbleFailed(bubble, file, 'timeout'); };
+        xhr.upload.onerror = () => { removeFromActive(); markBubbleFailed(bubble, file); };
+        xhr.upload.onabort = () => { removeFromActive(); markBubbleFailed(bubble, file); };
         xhr.open('POST', '/api/files');
         xhr.setRequestHeader('X-Client-Id', myClientId);
         xhr.setRequestHeader('X-File-Size', String(file.size));
