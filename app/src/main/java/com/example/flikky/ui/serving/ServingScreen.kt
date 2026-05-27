@@ -129,7 +129,10 @@ fun ServingScreen(
                     maxLines = 3,
                 )
                 Spacer(Modifier.width(8.dp))
-                OutlinedButton(onClick = { pickFile.launch("*/*") }) { Text("附件") }
+                OutlinedButton(
+                    onClick = { pickFile.launch("*/*") },
+                    enabled = ui.clientConnected,
+                ) { Text("附件") }
                 Spacer(Modifier.width(8.dp))
                 Button(
                     onClick = {
