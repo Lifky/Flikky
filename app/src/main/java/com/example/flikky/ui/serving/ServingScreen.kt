@@ -62,17 +62,6 @@ fun ServingScreen(
         viewModel.events.collect { snackbarHostState.showSnackbar(it) }
     }
 
-    val failedIds = remember { mutableSetOf<Long>() }
-    ui.messages.filterIsInstance<Message.File>()
-        .filter { it.status == Message.File.Status.FAILED && it.id !in failedIds }
-        .forEach { msg ->
-            failedIds.add(msg.id)
-            LaunchedEffect(msg.id) {
-                kotlinx.coroutines.delay(5000)
-                viewModel.removeFailedMessage(msg.id)
-            }
-        }
-
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { padding ->
@@ -101,17 +90,29 @@ fun ServingScreen(
             ) {
                 items(ui.messages, key = { it.id }) { msg ->
                     var menuOpen by remember(msg.id) { mutableStateOf(false) }
-                    // 只能撤回自己（手机端 origin = PHONE）发的消息。对方消息长按
-                    // 无菜单 —— UI 体感一致：长按了"没反应"≡"不能撤"，无需 disabled。
                     val canRecall = msg.origin == Origin.PHONE
+                    val isFailed = msg is Message.File && msg.status == Message.File.Status.FAILED
+                    var failCountdown by remember(msg.id) { mutableStateOf(if (isFailed) 5 else -1) }
+
+                    if (isFailed && failCountdown > 0) {
+                        LaunchedEffect(msg.id) {
+                            while (failCountdown > 0) {
+                                kotlinx.coroutines.delay(1000)
+                                failCountdown--
+                            }
+                            viewModel.removeFailedMessage(msg.id)
+                        }
+                    }
+
                     Box {
                         MessageBubble(
                             msg = msg,
                             onClick = { if (msg is Message.File) viewModel.openFile(msg) },
-                            onLongPress = if (canRecall) {
+                            onLongPress = if (canRecall && !isFailed) {
                                 { menuOpen = true }
                             } else null,
                             transferProgress = progressMap[msg.id],
+                            failCountdown = if (isFailed) failCountdown else null,
                         )
                         DropdownMenu(
                             expanded = menuOpen,

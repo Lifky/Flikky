@@ -327,7 +327,7 @@
         }
     }
 
-    function markBubbleFailedAutoRemove(bubble, text) {
+    function markBubbleFailedNoRetry(bubble, text) {
         if (!bubble) return;
         bubble.classList.remove('uploading', 'transferring');
         bubble.classList.add('failed');
@@ -342,7 +342,6 @@
         failHint.textContent = text;
         bubble.appendChild(failHint);
         bubble.style.cursor = 'default';
-        setTimeout(() => { if (bubble.parentNode) bubble.remove(); }, 5000);
     }
 
     function onWsEvent(ev) {
@@ -416,7 +415,7 @@
             if (p && typeof p.messageId === 'number') {
                 const bubble = list.querySelector(`[data-message-id="${p.messageId}"]`);
                 if (bubble) {
-                    markBubbleFailedAutoRemove(bubble, '传输失败');
+                    markBubbleFailedNoRetry(bubble, '传输失败');
                 }
             }
         } else if (ev.type === 'status') {
@@ -725,9 +724,9 @@
         };
         xhr.onerror = () => { removeFromActive(); markBubbleFailed(bubble, file); };
         xhr.ontimeout = () => { removeFromActive(); markBubbleFailed(bubble, file, 'timeout'); };
-        xhr.onabort = () => { removeFromActive(); markBubbleFailedAutoRemove(bubble, '发送失败'); };
+        xhr.onabort = () => { removeFromActive(); markBubbleFailedNoRetry(bubble, '发送失败'); };
         xhr.upload.onerror = () => { removeFromActive(); markBubbleFailed(bubble, file); };
-        xhr.upload.onabort = () => { removeFromActive(); markBubbleFailedAutoRemove(bubble, '发送失败'); };
+        xhr.upload.onabort = () => { removeFromActive(); markBubbleFailedNoRetry(bubble, '发送失败'); };
         xhr.open('POST', '/api/files');
         xhr.setRequestHeader('X-Client-Id', myClientId);
         xhr.setRequestHeader('X-File-Size', String(file.size));
