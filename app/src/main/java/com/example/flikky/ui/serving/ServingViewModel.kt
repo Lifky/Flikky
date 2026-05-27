@@ -181,6 +181,10 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         ctx.startService(Intent(ctx, TransferService::class.java).apply { action = TransferService.ACTION_STOP })
     }
 
+    fun removeFailedMessage(messageId: Long) {
+        ServiceLocator.session.removeMessage(messageId)
+    }
+
     /** "我知道了" on the NetworkStatusBanner — fold Switched back to Ok. */
     fun acknowledgeNetworkSwitch() {
         ServiceLocator.session.acknowledgeNetworkSwitch()

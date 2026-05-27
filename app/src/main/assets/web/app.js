@@ -327,6 +327,24 @@
         }
     }
 
+    function markBubbleFailedAutoRemove(bubble, text) {
+        if (!bubble) return;
+        bubble.classList.remove('uploading', 'transferring');
+        bubble.classList.add('failed');
+        const bar = bubble.querySelector('.progress-bar');
+        if (bar) bar.remove();
+        const pct = bubble.querySelector('.progress-pct');
+        if (pct) pct.remove();
+        const hint = bubble.querySelector('.retry-hint');
+        if (hint) hint.remove();
+        const failHint = document.createElement('span');
+        failHint.className = 'retry-hint';
+        failHint.textContent = text;
+        bubble.appendChild(failHint);
+        bubble.style.cursor = 'default';
+        setTimeout(() => { if (bubble.parentNode) bubble.remove(); }, 5000);
+    }
+
     function onWsEvent(ev) {
         // v1.3 应用层 pong：服务端 echo {"type":"pong","id":N}，无 payload 包裹。
         if (ev.type === 'pong') {
@@ -396,7 +414,10 @@
         } else if (ev.type === 'file_removed') {
             const p = ev.payload;
             if (p && typeof p.messageId === 'number') {
-                removeMessageNode(p.messageId);
+                const bubble = list.querySelector(`[data-message-id="${p.messageId}"]`);
+                if (bubble) {
+                    markBubbleFailedAutoRemove(bubble, '传输失败');
+                }
             }
         } else if (ev.type === 'status') {
             uptimeEl.textContent = formatUptime(ev.payload.uptime || 0);
@@ -704,8 +725,9 @@
         };
         xhr.onerror = () => { removeFromActive(); markBubbleFailed(bubble, file); };
         xhr.ontimeout = () => { removeFromActive(); markBubbleFailed(bubble, file, 'timeout'); };
+        xhr.onabort = () => { removeFromActive(); markBubbleFailedAutoRemove(bubble, '发送失败'); };
         xhr.upload.onerror = () => { removeFromActive(); markBubbleFailed(bubble, file); };
-        xhr.upload.onabort = () => { removeFromActive(); markBubbleFailed(bubble, file); };
+        xhr.upload.onabort = () => { removeFromActive(); markBubbleFailedAutoRemove(bubble, '发送失败'); };
         xhr.open('POST', '/api/files');
         xhr.setRequestHeader('X-Client-Id', myClientId);
         xhr.setRequestHeader('X-File-Size', String(file.size));

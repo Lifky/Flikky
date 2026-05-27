@@ -141,13 +141,17 @@ class TransferController(
                     Json.encodeToString(FileReadyDto.serializer(), readyDto))
                 session.clearProgress(msg.id)
             } catch (e: Exception) {
-                session.removeMessage(msg.id)
+                session.updateMessage(msg.id) { m ->
+                    (m as Message.File).copy(status = Message.File.Status.FAILED)
+                }
+                session.clearProgress(msg.id)
                 runCatching { repository.deleteMessageAndFile(msg.id, sid, fileId) }
                 stats.decrementFileCount()
                 val removedDto = FileRemovedDto(msg.id)
-                wsHub()?.broadcast("file_removed",
-                    Json.encodeToString(FileRemovedDto.serializer(), removedDto))
-                session.clearProgress(msg.id)
+                runCatching {
+                    wsHub()?.broadcast("file_removed",
+                        Json.encodeToString(FileRemovedDto.serializer(), removedDto))
+                }
             }
         }
     }

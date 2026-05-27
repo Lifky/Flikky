@@ -111,6 +111,7 @@ private fun FileBubbleContent(
                             val pct = ((transferProgress ?: 0f) * 100).toInt()
                             append("  ·  传输中 $pct%")
                         }
+                        msg.status == Message.File.Status.FAILED -> append("  ·  传输失败")
                         msg.status == Message.File.Status.COMPLETED -> append("  ·  点击打开")
                     }
                 },

@@ -124,15 +124,18 @@ fun Route.fileRoutes(
                 part.dispose()
             }
         } catch (e: Exception) {
-            // Upload interrupted (browser refresh, WiFi drop, etc.)
             if (inProgressBroadcasted && msgId > 0) {
-                session.removeMessage(msgId)
+                session.updateMessage(msgId) { msg ->
+                    (msg as Message.File).copy(status = Message.File.Status.FAILED)
+                }
                 session.clearProgress(msgId)
                 stats.decrementFileCount()
                 target.delete()
                 val removedDto = FileRemovedDto(msgId)
-                broadcastEvent("file_removed",
-                    Json.encodeToString(FileRemovedDto.serializer(), removedDto))
+                runCatching {
+                    broadcastEvent("file_removed",
+                        Json.encodeToString(FileRemovedDto.serializer(), removedDto))
+                }
             }
             return@post
         }

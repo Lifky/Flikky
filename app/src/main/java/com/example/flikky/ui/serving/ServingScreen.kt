@@ -62,6 +62,17 @@ fun ServingScreen(
         viewModel.events.collect { snackbarHostState.showSnackbar(it) }
     }
 
+    val failedIds = remember { mutableSetOf<Long>() }
+    ui.messages.filterIsInstance<Message.File>()
+        .filter { it.status == Message.File.Status.FAILED && it.id !in failedIds }
+        .forEach { msg ->
+            failedIds.add(msg.id)
+            LaunchedEffect(msg.id) {
+                kotlinx.coroutines.delay(5000)
+                viewModel.removeFailedMessage(msg.id)
+            }
+        }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { padding ->
