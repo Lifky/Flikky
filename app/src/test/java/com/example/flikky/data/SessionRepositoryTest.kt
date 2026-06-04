@@ -39,7 +39,7 @@ class SessionRepositoryTest {
             messageDao = db.messageDao(),
             fileStore = store,
             now = now,
-            retainLimit = 20,
+            retainLimitProvider = { 20 },
         )
     }
 
@@ -125,7 +125,7 @@ class SessionRepositoryTest {
             sessionDao = db.sessionDao(),
             messageDao = db.messageDao(),
             fileStore = store,
-            now = now, retainLimit = 0,
+            now = now, retainLimitProvider = { 0 },
         )
         aggressive.fifoSweep()
         org.junit.Assert.assertNotNull(db.sessionDao().getById(liveId))

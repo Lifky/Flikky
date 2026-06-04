@@ -45,7 +45,7 @@ class SessionRepositorySearchTest {
             messageDao = db.messageDao(),
             fileStore = store,
             now = now,
-            retainLimit = 20,
+            retainLimitProvider = { 20 },
         )
     }
 

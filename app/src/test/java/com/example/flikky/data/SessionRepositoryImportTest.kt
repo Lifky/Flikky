@@ -47,7 +47,7 @@ class SessionRepositoryImportTest {
             messageDao = db.messageDao(),
             fileStore = store,
             now = { 1_000L },
-            retainLimit = 20,
+            retainLimitProvider = { 20 },
         )
     }
 

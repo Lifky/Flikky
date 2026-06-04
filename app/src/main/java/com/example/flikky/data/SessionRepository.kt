@@ -30,7 +30,7 @@ class SessionRepository(
     private val messageDao: MessageDao,
     private val fileStore: SessionFileStore,
     private val now: () -> Long,
-    private val retainLimit: Int = 20,
+    private val retainLimitProvider: suspend () -> Int = { 20 },
 ) {
     suspend fun beginSession(name: String, startedAt: Long): Long {
         return sessionDao.insert(SessionEntity(
@@ -62,12 +62,19 @@ class SessionRepository(
     }
 
     /**
-     * Retain at most `retainLimit` non-pinned finished sessions; drop the oldest ones
+     * Retain at most `retainLimitProvider()` non-pinned finished sessions; drop the oldest ones
      * (with their file directories). Pinned and in-progress sessions are untouched.
+     *
+     * Semantics:
+     * - `-1` = unlimited, never evict
+     * - `0`  = keep zero non-pinned finished sessions (all evicted)
+     * - `N>0` = keep newest N non-pinned finished sessions
      */
     suspend fun fifoSweep() {
+        val limit = retainLimitProvider()
+        if (limit < 0) return
         val oldestFirst = sessionDao.nonPinnedOldestFirst()
-        val excess = oldestFirst.size - retainLimit
+        val excess = oldestFirst.size - limit
         if (excess <= 0) return
         oldestFirst.take(excess).forEach { s ->
             sessionDao.delete(s)
