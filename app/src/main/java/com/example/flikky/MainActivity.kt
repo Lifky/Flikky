@@ -4,16 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -29,6 +26,7 @@ import com.example.flikky.ui.history.HistoryScreen
 import com.example.flikky.ui.home.HomeScreen
 import com.example.flikky.ui.search.SearchScreen
 import com.example.flikky.ui.serving.ServingScreen
+import com.example.flikky.ui.settings.SettingsScreen
 import com.example.flikky.ui.theme.FlikkyTheme
 
 class MainActivity : ComponentActivity() {
@@ -76,9 +74,9 @@ class MainActivity : ComponentActivity() {
                                 )
                             }
                             composable("settings") {
-                                Box(Modifier.fillMaxSize()) {
-                                    Text("设置", Modifier.align(Alignment.Center))
-                                }
+                                SettingsScreen(
+                                    onExport = { nav.navigate("exporting") },
+                                )
                             }
                             composable("serving") {
                                 ServingScreen(onStopped = { nav.popBackStack("transfer", inclusive = false) })
