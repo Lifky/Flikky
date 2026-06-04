@@ -9,6 +9,262 @@
     const countEl = document.getElementById('count');
     const rateEl = document.getElementById('rate');
 
+    // ── M9b: Avatar constants ─────────────────────────────────────────────
+    // Order matches PRESET_AVATARS in Avatar.kt (indices 0-11).
+    const AVATAR_BG = [
+        '#FF7043', // 0 Person      deep orange
+        '#F4B400', // 1 Star        amber
+        '#E91E63', // 2 Favorite    pink
+        '#43A047', // 3 Home        green
+        '#1E88E5', // 4 Email       blue
+        '#00ACC1', // 5 Call        cyan
+        '#7E57C2', // 6 Phone       purple
+        '#EF6C00', // 7 ShoppingCart orange
+        '#039BE5', // 8 ThumbUp     light blue
+        '#D81B60', // 9 Place       raspberry
+        '#6D4C41', // 10 Notifications brown
+        '#546E7A', // 11 Settings   blue-grey
+    ];
+    const AVATAR_EMOJI = [
+        '👤', // Person
+        '⭐', // Star
+        '❤️', // Favorite
+        '🏠', // Home
+        '✉️', // Email
+        '📞', // Call
+        '☎️', // Phone
+        '🛒', // ShoppingCart
+        '👍', // ThumbUp
+        '📍', // Place
+        '🔔', // Notifications
+        '⚙️', // Settings
+    ];
+
+    // Own avatar: loaded from localStorage, default 0.
+    let myAvatarId = Math.max(0, Math.min(11, Number(localStorage.getItem('flikky_avatar') || 0)));
+    // Peer (phone) avatar — set after peer-info fetch.
+    let phoneAvatarId = 0;
+
+    // Build an avatar circle element (does not attach to DOM).
+    function makeAvatarEl(avatarId) {
+        const idx = Math.max(0, Math.min(11, avatarId));
+        const el = document.createElement('div');
+        el.className = 'avatar-circle';
+        el.style.backgroundColor = AVATAR_BG[idx];
+        el.textContent = AVATAR_EMOJI[idx];
+        return el;
+    }
+
+    // Track last rendered origin for consecutive same-origin suppression.
+    // 'PHONE' | 'BROWSER' | null
+    let lastBubbleOrigin = null;
+
+    // Wrap a bubble div in a bubble-row that includes the appropriate avatar
+    // or spacer. `origin` is 'PHONE' | 'BROWSER'.
+    // Returns the row element (appended to list).
+    function appendBubbleRow(bubbleEl, origin) {
+        const mine = origin === 'BROWSER';
+        const isContinuation = origin === lastBubbleOrigin;
+        lastBubbleOrigin = origin;
+
+        const row = document.createElement('div');
+        row.className = 'bubble-row ' + (mine ? 'me' : 'them');
+
+        if (isContinuation) {
+            // Same origin in a row: show spacer instead of avatar.
+            const spacer = document.createElement('div');
+            spacer.className = 'avatar-spacer';
+            row.appendChild(spacer);
+        } else {
+            const avatarEl = makeAvatarEl(mine ? myAvatarId : phoneAvatarId);
+            row.appendChild(avatarEl);
+        }
+        row.appendChild(bubbleEl);
+
+        list.appendChild(row);
+        list.scrollTop = list.scrollHeight;
+        return row;
+    }
+
+    // Update the header avatar and name for the peer.
+    function renderPeerHeader(deviceName, avatarId) {
+        const peerAvatarEl = document.getElementById('peer-avatar');
+        const peerNameEl = document.getElementById('peer-name');
+        if (peerAvatarEl) {
+            const idx = Math.max(0, Math.min(11, avatarId));
+            peerAvatarEl.style.backgroundColor = AVATAR_BG[idx];
+            peerAvatarEl.textContent = AVATAR_EMOJI[idx];
+        }
+        if (peerNameEl) {
+            peerNameEl.textContent = '来自 ' + deviceName;
+        }
+    }
+
+    // Render the my-avatar button in the header.
+    function renderMyAvatarBtn() {
+        const btn = document.getElementById('my-avatar-btn');
+        if (!btn) return;
+        btn.style.backgroundColor = AVATAR_BG[myAvatarId];
+        btn.textContent = AVATAR_EMOJI[myAvatarId];
+    }
+
+    // Convert an ARGB Long string (e.g. "4294944066") to a CSS color string.
+    // ARGB: bits 31-24 = alpha, 23-16 = R, 15-8 = G, 7-0 = B.
+    function argbLongToCss(str) {
+        const n = Number(str);
+        if (!Number.isFinite(n)) return null;
+        // Use unsigned 32-bit arithmetic.
+        const argb = n >>> 0;
+        const r = (argb >>> 16) & 0xFF;
+        const g = (argb >>> 8) & 0xFF;
+        const b = argb & 0xFF;
+        const a = ((argb >>> 24) & 0xFF) / 255;
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + a.toFixed(3) + ')';
+    }
+
+    // Apply conversation background to the list element based on peer-info.
+    function applyBackground(mode, value, deviceName) {
+        switch (mode) {
+            case 'BLANK':
+                list.style.background = '';
+                removeWatermark();
+                break;
+            case 'SOLID': {
+                const css = argbLongToCss(value);
+                if (css) list.style.background = css;
+                removeWatermark();
+                break;
+            }
+            case 'GRADIENT': {
+                const grad = gradientCss(value);
+                if (grad) list.style.background = grad;
+                removeWatermark();
+                break;
+            }
+            case 'DEFAULT':
+            default:
+                list.style.background = '';
+                setWatermark('已连接 · ' + deviceName);
+                break;
+        }
+    }
+
+    function gradientCss(name) {
+        switch (name) {
+            case 'sunset': return 'linear-gradient(135deg, #FF7043, #FF4081)';
+            case 'forest': return 'linear-gradient(135deg, #2E7D32, #81C784)';
+            case 'ocean':  return 'linear-gradient(135deg, #1565C0, #4FC3F7)';
+            default:       return null;
+        }
+    }
+
+    function setWatermark(text) {
+        removeWatermark();
+        const wm = document.createElement('div');
+        wm.className = 'chat-list-watermark';
+        wm.id = 'chat-watermark';
+        wm.textContent = text;
+        list.appendChild(wm);
+    }
+
+    function removeWatermark() {
+        const wm = document.getElementById('chat-watermark');
+        if (wm) wm.remove();
+    }
+
+    // Fetch peer info and apply.
+    async function fetchPeerInfo() {
+        try {
+            const r = await fetch('/api/peer-info');
+            if (!r.ok) return;
+            const data = await r.json();
+            const name = (data.deviceName && typeof data.deviceName === 'string') ? data.deviceName : '手机';
+            phoneAvatarId = Math.max(0, Math.min(11, Number(data.phoneAvatarId) || 0));
+            renderPeerHeader(name, phoneAvatarId);
+            applyBackground(data.backgroundMode || 'DEFAULT', data.backgroundValue || '', name);
+        } catch (_) {
+            // Fail silently — do not block transfers.
+        }
+    }
+
+    // ── M9b: Avatar picker ────────────────────────────────────────────────
+    function buildAvatarPickerGrid() {
+        const grid = document.getElementById('avatar-picker-grid');
+        if (!grid || grid.childElementCount > 0) return; // build once
+        for (let i = 0; i < 12; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'avatar-circle';
+            cell.style.backgroundColor = AVATAR_BG[i];
+            cell.textContent = AVATAR_EMOJI[i];
+            cell.setAttribute('role', 'button');
+            cell.setAttribute('tabindex', '0');
+            cell.dataset.avatarIndex = String(i);
+            cell.addEventListener('click', () => selectAvatar(i));
+            cell.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectAvatar(i); }
+            });
+            grid.appendChild(cell);
+        }
+    }
+
+    function openAvatarPicker() {
+        buildAvatarPickerGrid();
+        updatePickerSelection();
+        const picker = document.getElementById('avatar-picker');
+        if (picker) picker.hidden = false;
+    }
+
+    function closeAvatarPicker() {
+        const picker = document.getElementById('avatar-picker');
+        if (picker) picker.hidden = true;
+    }
+
+    function updatePickerSelection() {
+        const grid = document.getElementById('avatar-picker-grid');
+        if (!grid) return;
+        for (const cell of grid.children) {
+            const selected = Number(cell.dataset.avatarIndex) === myAvatarId;
+            cell.setAttribute('aria-selected', selected ? 'true' : 'false');
+        }
+    }
+
+    function selectAvatar(idx) {
+        myAvatarId = idx;
+        localStorage.setItem('flikky_avatar', String(idx));
+        renderMyAvatarBtn();
+        updatePickerSelection();
+        closeAvatarPicker();
+        // Re-send client_hello so the phone updates its view of our avatar.
+        sendClientHello();
+    }
+
+    // ── M9b: client_hello ─────────────────────────────────────────────────
+    function sendClientHello() {
+        if (currentWs && currentWs.readyState === 1) {
+            try {
+                currentWs.send(JSON.stringify({ type: 'client_hello', avatarId: myAvatarId }));
+            } catch (_) {}
+        }
+    }
+
+    // Init header avatar on load.
+    renderMyAvatarBtn();
+
+    // Attach picker open/close handlers after DOM is ready.
+    const myAvatarBtnEl = document.getElementById('my-avatar-btn');
+    if (myAvatarBtnEl) {
+        myAvatarBtnEl.addEventListener('click', openAvatarPicker);
+    }
+    const pickerEl = document.getElementById('avatar-picker');
+    if (pickerEl) {
+        const backdrop = pickerEl.querySelector('.avatar-picker-backdrop');
+        if (backdrop) backdrop.addEventListener('click', closeAvatarPicker);
+    }
+    // Close picker on Escape.
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeAvatarPicker();
+    });
+
     const seen = new Set();
 
     // 浏览器自己的 client id 一直随生命周期。所有出站请求带上 X-Client-Id，
@@ -43,8 +299,7 @@
         div.textContent = msg.content;
         div.dataset.messageId = msg.id;
         div.dataset.kind = 'text';
-        list.appendChild(div);
-        list.scrollTop = list.scrollHeight;
+        appendBubbleRow(div, mine ? 'BROWSER' : 'PHONE');
         if (mine) attachRecallHandler(div, msg.id);
         return div;
     }
@@ -63,8 +318,7 @@
         size.textContent = formatSize(msg.sizeBytes);
         div.appendChild(a);
         div.appendChild(size);
-        list.appendChild(div);
-        list.scrollTop = list.scrollHeight;
+        appendBubbleRow(div, mine ? 'BROWSER' : 'PHONE');
         if (mine) attachRecallHandler(div, msg.id);
         return div;
     }
@@ -185,9 +439,18 @@
     //  - 本浏览器调 DELETE 成功 → 移除节点 + showInfo "消息已撤回"
     //  - 收到 message_recalled WS event（对端撤回）→ 移除节点 + showInfo "对方撤回了一条消息"
     // 调用方负责 snackbar 文案；本函数只管 DOM 清理，且幂等。
+    // M9b: bubble is now inside a .bubble-row → remove the row (parent) to
+    // leave no ghost spacers. Falls back to removing the node itself if it is
+    // a direct list child (future-proofing).
     function removeMessageNode(messageId) {
         const node = list.querySelector(`[data-message-id="${messageId}"]`);
-        if (node) node.remove();
+        if (!node) return;
+        const row = node.closest('.bubble-row');
+        if (row && row.parentNode === list) {
+            row.remove();
+        } else {
+            node.remove();
+        }
     }
 
     function renderTransferringBubble(msg) {
@@ -221,8 +484,7 @@
         div.appendChild(bar);
         div.appendChild(pct);
 
-        list.appendChild(div);
-        list.scrollTop = list.scrollHeight;
+        appendBubbleRow(div, mine ? 'BROWSER' : 'PHONE');
         return div;
     }
 
@@ -254,8 +516,7 @@
         div.appendChild(bar);
         div.appendChild(pct);
 
-        list.appendChild(div);
-        list.scrollTop = list.scrollHeight;
+        appendBubbleRow(div, 'BROWSER');
         return div;
     }
 
@@ -317,7 +578,13 @@
         bubble.title = '点击重试';
         bubble.addEventListener('click', function retryHandler() {
             bubble.removeEventListener('click', retryHandler);
-            bubble.remove();
+            // M9b: bubble is inside a .bubble-row — remove the whole row.
+            const row = bubble.closest('.bubble-row');
+            if (row && row.parentNode === list) {
+                row.remove();
+            } else {
+                bubble.remove();
+            }
             sendFile(file);
         });
 
@@ -607,6 +874,9 @@
             lastFrameAt = Date.now();
             reconnectAttempts = 0;   // 成功一次就清零计数
             startHeartbeat();
+            // M9b: announce our avatar to the phone; fetch phone's info.
+            sendClientHello();
+            fetchPeerInfo().catch(() => {});
             // 重连后追平断开期间手机端发的消息（seen 集合 dedup 防重复渲染）。
             loadHistory().catch(() => {});
             if (hadConnected) {
