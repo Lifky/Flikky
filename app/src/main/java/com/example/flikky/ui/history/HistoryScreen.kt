@@ -44,6 +44,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.flikky.data.settings.FlikkySettings
+import com.example.flikky.di.ServiceLocator
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.ui.components.MessageBubble
@@ -66,6 +68,7 @@ fun HistoryScreen(
     )
     val session by viewModel.session.collectAsState(initial = null)
     val messages by viewModel.messages.collectAsState(initial = emptyList())
+    val settings by ServiceLocator.settingsRepository.settings.collectAsState(initial = FlikkySettings())
     var menuExpanded by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
@@ -123,6 +126,9 @@ fun HistoryScreen(
             state = listState,
         ) {
             items(messages, key = { it.id }) { msg ->
+                val index = messages.indexOf(msg)
+                val prevMsg = if (index > 0) messages[index - 1] else null
+                val showAvatar = prevMsg == null || prevMsg.origin != msg.origin
                 val isHighlighted = msg.id == activeHighlight
                 val highlightColor by animateColorAsState(
                     targetValue = if (isHighlighted) {
@@ -146,6 +152,9 @@ fun HistoryScreen(
                             if (msg is Message.File) openFile(ctx, sessionId, msg)
                         },
                         onLongPress = { menuOpen = true },
+                        showAvatar = showAvatar,
+                        avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
+                                   else 0, // TODO M9: peerAvatarId
                     )
                     DropdownMenu(
                         expanded = menuOpen,

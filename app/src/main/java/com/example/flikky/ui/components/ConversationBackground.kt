@@ -17,9 +17,10 @@ fun ConversationBackground(
     setting: BackgroundSetting,
     connected: Boolean,
     peerName: String?,           // M7: pass null; reserved
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    Box(Modifier.fillMaxSize()) {
+    Box(modifier.fillMaxSize()) {
         when (setting) {
             BackgroundSetting.Default -> {
                 // centered faint watermark: connection status

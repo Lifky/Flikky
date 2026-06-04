@@ -13,6 +13,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flikky.data.SessionRepository
+import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.service.TransferController
 import com.example.flikky.service.TransferService
@@ -23,12 +24,14 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -56,6 +59,10 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     val fileTransferProgress: StateFlow<Map<Long, Float>> =
         ServiceLocator.session.fileTransferProgress
+
+    val settings: StateFlow<FlikkySettings> =
+        ServiceLocator.settingsRepository.settings
+            .stateIn(viewModelScope, SharingStarted.Eagerly, FlikkySettings())
 
     private var running: TransferService.Running? = null
     private var controller: TransferController? = null

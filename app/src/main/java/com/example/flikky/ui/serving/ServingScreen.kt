@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
+import com.example.flikky.ui.components.ConversationBackground
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.StatusBar
@@ -51,6 +52,7 @@ fun ServingScreen(
 ) {
     val ui by viewModel.ui.collectAsState()
     val progressMap by viewModel.fileTransferProgress.collectAsState()
+    val settings by viewModel.settings.collectAsState()
     var draft by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
     var recallTarget by remember { mutableStateOf<Long?>(null) }
@@ -84,34 +86,47 @@ fun ServingScreen(
                 )
             }
 
-            LazyColumn(
-                modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ConversationBackground(
+                setting = settings.background,
+                connected = ui.clientConnected,
+                peerName = null,
+                modifier = Modifier.weight(1f),
             ) {
-                items(ui.messages, key = { it.id }) { msg ->
-                    var menuOpen by remember(msg.id) { mutableStateOf(false) }
-                    val canRecall = msg.origin == Origin.PHONE
-                    val isFailed = msg is Message.File && msg.status == Message.File.Status.FAILED
-                    Box {
-                        MessageBubble(
-                            msg = msg,
-                            onClick = { if (msg is Message.File) viewModel.openFile(msg) },
-                            onLongPress = if (canRecall && !isFailed) {
-                                { menuOpen = true }
-                            } else null,
-                            transferProgress = progressMap[msg.id],
-                        )
-                        DropdownMenu(
-                            expanded = menuOpen,
-                            onDismissRequest = { menuOpen = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("撤回") },
-                                onClick = {
-                                    menuOpen = false
-                                    recallTarget = msg.id
-                                },
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    items(ui.messages, key = { it.id }) { msg ->
+                        val index = ui.messages.indexOf(msg)
+                        val prevMsg = if (index > 0) ui.messages[index - 1] else null
+                        val showAvatar = prevMsg == null || prevMsg.origin != msg.origin
+                        var menuOpen by remember(msg.id) { mutableStateOf(false) }
+                        val canRecall = msg.origin == Origin.PHONE
+                        val isFailed = msg is Message.File && msg.status == Message.File.Status.FAILED
+                        Box {
+                            MessageBubble(
+                                msg = msg,
+                                onClick = { if (msg is Message.File) viewModel.openFile(msg) },
+                                onLongPress = if (canRecall && !isFailed) {
+                                    { menuOpen = true }
+                                } else null,
+                                transferProgress = progressMap[msg.id],
+                                showAvatar = showAvatar,
+                                avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
+                                           else 0, // TODO M9: peerAvatarId
                             )
+                            DropdownMenu(
+                                expanded = menuOpen,
+                                onDismissRequest = { menuOpen = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("撤回") },
+                                    onClick = {
+                                        menuOpen = false
+                                        recallTarget = msg.id
+                                    },
+                                )
+                            }
                         }
                     }
                 }
