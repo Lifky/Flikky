@@ -1,8 +1,10 @@
 package com.example.flikky.ui.settings
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.FlikkySettings
@@ -17,6 +19,7 @@ import kotlinx.coroutines.launch
 class SettingsViewModel @JvmOverloads constructor(
     app: Application,
     private val repo: com.example.flikky.data.settings.SettingsRepository = ServiceLocator.settingsRepository,
+    private val sessionRepo: SessionRepository = ServiceLocator.repository,
 ) : AndroidViewModel(app) {
 
     val settings: StateFlow<FlikkySettings> = repo.settings
@@ -31,4 +34,21 @@ class SettingsViewModel @JvmOverloads constructor(
     fun setDeviceName(v: String) = viewModelScope.launch { repo.setDeviceName(v) }
     fun setRecallBeta(v: Boolean) = viewModelScope.launch { repo.setRecallBeta(v) }
     fun setHistoryRetainLimit(v: Int) = viewModelScope.launch { repo.setHistoryRetainLimit(v) }
+
+    /** Replicates HomeViewModel.importFromZip: copy URI → temp zip → importSessions. */
+    suspend fun importFromZip(uri: Uri): SessionRepository.ImportResult {
+        val ctx = getApplication<Application>()
+        val tempFile = java.io.File(ctx.filesDir, "settings_import_temp.zip")
+        try {
+            ctx.contentResolver.openInputStream(uri)?.use { input ->
+                tempFile.outputStream().use { out -> input.copyTo(out) }
+            } ?: return SessionRepository.ImportResult(
+                emptyList(), emptyList(),
+                listOf(SessionRepository.ImportError("zip", "无法读取文件")),
+            )
+            return sessionRepo.importSessions(tempFile)
+        } finally {
+            tempFile.delete()
+        }
+    }
 }
