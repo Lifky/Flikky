@@ -12,13 +12,27 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class HistoryViewModelTest {
-    @Test fun exposes_session_and_messages() = runTest {
+
+    private val dispatcher = UnconfinedTestDispatcher()
+
+    @Before fun setUp() { Dispatchers.setMain(dispatcher) }
+    @After fun tearDown() { Dispatchers.resetMain() }
+
+    @Test fun exposes_session_and_messages() = runTest(dispatcher) {
         val app = mockk<Application>(relaxed = true)
         val repo = mockk<SessionRepository>()
         every { repo.observeSession(42L) } returns MutableStateFlow(
@@ -37,7 +51,7 @@ class HistoryViewModelTest {
         }
     }
 
-    @Test fun rename_delegates() = runTest {
+    @Test fun rename_delegates() = runTest(dispatcher) {
         val app = mockk<Application>(relaxed = true)
         val repo = mockk<SessionRepository>()
         every { repo.observeSession(any()) } returns MutableStateFlow(null)
