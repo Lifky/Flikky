@@ -10,8 +10,11 @@
 <body>
     <div class="chat">
         <mdui-top-app-bar>
-            <mdui-top-app-bar-title>Flikky</mdui-top-app-bar-title>
-            <div class="chat-meta" style="margin-right:16px;">
+            <div class="header-peer" id="header-peer" aria-label="对方信息">
+                <div class="avatar-circle" id="peer-avatar" aria-label="对方头像"></div>
+                <span class="header-peer-name" id="peer-name"></span>
+            </div>
+            <div class="chat-meta" style="margin-right:8px;">
                 <mdui-chip id="conn" variant="assist" selected>连接中…</mdui-chip>
                 <span id="uptime">00:00</span>
                 <span>·</span>
@@ -19,7 +22,19 @@
                 <span>·</span>
                 <span id="rate">0 B/s</span>
             </div>
+            <div class="header-my-avatar-wrap" style="margin-right:16px;">
+                <button class="avatar-circle avatar-btn" id="my-avatar-btn" aria-label="我的头像，点击更换" type="button"></button>
+            </div>
         </mdui-top-app-bar>
+
+        <!-- Avatar picker overlay (12 presets) -->
+        <div id="avatar-picker" class="avatar-picker" hidden role="dialog" aria-modal="true" aria-label="选择头像">
+            <div class="avatar-picker-backdrop"></div>
+            <div class="avatar-picker-panel">
+                <p class="avatar-picker-title">选择头像</p>
+                <div class="avatar-picker-grid" id="avatar-picker-grid"></div>
+            </div>
+        </div>
 
         <div id="conn-banner" class="conn-banner" hidden></div>
         <div id="list" class="chat-list"></div>
