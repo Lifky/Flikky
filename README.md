@@ -12,6 +12,7 @@ The phone runs an embedded HTTP server. Any browser on the same Wi-Fi opens the 
 - **v1.1** — *released (2026-04-21)* — session archival backed by Room, home session list with pin / rename / delete, read-only history view, crash-recovery on app start, FIFO retention (20 non-pinned) + pinned-not-counted.
 - **v1.2** — *released (2026-05-13)* — multi-session batch export to PC as a streaming zip, live upload-progress bubbles, mdui snackbar feedback, Wi-Fi auto-rebind with status banner, in-progress-session affordances on home (resume / inline stop), WS app-layer heartbeat + server-stopped event for clean disconnects.
 - **v1.3** — *released (2026-05-24)* — cross-session message search (FTS4 + LIKE fallback), message recall in active sessions (hard-delete + dual-side confirm + instant sync), per-message delete in history, app-layer ping/pong replacing passive frame timeout, closure-capture audit with regression guard, export-page health detection via WS + fetch probe.
+- **v1.4.0** — *released (2026-06-04)* — async file transfer (immediate bidirectional IN_PROGRESS bubbles + progress bars + failure feedback + interrupted-upload cleanup), import from zip back into the app (backward-compatible with v1.2/v1.3 format + duplicate detection + post-import FIFO sweep), export `relativePath` dedup fix (messages.json matches zip entries, version bumped to 1.4).
 
 Design docs are kept in a local-only `docs/others/` tree; the public repo carries only the source.
 
@@ -45,7 +46,8 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] Closure-capture systematic audit: TransferControllerRebindReferenceTest regression guard + CLAUDE.md convention *(v1.3)*
 - [x] Export-page health detection: WS connection (ping/pong) + fetch probe, cancel-export dialog, download-started cleanup *(v1.3)*
 - [x] `senderId` end-to-end: `phone-{ANDROID_ID}` stable across restarts, browser `X-Client-Id` per session; recall authorization by sender match *(v1.3)*
-- [ ] Import from zip back into the app *(v1.4, backlog B8)*
+- [x] Async file transfer: both directions broadcast an immediate IN_PROGRESS bubble + 5%-interval progress + `file_ready`/`file_removed` events; failure shows `传输失败`/`发送失败` feedback *(v1.4.0)*
+- [x] Import from zip back into the app: `ZipImporter` parse + backward compat for v1.2/v1.3 (replay `nextUniqueName` to resolve paths), name+startedAt duplicate detection, post-import FIFO sweep, 📥 entry + loading dialog + snackbar summary *(v1.4.0)*
 - [ ] HTTPS with self-signed cert *(v2)*
 - [ ] At-rest encryption of local archive *(v2)*
 
@@ -62,7 +64,7 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] `MAX_RECONNECT_ATTEMPTS` ceiling + heartbeat-driven dead-WS detection so flaky links don't loop forever *(v1.2)*
 - [x] Browser disconnect UI fires immediately on frame timeout (not waiting for TCP close) *(v1.3)*
 - [x] File download `Content-Disposition` uses original filename instead of UUID *(v1.3)*
-- [ ] Async tee for phone-pushed files (remove the copy-before-serve latency) *(v1.4, backlog B7)*
+- [x] Async tee for phone-pushed files: broadcast IN_PROGRESS immediately + copy in a background coroutine with progress, removing the synchronous copy-before-serve block *(v1.4.0)*
 
 ### fix
 
@@ -86,6 +88,12 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] v1.3 export WS used frame-timeout but export mode has no status broadcast → instant disconnect loop. Switched to ping/pong for export WS
 - [x] v1.3 export page download/cancel didn't stop WS → reconnect loop after server shutdown. Download and `server_stopped` now close WS + stop probe
 - [x] v1.3 file download saved with UUID filename instead of original name. `Content-Disposition` now reads original name from session messages
+- [x] v1.4.0 phone couldn't see a bubble while the browser uploaded a large file. `FileRoutes` POST now creates the IN_PROGRESS message as soon as the file-part header arrives, streams with progress, then flips to COMPLETED
+- [x] v1.4.0 interrupted uploads (browser refresh / WiFi drop) left a stuck IN_PROGRESS message. The multipart receive is wrapped in try-catch: on disconnect it marks FAILED, deletes the partial file, broadcasts `file_removed`
+- [x] v1.4.0 WiFi drop gave slow upload feedback. Browser tracks `activeUploads[]` and `enterDisconnected` aborts every in-flight XHR immediately instead of waiting for TCP timeout
+- [x] v1.4.0 phone-sent files couldn't be opened in History. Dropped the `origin==BROWSER` restriction; every COMPLETED file is now openable
+- [x] v1.4.0 export `messages.json` `relativePath` didn't match the actual zip entry name (v1.2 carry-over). `ZipExporter` now computes dedup names before handing them to the formatter
+- [x] v1.4.0 phone "attach" button stayed clickable after WiFi drop. Now gated on `ui.clientConnected` like the send button
 
 ## Highlights
 
@@ -99,7 +107,6 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 ## Known limitations (documented, not bugs)
 
 - HTTP plaintext (HTTPS self-signed lands in v2).
-- Phone → browser upload throughput is reported as a single end-of-transfer sample (Ktor 3 multipart didn't expose a streaming `tee`). Browser → phone uploads now show per-file progress bubbles. *(v1.2)*
 - Wi-Fi switch (different IP) tears down the in-flight WS — the browser must reopen the new URL shown in the banner. Same-IP recoveries auto-reconnect within a few seconds. *(v1.2)*
 - Non-pinned session retention is hard-coded to the latest 20; the cap is not user-configurable yet (a settings screen is deferred — change the constant and rebuild if you need a different number).
 

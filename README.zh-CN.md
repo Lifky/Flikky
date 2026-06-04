@@ -12,6 +12,7 @@
 - **v1.1** — *已发布（2026-04-21）* — Room 会话归档、主页会话列表（置顶 / 重命名 / 删除）、历史详情只读查看、APP 启动时 crash-recovery、FIFO 保留最近 20 条非置顶会话（置顶不占配额）。
 - **v1.2** — *已发布（2026-05-13）* — 多会话批量导出到 PC（流式 zip）、浏览器上传实时进度气泡、mdui snackbar、WiFi 自动重绑 + 状态 banner、进行中会话主页交互（继续 / 行内停止）、WS 应用层心跳 + server_stopped 区分主动停止与网络断开。
 - **v1.3** — *已发布（2026-05-24）* — 跨会话消息搜索（FTS4 + LIKE fallback）、进行中服务消息撤回（真删 + 双端二次确认 + 即时同步）、History 单条消息删除、应用层 ping/pong 替代被动心跳、闭包死引用系统性审计 + 回归保护、导出页 WS 健康检测 + 取消导出 dialog。
+- **v1.4.0** — *已发布（2026-06-04）* — 文件传输异步化（双向即时 IN_PROGRESS 气泡 + 进度条 + 失败态 `传输失败`/`发送失败` 反馈 + 上传中断自动清理）、从 zip 导入回 APP（向后兼容 v1.2/v1.3 格式 + name+startedAt 重复检测 + 导入后 FIFO sweep）、导出格式 `relativePath` 去重修复（messages.json 与 zip entry 对齐，版本号升至 1.4）。
 
 设计文档与复盘/验收清单保存在本地的 `docs/others/`（已 gitignored），公开仓库仅含源码。
 
@@ -45,7 +46,8 @@
 - [x] 闭包死引用系统性审计：TransferControllerRebindReferenceTest 回归保护 + CLAUDE.md 规范 *(v1.3)*
 - [x] 导出页健康检测：WS 连接（ping/pong）+ fetch 探测、取消导出 dialog、下载开始清理 *(v1.3)*
 - [x] `senderId` 全链路：手机端 `phone-{ANDROID_ID}` 跨重启不变，浏览器 `X-Client-Id` 按会话；撤回鉴权按 senderId 匹配 *(v1.3)*
-- [ ] 从 zip 导入回 APP *(v1.4，backlog B8)*
+- [x] 文件传输异步化：手机→浏览器、浏览器→手机双向即时 IN_PROGRESS 气泡 + 5% 间隔进度广播 + `file_ready`/`file_removed` 事件；失败态 `传输失败`/`发送失败` 反馈 *(v1.4.0)*
+- [x] 从 zip 导入回 APP：`ZipImporter` 解析 + 向后兼容 v1.2/v1.3（replay `nextUniqueName` 推断路径）、name+startedAt 重复检测、导入后 FIFO sweep、📥 入口 + Loading dialog + snackbar 总结 *(v1.4.0)*
 - [ ] HTTPS 自签证书 *(v2)*
 - [ ] 本地归档 at-rest encryption *(v2)*
 
@@ -62,7 +64,7 @@
 - [x] `MAX_RECONNECT_ATTEMPTS` 上限 + 应用层心跳检测死 WS *(v1.2)*
 - [x] 浏览器断网 UI 即时更新（不等 TCP close），heartbeat 检测到超时立即 disable 按钮 + banner *(v1.3)*
 - [x] 文件下载 `Content-Disposition` 使用原始文件名而非 UUID *(v1.3)*
-- [ ] 手机推送文件的 tee 改异步（消除选中到可下载的拷贝延迟） *(v1.4，backlog B7)*
+- [x] 手机推送文件的 tee 改异步：立即广播 IN_PROGRESS + 后台协程拷贝带进度，消除"选中到可下载"的同步拷贝阻塞 *(v1.4.0)*
 
 ### fix
 
@@ -86,6 +88,12 @@
 - [x] v1.3 导出页 WS 用 frame 超时但 export mode 无 status broadcast → 即时断开循环。改为 ping/pong
 - [x] v1.3 导出页下载/取消后没关 WS → server 停掉触发重连循环。下载和 `server_stopped` 现在关 WS + 停探测
 - [x] v1.3 文件下载保存名是 UUID 而非原始文件名。`Content-Disposition` 从 session 内存查原始文件名
+- [x] v1.4.0 浏览器上传大文件期间手机端看不到气泡：`FileRoutes` POST 收到 file part header 即建 IN_PROGRESS 消息广播，边收边报进度，完成再转 COMPLETED
+- [x] v1.4.0 上传中断（浏览器刷新 / WiFi 断）残留 IN_PROGRESS 消息：multipart 接收包 try-catch，断开时标 FAILED + 删残留文件 + 广播 `file_removed`
+- [x] v1.4.0 WiFi 断开浏览器上传反馈滞后：浏览器维护 `activeUploads[]`，`enterDisconnected` 立即 abort 所有在飞 XHR，不等 TCP 超时
+- [x] v1.4.0 History 中手机发送的文件无法打开：去掉 `origin==BROWSER` 限制，所有 COMPLETED 文件统一可点击打开
+- [x] v1.4.0 导出 `messages.json` 的 `relativePath` 与实际 zip entry 名不一致（v1.2 遗留）：`ZipExporter` 先算去重名再传给 formatter
+- [x] v1.4.0 WiFi 断开手机端「附件」按钮仍可点：与发送按钮一致受 `ui.clientConnected` 控制
 
 ## 亮点
 
@@ -99,7 +107,6 @@
 ## 已知限制（设计内取舍，非缺陷）
 
 - HTTP 明文传输（HTTPS 自签证书在 v2 里加）。
-- 手机 → 浏览器上传的瞬时速率只在传输结束时记录一次（Ktor 3 multipart 当前 API 未暴露流式 `tee`）；浏览器 → 手机方向 v1.2 起已有实时进度气泡。
 - WiFi 切换（IP 变了）会断开在飞的 WS，浏览器需打开 banner 提示的新 URL；同 IP 恢复几秒内自动重连。 *(v1.2)*
 - 非置顶会话保留上限硬编码 20 条，暂不支持用户配置（设置页推迟到后续版本；要改数量需改常量并重新打包）。
 
