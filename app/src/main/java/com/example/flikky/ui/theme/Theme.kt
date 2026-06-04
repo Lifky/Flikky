@@ -6,33 +6,50 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import com.example.flikky.data.settings.DarkMode
+import com.example.flikky.data.settings.FlikkySettings
+import com.example.flikky.data.settings.ThemeMode
 
-// These will be replaced in Task 2.3 with settings-driven schemes.
-// Using Coral as default placeholder until then.
-private val DarkColorScheme = CoralDark
-private val LightColorScheme = CoralLight
+val LocalFlikkySettings = compositionLocalOf { FlikkySettings() }
 
 @Composable
-fun FlikkyTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+fun FlikkyTheme(settings: FlikkySettings, content: @Composable () -> Unit) {
+    val systemDark = isSystemInDarkTheme()
+    val useDark = when (settings.darkMode) {
+        DarkMode.SYSTEM -> systemDark
+        DarkMode.LIGHT  -> false
+        DarkMode.DARK   -> true
+    }
+    val base = when {
+        settings.themeMode == ThemeMode.DYNAMIC && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            val ctx = LocalContext.current
+            if (useDark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
         }
+        else -> presetScheme(settings.presetTheme, useDark)
+    }
+    val scheme = if (settings.amoled && useDark) amoledOverride(base) else base
 
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        DisposableEffect(useDark) {
+            val window = (view.context as android.app.Activity).window
+            androidx.core.view.WindowCompat.getInsetsController(window, view)
+                .isAppearanceLightStatusBars = !useDark
+            onDispose {}
+        }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalFlikkySettings provides settings) {
+        MaterialTheme(
+            colorScheme = scheme,
+            typography = Typography,
+            shapes = FlikkyShapes,
+            content = content,
+        )
+    }
 }
