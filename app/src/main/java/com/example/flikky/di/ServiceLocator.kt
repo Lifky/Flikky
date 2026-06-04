@@ -1,9 +1,11 @@
 package com.example.flikky.di
 
 import android.content.Context
+import androidx.datastore.preferences.preferencesDataStore
 import com.example.flikky.data.SessionFileStore
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.FlikkyDatabase
+import com.example.flikky.data.settings.SettingsRepository
 import com.example.flikky.network.NetworkInfo
 import com.example.flikky.service.TransferController
 import com.example.flikky.session.SessionState
@@ -11,6 +13,8 @@ import com.example.flikky.session.TransferStats
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+
+private val Context.settingsDataStore by preferencesDataStore(name = "flikky_settings")
 
 object ServiceLocator {
     private lateinit var appContext: Context
@@ -25,6 +29,8 @@ object ServiceLocator {
     lateinit var database: FlikkyDatabase
         private set
     lateinit var repository: SessionRepository
+        private set
+    lateinit var settingsRepository: SettingsRepository
         private set
 
     /**
@@ -61,6 +67,7 @@ object ServiceLocator {
             fileStore = fileStore,
             now = System::currentTimeMillis,
         )
+        settingsRepository = SettingsRepository(appContext.settingsDataStore)
     }
 
     fun context(): Context = appContext
