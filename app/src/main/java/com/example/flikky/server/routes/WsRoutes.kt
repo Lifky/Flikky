@@ -67,6 +67,9 @@ class WsHub {
 
 private val pingPattern = Regex("""\{\s*"type"\s*:\s*"ping"\s*,\s*"id"\s*:\s*(\d+)\s*\}""")
 
+// M9: matches {"type":"client_hello","avatarId":N} — tolerant of key order / whitespace.
+private val clientHelloPattern = Regex(""""type"\s*:\s*"client_hello".*?"avatarId"\s*:\s*(\d+)""")
+
 fun Route.wsRoutes(
     pinAuth: PinAuth,
     session: SessionState,
@@ -92,6 +95,13 @@ fun Route.wsRoutes(
                 if (match != null) {
                     val id = match.groupValues[1]
                     send(Frame.Text("""{"type":"pong","id":$id}"""))
+                    continue
+                }
+                // M9: browser sends client_hello once after WS connect to share its avatar choice.
+                val helloMatch = clientHelloPattern.find(text)
+                if (helloMatch != null) {
+                    val avatarId = helloMatch.groupValues[1].toIntOrNull() ?: 0
+                    session.setPeerAvatar(avatarId)
                 }
             }
         } finally {
