@@ -27,7 +27,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.unit.dp
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
@@ -39,6 +41,8 @@ fun MessageBubble(
     onClick: () -> Unit,
     onLongPress: (() -> Unit)? = null,
     transferProgress: Float? = null,
+    showAvatar: Boolean = true,
+    avatarId: Int? = null,
 ) {
     val mine = msg.origin == Origin.PHONE
     val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.8f).dp
@@ -53,10 +57,24 @@ fun MessageBubble(
              else MaterialTheme.colorScheme.onSurface
 
     val interaction = remember { MutableInteractionSource() }
+
+    val avatarSlot: @Composable () -> Unit = {
+        if (showAvatar && avatarId != null) {
+            Avatar(avatarId = avatarId, size = 36.dp)
+        } else {
+            Spacer(Modifier.width(36.dp))
+        }
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Bottom,
     ) {
+        if (!mine) {
+            avatarSlot()
+            Spacer(Modifier.width(6.dp))
+        }
         Box(
             modifier = Modifier
                 .widthIn(max = maxWidth)
@@ -74,7 +92,9 @@ fun MessageBubble(
                 is Message.Text -> SelectionContainer {
                     Text(
                         text = msg.content, color = fg,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyLarge.merge(
+                            TextStyle(lineBreak = LineBreak.Paragraph)
+                        ),
                     )
                 }
                 is Message.File -> FileBubbleContent(
@@ -82,6 +102,10 @@ fun MessageBubble(
                     transferProgress = transferProgress,
                 )
             }
+        }
+        if (mine) {
+            Spacer(Modifier.width(6.dp))
+            avatarSlot()
         }
     }
 }
