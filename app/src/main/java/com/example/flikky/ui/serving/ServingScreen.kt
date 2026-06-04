@@ -60,6 +60,7 @@ fun ServingScreen(
     val ui by viewModel.ui.collectAsState()
     val progressMap by viewModel.fileTransferProgress.collectAsState()
     val settings by viewModel.settings.collectAsState()
+    val peerAvatarId by viewModel.peerAvatarId.collectAsState()
     var draft by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
     var recallTarget by remember { mutableStateOf<Long?>(null) }
@@ -184,7 +185,7 @@ fun ServingScreen(
                                 transferProgress = progressMap[msg.id],
                                 showAvatar = showAvatar,
                                 avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
-                                           else 0, // TODO M9: peerAvatarId
+                                           else peerAvatarId,
                             )
                             val barAlignment = if (msg.origin == Origin.PHONE) Alignment.CenterEnd else Alignment.CenterStart
                             Box(

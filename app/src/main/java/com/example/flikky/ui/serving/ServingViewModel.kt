@@ -60,6 +60,9 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     val fileTransferProgress: StateFlow<Map<Long, Float>> =
         ServiceLocator.session.fileTransferProgress
 
+    /** M9: avatar chosen by the browser peer, set via client_hello WS frame. */
+    val peerAvatarId: StateFlow<Int> = ServiceLocator.session.peerAvatarId
+
     val settings: StateFlow<FlikkySettings> =
         ServiceLocator.settingsRepository.settings
             .stateIn(viewModelScope, SharingStarted.Eagerly, FlikkySettings())
