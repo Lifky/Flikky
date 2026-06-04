@@ -13,6 +13,7 @@ import com.example.flikky.session.TransferStats
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 
 private val Context.settingsDataStore by preferencesDataStore(name = "flikky_settings")
 
@@ -61,13 +62,14 @@ object ServiceLocator {
         fileStore = SessionFileStore(filesDir = appContext.filesDir)
         networkInfo = NetworkInfo(appContext)
         database = FlikkyDatabase.build(appContext)
+        settingsRepository = SettingsRepository(appContext.settingsDataStore)
         repository = SessionRepository(
             sessionDao = database.sessionDao(),
             messageDao = database.messageDao(),
             fileStore = fileStore,
             now = System::currentTimeMillis,
+            retainLimitProvider = { settingsRepository.settings.first().historyRetainLimit },
         )
-        settingsRepository = SettingsRepository(appContext.settingsDataStore)
     }
 
     fun context(): Context = appContext
