@@ -23,6 +23,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -32,6 +38,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -44,6 +51,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.res.painterResource
+import com.example.flikky.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -171,7 +180,10 @@ fun HomeScreen(
                         }
                     },
                     text = { Text(if (hasInProgress) "继续服务" else "启动服务") },
-                    icon = { Text(if (hasInProgress) "▶" else "＋") },
+                    icon = {
+                        if (hasInProgress) Icon(Icons.Default.PlayArrow, contentDescription = "继续服务")
+                        else Icon(Icons.Default.Add, contentDescription = "启动服务")
+                    },
                 )
             }
         },
@@ -250,8 +262,8 @@ private fun NormalTopBar(onEnterSelecting: () -> Unit, onOpenSearch: () -> Unit,
     TopAppBar(
         title = { Text("Flikky") },
         actions = {
-            IconButton(onClick = onOpenSearch) { Text("🔍") }
-            IconButton(onClick = onImport) { Text("📥") }
+            IconButton(onClick = onOpenSearch) { Icon(Icons.Default.Search, contentDescription = "搜索") }
+            IconButton(onClick = onImport) { Icon(painterResource(R.drawable.ic_file_download), contentDescription = "导入") }
             TextButton(onClick = onEnterSelecting) { Text("导出") }
         },
         colors = TopAppBarDefaults.topAppBarColors(),
@@ -269,7 +281,7 @@ private fun SelectingTopBar(
     TopAppBar(
         title = { Text("已选 $selectedCount 个") },
         navigationIcon = {
-            IconButton(onClick = onClose) { Text("✕") }
+            IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = "关闭") }
         },
         actions = {
             TextButton(onClick = onSelectAll, enabled = selectAllEnabled) { Text("全选") }
