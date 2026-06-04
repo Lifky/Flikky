@@ -5,6 +5,7 @@ import com.example.flikky.export.ExportSession
 import com.example.flikky.export.ExportSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
@@ -125,6 +126,7 @@ class SessionState(private val nowMs: () -> Long) {
             networkStatus = NetworkStatus.Ok,
         )
         _fileTransferProgress.value = emptyMap()
+        _peerAvatarId.value = 0
     }
 
     /**
@@ -143,6 +145,12 @@ class SessionState(private val nowMs: () -> Long) {
     fun acknowledgeNetworkSwitch() {
         _snapshot.update { it.copy(networkStatus = NetworkStatus.Ok) }
     }
+
+    // M9: browser-side avatar chosen by the PC user, received via client_hello WS frame.
+    private val _peerAvatarId = MutableStateFlow(0)
+    val peerAvatarId: StateFlow<Int> = _peerAvatarId.asStateFlow()
+
+    fun setPeerAvatar(id: Int) { _peerAvatarId.value = id }
 
     private val _exportMode = MutableStateFlow<ExportMode>(ExportMode.Idle)
     val exportMode: StateFlow<ExportMode> = _exportMode

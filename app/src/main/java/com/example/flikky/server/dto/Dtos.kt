@@ -130,3 +130,20 @@ data class StatusDto(
     val bytesPerSecond: Long,
     val clientConnected: Boolean,
 )
+
+/**
+ * M9: GET /api/peer-info response. Phone's appearance settings sent to the browser.
+ */
+@Serializable
+data class PeerInfoDto(
+    val deviceName: String,
+    val phoneAvatarId: Int,
+    val backgroundMode: String,
+    val backgroundValue: String? = null,
+)
+
+/**
+ * M9: client_hello WS frame from browser, carrying the browser's chosen avatar ID.
+ */
+@Serializable
+data class ClientHelloDto(val type: String, val avatarId: Int)
