@@ -357,11 +357,10 @@ fun SettingsScreen(
 
     // ─── History retain limit dialog ──────────────────────────────────────────
     if (showHistoryLimitDialog) {
-        var useDefault by remember { mutableStateOf(s.historyRetainLimit == 20 || s.historyRetainLimit == 0) }
+        var useDefault by remember { mutableStateOf(s.historyRetainLimit == 20) }
         var customStr by remember {
             mutableStateOf(
-                if (s.historyRetainLimit == 20 || s.historyRetainLimit == 0) ""
-                else s.historyRetainLimit.toString()
+                if (s.historyRetainLimit == 20) "" else s.historyRetainLimit.toString()
             )
         }
         AlertDialog(
@@ -403,7 +402,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val limit = if (useDefault) 20 else customStr.toIntOrNull() ?: 20
+                    val limit = if (useDefault) 20 else customStr.toIntOrNull() ?: s.historyRetainLimit
                     viewModel.setHistoryRetainLimit(limit)
                     showHistoryLimitDialog = false
                 }) { Text("确定") }
