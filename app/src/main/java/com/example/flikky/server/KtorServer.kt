@@ -3,12 +3,14 @@ package com.example.flikky.server
 import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.server.dto.ServerRecallOutcome
+import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.routes.FileStore
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.server.routes.authRoutes
 import com.example.flikky.server.routes.exportRoutes
 import com.example.flikky.server.routes.fileRoutes
 import com.example.flikky.server.routes.messageRoutes
+import com.example.flikky.server.routes.peerInfoRoutes
 import com.example.flikky.server.routes.wsRoutes
 import com.example.flikky.session.Message
 import com.example.flikky.session.SessionState
@@ -50,6 +52,14 @@ class KtorServer(
     private val nowMs: () -> Long = System::currentTimeMillis,
     private val mode: ServiceMode = ServiceMode.Transfer,
     private val onZipSent: suspend () -> Unit = {},
+    /**
+     * M9: provides the phone's current appearance for GET /api/peer-info.
+     * Lambda so the caller can always read the latest settings without
+     * blocking on a Flow — rebind-safe by construction (read at call time).
+     */
+    private val peerInfoProvider: () -> PeerInfoDto = {
+        PeerInfoDto(deviceName = "Flikky", phoneAvatarId = 0, backgroundMode = "DEFAULT")
+    },
 ) {
     private var engine: EmbeddedServer<*, *>? = null
     var boundPort: Int = -1
@@ -130,6 +140,7 @@ class KtorServer(
             broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
             nowMs = nowMs,
         )
+        peerInfoRoutes(pinAuth, peerInfoProvider)
         wsRoutes(pinAuth, session, wsHub)
     }
 

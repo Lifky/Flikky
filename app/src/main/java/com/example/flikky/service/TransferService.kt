@@ -14,6 +14,8 @@ import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
 import com.example.flikky.data.SessionRepository
+import com.example.flikky.data.settings.BackgroundSetting
+import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.export.ExportMode
 import com.example.flikky.network.LinkInfo
@@ -22,6 +24,7 @@ import com.example.flikky.network.RebindIntent
 import com.example.flikky.server.KtorServer
 import com.example.flikky.server.PinAuth
 import com.example.flikky.server.ServiceMode
+import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.StatusDto
 import com.example.flikky.session.Message
@@ -67,6 +70,15 @@ class TransferService : Service() {
     private val rebinder = NetworkRebinder()
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var currentHostIp: String? = null
+
+    /**
+     * M9: latest settings snapshot for peerInfoProvider. Updated by a coroutine
+     * that collects SettingsRepository.settings — no runBlocking, no blocking read.
+     * @Volatile so the lambda in buildTransferKtor always sees the freshest value
+     * across threads (IO dispatcher writes, Binder thread reads).
+     */
+    @Volatile private var latestSettings: FlikkySettings = FlikkySettings()
+    private var settingsCollectorJob: Job? = null
 
     override fun onBind(intent: Intent?): IBinder = binding
 
@@ -133,6 +145,14 @@ class TransferService : Service() {
         }
         currentSessionId = sid
         ServiceLocator.session.startNew(sid)
+
+        // M9: start settings collector once — survives rebinds since it's tied to
+        // the service scope, not a KtorServer instance.
+        if (settingsCollectorJob == null) {
+            settingsCollectorJob = scope.launch {
+                ServiceLocator.settingsRepository.settings.collect { latestSettings = it }
+            }
+        }
 
         val auth = PinAuth(
             nowMs = System::currentTimeMillis,
@@ -359,6 +379,10 @@ class TransferService : Service() {
             }
         },
         mode = ServiceMode.Transfer,
+        // M9: lambda reads the @Volatile field (not a closure-captured local) so
+        // each KtorServer rebuild on rebind picks up the latest settings without
+        // holding a stale reference to a previous KtorServer instance.
+        peerInfoProvider = { latestSettings.toPeerInfoDto() },
     )
 
     /**
@@ -512,6 +536,8 @@ class TransferService : Service() {
             stopActiveServer()
             stopForeground(STOP_FOREGROUND_REMOVE)
         }
+        settingsCollectorJob?.cancel()
+        settingsCollectorJob = null
         ServiceLocator.reset()
         scope.cancel()
         super.onDestroy()
@@ -535,6 +561,25 @@ class TransferService : Service() {
         const val ACTION_START = "com.example.flikky.START"
         const val ACTION_STOP = "com.example.flikky.STOP"
         const val ACTION_EXPORT = "com.example.flikky.action.EXPORT"
+
+        /**
+         * M9: maps FlikkySettings.background → (backgroundMode, backgroundValue)
+         * using the same string encoding as SettingsRepository (DEFAULT/BLANK/SOLID/GRADIENT).
+         */
+        internal fun FlikkySettings.toPeerInfoDto(): PeerInfoDto {
+            val (mode, value) = when (val bg = background) {
+                is BackgroundSetting.Default -> "DEFAULT" to null
+                is BackgroundSetting.Blank -> "BLANK" to null
+                is BackgroundSetting.Solid -> "SOLID" to bg.argb.toString()
+                is BackgroundSetting.Gradient -> "GRADIENT" to bg.name
+            }
+            return PeerInfoDto(
+                deviceName = deviceName,
+                phoneAvatarId = phoneAvatarId,
+                backgroundMode = mode,
+                backgroundValue = value,
+            )
+        }
 
         const val EXPORT_NOTIFICATION_ID = 1002
 
