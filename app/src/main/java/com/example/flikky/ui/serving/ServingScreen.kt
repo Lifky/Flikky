@@ -3,6 +3,7 @@ package com.example.flikky.ui.serving
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,11 +13,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -24,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -32,18 +32,25 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.flikky.R
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.ui.components.ConversationBackground
+import com.example.flikky.ui.components.MessageAction
+import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.StatusBar
+import kotlinx.coroutines.launch
 
 @Composable
 fun ServingScreen(
@@ -56,6 +63,9 @@ fun ServingScreen(
     var draft by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
     var recallTarget by remember { mutableStateOf<Long?>(null) }
+    var actionTarget by remember { mutableStateOf<Long?>(null) }
+    val clipboardManager = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
     val pickFile = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri -> uri?.let { viewModel.offerFile(it) } }
@@ -96,37 +106,97 @@ fun ServingScreen(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    items(ui.messages, key = { it.id }) { msg ->
-                        val index = ui.messages.indexOf(msg)
+                    itemsIndexed(ui.messages, key = { _, m -> m.id }) { index, msg ->
                         val prevMsg = if (index > 0) ui.messages[index - 1] else null
                         val showAvatar = prevMsg == null || prevMsg.origin != msg.origin
-                        var menuOpen by remember(msg.id) { mutableStateOf(false) }
-                        val canRecall = msg.origin == Origin.PHONE
                         val isFailed = msg is Message.File && msg.status == Message.File.Status.FAILED
-                        Box {
+                        val isActionTarget = actionTarget == msg.id
+
+                        // Painters resolved in composable scope (stable across recompositions)
+                        val undoPainter = painterResource(R.drawable.ic_undo)
+                        val downloadPainter = painterResource(R.drawable.ic_file_download)
+                        val copyPainter = painterResource(R.drawable.ic_content_copy)
+                        val deletePainter = painterResource(R.drawable.ic_delete)
+
+                        val msgActions = buildList<MessageAction> {
+                            // 复制 — text only
+                            if (msg is Message.Text) {
+                                add(MessageAction(
+                                    icon = copyPainter,
+                                    label = "复制",
+                                    onClick = {
+                                        clipboardManager.setText(AnnotatedString(msg.content))
+                                        actionTarget = null
+                                    },
+                                ))
+                            }
+                            // 打开 — file COMPLETED
+                            if (msg is Message.File && msg.status == Message.File.Status.COMPLETED) {
+                                add(MessageAction(
+                                    icon = downloadPainter,
+                                    label = "打开",
+                                    onClick = {
+                                        viewModel.openFile(msg)
+                                        actionTarget = null
+                                    },
+                                ))
+                            }
+                            // 撤回 — phone origin, beta enabled, not failed
+                            if (settings.recallBetaEnabled && msg.origin == Origin.PHONE && !isFailed) {
+                                add(MessageAction(
+                                    icon = undoPainter,
+                                    label = "撤回",
+                                    onClick = {
+                                        recallTarget = msg.id
+                                        actionTarget = null
+                                    },
+                                ))
+                            }
+                            // 删除 — always present
+                            add(MessageAction(
+                                icon = deletePainter,
+                                label = "删除",
+                                danger = true,
+                                onClick = {
+                                    val id = msg.id
+                                    actionTarget = null
+                                    viewModel.deleteLocalWithUndo(id)
+                                    scope.launch {
+                                        val result = snackbarHostState.showSnackbar(
+                                            message = "已删除",
+                                            actionLabel = "撤销",
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            viewModel.undoDelete()
+                                        } else {
+                                            viewModel.commitDelete(id)
+                                        }
+                                    }
+                                },
+                            ))
+                        }
+
+                        Column {
                             MessageBubble(
                                 msg = msg,
                                 onClick = { if (msg is Message.File) viewModel.openFile(msg) },
-                                onLongPress = if (canRecall && !isFailed) {
-                                    { menuOpen = true }
-                                } else null,
+                                onLongPress = { actionTarget = if (isActionTarget) null else msg.id },
                                 transferProgress = progressMap[msg.id],
                                 showAvatar = showAvatar,
                                 avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
                                            else 0, // TODO M9: peerAvatarId
                             )
-                            DropdownMenu(
-                                expanded = menuOpen,
-                                onDismissRequest = { menuOpen = false },
+                            val barAlignment = if (msg.origin == Origin.PHONE) Alignment.CenterEnd else Alignment.CenterStart
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                                contentAlignment = barAlignment,
                             ) {
-                                DropdownMenuItem(
-                                    text = { Text("撤回") },
-                                    onClick = {
-                                        menuOpen = false
-                                        recallTarget = msg.id
-                                    },
+                                MessageActionBar(
+                                    visible = isActionTarget,
+                                    actions = msgActions,
                                 )
                             }
+                            if (isActionTarget) Spacer(Modifier.height(4.dp))
                         }
                     }
                 }
@@ -188,4 +258,3 @@ fun ServingScreen(
         )
     }
 }
-

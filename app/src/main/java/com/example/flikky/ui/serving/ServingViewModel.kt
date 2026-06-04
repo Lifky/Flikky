@@ -192,6 +192,47 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         ServiceLocator.session.removeMessage(messageId)
     }
 
+    // ── Soft-delete + undo (M8) ──────────────────────────────────────────────
+
+    /**
+     * 本地软删除：从内存消息列表移除消息，保留快照用于撤销。
+     * 不广播浏览器，不写 DB（提交由 [commitDelete] 完成）。
+     * 撤销由 [undoDelete] 完成。
+     */
+    private var pendingDelete: Message? = null
+
+    fun deleteLocalWithUndo(id: Long) {
+        pendingDelete = ServiceLocator.session.snapshot.value.messages.firstOrNull { it.id == id }
+        ServiceLocator.session.removeMessage(id)
+    }
+
+    /**
+     * 撤销软删除：将消息重新追加到消息列表末尾。
+     * addMessage 追加到列表末尾，消息按 timestamp 原样保留，
+     * LazyColumn key={it.id} 保证位置稳定（恢复后视觉位置回到列表末，
+     * 而非原位——这是软删除 undo 的已知 trade-off，见 M8 任务备注）。
+     */
+    fun undoDelete() {
+        pendingDelete?.let { ServiceLocator.session.addMessage(it) }
+        pendingDelete = null
+    }
+
+    /**
+     * 提交软删除到 DB。若消息是文件，repository.deleteMessage 会同时删盘。
+     * runCatching 保证 DB 写失败不会崩溃——内存已移除，下次启动 finalizeOrphans 会清理。
+     */
+    fun commitDelete(id: Long) {
+        val captured = pendingDelete
+        pendingDelete = null
+        viewModelScope.launch {
+            runCatching { ServiceLocator.repository.deleteMessage(id) }
+            // If the message was captured but not the same id (race), still clear
+            if (captured != null && captured.id != id) {
+                // Edge case: nothing to do, just ensure no stale reference
+            }
+        }
+    }
+
     /** "我知道了" on the NetworkStatusBanner — fold Switched back to Ok. */
     fun acknowledgeNetworkSwitch() {
         ServiceLocator.session.acknowledgeNetworkSwitch()
