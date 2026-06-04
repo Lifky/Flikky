@@ -9,11 +9,13 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -27,6 +29,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -37,19 +43,28 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.flikky.R
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
+import com.example.flikky.ui.components.MessageAction
+import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,12 +82,16 @@ fun HistoryScreen(
         ),
     )
     val session by viewModel.session.collectAsState(initial = null)
-    val messages by viewModel.messages.collectAsState(initial = emptyList())
+    val messages by viewModel.messages.collectAsState()
     val settings by ServiceLocator.settingsRepository.settings.collectAsState(initial = FlikkySettings())
     var menuExpanded by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
     val inProgress = session?.endedAt == null && session != null
+    var actionTarget by remember { mutableStateOf<Long?>(null) }
+    val clipboardManager = LocalClipboardManager.current
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // v1.3 T20: scroll-to + flash-highlight when arriving from SearchScreen.
     val listState = rememberLazyListState()
@@ -90,6 +109,7 @@ fun HistoryScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
         topBar = {
             TopAppBar(
                 title = { Text(session?.name ?: "会话") },
@@ -125,8 +145,7 @@ fun HistoryScreen(
             verticalArrangement = Arrangement.spacedBy(6.dp),
             state = listState,
         ) {
-            items(messages, key = { it.id }) { msg ->
-                val index = messages.indexOf(msg)
+            itemsIndexed(messages, key = { _, m -> m.id }) { index, msg ->
                 val prevMsg = if (index > 0) messages[index - 1] else null
                 val showAvatar = prevMsg == null || prevMsg.origin != msg.origin
                 val isHighlighted = msg.id == activeHighlight
@@ -139,56 +158,88 @@ fun HistoryScreen(
                     animationSpec = tween(durationMillis = 600),
                     label = "search-highlight",
                 )
-                var menuOpen by remember(msg.id) { mutableStateOf(false) }
-                var confirmDelete by remember(msg.id) { mutableStateOf(false) }
+                val isActionTarget = actionTarget == msg.id
+
+                // Painters resolved in composable scope
+                val copyPainter = painterResource(R.drawable.ic_content_copy)
+                val downloadPainter = painterResource(R.drawable.ic_file_download)
+                val deletePainter = painterResource(R.drawable.ic_delete)
+
+                val msgActions = buildList<MessageAction> {
+                    // 复制 — text only
+                    if (msg is Message.Text) {
+                        add(MessageAction(
+                            icon = copyPainter,
+                            label = "复制",
+                            onClick = {
+                                clipboardManager.setText(AnnotatedString(msg.content))
+                                actionTarget = null
+                            },
+                        ))
+                    }
+                    // 打开 — file COMPLETED
+                    if (msg is Message.File && msg.status == Message.File.Status.COMPLETED) {
+                        add(MessageAction(
+                            icon = downloadPainter,
+                            label = "打开",
+                            onClick = {
+                                openFile(ctx, sessionId, msg)
+                                actionTarget = null
+                            },
+                        ))
+                    }
+                    // 删除 — always present, danger
+                    add(MessageAction(
+                        icon = deletePainter,
+                        label = "删除",
+                        danger = true,
+                        onClick = {
+                            val id = msg.id
+                            actionTarget = null
+                            viewModel.deleteLocalWithUndo(id)
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = "已删除",
+                                    actionLabel = "撤销",
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    viewModel.undoDelete()
+                                } else {
+                                    viewModel.commitDelete(id)
+                                }
+                            }
+                        },
+                    ))
+                }
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(highlightColor),
                 ) {
-                    MessageBubble(
-                        msg = msg,
-                        onClick = {
-                            if (msg is Message.File) openFile(ctx, sessionId, msg)
-                        },
-                        onLongPress = { menuOpen = true },
-                        showAvatar = showAvatar,
-                        avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
-                                   else 0, // TODO M9: peerAvatarId
-                    )
-                    DropdownMenu(
-                        expanded = menuOpen,
-                        onDismissRequest = { menuOpen = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("删除此消息") },
+                    Column {
+                        MessageBubble(
+                            msg = msg,
                             onClick = {
-                                menuOpen = false
-                                confirmDelete = true
+                                if (msg is Message.File) openFile(ctx, sessionId, msg)
                             },
+                            onLongPress = { actionTarget = if (isActionTarget) null else msg.id },
+                            showAvatar = showAvatar,
+                            avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
+                                       else 0, // TODO M9: peerAvatarId
                         )
-                    }
-                }
-                if (confirmDelete) {
-                    AlertDialog(
-                        onDismissRequest = { confirmDelete = false },
-                        title = { Text("删除此消息") },
-                        text = {
-                            Text(
-                                if (msg is Message.File) "将删除此消息及其本地文件，不可撤销。"
-                                else "将删除此消息，不可撤销。"
+                        val barAlignment = if (msg.origin == Origin.PHONE) Alignment.CenterEnd else Alignment.CenterStart
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                            contentAlignment = barAlignment,
+                        ) {
+                            MessageActionBar(
+                                visible = isActionTarget,
+                                actions = msgActions,
                             )
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                confirmDelete = false
-                                viewModel.deleteMessage(msg.id)
-                            }) { Text("删除") }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { confirmDelete = false }) { Text("取消") }
-                        },
-                    )
+                        }
+                        if (isActionTarget) androidx.compose.foundation.layout.Spacer(Modifier.height(4.dp))
+                    }
                 }
             }
         }
