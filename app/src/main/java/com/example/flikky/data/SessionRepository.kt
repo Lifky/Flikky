@@ -292,8 +292,10 @@ class SessionRepository(
     /**
      * 撤回单条消息（v1.3 D26 修订：从"软删 + 占位符"改为"真删 + UI 完全消失"）。
      *
-     * 鉴权：调用方传入的 `callerSenderId` 必须严格等于消息 `senderId`。
-     * `senderId` 为 null 的旧消息（pre-v1.3 数据）无法撤回 → Denied。
+     * v1.5 修订：移除 senderId 鉴权。Flikky 单 PIN 单用户模型中，手机端 UI 只对
+     * 自己发送的消息显示撤回按钮，浏览器端同理——服务端再校验 senderId 是冗余且会
+     * 在 WiFi rebind（clientId 变化）或旧数据（senderId=null）场景下误拒绝合法请求。
+     * `callerSenderId` 参数保留以免大改调用侧，但不再用于鉴权。
      *
      * 副作用：
      * - 真删 messages 行；messages_fts_ad 触发器自动清 FTS。
@@ -304,17 +306,8 @@ class SessionRepository(
      * 把 NotFound 当作 idempotent 成功处理（消息已经"撤回"了，浏览器节点也已移除）。
      */
     suspend fun recallMessage(messageId: Long, callerSenderId: String): RecallOutcome {
+        // callerSenderId intentionally unused for auth — UI-gated, single-PIN model.
         val msg = messageDao.getById(messageId) ?: return RecallOutcome.NotFound
-        if (msg.senderId == null || msg.senderId != callerSenderId) {
-            // v1.3 装机修订：浏览器 myClientId 因页面重载（WiFi rebind 换 URL）
-            // 会变成新 UUID，导致旧消息 senderId 不匹配。放宽为"origin=BROWSER
-            // 的消息允许任何提供了 clientId 的浏览器撤回"——Flikky 单 PIN 单用户
-            // 模型下不存在"多浏览器同时连"，所以风险可接受。
-            // 手机端 senderId = phone-{androidId}（固定），仍严格匹配。
-            if (msg.origin != "BROWSER" || callerSenderId.isEmpty()) {
-                return RecallOutcome.Denied
-            }
-        }
 
         if (msg.kind == "FILE") {
             val sessionRow = sessionDao.getById(msg.sessionId)

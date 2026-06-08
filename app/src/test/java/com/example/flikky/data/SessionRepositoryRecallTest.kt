@@ -10,7 +10,6 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -23,8 +22,8 @@ import org.robolectric.annotation.Config
 import java.io.File
 
 /**
- * 覆盖 SessionRepository.recallMessage 的 D26 行为矩阵：
- * NotFound / Denied (senderId 不匹配 / senderId 为 null) / Success / AlreadyRecalled，
+ * 覆盖 SessionRepository.recallMessage 的行为矩阵：
+ * NotFound / Success（包括 senderId 不匹配和 null 的场景——v1.5 起不再鉴权）
  * 以及 FILE 撤回时的删盘 + 聚合更新。
  */
 @RunWith(RobolectricTestRunner::class)
@@ -87,26 +86,26 @@ class SessionRepositoryRecallTest {
         assertEquals(SessionRepository.RecallOutcome.NotFound, outcome)
     }
 
-    @Test fun mismatched_senderId_returns_Denied_and_does_not_mutate() = runTest {
+    @Test fun mismatched_senderId_now_succeeds_after_auth_drop() = runTest {
+        // v1.5 起移除 senderId 鉴权，任何合法 messageId 都可撤回（UI 已限制入口）。
         val sid = insertSession()
         insertText(sid, id = 1L, content = "secret", senderId = "owner")
 
         val outcome = repo.recallMessage(messageId = 1L, callerSenderId = "intruder")
 
-        assertEquals(SessionRepository.RecallOutcome.Denied, outcome)
-        // 真删模型下：Denied 不动行；getById 仍能拿到原消息。
-        assertNotNull("Denied must not delete the row", db.messageDao().getById(1L))
+        assertTrue("mismatched senderId should now succeed", outcome is SessionRepository.RecallOutcome.Success)
+        assertNull("row should be hard-deleted", db.messageDao().getById(1L))
     }
 
-    @Test fun null_senderId_legacy_message_cannot_be_recalled() = runTest {
-        // pre-v1.3 行的 senderId 为 null：任何调用方都不能撤回（D26 严格匹配）。
+    @Test fun null_senderId_legacy_message_can_now_be_recalled() = runTest {
+        // v1.5 起移除 senderId 鉴权；pre-v1.3 行（senderId=null）可正常撤回。
         val sid = insertSession()
         insertText(sid, id = 1L, content = "legacy", senderId = null)
 
         val outcome = repo.recallMessage(messageId = 1L, callerSenderId = "sender-1")
 
-        assertEquals(SessionRepository.RecallOutcome.Denied, outcome)
-        assertNotNull(db.messageDao().getById(1L))
+        assertTrue("null senderId should now succeed", outcome is SessionRepository.RecallOutcome.Success)
+        assertNull(db.messageDao().getById(1L))
     }
 
     @Test fun text_message_recall_hard_deletes_row() = runTest {
