@@ -3,6 +3,8 @@
 /local.properties
 .idea/
 .claude/
+CLAUDE.md
+AGENTS.md
 .DS_Store
 /build
 /captures
