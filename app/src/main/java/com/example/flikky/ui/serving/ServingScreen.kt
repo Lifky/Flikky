@@ -21,6 +21,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -75,9 +76,7 @@ fun ServingScreen(
         viewModel.events.collect { snackbarHostState.showSnackbar(it) }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
-    ) { padding ->
+    Scaffold { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             NetworkStatusBanner(
                 status = ui.networkStatus,
@@ -166,6 +165,7 @@ fun ServingScreen(
                                         val result = snackbarHostState.showSnackbar(
                                             message = "已删除",
                                             actionLabel = "撤销",
+                                            duration = SnackbarDuration.Short,
                                         )
                                         if (result == SnackbarResult.ActionPerformed) {
                                             viewModel.undoDelete()
@@ -202,6 +202,8 @@ fun ServingScreen(
                     }
                 }
             }
+
+            SnackbarHost(snackbarHostState) { Snackbar(it) }
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
