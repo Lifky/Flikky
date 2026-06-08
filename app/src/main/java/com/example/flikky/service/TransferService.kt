@@ -323,7 +323,12 @@ class TransferService : Service() {
                 Log.d(TAG, "stopActiveServer: ending session $sid")
                 runCatching {
                     runBlocking {
-                        ServiceLocator.repository.endSession(sid, endedAt = System.currentTimeMillis())
+                        ServiceLocator.repository.endSession(
+                            sid,
+                            endedAt = System.currentTimeMillis(),
+                            peerAvatarId = ServiceLocator.session.peerAvatarId.value,
+                        )
+                        ServiceLocator.repository.fifoSweep()
                     }
                 }.onFailure { Log.e(TAG, "endSession($sid) failed", it) }
             } else {
