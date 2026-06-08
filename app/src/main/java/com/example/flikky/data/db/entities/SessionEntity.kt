@@ -14,4 +14,6 @@ data class SessionEntity(
     val fileCount: Int = 0,
     val totalBytes: Long = 0,
     val previewText: String? = null,
+    /** Browser-side avatar index chosen by the PC user; persisted so History can restore it. */
+    val peerAvatarId: Int = 0,
 )

@@ -226,7 +226,7 @@ fun HistoryScreen(
                             onLongPress = { actionTarget = if (isActionTarget) null else msg.id },
                             showAvatar = showAvatar,
                             avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
-                                       else 0, // TODO M9: peerAvatarId
+                                       else (session?.peerAvatarId ?: 0),
                         )
                         val barAlignment = if (msg.origin == Origin.PHONE) Alignment.CenterEnd else Alignment.CenterStart
                         Box(

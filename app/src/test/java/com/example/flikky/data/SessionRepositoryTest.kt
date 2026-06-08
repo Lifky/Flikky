@@ -221,4 +221,32 @@ class SessionRepositoryTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test fun endSession_persists_peerAvatarId_and_getById_returns_it() = runTest {
+        val sid = repo.beginSession("avatar-test", startedAt = 1_000L)
+        repo.appendMessage(sid, Message.Text(
+            id = 20, origin = Origin.BROWSER, timestamp = 1_100L, content = "hi",
+        ))
+        repo.endSession(sid, endedAt = 2_000L, peerAvatarId = 3)
+
+        val row = db.sessionDao().getById(sid)!!
+        org.junit.Assert.assertEquals(
+            "peerAvatarId should be persisted through endSession",
+            3, row.peerAvatarId,
+        )
+    }
+
+    @Test fun endSession_defaults_peerAvatarId_to_zero() = runTest {
+        val sid = repo.beginSession("avatar-default", startedAt = 1_000L)
+        repo.appendMessage(sid, Message.Text(
+            id = 21, origin = Origin.PHONE, timestamp = 1_100L, content = "default",
+        ))
+        repo.endSession(sid, endedAt = 2_000L) // no peerAvatarId argument
+
+        val row = db.sessionDao().getById(sid)!!
+        org.junit.Assert.assertEquals(
+            "peerAvatarId should default to 0 when not provided",
+            0, row.peerAvatarId,
+        )
+    }
 }

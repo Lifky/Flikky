@@ -42,7 +42,7 @@ class SessionRepository(
         messageDao.insert(msg.toEntity(sessionId))
     }
 
-    suspend fun endSession(sessionId: Long, endedAt: Long) {
+    suspend fun endSession(sessionId: Long, endedAt: Long, peerAvatarId: Int = 0) {
         val row = sessionDao.getById(sessionId) ?: return
         val messages = messageDao.listBySession(sessionId)
         if (messages.isEmpty()) {
@@ -57,6 +57,7 @@ class SessionRepository(
             fileCount = files.size,
             totalBytes = files.sumOf { it.fileSize ?: 0L },
             previewText = messageDao.firstTextContent(sessionId)?.take(40),
+            peerAvatarId = peerAvatarId,
         )
         sessionDao.update(updated)
     }

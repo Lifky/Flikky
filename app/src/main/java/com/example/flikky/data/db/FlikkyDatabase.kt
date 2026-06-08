@@ -12,7 +12,7 @@ import com.example.flikky.data.db.entities.SessionEntity
 
 @Database(
     entities = [SessionEntity::class, MessageEntity::class, MessageFtsEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class FlikkyDatabase : RoomDatabase() {
@@ -120,13 +120,21 @@ abstract class FlikkyDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE sessions ADD COLUMN peerAvatarId INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
         fun build(context: Context): FlikkyDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 FlikkyDatabase::class.java,
                 "flikky.db",
             )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .addCallback(onCreateCallback)
                 .build()
     }
