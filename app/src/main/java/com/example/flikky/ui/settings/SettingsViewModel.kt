@@ -33,7 +33,12 @@ class SettingsViewModel @JvmOverloads constructor(
     fun setBackground(v: BackgroundSetting) = viewModelScope.launch { repo.setBackground(v) }
     fun setDeviceName(v: String) = viewModelScope.launch { repo.setDeviceName(v) }
     fun setRecallBeta(v: Boolean) = viewModelScope.launch { repo.setRecallBeta(v) }
-    fun setHistoryRetainLimit(v: Int) = viewModelScope.launch { repo.setHistoryRetainLimit(v) }
+    fun setHistoryRetainLimit(v: Int) = viewModelScope.launch {
+        repo.setHistoryRetainLimit(v)
+        // Immediately evict excess sessions so the count settles to the new limit
+        // without waiting for the next session end or app restart.
+        runCatching { sessionRepo.fifoSweep() }
+    }
 
     /** Replicates HomeViewModel.importFromZip: copy URI → temp zip → importSessions. */
     suspend fun importFromZip(uri: Uri): SessionRepository.ImportResult {
