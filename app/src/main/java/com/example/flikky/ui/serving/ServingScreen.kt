@@ -96,114 +96,124 @@ fun ServingScreen(
                 )
             }
 
-            ConversationBackground(
-                setting = settings.background,
-                connected = ui.clientConnected,
-                peerName = null,
-                modifier = Modifier.weight(1f),
-            ) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+            Box(modifier = Modifier.weight(1f)) {
+                ConversationBackground(
+                    setting = settings.background,
+                    connected = ui.clientConnected,
+                    peerName = null,
+                    modifier = Modifier.fillMaxSize(),
                 ) {
-                    itemsIndexed(ui.messages, key = { _, m -> m.id }) { index, msg ->
-                        val prevMsg = if (index > 0) ui.messages[index - 1] else null
-                        val showAvatar = prevMsg == null || prevMsg.origin != msg.origin
-                        val isFailed = msg is Message.File && msg.status == Message.File.Status.FAILED
-                        val isActionTarget = actionTarget == msg.id
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        itemsIndexed(ui.messages, key = { _, m -> m.id }) { index, msg ->
+                            val prevMsg = if (index > 0) ui.messages[index - 1] else null
+                            val showAvatar = prevMsg == null || prevMsg.origin != msg.origin
+                            val isFailed = msg is Message.File && msg.status == Message.File.Status.FAILED
+                            val isActionTarget = actionTarget == msg.id
 
-                        // Painters resolved in composable scope (stable across recompositions)
-                        val undoPainter = painterResource(R.drawable.ic_undo)
-                        val downloadPainter = painterResource(R.drawable.ic_file_download)
-                        val copyPainter = painterResource(R.drawable.ic_content_copy)
-                        val deletePainter = painterResource(R.drawable.ic_delete)
+                            // Painters resolved in composable scope (stable across recompositions)
+                            val undoPainter = painterResource(R.drawable.ic_undo)
+                            val downloadPainter = painterResource(R.drawable.ic_file_download)
+                            val copyPainter = painterResource(R.drawable.ic_content_copy)
+                            val deletePainter = painterResource(R.drawable.ic_delete)
 
-                        val msgActions = buildList<MessageAction> {
-                            // 复制 — text only
-                            if (msg is Message.Text) {
+                            val msgActions = buildList<MessageAction> {
+                                // 复制 — text only
+                                if (msg is Message.Text) {
+                                    add(MessageAction(
+                                        icon = copyPainter,
+                                        label = "复制",
+                                        onClick = {
+                                            clipboardManager.setText(AnnotatedString(msg.content))
+                                            actionTarget = null
+                                        },
+                                    ))
+                                }
+                                // 打开 — file COMPLETED
+                                if (msg is Message.File && msg.status == Message.File.Status.COMPLETED) {
+                                    add(MessageAction(
+                                        icon = downloadPainter,
+                                        label = "打开",
+                                        onClick = {
+                                            viewModel.openFile(msg)
+                                            actionTarget = null
+                                        },
+                                    ))
+                                }
+                                // 撤回 — phone origin, beta enabled, not failed
+                                if (settings.recallBetaEnabled && msg.origin == Origin.PHONE && !isFailed) {
+                                    add(MessageAction(
+                                        icon = undoPainter,
+                                        label = "撤回",
+                                        onClick = {
+                                            recallTarget = msg.id
+                                            actionTarget = null
+                                        },
+                                    ))
+                                }
+                                // 删除 — always present
                                 add(MessageAction(
-                                    icon = copyPainter,
-                                    label = "复制",
+                                    icon = deletePainter,
+                                    label = "删除",
+                                    danger = true,
                                     onClick = {
-                                        clipboardManager.setText(AnnotatedString(msg.content))
+                                        val id = msg.id
                                         actionTarget = null
-                                    },
-                                ))
-                            }
-                            // 打开 — file COMPLETED
-                            if (msg is Message.File && msg.status == Message.File.Status.COMPLETED) {
-                                add(MessageAction(
-                                    icon = downloadPainter,
-                                    label = "打开",
-                                    onClick = {
-                                        viewModel.openFile(msg)
-                                        actionTarget = null
-                                    },
-                                ))
-                            }
-                            // 撤回 — phone origin, beta enabled, not failed
-                            if (settings.recallBetaEnabled && msg.origin == Origin.PHONE && !isFailed) {
-                                add(MessageAction(
-                                    icon = undoPainter,
-                                    label = "撤回",
-                                    onClick = {
-                                        recallTarget = msg.id
-                                        actionTarget = null
-                                    },
-                                ))
-                            }
-                            // 删除 — always present
-                            add(MessageAction(
-                                icon = deletePainter,
-                                label = "删除",
-                                danger = true,
-                                onClick = {
-                                    val id = msg.id
-                                    actionTarget = null
-                                    viewModel.deleteLocalWithUndo(id)
-                                    scope.launch {
-                                        val result = snackbarHostState.showSnackbar(
-                                            message = "已删除",
-                                            actionLabel = "撤销",
-                                            duration = SnackbarDuration.Short,
-                                        )
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            viewModel.undoDelete()
-                                        } else {
-                                            viewModel.commitDelete(id)
+                                        viewModel.deleteLocalWithUndo(id)
+                                        scope.launch {
+                                            val result = snackbarHostState.showSnackbar(
+                                                message = "已删除",
+                                                actionLabel = "撤销",
+                                                duration = SnackbarDuration.Short,
+                                            )
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                viewModel.undoDelete()
+                                            } else {
+                                                viewModel.commitDelete(id)
+                                            }
                                         }
-                                    }
-                                },
-                            ))
-                        }
-
-                        Column {
-                            MessageBubble(
-                                msg = msg,
-                                onClick = { if (msg is Message.File) viewModel.openFile(msg) },
-                                onLongPress = { actionTarget = if (isActionTarget) null else msg.id },
-                                transferProgress = progressMap[msg.id],
-                                showAvatar = showAvatar,
-                                avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
-                                           else peerAvatarId,
-                            )
-                            val barAlignment = if (msg.origin == Origin.PHONE) Alignment.CenterEnd else Alignment.CenterStart
-                            Box(
-                                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                                contentAlignment = barAlignment,
-                            ) {
-                                MessageActionBar(
-                                    visible = isActionTarget,
-                                    actions = msgActions,
-                                )
+                                    },
+                                ))
                             }
-                            if (isActionTarget) Spacer(Modifier.height(4.dp))
+
+                            Column {
+                                MessageBubble(
+                                    msg = msg,
+                                    onClick = { if (msg is Message.File) viewModel.openFile(msg) },
+                                    onLongPress = { actionTarget = if (isActionTarget) null else msg.id },
+                                    transferProgress = progressMap[msg.id],
+                                    showAvatar = showAvatar,
+                                    avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
+                                               else peerAvatarId,
+                                )
+                                val barAlignment = if (msg.origin == Origin.PHONE) Alignment.CenterEnd else Alignment.CenterStart
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                                    contentAlignment = barAlignment,
+                                ) {
+                                    MessageActionBar(
+                                        visible = isActionTarget,
+                                        actions = msgActions,
+                                    )
+                                }
+                                if (isActionTarget) Spacer(Modifier.height(4.dp))
+                            }
                         }
                     }
                 }
-            }
 
-            SnackbarHost(snackbarHostState) { Snackbar(it) }
+                // Snackbar floats at the bottom of the conversation area,
+                // directly above the input Row, overlaying messages rather
+                // than displacing them.
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                ) { Snackbar(it) }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
