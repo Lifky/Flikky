@@ -13,6 +13,7 @@ The phone runs an embedded HTTP server. Any browser on the same Wi-Fi opens the 
 - **v1.2** — *released (2026-05-13)* — multi-session batch export to PC as a streaming zip, live upload-progress bubbles, mdui snackbar feedback, Wi-Fi auto-rebind with status banner, in-progress-session affordances on home (resume / inline stop), WS app-layer heartbeat + server-stopped event for clean disconnects.
 - **v1.3** — *released (2026-05-24)* — cross-session message search (FTS4 + LIKE fallback), message recall in active sessions (hard-delete + dual-side confirm + instant sync), per-message delete in history, app-layer ping/pong replacing passive frame timeout, closure-capture audit with regression guard, export-page health detection via WS + fetch probe.
 - **v1.4.0** — *released (2026-06-04)* — async file transfer (immediate bidirectional IN_PROGRESS bubbles + progress bars + failure feedback + interrupted-upload cleanup), import from zip back into the app (backward-compatible with v1.2/v1.3 format + duplicate detection + post-import FIFO sweep), export `relativePath` dedup fix (messages.json matches zip entries, version bumped to 1.4).
+- **v1.5.0** — *released (2026-06-08)* — UI/UX overhaul: bottom navigation (Transfer / Settings), a full settings system on DataStore with instant theme switching (Material You dynamic color + 4 warm presets + three-state dark + AMOLED), app/peer preset avatars and in-progress conversation background **synced across both ends** (via a `peer-info` endpoint + `client_hello`), a long-press message action bar (copy / recall / open / delete-with-undo, staggered pop-out), configurable history retention (incl. `0`=keep none, `-1`=unlimited), editable device name, a recall Beta toggle, and the full emoji→Material icon migration with +1-step rounded shapes.
 
 Design docs are kept in a local-only `docs/others/` tree; the public repo carries only the source.
 
@@ -47,7 +48,13 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] Export-page health detection: WS connection (ping/pong) + fetch probe, cancel-export dialog, download-started cleanup *(v1.3)*
 - [x] `senderId` end-to-end: `phone-{ANDROID_ID}` stable across restarts, browser `X-Client-Id` per session; recall authorization by sender match *(v1.3)*
 - [x] Async file transfer: both directions broadcast an immediate IN_PROGRESS bubble + 5%-interval progress + `file_ready`/`file_removed` events; failure shows `传输失败`/`发送失败` feedback *(v1.4.0)*
-- [x] Import from zip back into the app: `ZipImporter` parse + backward compat for v1.2/v1.3 (replay `nextUniqueName` to resolve paths), name+startedAt duplicate detection, post-import FIFO sweep, 📥 entry + loading dialog + snackbar summary *(v1.4.0)*
+- [x] Import from zip back into the app: `ZipImporter` parse + backward compat for v1.2/v1.3 (replay `nextUniqueName` to resolve paths), name+startedAt duplicate detection, post-import FIFO sweep, import entry + loading dialog + snackbar summary *(v1.4.0)*
+- [x] Bottom navigation (Transfer / Settings), `alwaysShowLabel=false` so the unselected tab is icon-only; detail pages auto-hide the bar; per-tab back-stack state preserved *(v1.5.0)*
+- [x] Settings system on DataStore with instant theme switching (zero restart): Material You dynamic color + 4 warm presets (coral / mushroom / teal / mist), three-state dark mode + AMOLED override, CompositionLocal golden chain *(v1.5.0)*
+- [x] Long-press message action bar: copy / recall (Beta) / open / delete-with-undo, staggered scale-in pop-out below the bubble *(v1.5.0)*
+- [x] App & peer preset avatars (12 presets) + in-progress conversation background (default / blank / solid / gradient), **synced across both ends** via `GET /api/peer-info` + WS `client_hello`, plus a browser-side avatar picker *(v1.5.0)*
+- [x] User-configurable history retention in settings (default 20, `0` = keep none, `-1` = unlimited); peer avatar id persisted so history shows the correct browser-side avatar *(v1.5.0)*
+- [x] emoji → Material icon migration (`material-icons-core` + bundled Symbols vectors), +1-step rounded MD3 shapes, CJK paragraph line-break in bubbles *(v1.5.0)*
 - [ ] HTTPS with self-signed cert *(v2)*
 - [ ] At-rest encryption of local archive *(v2)*
 
@@ -65,6 +72,9 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] Browser disconnect UI fires immediately on frame timeout (not waiting for TCP close) *(v1.3)*
 - [x] File download `Content-Disposition` uses original filename instead of UUID *(v1.3)*
 - [x] Async tee for phone-pushed files: broadcast IN_PROGRESS immediately + copy in a background coroutine with progress, removing the synchronous copy-before-serve block *(v1.4.0)*
+- [x] Settings persisted via DataStore Preferences; theme flows through a `StateFlow<FlikkySettings>` the `MaterialTheme` observes — theme / dark / AMOLED changes recompose in place, no Activity recreation *(v1.5.0)*
+- [x] `peerInfoProvider` reads a `@Volatile` settings snapshot at call time, so it stays correct across Wi-Fi rebind (KtorServer is rebuilt; the lambda survives on a TransferService field) *(v1.5.0)*
+- [x] `SessionState.addMessage` keeps the in-memory list timestamp-sorted (binary insert), so an undo-restored message returns to its original position while monotonic new messages still append *(v1.5.0)*
 
 ### fix
 
@@ -94,6 +104,12 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] v1.4.0 phone-sent files couldn't be opened in History. Dropped the `origin==BROWSER` restriction; every COMPLETED file is now openable
 - [x] v1.4.0 export `messages.json` `relativePath` didn't match the actual zip entry name (v1.2 carry-over). `ZipExporter` now computes dedup names before handing them to the formatter
 - [x] v1.4.0 phone "attach" button stayed clickable after WiFi drop. Now gated on `ui.clientConnected` like the send button
+- [x] v1.5.0 zip import froze on device: `importSessions` read the retain limit (a DataStore `first()`) inside `withContext(Dispatchers.IO)`, deadlocking DataStore 1.1's single-thread actor. The limit is now read before entering the IO context
+- [x] v1.5.0 history count flashed N+1 after a session ended — FIFO sweep only ran on the next service start. Sweep now runs right after `endSession` too, and lowering the retention limit in settings sweeps immediately
+- [x] v1.5.0 own-message recall was blocked by a redundant `senderId` check ("只能撤回自己发的消息"); since the UI only ever shows the recall action on own messages, the server-side check was dropped (single-PIN single-user model)
+- [x] v1.5.0 undo-delete in an active session dropped the message to the list bottom; `addMessage` now inserts in timestamp order so it returns to its original slot
+- [x] v1.5.0 history showed the wrong browser-side avatar (the peer avatar id lived only in memory) — added a `peerAvatarId` column (DB v2→3 migration) persisted on `endSession` and read back in history
+- [x] v1.5.0 delete / recall snackbars displaced conversation content and could cover the input bar; they now float as an overlay above the input bar on both phone (Compose overlay) and browser (mdui offset)
 
 ## Highlights
 
@@ -108,7 +124,7 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 
 - HTTP plaintext (HTTPS self-signed lands in v2).
 - Wi-Fi switch (different IP) tears down the in-flight WS — the browser must reopen the new URL shown in the banner. Same-IP recoveries auto-reconnect within a few seconds. *(v1.2)*
-- Non-pinned session retention is hard-coded to the latest 20; the cap is not user-configurable yet (a settings screen is deferred — change the constant and rebuild if you need a different number).
+- Avatars and conversation background are preset-only (icon + color / gradient); custom images are out of scope for v1.5.0.
 
 ## Tech stack
 
@@ -120,6 +136,7 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 | HTTP server      | Ktor 3 (CIO engine), embedded in a foreground service     |
 | WebSocket        | Ktor WebSockets (`pingPeriodMillis = 15_000`)             |
 | Persistence      | Room 2.7 (+ KSP2 code generation)                         |
+| Settings store   | DataStore Preferences (instant theme via `StateFlow`)     |
 | Browser UI       | Vanilla HTML/CSS/JS + mdui Web Components                 |
 | Tests            | JUnit 4 + MockK + Turbine + ktor-server-test-host + Robolectric 4.14 (`@Config(sdk = [33])`) |
 | Min/Target SDK   | 33 / 36                                                   |
@@ -140,11 +157,11 @@ See `docs/others/notes/decisions.md` for *why* each pick.
 
 ```
 app/src/main/java/com/example/flikky/
-├── ui/          Compose screens + view models (home, serving, history, exporting, components)
+├── ui/          Compose screens + view models (home, serving, history, exporting, settings, components)
 ├── service/     Foreground service, controller, notifications, export notification text
-├── server/      Ktor server, routes (incl. ExportRoutes), DTOs, PIN auth, ServiceMode
-├── session/     In-memory state + message model + NetworkStatus
-├── data/        Room DB, entities, DAOs, SessionRepository, SessionFileStore
+├── server/      Ktor server, routes (incl. ExportRoutes, PeerInfoRoutes), DTOs, PIN auth, ServiceMode
+├── session/     In-memory state + message model + NetworkStatus (+ peerAvatarId)
+├── data/        Room DB, entities, DAOs, SessionRepository, SessionFileStore, settings (DataStore)
 ├── export/      ExportSession / ExportMode / ExportSnapshot / ZipExporter / formatters
 ├── network/     Wi-Fi IPv4 lookup, NetworkRebinder (rebind intent state machine)
 ├── util/        Pure-Kotlin helpers (no Android dependency)

@@ -13,6 +13,7 @@
 - **v1.2** — *已发布（2026-05-13）* — 多会话批量导出到 PC（流式 zip）、浏览器上传实时进度气泡、mdui snackbar、WiFi 自动重绑 + 状态 banner、进行中会话主页交互（继续 / 行内停止）、WS 应用层心跳 + server_stopped 区分主动停止与网络断开。
 - **v1.3** — *已发布（2026-05-24）* — 跨会话消息搜索（FTS4 + LIKE fallback）、进行中服务消息撤回（真删 + 双端二次确认 + 即时同步）、History 单条消息删除、应用层 ping/pong 替代被动心跳、闭包死引用系统性审计 + 回归保护、导出页 WS 健康检测 + 取消导出 dialog。
 - **v1.4.0** — *已发布（2026-06-04）* — 文件传输异步化（双向即时 IN_PROGRESS 气泡 + 进度条 + 失败态 `传输失败`/`发送失败` 反馈 + 上传中断自动清理）、从 zip 导入回 APP（向后兼容 v1.2/v1.3 格式 + name+startedAt 重复检测 + 导入后 FIFO sweep）、导出格式 `relativePath` 去重修复（messages.json 与 zip entry 对齐，版本号升至 1.4）。
+- **v1.5.0** — *已发布（2026-06-08）* — UI/UX 大改：底部导航（传输 / 设置）、基于 DataStore 的完整设置体系 + 即时换肤（Material You 动态色 + 4 套暖调预设 + 三态深色 + AMOLED）、APP/对端预设头像与进行中会话背景**两端同步**（`GET /api/peer-info` + WS `client_hello`）、长按消息操作栏（复制 / 撤回 / 打开 / 删除带撤销，逐个错位弹出）、可配置 History 保存数量（含 `0`=不保存、`-1`=无限制）、可编辑本机名称、消息撤回 Beta 开关、emoji→Material 图标全量迁移与 +1 档圆角形状。
 
 设计文档与复盘/验收清单保存在本地的 `docs/others/`（已 gitignored），公开仓库仅含源码。
 
@@ -47,7 +48,13 @@
 - [x] 导出页健康检测：WS 连接（ping/pong）+ fetch 探测、取消导出 dialog、下载开始清理 *(v1.3)*
 - [x] `senderId` 全链路：手机端 `phone-{ANDROID_ID}` 跨重启不变，浏览器 `X-Client-Id` 按会话；撤回鉴权按 senderId 匹配 *(v1.3)*
 - [x] 文件传输异步化：手机→浏览器、浏览器→手机双向即时 IN_PROGRESS 气泡 + 5% 间隔进度广播 + `file_ready`/`file_removed` 事件；失败态 `传输失败`/`发送失败` 反馈 *(v1.4.0)*
-- [x] 从 zip 导入回 APP：`ZipImporter` 解析 + 向后兼容 v1.2/v1.3（replay `nextUniqueName` 推断路径）、name+startedAt 重复检测、导入后 FIFO sweep、📥 入口 + Loading dialog + snackbar 总结 *(v1.4.0)*
+- [x] 从 zip 导入回 APP：`ZipImporter` 解析 + 向后兼容 v1.2/v1.3（replay `nextUniqueName` 推断路径）、name+startedAt 重复检测、导入后 FIFO sweep、导入入口 + Loading dialog + snackbar 总结 *(v1.4.0)*
+- [x] 底部导航（传输 / 设置），`alwaysShowLabel=false` 让未选中 tab 只显图标；详情页自动隐藏底栏；两 tab 各自保留 back-stack 状态 *(v1.5.0)*
+- [x] 基于 DataStore 的设置体系 + 即时换肤（零重启）：Material You 动态色 + 4 套暖调预设（珊瑚橙 / 蘑菇棕 / 黛尾绿 / 雾霭蓝）、三态深色 + AMOLED 纯黑、CompositionLocal 黄金链 *(v1.5.0)*
+- [x] 长按消息操作栏：复制 / 撤回（Beta）/ 打开 / 删除带撤销，从气泡下方逐个错位 scale-in 弹出 *(v1.5.0)*
+- [x] APP/对端预设头像（12 个）+ 进行中会话背景（默认 / 空白 / 纯色 / 渐变），**两端同步**（`GET /api/peer-info` + WS `client_hello`），浏览器端带头像选择器 *(v1.5.0)*
+- [x] 设置内可配置 History 保存数量（默认 20，`0`=不保存，`-1`=无限制）；对端头像编号持久化，History 正确还原浏览器侧头像 *(v1.5.0)*
+- [x] emoji → Material 图标全量迁移（`material-icons-core` + 离线打包的 Symbols vector）、+1 档圆角 MD3 形状、气泡 CJK 段落折行 *(v1.5.0)*
 - [ ] HTTPS 自签证书 *(v2)*
 - [ ] 本地归档 at-rest encryption *(v2)*
 
@@ -65,6 +72,9 @@
 - [x] 浏览器断网 UI 即时更新（不等 TCP close），heartbeat 检测到超时立即 disable 按钮 + banner *(v1.3)*
 - [x] 文件下载 `Content-Disposition` 使用原始文件名而非 UUID *(v1.3)*
 - [x] 手机推送文件的 tee 改异步：立即广播 IN_PROGRESS + 后台协程拷贝带进度，消除"选中到可下载"的同步拷贝阻塞 *(v1.4.0)*
+- [x] 设置经 DataStore Preferences 持久化；主题走 `StateFlow<FlikkySettings>`，`MaterialTheme` 观察它——主题 / 深色 / AMOLED 切换原地重组，不重建 Activity *(v1.5.0)*
+- [x] `peerInfoProvider` 在调用时读 `@Volatile` settings 快照，跨 WiFi rebind 仍正确（KtorServer 被重建，lambda 存活于 TransferService field） *(v1.5.0)*
+- [x] `SessionState.addMessage` 把内存列表保持时间戳有序（二分插入），撤销恢复的消息回到原位置，而单调递增的新消息仍追加末尾 *(v1.5.0)*
 
 ### fix
 
@@ -94,6 +104,12 @@
 - [x] v1.4.0 History 中手机发送的文件无法打开：去掉 `origin==BROWSER` 限制，所有 COMPLETED 文件统一可点击打开
 - [x] v1.4.0 导出 `messages.json` 的 `relativePath` 与实际 zip entry 名不一致（v1.2 遗留）：`ZipExporter` 先算去重名再传给 formatter
 - [x] v1.4.0 WiFi 断开手机端「附件」按钮仍可点：与发送按钮一致受 `ui.clientConnected` 控制
+- [x] v1.5.0 装机导入卡死：`importSessions` 在 `withContext(Dispatchers.IO)` 内读取保留上限（DataStore `first()`），把 DataStore 1.1 的单线程 actor 拖死锁。改为进入 IO 上下文前先读上限
+- [x] v1.5.0 完成会话后 History 数量闪现 N+1——FIFO sweep 只在下次启服时跑。现在 `endSession` 后立即 sweep，且设置内调小保留数量会立刻清理
+- [x] v1.5.0 己方消息因冗余 `senderId` 校验无法撤回（"只能撤回自己发的消息"）；既然 UI 只在己方消息上显示撤回按钮，服务端校验属多余，已去掉（单 PIN 单用户模型）
+- [x] v1.5.0 进行中会话的删除→撤销把消息丢到列表末尾；`addMessage` 改时间戳有序插入，撤销后回到原位置
+- [x] v1.5.0 History 显示错误的浏览器侧头像（对端头像编号只在内存）——新增 `peerAvatarId` 列（DB v2→3 migration），`endSession` 时持久化、History 读回
+- [x] v1.5.0 删除 / 撤回 snackbar 占位挤动会话内容、可能挡住输入框；现在两端都改为悬浮在输入框上方（手机端 Compose overlay，浏览器端 mdui 偏移）
 
 ## 亮点
 
@@ -108,7 +124,7 @@
 
 - HTTP 明文传输（HTTPS 自签证书在 v2 里加）。
 - WiFi 切换（IP 变了）会断开在飞的 WS，浏览器需打开 banner 提示的新 URL；同 IP 恢复几秒内自动重连。 *(v1.2)*
-- 非置顶会话保留上限硬编码 20 条，暂不支持用户配置（设置页推迟到后续版本；要改数量需改常量并重新打包）。
+- 头像与会话背景仅支持预设（图标 + 颜色 / 渐变）；自定义图片不在 v1.5.0 范围内。
 
 ## 技术栈
 
@@ -120,6 +136,7 @@
 | HTTP 服务 | Ktor 3（CIO engine），内嵌于前台服务                          |
 | WebSocket | Ktor WebSockets（`pingPeriodMillis = 15_000`）                |
 | 持久化    | Room 2.7（+ KSP2 代码生成）                                   |
+| 设置存储  | DataStore Preferences（经 `StateFlow` 即时换肤）             |
 | 浏览器 UI | 原生 HTML/CSS/JS + mdui Web Components                        |
 | 测试      | JUnit 4 + MockK + Turbine + ktor-server-test-host + Robolectric 4.14（`@Config(sdk = [33])`） |
 | 最低/目标 | SDK 33 / 36                                                   |
@@ -140,11 +157,11 @@
 
 ```
 app/src/main/java/com/example/flikky/
-├── ui/          Compose Screen 与 ViewModel（home、serving、history、exporting、components）
+├── ui/          Compose Screen 与 ViewModel（home、serving、history、exporting、settings、components）
 ├── service/     前台服务、controller、通知、export notification text
-├── server/      Ktor server、routes（含 ExportRoutes）、DTO、PIN 认证、ServiceMode
-├── session/     内存状态、Message 模型、NetworkStatus
-├── data/        Room DB、Entity、DAO、SessionRepository、SessionFileStore
+├── server/      Ktor server、routes（含 ExportRoutes、PeerInfoRoutes）、DTO、PIN 认证、ServiceMode
+├── session/     内存状态、Message 模型、NetworkStatus（+ peerAvatarId）
+├── data/        Room DB、Entity、DAO、SessionRepository、SessionFileStore、settings（DataStore）
 ├── export/      ExportSession / ExportMode / ExportSnapshot / ZipExporter / formatters
 ├── network/     WiFi IPv4 获取、NetworkRebinder（rebind intent 状态机）
 ├── util/        纯 Kotlin 工具（不依赖 Android 框架）
