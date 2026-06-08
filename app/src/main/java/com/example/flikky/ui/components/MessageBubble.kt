@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -27,10 +29,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.unit.dp
+import com.example.flikky.R
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 
@@ -119,7 +123,12 @@ private fun FileBubbleContent(
 ) {
     val isTransferring = msg.status == Message.File.Status.IN_PROGRESS
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(text = "📄", style = MaterialTheme.typography.titleLarge)
+        Icon(
+            painter = painterResource(R.drawable.ic_description),
+            contentDescription = null,
+            modifier = Modifier.size(28.dp),
+            tint = fg,
+        )
         Spacer(Modifier.width(10.dp))
         Column {
             Text(
