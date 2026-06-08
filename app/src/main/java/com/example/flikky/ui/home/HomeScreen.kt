@@ -23,6 +23,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -401,10 +404,21 @@ private fun SessionRow(
                 )
             }
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = (if (s.pinned) "📌 " else "") + s.name,
-                    style = MaterialTheme.typography.titleMedium,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (s.pinned) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_push_pin),
+                            contentDescription = "已置顶",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Text(
+                        text = s.name,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
                 Text(
                     text = when {
                         selecting && inProgress -> "结束服务后可导出"
