@@ -91,8 +91,26 @@ class SessionState(private val nowMs: () -> Long) {
         _snapshot.update { it.copy(boundPort = port) }
     }
 
+    /**
+     * Insert [msg] in timestamp order so that a message restored via undo-delete
+     * lands back at its original position rather than being appended to the end.
+     *
+     * Normal new messages always arrive with monotonically increasing timestamps,
+     * so sorted-insert is equivalent to append for the common case — no behaviour
+     * change there.  Only a restored message (with its original, older timestamp)
+     * will slot back into the middle of the list.
+     */
     fun addMessage(msg: Message) {
-        _snapshot.update { it.copy(messages = it.messages + msg) }
+        _snapshot.update { snap ->
+            val list = snap.messages
+            // Binary-search for the insertion index to keep list timestamp-sorted.
+            var lo = 0; var hi = list.size
+            while (lo < hi) {
+                val mid = (lo + hi) ushr 1
+                if (list[mid].timestamp <= msg.timestamp) lo = mid + 1 else hi = mid
+            }
+            snap.copy(messages = list.toMutableList().also { it.add(lo, msg) })
+        }
     }
 
     fun updateMessage(id: Long, transform: (Message) -> Message) {

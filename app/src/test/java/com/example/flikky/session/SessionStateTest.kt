@@ -93,4 +93,42 @@ class SessionStateTest {
         state.reset()
         assertEquals(NetworkStatus.Ok, state.snapshot.value.networkStatus)
     }
+
+    @Test
+    fun `addMessage inserts in timestamp order so undo-delete restores original position`() {
+        val state = SessionState(nowMs = { 0L })
+
+        // Normal flow: three messages arrive in timestamp order → appended in order.
+        val m1 = Message.Text(id = 1, origin = Origin.PHONE,   timestamp = 100, content = "first",  senderId = null)
+        val m2 = Message.Text(id = 2, origin = Origin.BROWSER, timestamp = 200, content = "second", senderId = null)
+        val m3 = Message.Text(id = 3, origin = Origin.PHONE,   timestamp = 300, content = "third",  senderId = null)
+        state.addMessage(m1)
+        state.addMessage(m2)
+        state.addMessage(m3)
+        assertEquals(listOf(1L, 2L, 3L), state.snapshot.value.messages.map { it.id })
+
+        // Simulate deleteLocalWithUndo: remove the middle message.
+        state.removeMessage(2L)
+        assertEquals(listOf(1L, 3L), state.snapshot.value.messages.map { it.id })
+
+        // Simulate undoDelete: re-add m2 with its original timestamp (200).
+        // Sorted insert must slot it back between m1 (ts=100) and m3 (ts=300).
+        state.addMessage(m2)
+        assertEquals(
+            "restored message should land at its original position (index 1)",
+            listOf(1L, 2L, 3L),
+            state.snapshot.value.messages.map { it.id },
+        )
+    }
+
+    @Test
+    fun `addMessage appends when all timestamps are equal (stable by insertion)`() {
+        val state = SessionState(nowMs = { 0L })
+        val m1 = Message.Text(id = 1, origin = Origin.PHONE,   timestamp = 100, content = "a", senderId = null)
+        val m2 = Message.Text(id = 2, origin = Origin.BROWSER, timestamp = 100, content = "b", senderId = null)
+        state.addMessage(m1)
+        state.addMessage(m2)
+        // Both have same timestamp; m2 should follow m1 (lo = hi after both mid hits).
+        assertEquals(listOf(1L, 2L), state.snapshot.value.messages.map { it.id })
+    }
 }
