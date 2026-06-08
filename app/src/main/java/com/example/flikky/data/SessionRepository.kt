@@ -71,7 +71,17 @@ class SessionRepository(
      * - `N>0` = keep newest N non-pinned finished sessions
      */
     suspend fun fifoSweep() {
-        val limit = retainLimitProvider()
+        fifoSweep(retainLimitProvider())
+    }
+
+    /**
+     * Variant that accepts a pre-read limit — used by [importSessions] which reads
+     * the limit BEFORE entering [withContext][kotlinx.coroutines.withContext](Dispatchers.IO) to
+     * avoid calling the DataStore-backed [retainLimitProvider] from inside an IO-dispatched
+     * coroutine (DataStore 1.1 uses a SingleThreadExecutor for its internal actor; calling
+     * `data.first()` from Dispatchers.IO can deadlock if that thread is the same executor thread).
+     */
+    private suspend fun fifoSweep(limit: Int) {
         if (limit < 0) return
         val oldestFirst = sessionDao.nonPinnedOldestFirst()
         val excess = oldestFirst.size - limit
@@ -359,14 +369,24 @@ class SessionRepository(
     data class SkippedSession(val name: String, val reason: String)
     data class ImportError(val name: String, val error: String)
 
-    suspend fun importSessions(tempZipFile: File): ImportResult = withContext(Dispatchers.IO) {
+    suspend fun importSessions(tempZipFile: File): ImportResult {
+        // Read the retain limit BEFORE withContext(Dispatchers.IO). retainLimitProvider may
+        // suspend on a DataStore flow (DataStore 1.1 uses a SingleThreadExecutor-backed actor
+        // internally); calling data.first() from inside withContext(Dispatchers.IO) can
+        // deadlock when that executor thread happens to be the same IO thread the coroutine
+        // is pinned to.
+        val retainLimit = retainLimitProvider()
+        return withContext(Dispatchers.IO) { importSessionsInIo(tempZipFile, retainLimit) }
+    }
+
+    private suspend fun importSessionsInIo(tempZipFile: File, retainLimit: Int): ImportResult {
         val imported = mutableListOf<ImportedSession>()
         val skipped = mutableListOf<SkippedSession>()
         val errors = mutableListOf<ImportError>()
 
         val zipFile = try { ZipFile(tempZipFile) } catch (e: Exception) {
             errors.add(ImportError("zip", e.message ?: "Failed to open zip"))
-            return@withContext ImportResult(imported, skipped, errors)
+            return ImportResult(imported, skipped, errors)
         }
 
         try {
@@ -461,12 +481,12 @@ class SessionRepository(
                 }
             }
 
-            fifoSweep()
+            fifoSweep(retainLimit)
         } finally {
             runCatching { zipFile.close() }
         }
 
-        ImportResult(imported, skipped, errors)
+        return ImportResult(imported, skipped, errors)
     }
 
     suspend fun updateFileStatus(messageId: Long, status: String, sizeBytes: Long) {
