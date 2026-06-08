@@ -372,6 +372,14 @@ html, body { height: 100%; margin: 0; padding: 0; }
 
 /* v1.3 D26 修订：撤回 = 节点完全消失，不再保留 .recalled 占位符样式。 */
 
+/* Lift the snackbar above the chat input bar so it doesn't cover user controls.
+ * .chat-input-row is ~80 px tall (12 px padding × 2 + ~56 px mdui-text-field row).
+ * mdui-snackbar is position:fixed;bottom:0 via its :host shadow style; external
+ * CSS has higher specificity than shadow :host and overrides it without !important. */
+mdui-snackbar#snackbar {
+    bottom: 80px;
+}
+
 /* v1.3 B4 长按撤回菜单。fixed 定位到 pointer 坐标；单按钮的最小菜单 */
 .recall-menu {
     position: fixed;
