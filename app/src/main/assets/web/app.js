@@ -41,7 +41,7 @@
     ];
 
     // Own avatar: loaded from localStorage, default 0.
-    let myAvatarId = Math.max(0, Math.min(11, Number(localStorage.getItem('flikky_avatar') || 0)));
+    let myAvatarId = Math.max(0, Math.min(11, Number(localStorage.getItem('flikky_avatar') ?? 0)));
     // Peer (phone) avatar — set after peer-info fetch.
     let phoneAvatarId = 0;
 
@@ -179,7 +179,7 @@
             if (!r.ok) return;
             const data = await r.json();
             const name = (data.deviceName && typeof data.deviceName === 'string') ? data.deviceName : '手机';
-            phoneAvatarId = Math.max(0, Math.min(11, Number(data.phoneAvatarId) || 0));
+            phoneAvatarId = Math.max(0, Math.min(11, Number(data.phoneAvatarId) ?? 0));
             renderPeerHeader(name, phoneAvatarId);
             applyBackground(data.backgroundMode || 'DEFAULT', data.backgroundValue || '', name);
         } catch (_) {
@@ -693,6 +693,7 @@
     }
 
     async function loadHistory() {
+        lastBubbleOrigin = null;
         const r = await fetch('/api/messages');
         if (!r.ok) return;
         const data = await r.json();

@@ -52,7 +52,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
 
     private fun decodeBackground(mode: String?, value: String?): BackgroundSetting = when (mode) {
         "BLANK" -> BackgroundSetting.Blank
-        "SOLID" -> BackgroundSetting.Solid(value?.toLongOrNull() ?: 0xFFFFFFFF)
+        "SOLID" -> value?.toLongOrNull()?.let { BackgroundSetting.Solid(it) } ?: BackgroundSetting.Default
         "GRADIENT" -> BackgroundSetting.Gradient(value ?: "sunset")
         else -> BackgroundSetting.Default
     }

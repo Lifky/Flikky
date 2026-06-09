@@ -1,10 +1,12 @@
 package com.example.flikky.ui.theme
 
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import com.example.flikky.data.settings.PresetTheme
 
 // ─── Legacy named colors (kept for any existing references) ──────────────────
@@ -285,7 +287,7 @@ fun amoledOverride(scheme: ColorScheme): ColorScheme = scheme.copy(
 
 // ─── Semantic color extensions ────────────────────────────────────────────────
 val ColorScheme.connected: Color
-    @Composable get() = Color(0xFF2E7D32) // success green; intent: "connected" state indicator
+    @Composable get() = lerp(Color(0xFF2E7D32), MaterialTheme.colorScheme.primary, 0.2f) // success green blended 20% toward primary
 
 val ColorScheme.disconnected: Color
     @Composable get() = onSurfaceVariant   // muted, intentionally de-emphasized
