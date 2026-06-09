@@ -380,7 +380,7 @@ class TransferService : Service() {
                     ServerRecallOutcome.Success(out.messageId, out.sessionId)
                 }
                 is SessionRepository.RecallOutcome.NotFound -> ServerRecallOutcome.NotFound
-                is SessionRepository.RecallOutcome.Denied -> ServerRecallOutcome.Denied
+                is SessionRepository.RecallOutcome.Denied -> ServerRecallOutcome.Denied // unreachable since v1.5.0 — recallMessage never returns Denied
             }
         },
         mode = ServiceMode.Transfer,

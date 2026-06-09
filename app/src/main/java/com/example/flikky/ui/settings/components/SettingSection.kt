@@ -13,8 +13,8 @@ import androidx.compose.ui.unit.dp
  * A labeled group of settings items displayed in the inset-grouped style.
  *
  * Renders a section title above the [content] composable. The title is styled
- * with titleSmall in the primary color. A 1 dp gap is baked between items so
- * callers can pass adjacent [SettingItem]s without needing explicit spacers.
+ * with titleSmall in the primary color. Items are laid out in a plain [Column]
+ * with no gap between them; callers should add spacers if separation is needed.
  *
  * Typical usage:
  * ```kotlin

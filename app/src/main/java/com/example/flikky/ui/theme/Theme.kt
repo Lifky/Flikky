@@ -1,5 +1,6 @@
 package com.example.flikky.ui.theme
 
+import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -37,7 +38,7 @@ fun FlikkyTheme(settings: FlikkySettings, content: @Composable () -> Unit) {
     val view = LocalView.current
     if (!view.isInEditMode) {
         DisposableEffect(useDark) {
-            val window = (view.context as android.app.Activity).window
+            val window = (view.context as Activity).window
             androidx.core.view.WindowCompat.getInsetsController(window, view)
                 .isAppearanceLightStatusBars = !useDark
             onDispose {}

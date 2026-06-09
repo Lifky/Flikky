@@ -40,8 +40,8 @@ fun MessageActionBar(
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             actions.forEachIndexed { i, a ->
-                var shown by remember(a.label) { mutableStateOf(false) }
-                LaunchedEffect(Unit) { delay(i * 40L); shown = true }
+                var shown by remember(i, a.label) { mutableStateOf(false) }
+                LaunchedEffect(i) { delay(i * 40L); shown = true }
                 AnimatedVisibility(
                     visible = shown,
                     enter = scaleIn(spring(dampingRatio = 0.6f, stiffness = 500f)) + fadeIn(),

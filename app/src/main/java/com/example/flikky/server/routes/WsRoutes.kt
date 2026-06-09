@@ -67,7 +67,8 @@ class WsHub {
 
 private val pingPattern = Regex("""\{\s*"type"\s*:\s*"ping"\s*,\s*"id"\s*:\s*(\d+)\s*\}""")
 
-// M9: matches {"type":"client_hello","avatarId":N} — tolerant of key order / whitespace.
+// M9: matches {"type":"client_hello","avatarId":N} — type must precede avatarId (browser always
+// serializes JSON.stringify keys in insertion order, so this is guaranteed by the send path).
 private val clientHelloPattern = Regex(""""type"\s*:\s*"client_hello".*?"avatarId"\s*:\s*(\d+)""")
 
 fun Route.wsRoutes(

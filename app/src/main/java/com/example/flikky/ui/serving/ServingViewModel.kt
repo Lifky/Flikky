@@ -142,7 +142,7 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
                     _events.trySend("消息已撤回")
                 is SessionRepository.RecallOutcome.NotFound ->
                     _events.trySend("消息已撤回")  // 真删后再撤等价 idempotent 成功
-                is SessionRepository.RecallOutcome.Denied ->
+                is SessionRepository.RecallOutcome.Denied -> // unreachable since v1.5.0 — recallMessage never returns Denied
                     _events.trySend("只能撤回自己发的消息")
             }
         }
@@ -210,10 +210,9 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * 撤销软删除：将消息重新追加到消息列表末尾。
-     * addMessage 追加到列表末尾，消息按 timestamp 原样保留，
-     * LazyColumn key={it.id} 保证位置稳定（恢复后视觉位置回到列表末，
-     * 而非原位——这是软删除 undo 的已知 trade-off，见 M8 任务备注）。
+     * 撤销软删除：将消息恢复到原始位置。
+     * addMessage 按 timestamp 插入，消息会回到列表中时间顺序正确的位置。
+     * LazyColumn key={it.id} 保证动画平滑。
      */
     fun undoDelete() {
         pendingDelete?.let { ServiceLocator.session.addMessage(it) }
@@ -225,14 +224,9 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
      * runCatching 保证 DB 写失败不会崩溃——内存已移除，下次启动 finalizeOrphans 会清理。
      */
     fun commitDelete(id: Long) {
-        val captured = pendingDelete
         pendingDelete = null
         viewModelScope.launch {
             runCatching { ServiceLocator.repository.deleteMessage(id) }
-            // If the message was captured but not the same id (race), still clear
-            if (captured != null && captured.id != id) {
-                // Edge case: nothing to do, just ensure no stale reference
-            }
         }
     }
 
