@@ -11,7 +11,17 @@ html, body { height: 100%; margin: 0; padding: 0; }
 
 .pin-field { width: 100%; }
 
-.chat { display: flex; flex-direction: column; height: 100vh; }
+.chat { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+
+/* v1.5.1 fix: 三段式聊天外壳（顶栏 / 可滚动列表 / 输入栏）必须正好填满视口，
+ * 内部只有 .chat-list 滚动。mdui-top-app-bar 默认 position:fixed 且会向 <body>
+ * 注入 padding-top —— 两者都和定高 flex 外壳冲突，导致文档变成 100dvh+barHeight，
+ * 输入栏被挤到视口下方（需滚动才可见），滚动后顶栏又盖住内容。
+ * 解法：让顶栏回到 flex 文档流（占自然高度、随列一起排布），并抵消注入的 body
+ * padding。两条覆盖都用 body.chat-page 限定，只作用于聊天页：export / login 是
+ * 普通滚动文档，依赖默认的 fixed 栏 + body padding，不受影响。 */
+body.chat-page { padding-top: 0 !important; }
+body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
 
 .chat-meta {
     font-size: 13px;
