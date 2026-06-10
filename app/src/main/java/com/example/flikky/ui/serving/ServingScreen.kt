@@ -1,6 +1,7 @@
 package com.example.flikky.ui.serving
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,13 +11,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -76,6 +80,9 @@ fun ServingScreen(
     val pickFile = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri -> uri?.let { viewModel.offerFile(it) } }
+    val pickImage = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri -> uri?.let { viewModel.offerFile(it) } }
 
     LaunchedEffect(viewModel) {
         viewModel.events.collect { snackbarHostState.showSnackbar(it) }
@@ -101,10 +108,25 @@ fun ServingScreen(
                         uptimeSeconds = ui.uptimeSeconds,
                         fileCount = ui.fileCount,
                         bytesPerSecond = ui.bytesPerSecond,
+                        trailing = {
+                            IconButton(onClick = { viewModel.stopService(); onStopped() }) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_stop),
+                                    contentDescription = "停止服务",
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        },
                     )
                 } else {
                     Column(Modifier.padding(24.dp)) {
                         ConnectionInfoCard(url = ui.url, pin = ui.pin)
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(
+                            onClick = { viewModel.stopService(); onStopped() },
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        ) { Text("停止服务") }
                     }
                 }
             }
@@ -230,35 +252,43 @@ fun ServingScreen(
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)
+                    .navigationBarsPadding().imePadding(),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                IconButton(
+                    onClick = { pickFile.launch("*/*") },
+                    enabled = ui.clientConnected,
+                ) {
+                    Icon(painterResource(R.drawable.ic_attach_file), contentDescription = "附件")
+                }
+                IconButton(
+                    onClick = { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                    enabled = ui.clientConnected,
+                ) {
+                    Icon(painterResource(R.drawable.ic_image), contentDescription = "图片")
+                }
                 OutlinedTextField(
                     value = draft,
                     onValueChange = { draft = it },
                     placeholder = { Text("输入消息") },
                     modifier = Modifier.weight(1f),
-                    maxLines = 3,
+                    maxLines = 4,
                 )
-                Spacer(Modifier.width(8.dp))
-                OutlinedButton(
-                    onClick = { pickFile.launch("*/*") },
-                    enabled = ui.clientConnected,
-                ) { Text("附件") }
-                Spacer(Modifier.width(8.dp))
-                Button(
-                    onClick = {
-                        viewModel.sendText(draft)
-                        draft = ""
-                    },
+                IconButton(
+                    onClick = { viewModel.sendText(draft); draft = "" },
                     enabled = draft.isNotBlank() && ui.clientConnected,
-                ) { Text("发送") }
+                ) {
+                    Icon(
+                        painterResource(R.drawable.ic_send),
+                        contentDescription = "发送",
+                        tint = if (draft.isNotBlank() && ui.clientConnected)
+                            MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-
-            TextButton(
-                onClick = { viewModel.stopService(); onStopped() },
-                modifier = Modifier.padding(16.dp),
-            ) { Text("停止服务") }
         }
     }
 
