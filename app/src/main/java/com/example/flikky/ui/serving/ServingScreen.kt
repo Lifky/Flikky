@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -45,6 +46,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -59,6 +62,7 @@ import com.example.flikky.ui.components.ConversationHeader
 import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
+import com.example.flikky.ui.components.MessageFloatingToolbar
 import com.example.flikky.ui.components.NetworkStatusBanner
 import kotlinx.coroutines.launch
 
@@ -83,6 +87,83 @@ fun ServingScreen(
     val pickImage = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri -> uri?.let { viewModel.offerFile(it) } }
+
+    // Painters resolved once in composable scope (stable across recompositions),
+    // shared by both inline and floating action paths.
+    val undoPainter = painterResource(R.drawable.ic_undo)
+    val downloadPainter = painterResource(R.drawable.ic_file_download)
+    val copyPainter = painterResource(R.drawable.ic_content_copy)
+    val deletePainter = painterResource(R.drawable.ic_delete)
+
+    // Single source of truth for a message's available actions; used by both the
+    // legacy inline bar and the floating toolbar so the logic never diverges.
+    fun buildActionsFor(msg: Message): List<MessageAction> = buildList {
+        val isFailed = msg is Message.File && msg.status == Message.File.Status.FAILED
+        // 复制 — text only
+        if (msg is Message.Text) {
+            add(MessageAction(
+                icon = copyPainter,
+                label = "复制",
+                onClick = {
+                    clipboardManager.setText(AnnotatedString(msg.content))
+                    actionTarget = null
+                },
+            ))
+        }
+        // 打开 — file COMPLETED
+        if (msg is Message.File && msg.status == Message.File.Status.COMPLETED) {
+            add(MessageAction(
+                icon = downloadPainter,
+                label = "打开",
+                onClick = {
+                    viewModel.openFile(msg)
+                    actionTarget = null
+                },
+            ))
+        }
+        // 撤回 — phone origin, beta enabled, not failed
+        if (settings.recallBetaEnabled && msg.origin == Origin.PHONE && !isFailed) {
+            add(MessageAction(
+                icon = undoPainter,
+                label = "撤回",
+                onClick = {
+                    recallTarget = msg.id
+                    actionTarget = null
+                },
+            ))
+        }
+        // 删除 — always present
+        add(MessageAction(
+            icon = deletePainter,
+            label = "删除",
+            danger = true,
+            onClick = {
+                val id = msg.id
+                actionTarget = null
+                viewModel.deleteLocalWithUndo(id)
+                scope.launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = "已删除",
+                        actionLabel = "撤销",
+                        duration = SnackbarDuration.Short,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoDelete()
+                    } else {
+                        viewModel.commitDelete(id)
+                    }
+                }
+            },
+        ))
+    }
+
+    val listState = rememberLazyListState()
+    // Dismiss the floating/inline action target whenever the list starts scrolling.
+    LaunchedEffect(listState.isScrollInProgress) {
+        if (listState.isScrollInProgress) actionTarget = null
+    }
+    // System-back dismisses the action target before exiting the screen.
+    androidx.activity.compose.BackHandler(enabled = actionTarget != null) { actionTarget = null }
 
     LaunchedEffect(viewModel) {
         viewModel.events.collect { snackbarHostState.showSnackbar(it) }
@@ -139,79 +220,16 @@ fun ServingScreen(
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         itemsIndexed(ui.messages, key = { _, m -> m.id }) { index, msg ->
                             val prevMsg = if (index > 0) ui.messages[index - 1] else null
                             val showAvatar = prevMsg == null || prevMsg.origin != msg.origin
-                            val isFailed = msg is Message.File && msg.status == Message.File.Status.FAILED
                             val isActionTarget = actionTarget == msg.id
-
-                            // Painters resolved in composable scope (stable across recompositions)
-                            val undoPainter = painterResource(R.drawable.ic_undo)
-                            val downloadPainter = painterResource(R.drawable.ic_file_download)
-                            val copyPainter = painterResource(R.drawable.ic_content_copy)
-                            val deletePainter = painterResource(R.drawable.ic_delete)
-
-                            val msgActions = buildList<MessageAction> {
-                                // 复制 — text only
-                                if (msg is Message.Text) {
-                                    add(MessageAction(
-                                        icon = copyPainter,
-                                        label = "复制",
-                                        onClick = {
-                                            clipboardManager.setText(AnnotatedString(msg.content))
-                                            actionTarget = null
-                                        },
-                                    ))
-                                }
-                                // 打开 — file COMPLETED
-                                if (msg is Message.File && msg.status == Message.File.Status.COMPLETED) {
-                                    add(MessageAction(
-                                        icon = downloadPainter,
-                                        label = "打开",
-                                        onClick = {
-                                            viewModel.openFile(msg)
-                                            actionTarget = null
-                                        },
-                                    ))
-                                }
-                                // 撤回 — phone origin, beta enabled, not failed
-                                if (settings.recallBetaEnabled && msg.origin == Origin.PHONE && !isFailed) {
-                                    add(MessageAction(
-                                        icon = undoPainter,
-                                        label = "撤回",
-                                        onClick = {
-                                            recallTarget = msg.id
-                                            actionTarget = null
-                                        },
-                                    ))
-                                }
-                                // 删除 — always present
-                                add(MessageAction(
-                                    icon = deletePainter,
-                                    label = "删除",
-                                    danger = true,
-                                    onClick = {
-                                        val id = msg.id
-                                        actionTarget = null
-                                        viewModel.deleteLocalWithUndo(id)
-                                        scope.launch {
-                                            val result = snackbarHostState.showSnackbar(
-                                                message = "已删除",
-                                                actionLabel = "撤销",
-                                                duration = SnackbarDuration.Short,
-                                            )
-                                            if (result == SnackbarResult.ActionPerformed) {
-                                                viewModel.undoDelete()
-                                            } else {
-                                                viewModel.commitDelete(id)
-                                            }
-                                        }
-                                    },
-                                ))
-                            }
+                            val floating = settings.messageActionStyle ==
+                                com.example.flikky.data.settings.MessageActionStyle.FLOATING
 
                             Column {
                                 MessageBubble(
@@ -223,21 +241,39 @@ fun ServingScreen(
                                     avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
                                                else peerAvatarId,
                                     cornerRadius = settings.bubbleCornerRadius.dp,
+                                    selected = floating && isActionTarget,
                                 )
-                                val barAlignment = if (msg.origin == Origin.PHONE) Alignment.CenterEnd else Alignment.CenterStart
-                                Box(
-                                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
-                                    contentAlignment = barAlignment,
-                                ) {
-                                    MessageActionBar(
-                                        visible = isActionTarget,
-                                        actions = msgActions,
-                                    )
+                                if (!floating) {
+                                    val barAlignment = if (msg.origin == Origin.PHONE) Alignment.CenterEnd else Alignment.CenterStart
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                                        contentAlignment = barAlignment,
+                                    ) {
+                                        MessageActionBar(
+                                            visible = isActionTarget,
+                                            actions = buildActionsFor(msg),
+                                        )
+                                    }
+                                    if (isActionTarget) Spacer(Modifier.height(4.dp))
                                 }
-                                if (isActionTarget) Spacer(Modifier.height(4.dp))
                             }
                         }
                     }
+                }
+
+                // Floating action toolbar: one bottom-center bar for the selected
+                // message. lastActions keeps content during the exit animation so
+                // the bar doesn't go blank while fading out.
+                if (settings.messageActionStyle ==
+                    com.example.flikky.data.settings.MessageActionStyle.FLOATING) {
+                    val target = ui.messages.firstOrNull { it.id == actionTarget }
+                    var lastActions by remember { mutableStateOf<List<MessageAction>>(emptyList()) }
+                    if (target != null) lastActions = buildActionsFor(target)
+                    FloatingToolbarOverlay(
+                        visible = target != null,
+                        actions = lastActions,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+                    )
                 }
 
                 // Snackbar floats at the bottom of the conversation area,
@@ -308,5 +344,27 @@ fun ServingScreen(
                 TextButton(onClick = { recallTarget = null }) { Text("取消") }
             },
         )
+    }
+}
+
+/**
+ * Top-level wrapper so AnimatedVisibility resolves to its non-scoped overload.
+ * Inside ServingScreen the overlay sits in a Box nested under a Column, which
+ * leaves both BoxScope and ColumnScope as implicit receivers and makes the bare
+ * AnimatedVisibility call ambiguous; hoisting it here removes that ambiguity.
+ */
+@Composable
+private fun FloatingToolbarOverlay(
+    visible: Boolean,
+    actions: List<MessageAction>,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = scaleIn(spring(dampingRatio = 0.6f, stiffness = 500f)) + fadeIn(),
+        exit = fadeOut(),
+    ) {
+        MessageFloatingToolbar(actions = actions)
     }
 }

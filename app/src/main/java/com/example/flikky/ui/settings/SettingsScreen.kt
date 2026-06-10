@@ -42,6 +42,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.DarkMode
+import com.example.flikky.data.settings.MessageActionStyle
 import com.example.flikky.data.settings.PresetTheme
 import com.example.flikky.data.settings.ThemeMode
 import com.example.flikky.ui.components.Avatar
@@ -74,6 +75,7 @@ fun SettingsScreen(
     var showDarkModeDialog by remember { mutableStateOf(false) }
     var showDeviceNameDialog by remember { mutableStateOf(false) }
     var showHistoryLimitDialog by remember { mutableStateOf(false) }
+    var showActionStyleDialog by remember { mutableStateOf(false) }
     var showImportProgress by remember { mutableStateOf(false) }
 
     // Import launcher
@@ -211,7 +213,7 @@ fun SettingsScreen(
 
             // ─── 会话 ─────────────────────────────────────────────────────────
             item {
-                val sessionItems = 2
+                val sessionItems = 3
                 SettingSection(title = "会话") {
                     SettingItem(
                         title = "本机名称",
@@ -229,6 +231,16 @@ fun SettingsScreen(
                             )
                         },
                         shape = groupedItemShape(1, sessionItems),
+                    )
+                    val styleSubtitle = when (s.messageActionStyle) {
+                        MessageActionStyle.FLOATING -> "悬浮工具栏"
+                        MessageActionStyle.INLINE   -> "常驻按钮"
+                    }
+                    SettingItem(
+                        title = "消息操作样式",
+                        subtitle = styleSubtitle,
+                        onClick = { showActionStyleDialog = true },
+                        shape = groupedItemShape(2, sessionItems),
                     )
                 }
             }
@@ -343,6 +355,39 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showDarkModeDialog = false }) { Text("取消") }
+            },
+        )
+    }
+
+    // ─── Message action style dialog ──────────────────────────────────────────
+    if (showActionStyleDialog) {
+        AlertDialog(
+            onDismissRequest = { showActionStyleDialog = false },
+            title = { Text("消息操作样式") },
+            text = {
+                Column {
+                    listOf(
+                        MessageActionStyle.FLOATING to "悬浮工具栏",
+                        MessageActionStyle.INLINE   to "常驻按钮",
+                    ).forEach { (style, label) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            RadioButton(
+                                selected = s.messageActionStyle == style,
+                                onClick = {
+                                    viewModel.setMessageActionStyle(style)
+                                    showActionStyleDialog = false
+                                },
+                            )
+                            Text(label, modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showActionStyleDialog = false }) { Text("取消") }
             },
         )
     }
