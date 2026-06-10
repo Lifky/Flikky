@@ -17,6 +17,8 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val deviceName = stringPreferencesKey("device_name")
         val recallBeta = booleanPreferencesKey("recall_beta")
         val retainLimit = intPreferencesKey("retain_limit")
+        val bubbleCorner = intPreferencesKey("bubble_corner")
+        val msgActionStyle = stringPreferencesKey("msg_action_style")
     }
 
     val settings: Flow<FlikkySettings> = ds.data.map { p ->
@@ -30,6 +32,11 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             deviceName = p[Keys.deviceName] ?: "我的手机",
             recallBetaEnabled = p[Keys.recallBeta] ?: false,
             historyRetainLimit = p[Keys.retainLimit] ?: 20,
+            bubbleCornerRadius = (p[Keys.bubbleCorner] ?: BUBBLE_CORNER_DEFAULT)
+                .coerceIn(BUBBLE_CORNER_MIN, BUBBLE_CORNER_MAX),
+            messageActionStyle = p[Keys.msgActionStyle]
+                ?.let { runCatching { MessageActionStyle.valueOf(it) }.getOrNull() }
+                ?: MessageActionStyle.FLOATING,
         )
     }
 
@@ -41,19 +48,22 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setDeviceName(v: String) = ds.edit { it[Keys.deviceName] = v.trim().ifEmpty { "我的手机" }.take(20) }
     suspend fun setRecallBeta(v: Boolean) = ds.edit { it[Keys.recallBeta] = v }
     suspend fun setHistoryRetainLimit(v: Int) = ds.edit { it[Keys.retainLimit] = v }
+    suspend fun setBubbleCornerRadius(v: Int) = ds.edit {
+        it[Keys.bubbleCorner] = v.coerceIn(BUBBLE_CORNER_MIN, BUBBLE_CORNER_MAX)
+    }
+    suspend fun setMessageActionStyle(v: MessageActionStyle) = ds.edit { it[Keys.msgActionStyle] = v.name }
     suspend fun setBackground(v: BackgroundSetting) = ds.edit {
         when (v) {
             BackgroundSetting.Default -> { it[Keys.bgMode] = "DEFAULT"; it.remove(Keys.bgValue) }
             BackgroundSetting.Blank -> { it[Keys.bgMode] = "BLANK"; it.remove(Keys.bgValue) }
             is BackgroundSetting.Solid -> { it[Keys.bgMode] = "SOLID"; it[Keys.bgValue] = v.argb.toString() }
-            is BackgroundSetting.Gradient -> { it[Keys.bgMode] = "GRADIENT"; it[Keys.bgValue] = v.name }
         }
     }
 
     private fun decodeBackground(mode: String?, value: String?): BackgroundSetting = when (mode) {
         "BLANK" -> BackgroundSetting.Blank
         "SOLID" -> value?.toLongOrNull()?.let { BackgroundSetting.Solid(it) } ?: BackgroundSetting.Default
-        "GRADIENT" -> BackgroundSetting.Gradient(value ?: "sunset")
+        // "GRADIENT"（v1.5.x 历史值）→ 回退 Default，不崩
         else -> BackgroundSetting.Default
     }
 }

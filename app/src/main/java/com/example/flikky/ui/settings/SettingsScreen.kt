@@ -175,12 +175,7 @@ fun SettingsScreen(
                         is BackgroundSetting.Default  -> "默认"
                         is BackgroundSetting.Blank    -> "空白"
                         is BackgroundSetting.Solid    -> "纯色"
-                        is BackgroundSetting.Gradient -> when (bg.name) {
-                            "sunset" -> "渐变·日落"
-                            "forest" -> "渐变·森林"
-                            "ocean"  -> "渐变·海洋"
-                            else     -> "渐变·${bg.name}"
-                        }
+                        // BackgroundSetting.Gradient removed in v1.6.0
                     }
                     SettingItem(
                         title = "进行中会话背景",

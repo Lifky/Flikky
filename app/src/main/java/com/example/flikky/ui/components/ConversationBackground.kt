@@ -10,7 +10,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.example.flikky.data.settings.BackgroundSetting
-import com.example.flikky.ui.settings.sheets.gradientBrush
 
 @Composable
 fun ConversationBackground(
@@ -35,7 +34,7 @@ fun ConversationBackground(
             }
             BackgroundSetting.Blank -> {}
             is BackgroundSetting.Solid -> Box(Modifier.fillMaxSize().background(Color(setting.argb)))
-            is BackgroundSetting.Gradient -> Box(Modifier.fillMaxSize().background(gradientBrush(setting.name)))
+            // BackgroundSetting.Gradient removed in v1.6.0
         }
         content()
     }

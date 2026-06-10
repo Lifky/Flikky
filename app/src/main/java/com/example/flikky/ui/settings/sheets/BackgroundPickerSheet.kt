@@ -197,7 +197,7 @@ fun BackgroundPickerSheet(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 GRADIENTS.forEach { name ->
-                    val isSelected = current is BackgroundSetting.Gradient && current.name == name
+                    val isSelected = false // BackgroundSetting.Gradient removed in v1.6.0
                     val label = when (name) {
                         "sunset" -> "日落"
                         "forest" -> "森林"
@@ -221,7 +221,7 @@ fun BackgroundPickerSheet(
                                         )
                                     else Modifier
                                 )
-                                .clickable { onSelect(BackgroundSetting.Gradient(name)) },
+                                .clickable { /* Gradient removed in v1.6.0 */ },
                             contentAlignment = Alignment.Center,
                         ) {
                             if (isSelected) {

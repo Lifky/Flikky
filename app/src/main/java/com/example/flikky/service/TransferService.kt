@@ -576,7 +576,7 @@ class TransferService : Service() {
                 is BackgroundSetting.Default -> "DEFAULT" to null
                 is BackgroundSetting.Blank -> "BLANK" to null
                 is BackgroundSetting.Solid -> "SOLID" to bg.argb.toString()
-                is BackgroundSetting.Gradient -> "GRADIENT" to bg.name
+                // BackgroundSetting.Gradient removed in v1.6.0 — handled by else in SettingsRepository.decodeBackground
             }
             return PeerInfoDto(
                 deviceName = deviceName,
