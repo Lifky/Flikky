@@ -44,7 +44,7 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
 .bubble {
     max-width: 70%;
     padding: 10px 14px;
-    border-radius: 16px;
+    border-radius: 18px;
     word-break: break-word;
     line-height: 1.45;
 }
@@ -62,7 +62,7 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
 .file-bubble {
     max-width: 70%;
     padding: 12px 14px;
-    border-radius: 16px;
+    border-radius: 18px;
     background: rgb(var(--mdui-color-surface-container-high));
     color: rgb(var(--mdui-color-on-surface));
     align-self: flex-start;

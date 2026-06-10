@@ -33,6 +33,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.session.Message
@@ -47,14 +48,11 @@ fun MessageBubble(
     transferProgress: Float? = null,
     showAvatar: Boolean = true,
     avatarId: Int? = null,
+    cornerRadius: Dp = 18.dp,
 ) {
     val mine = msg.origin == Origin.PHONE
     val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.8f).dp
-    val shape = RoundedCornerShape(
-        topStart = 18.dp, topEnd = 18.dp,
-        bottomStart = if (mine) 18.dp else 4.dp,
-        bottomEnd = if (mine) 4.dp else 18.dp,
-    )
+    val shape = RoundedCornerShape(cornerRadius)
     val bg = if (mine) MaterialTheme.colorScheme.primary
              else MaterialTheme.colorScheme.surfaceContainerHigh
     val fg = if (mine) MaterialTheme.colorScheme.onPrimary

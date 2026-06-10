@@ -187,6 +187,7 @@ fun ServingScreen(
                                     showAvatar = showAvatar,
                                     avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
                                                else peerAvatarId,
+                                    cornerRadius = settings.bubbleCornerRadius.dp,
                                 )
                                 val barAlignment = if (msg.origin == Origin.PHONE) Alignment.CenterEnd else Alignment.CenterStart
                                 Box(

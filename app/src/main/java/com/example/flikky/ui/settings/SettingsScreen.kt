@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Slider
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -109,7 +111,7 @@ fun SettingsScreen(
         ) {
             // ─── 外观 ─────────────────────────────────────────────────────────
             item {
-                val appearanceItems = 5
+                val appearanceItems = 6
                 SettingSection(title = "外观") {
                     // 主题
                     val themeSubtitle = if (s.themeMode == ThemeMode.DYNAMIC) "跟随壁纸"
@@ -182,6 +184,27 @@ fun SettingsScreen(
                         subtitle = bgSubtitle,
                         onClick = { activeSheet = ActiveSheet.Background },
                         shape = groupedItemShape(4, appearanceItems),
+                    )
+                    // 气泡圆角（index 5）
+                    var radiusDraft by remember(s.bubbleCornerRadius) {
+                        mutableStateOf(s.bubbleCornerRadius.toFloat())
+                    }
+                    SettingItem(
+                        title = "气泡圆角",
+                        subtitle = "${radiusDraft.toInt()} dp",
+                        trailing = {
+                            Slider(
+                                value = radiusDraft,
+                                onValueChange = { radiusDraft = it },
+                                valueRange = com.example.flikky.data.settings.BUBBLE_CORNER_MIN.toFloat()
+                                    ..com.example.flikky.data.settings.BUBBLE_CORNER_MAX.toFloat(),
+                                steps = (com.example.flikky.data.settings.BUBBLE_CORNER_MAX
+                                    - com.example.flikky.data.settings.BUBBLE_CORNER_MIN - 1),
+                                onValueChangeFinished = { viewModel.setBubbleCornerRadius(radiusDraft.toInt()) },
+                                modifier = Modifier.width(160.dp),
+                            )
+                        },
+                        shape = groupedItemShape(5, appearanceItems),
                     )
                 }
             }
