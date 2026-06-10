@@ -31,14 +31,14 @@ fun StatusBar(
     }
 }
 
-private fun formatUptime(seconds: Long): String {
+internal fun formatUptime(seconds: Long): String {
     val h = seconds / 3600
     val m = (seconds % 3600) / 60
     val s = seconds % 60
     return if (h > 0) "%02d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
 }
 
-private fun formatRate(bps: Long): String = when {
+internal fun formatRate(bps: Long): String = when {
     bps >= 1_000_000 -> "%.1f MB/s".format(bps / 1_000_000.0)
     bps >= 1_000 -> "%.1f KB/s".format(bps / 1_000.0)
     else -> "$bps B/s"

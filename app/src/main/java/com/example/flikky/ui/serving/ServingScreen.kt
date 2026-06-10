@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -41,16 +40,22 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
+import com.example.flikky.ui.components.ConnectionInfoCard
 import com.example.flikky.ui.components.ConversationBackground
+import com.example.flikky.ui.components.ConversationHeader
 import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.NetworkStatusBanner
-import com.example.flikky.ui.components.StatusBar
 import kotlinx.coroutines.launch
 
 @Composable
@@ -82,18 +87,26 @@ fun ServingScreen(
                 status = ui.networkStatus,
                 onAcknowledge = { viewModel.acknowledgeNetworkSwitch() },
             )
-            Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text("在电脑浏览器打开：", style = MaterialTheme.typography.bodyMedium)
-                Text(ui.url, style = MaterialTheme.typography.headlineSmall)
-                Text("PIN  ${ui.pin}", style = MaterialTheme.typography.displaySmall)
-                Text(
-                    if (ui.clientConnected) "已连接" else "等待连接…",
-                    style = MaterialTheme.typography.bodySmall,
-                )
+            AnimatedContent(
+                targetState = ui.clientConnected,
+                transitionSpec = {
+                    (fadeIn() + scaleIn(initialScale = 0.92f)) togetherWith fadeOut()
+                },
+                label = "ConnHeader",
+            ) { connected ->
+                if (connected) {
+                    ConversationHeader(
+                        peerAvatarId = peerAvatarId,
+                        peerName = "",
+                        uptimeSeconds = ui.uptimeSeconds,
+                        fileCount = ui.fileCount,
+                        bytesPerSecond = ui.bytesPerSecond,
+                    )
+                } else {
+                    Column(Modifier.padding(24.dp)) {
+                        ConnectionInfoCard(url = ui.url, pin = ui.pin)
+                    }
+                }
             }
 
             Box(modifier = Modifier.weight(1f)) {
@@ -242,11 +255,6 @@ fun ServingScreen(
                 ) { Text("发送") }
             }
 
-            StatusBar(
-                uptimeSeconds = ui.uptimeSeconds,
-                fileCount = ui.fileCount,
-                bytesPerSecond = ui.bytesPerSecond,
-            )
             TextButton(
                 onClick = { viewModel.stopService(); onStopped() },
                 modifier = Modifier.padding(16.dp),
