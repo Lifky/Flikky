@@ -20,39 +20,29 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import com.example.flikky.data.settings.BackgroundSetting
 
 /**
- * Returns the gradient brush for the given name.
- * Names: "sunset", "forest", "ocean".
- * Reused by M7's ConversationBackground.
+ * 把任意 hue (0..360) 转成 MD3 极浅 tone 的纯色：HSL 高亮度 + 低饱和，保证深色文字可读。
  */
-fun gradientBrush(name: String): Brush = when (name) {
-    "sunset" -> Brush.linearGradient(listOf(Color(0xFFFF7043), Color(0xFFFF4081)))
-    "forest" -> Brush.linearGradient(listOf(Color(0xFF2E7D32), Color(0xFF81C784)))
-    "ocean"  -> Brush.linearGradient(listOf(Color(0xFF1565C0), Color(0xFF4FC3F7)))
-    else     -> Brush.linearGradient(listOf(Color.Gray, Color.LightGray))
+internal fun lightToneFromHue(hue: Float): Long {
+    val c = Color.hsl(hue.coerceIn(0f, 360f), saturation = 0.45f, lightness = 0.94f)
+    return c.toArgb().toLong() and 0xFFFFFFFFL or 0xFF000000L
 }
-
-private val SOLID_COLORS: List<Long> = listOf(
-    0xFFEF5350, // red
-    0xFFEC407A, // pink
-    0xFF7E57C2, // purple
-    0xFF42A5F5, // blue
-    0xFF26A69A, // teal
-    0xFF66BB6A, // green
-)
-
-private val GRADIENTS: List<String> = listOf("sunset", "forest", "ocean")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,6 +53,15 @@ fun BackgroundPickerSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    val presets: List<Long> = listOf(
+        MaterialTheme.colorScheme.surfaceVariant,
+        MaterialTheme.colorScheme.primaryContainer,
+        MaterialTheme.colorScheme.secondaryContainer,
+        MaterialTheme.colorScheme.tertiaryContainer,
+    ).map { it.toArgb().toLong() and 0xFFFFFFFFL or 0xFF000000L }
+
+    var hue by remember { mutableFloatStateOf(210f) }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -70,181 +69,67 @@ fun BackgroundPickerSheet(
         tonalElevation = 0.dp,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 32.dp),
         ) {
-            Text(
-                text = "会话背景",
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 16.dp),
-            )
+            Text("会话背景", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 16.dp))
 
-            // Default + Blank options
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                listOf(
-                    BackgroundSetting.Default to "默认",
-                    BackgroundSetting.Blank   to "空白",
-                ).forEach { (setting, label) ->
-                    val isSelected = current == setting
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                listOf(BackgroundSetting.Default to "默认", BackgroundSetting.Blank to "空白").forEach { (setting, label) ->
+                    val selected = current == setting
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(8.dp))
+                            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
                                 .background(
-                                    if (setting == BackgroundSetting.Default)
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                    else
-                                        MaterialTheme.colorScheme.surface
+                                    if (setting == BackgroundSetting.Default) MaterialTheme.colorScheme.surfaceVariant
+                                    else MaterialTheme.colorScheme.surface
                                 )
-                                .then(
-                                    if (isSelected)
-                                        Modifier.border(
-                                            2.dp,
-                                            MaterialTheme.colorScheme.primary,
-                                            RoundedCornerShape(8.dp),
-                                        )
-                                    else
-                                        Modifier.border(
-                                            1.dp,
-                                            MaterialTheme.colorScheme.outlineVariant,
-                                            RoundedCornerShape(8.dp),
-                                        )
+                                .border(
+                                    if (selected) 2.dp else 1.dp,
+                                    if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                    RoundedCornerShape(8.dp),
                                 )
                                 .clickable { onSelect(setting) },
                             contentAlignment = Alignment.Center,
                         ) {
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
+                            if (selected) Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         }
                         Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isSelected)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Text(label, style = MaterialTheme.typography.labelSmall,
+                            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
 
             Spacer(Modifier.height(20.dp))
-
-            // Solid color swatches
-            Text(
-                text = "纯色",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                SOLID_COLORS.forEach { argb ->
-                    val isSelected = current is BackgroundSetting.Solid && current.argb == argb
+            Text("纯色（跟随主题）", style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                presets.forEach { argb ->
+                    val selected = current is BackgroundSetting.Solid && current.argb == argb
                     Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color(argb))
-                            .then(
-                                if (isSelected)
-                                    Modifier.border(3.dp, MaterialTheme.colorScheme.primaryContainer, CircleShape)
-                                else Modifier
-                            )
+                        modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(argb))
+                            .border(if (selected) 3.dp else 1.dp,
+                                if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                CircleShape)
                             .clickable { onSelect(BackgroundSetting.Solid(argb)) },
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp),
-                            )
-                        }
+                        if (selected) Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                     }
                 }
             }
 
             Spacer(Modifier.height(20.dp))
-
-            // Gradient previews
-            Text(
-                text = "渐变",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 8.dp),
+            Text("自定义（色相）", style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
+            val previewArgb = lightToneFromHue(hue)
+            Box(Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(8.dp)).background(Color(previewArgb)))
+            Slider(
+                value = hue,
+                onValueChange = { hue = it },
+                valueRange = 0f..360f,
+                onValueChangeFinished = { onSelect(BackgroundSetting.Solid(lightToneFromHue(hue))) },
             )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                GRADIENTS.forEach { name ->
-                    val isSelected = false // BackgroundSetting.Gradient removed in v1.6.0
-                    val label = when (name) {
-                        "sunset" -> "日落"
-                        "forest" -> "森林"
-                        "ocean"  -> "海洋"
-                        else     -> name
-                    }
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(gradientBrush(name))
-                                .then(
-                                    if (isSelected)
-                                        Modifier.border(
-                                            2.dp,
-                                            MaterialTheme.colorScheme.primaryContainer,
-                                            RoundedCornerShape(8.dp),
-                                        )
-                                    else Modifier
-                                )
-                                .clickable { /* Gradient removed in v1.6.0 */ },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isSelected)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
         }
     }
 }
