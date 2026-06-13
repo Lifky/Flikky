@@ -1,6 +1,8 @@
 package com.example.flikky.data.settings
 
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -46,9 +48,18 @@ class SettingsRepositoryTest {
     }
 
     @Test fun legacy_gradient_decodes_to_default() = runTest {
-        val repo = makeRepo(this)
-        // 旧/未知 bg mode 一律回退 Default（decodeBackground 的 else 分支覆盖历史 GRADIENT 值）
-        repo.setBackground(BackgroundSetting.Default)
+        // 模拟 v1.5.x 升级上来的用户：DataStore 里残留一个 "GRADIENT" 背景值。
+        // v1.6.0 删掉了 Gradient 类型，decodeBackground 的 else 分支必须把它静默回退
+        // 为 Default 而不是崩溃。直接写裸 preference 值才能真正命中该分支。
+        val ds = PreferenceDataStoreFactory.create(
+            scope = backgroundScope,
+            produceFile = { tmp.newFile("legacy.preferences_pb") },
+        )
+        ds.edit {
+            it[stringPreferencesKey("bg_mode")] = "GRADIENT"
+            it[stringPreferencesKey("bg_value")] = "sunset"
+        }
+        val repo = SettingsRepository(ds)
         assertEquals(BackgroundSetting.Default, repo.settings.first().background)
     }
 
