@@ -222,16 +222,20 @@ fun ServingScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
                     ) {
                         itemsIndexed(ui.messages, key = { _, m -> m.id }) { index, msg ->
                             val prevMsg = if (index > 0) ui.messages[index - 1] else null
-                            val showAvatar = prevMsg == null || prevMsg.origin != msg.origin
+                            val nextMsg = ui.messages.getOrNull(index + 1)
+                            // Telegram-style: show avatar only on the LAST message of a same-origin run.
+                            val showAvatar = nextMsg == null || nextMsg.origin != msg.origin
+                            // Tight gap (2dp) within a same-origin run; looser gap (10dp) between runs.
+                            val topGap = if (prevMsg != null && prevMsg.origin == msg.origin) 2.dp else 10.dp
                             val isActionTarget = actionTarget == msg.id
                             val floating = settings.messageActionStyle ==
                                 com.example.flikky.data.settings.MessageActionStyle.FLOATING
 
-                            Column {
+                            Column(modifier = Modifier.padding(top = topGap)) {
                                 MessageBubble(
                                     msg = msg,
                                     onClick = { if (msg is Message.File) viewModel.openFile(msg) },
