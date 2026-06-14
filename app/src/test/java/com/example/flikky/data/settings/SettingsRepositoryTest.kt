@@ -84,4 +84,13 @@ class SettingsRepositoryTest {
         repo.setMessageActionStyle(MessageActionStyle.INLINE)
         assertEquals(MessageActionStyle.INLINE, repo.settings.first().messageActionStyle)
     }
+
+    @Test fun avatar_grouping_roundtrips() = runTest {
+        val repo = makeRepo(this)
+        assertEquals(AvatarGroupingMode.FIRST, repo.settings.first().avatarGrouping)
+        repo.setAvatarGrouping(AvatarGroupingMode.LAST)
+        assertEquals(AvatarGroupingMode.LAST, repo.settings.first().avatarGrouping)
+        repo.setAvatarGrouping(AvatarGroupingMode.EACH)
+        assertEquals(AvatarGroupingMode.EACH, repo.settings.first().avatarGrouping)
+    }
 }

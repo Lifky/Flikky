@@ -19,6 +19,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val retainLimit = intPreferencesKey("retain_limit")
         val bubbleCorner = intPreferencesKey("bubble_corner")
         val msgActionStyle = stringPreferencesKey("msg_action_style")
+        val avatarGrouping = stringPreferencesKey("avatar_grouping")
     }
 
     val settings: Flow<FlikkySettings> = ds.data.map { p ->
@@ -37,6 +38,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             messageActionStyle = p[Keys.msgActionStyle]
                 ?.let { runCatching { MessageActionStyle.valueOf(it) }.getOrNull() }
                 ?: MessageActionStyle.FLOATING,
+            avatarGrouping = p[Keys.avatarGrouping]
+                ?.let { runCatching { AvatarGroupingMode.valueOf(it) }.getOrNull() }
+                ?: AvatarGroupingMode.FIRST,
         )
     }
 
@@ -52,6 +56,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         it[Keys.bubbleCorner] = v.coerceIn(BUBBLE_CORNER_MIN, BUBBLE_CORNER_MAX)
     }
     suspend fun setMessageActionStyle(v: MessageActionStyle) = ds.edit { it[Keys.msgActionStyle] = v.name }
+    suspend fun setAvatarGrouping(v: AvatarGroupingMode) = ds.edit { it[Keys.avatarGrouping] = v.name }
     suspend fun setBackground(v: BackgroundSetting) = ds.edit {
         when (v) {
             BackgroundSetting.Default -> { it[Keys.bgMode] = "DEFAULT"; it.remove(Keys.bgValue) }

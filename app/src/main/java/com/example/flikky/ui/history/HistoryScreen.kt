@@ -147,7 +147,14 @@ fun HistoryScreen(
         ) {
             itemsIndexed(messages, key = { _, m -> m.id }) { index, msg ->
                 val prevMsg = if (index > 0) messages[index - 1] else null
-                val showAvatar = prevMsg == null || prevMsg.origin != msg.origin
+                val nextMsg = if (index < messages.size - 1) messages[index + 1] else null
+                val showAvatar = when (settings.avatarGrouping) {
+                    com.example.flikky.data.settings.AvatarGroupingMode.FIRST ->
+                        prevMsg == null || prevMsg.origin != msg.origin
+                    com.example.flikky.data.settings.AvatarGroupingMode.LAST ->
+                        nextMsg == null || nextMsg.origin != msg.origin
+                    com.example.flikky.data.settings.AvatarGroupingMode.EACH -> true
+                }
                 val isHighlighted = msg.id == activeHighlight
                 val highlightColor by animateColorAsState(
                     targetValue = if (isHighlighted) {

@@ -42,6 +42,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.DarkMode
+import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.MessageActionStyle
 import com.example.flikky.data.settings.PresetTheme
 import com.example.flikky.data.settings.ThemeMode
@@ -76,6 +77,7 @@ fun SettingsScreen(
     var showDeviceNameDialog by remember { mutableStateOf(false) }
     var showHistoryLimitDialog by remember { mutableStateOf(false) }
     var showActionStyleDialog by remember { mutableStateOf(false) }
+    var showAvatarGroupingDialog by remember { mutableStateOf(false) }
     var showImportProgress by remember { mutableStateOf(false) }
 
     // Import launcher
@@ -213,7 +215,7 @@ fun SettingsScreen(
 
             // ─── 会话 ─────────────────────────────────────────────────────────
             item {
-                val sessionItems = 3
+                val sessionItems = 4
                 SettingSection(title = "会话") {
                     SettingItem(
                         title = "本机名称",
@@ -241,6 +243,17 @@ fun SettingsScreen(
                         subtitle = styleSubtitle,
                         onClick = { showActionStyleDialog = true },
                         shape = groupedItemShape(2, sessionItems),
+                    )
+                    val groupingSubtitle = when (s.avatarGrouping) {
+                        AvatarGroupingMode.FIRST -> "组内首条显示"
+                        AvatarGroupingMode.LAST  -> "组内末条显示"
+                        AvatarGroupingMode.EACH  -> "每条都显示"
+                    }
+                    SettingItem(
+                        title = "头像显示",
+                        subtitle = groupingSubtitle,
+                        onClick = { showAvatarGroupingDialog = true },
+                        shape = groupedItemShape(3, sessionItems),
                     )
                 }
             }
@@ -388,6 +401,40 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showActionStyleDialog = false }) { Text("取消") }
+            },
+        )
+    }
+
+    // ─── Avatar grouping dialog ───────────────────────────────────────────────
+    if (showAvatarGroupingDialog) {
+        AlertDialog(
+            onDismissRequest = { showAvatarGroupingDialog = false },
+            title = { Text("头像显示") },
+            text = {
+                Column {
+                    listOf(
+                        AvatarGroupingMode.FIRST to "组内首条显示",
+                        AvatarGroupingMode.LAST  to "组内末条显示",
+                        AvatarGroupingMode.EACH  to "每条都显示",
+                    ).forEach { (mode, label) ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            RadioButton(
+                                selected = s.avatarGrouping == mode,
+                                onClick = {
+                                    viewModel.setAvatarGrouping(mode)
+                                    showAvatarGroupingDialog = false
+                                },
+                            )
+                            Text(label, modifier = Modifier.padding(start = 8.dp))
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAvatarGroupingDialog = false }) { Text("取消") }
             },
         )
     }

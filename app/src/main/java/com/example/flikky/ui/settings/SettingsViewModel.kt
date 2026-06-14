@@ -8,6 +8,7 @@ import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.FlikkySettings
+import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.MessageActionStyle
 import com.example.flikky.data.settings.PresetTheme
 import com.example.flikky.data.settings.ThemeMode
@@ -35,6 +36,7 @@ class SettingsViewModel @JvmOverloads constructor(
     fun setDeviceName(v: String) = viewModelScope.launch { repo.setDeviceName(v) }
     fun setRecallBeta(v: Boolean) = viewModelScope.launch { repo.setRecallBeta(v) }
     fun setMessageActionStyle(v: MessageActionStyle) = viewModelScope.launch { repo.setMessageActionStyle(v) }
+    fun setAvatarGrouping(v: AvatarGroupingMode) = viewModelScope.launch { repo.setAvatarGrouping(v) }
     fun setBubbleCornerRadius(v: Int) = viewModelScope.launch { repo.setBubbleCornerRadius(v) }
     fun setHistoryRetainLimit(v: Int) = viewModelScope.launch {
         repo.setHistoryRetainLimit(v)
