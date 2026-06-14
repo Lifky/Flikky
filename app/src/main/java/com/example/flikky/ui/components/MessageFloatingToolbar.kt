@@ -16,7 +16,10 @@ import androidx.compose.ui.unit.dp
  *
  * 实现选型：material3 的 HorizontalFloatingToolbar（Expressive）此版本仍是实验 API，
  * 其签名以 expanded/floatingActionButton 为中心，套一排纯 IconButton 并不顺手；
- * 改用 Surface 版本，视觉等价（28dp 圆角 + surfaceContainer + 阴影），且无实验 API 风险。
+ * 改用 Surface 版本，视觉等价（28dp 圆角 + surfaceContainerHigh），且无实验 API 风险。
+ *
+ * 去阴影（shadowElevation = 0）：scale-in 动画期间阴影会随缩放抖动，观感廉价；
+ * 改用 surfaceContainerHigh 的色阶差自然「浮」于会话之上，无投影 jank。
  */
 @Composable
 fun MessageFloatingToolbar(
@@ -26,9 +29,9 @@ fun MessageFloatingToolbar(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        tonalElevation = 3.dp,
-        shadowElevation = 3.dp,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
     ) {
         Row(modifier = Modifier.padding(horizontal = 4.dp)) {
             actions.forEach { a ->
@@ -42,5 +45,30 @@ fun MessageFloatingToolbar(
                 }
             }
         }
+    }
+}
+
+/**
+ * 共享的悬浮工具栏 overlay：Serving 与 History 共用，消除两端重复。
+ *
+ * 顶层 wrapper 让 AnimatedVisibility 解析到非 scoped 重载——调用方常把此 overlay
+ * 放在 Box（嵌于 Column）内，BoxScope/ColumnScope 同时作为隐式 receiver 会让裸
+ * AnimatedVisibility 调用产生歧义；提到这里消除歧义。
+ */
+@Composable
+fun MessageFloatingToolbarOverlay(
+    visible: Boolean,
+    actions: List<MessageAction>,
+    modifier: Modifier = Modifier,
+) {
+    androidx.compose.animation.AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = androidx.compose.animation.scaleIn(
+            androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 500f)
+        ) + androidx.compose.animation.fadeIn(),
+        exit = androidx.compose.animation.fadeOut(),
+    ) {
+        MessageFloatingToolbar(actions = actions)
     }
 }

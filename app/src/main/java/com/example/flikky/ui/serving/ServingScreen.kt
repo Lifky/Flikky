@@ -50,8 +50,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -67,7 +65,7 @@ import com.example.flikky.ui.components.ConversationStatusRow
 import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
-import com.example.flikky.ui.components.MessageFloatingToolbar
+import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
 import com.example.flikky.ui.components.NetworkStatusBanner
 import kotlinx.coroutines.launch
 
@@ -236,6 +234,7 @@ fun ServingScreen(
                     peerName = null,
                     modifier = Modifier.fillMaxSize(),
                 ) {
+                  androidx.compose.foundation.text.selection.SelectionContainer {
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
@@ -258,8 +257,15 @@ fun ServingScreen(
                             Column {
                                 MessageBubble(
                                     msg = msg,
-                                    onClick = { if (msg is Message.File) viewModel.openFile(msg) },
-                                    onLongPress = { actionTarget = if (isActionTarget) null else msg.id },
+                                    onTap = {
+                                        if (floating) {
+                                            actionTarget = if (isActionTarget) null else msg.id
+                                        } else if (msg is Message.File) {
+                                            viewModel.openFile(msg)
+                                        }
+                                    },
+                                    onLongPress = if (floating) null
+                                                  else { { actionTarget = if (isActionTarget) null else msg.id } },
                                     transferProgress = progressMap[msg.id],
                                     showAvatar = showAvatar,
                                     avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
@@ -283,6 +289,7 @@ fun ServingScreen(
                             }
                         }
                     }
+                  }
                 }
 
                 // Floating action toolbar: one bottom-center bar for the selected
@@ -293,7 +300,7 @@ fun ServingScreen(
                     val target = ui.messages.firstOrNull { it.id == actionTarget }
                     var lastActions by remember { mutableStateOf<List<MessageAction>>(emptyList()) }
                     if (target != null) lastActions = buildActionsFor(target)
-                    FloatingToolbarOverlay(
+                    MessageFloatingToolbarOverlay(
                         visible = target != null,
                         actions = lastActions,
                         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
@@ -366,27 +373,5 @@ fun ServingScreen(
             onPickImage = { showAttachSheet = false; pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onDismiss = { showAttachSheet = false },
         )
-    }
-}
-
-/**
- * Top-level wrapper so AnimatedVisibility resolves to its non-scoped overload.
- * Inside ServingScreen the overlay sits in a Box nested under a Column, which
- * leaves both BoxScope and ColumnScope as implicit receivers and makes the bare
- * AnimatedVisibility call ambiguous; hoisting it here removes that ambiguity.
- */
-@Composable
-private fun FloatingToolbarOverlay(
-    visible: Boolean,
-    actions: List<MessageAction>,
-    modifier: Modifier = Modifier,
-) {
-    AnimatedVisibility(
-        visible = visible,
-        modifier = modifier,
-        enter = scaleIn(spring(dampingRatio = 0.6f, stiffness = 500f)) + fadeIn(),
-        exit = fadeOut(),
-    ) {
-        MessageFloatingToolbar(actions = actions)
     }
 }

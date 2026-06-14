@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,7 +44,7 @@ import com.example.flikky.session.Origin
 @Composable
 fun MessageBubble(
     msg: Message,
-    onClick: () -> Unit,
+    onTap: () -> Unit = {},
     onLongPress: (() -> Unit)? = null,
     transferProgress: Float? = null,
     showAvatar: Boolean = true,
@@ -86,28 +85,38 @@ fun MessageBubble(
             avatarSlot()
             Spacer(Modifier.width(6.dp))
         }
+        // FLOATING 模式（onLongPress == null）：用纯 clickable 只检测 TAP，
+        // 不消费 long-press，把长按留给屏幕级 SelectionContainer 起划词选择。
+        // INLINE 模式（onLongPress != null）：combinedClickable 消费长按弹内联栏。
+        val clickModifier = if (onLongPress != null) {
+            Modifier.combinedClickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onTap,
+                onLongClick = onLongPress,
+            )
+        } else {
+            Modifier.clickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onTap,
+            )
+        }
         Box(
             modifier = Modifier
                 .widthIn(max = maxWidth)
                 .clip(shape)
                 .background(bg)
-                .combinedClickable(
-                    interactionSource = interaction,
-                    indication = null,
-                    onClick = { if (msg is Message.File) onClick() },
-                    onLongClick = onLongPress,
-                )
+                .then(clickModifier)
                 .padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             when (msg) {
-                is Message.Text -> SelectionContainer {
-                    Text(
-                        text = msg.content, color = fg,
-                        style = MaterialTheme.typography.bodyLarge.merge(
-                            TextStyle(lineBreak = LineBreak.Paragraph)
-                        ),
-                    )
-                }
+                is Message.Text -> Text(
+                    text = msg.content, color = fg,
+                    style = MaterialTheme.typography.bodyLarge.merge(
+                        TextStyle(lineBreak = LineBreak.Paragraph)
+                    ),
+                )
                 is Message.File -> FileBubbleContent(
                     msg = msg, fg = fg, mine = mine,
                     transferProgress = transferProgress,
