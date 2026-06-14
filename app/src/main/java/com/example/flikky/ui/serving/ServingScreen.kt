@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ButtonDefaults
@@ -61,6 +63,7 @@ import com.example.flikky.session.Origin
 import com.example.flikky.ui.components.ConnectionInfoCard
 import com.example.flikky.ui.components.ConversationBackground
 import com.example.flikky.ui.components.ConversationHeader
+import com.example.flikky.ui.components.ConversationStatusRow
 import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
@@ -81,6 +84,7 @@ fun ServingScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var recallTarget by remember { mutableStateOf<Long?>(null) }
     var actionTarget by remember { mutableStateOf<Long?>(null) }
+    var showAttachSheet by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val pickFile = rememberLauncherForActivityResult(
@@ -171,7 +175,9 @@ fun ServingScreen(
         viewModel.events.collect { snackbarHostState.showSnackbar(it) }
     }
 
-    Scaffold { padding ->
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
+    ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             NetworkStatusBanner(
                 status = ui.networkStatus,
@@ -188,9 +194,6 @@ fun ServingScreen(
                     ConversationHeader(
                         peerAvatarId = peerAvatarId,
                         peerName = "",
-                        uptimeSeconds = ui.uptimeSeconds,
-                        fileCount = ui.fileCount,
-                        bytesPerSecond = ui.bytesPerSecond,
                         trailing = {
                             IconButton(onClick = { viewModel.stopService(); onStopped() }) {
                                 Icon(
@@ -296,16 +299,6 @@ fun ServingScreen(
                         modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
                     )
                 }
-
-                // Snackbar floats at the bottom of the conversation area,
-                // directly above the input Row, overlaying messages rather
-                // than displacing them.
-                SnackbarHost(
-                    hostState = snackbarHostState,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                ) { Snackbar(it) }
             }
 
             Row(
@@ -314,18 +307,6 @@ fun ServingScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                IconButton(
-                    onClick = { pickFile.launch("*/*") },
-                    enabled = ui.clientConnected,
-                ) {
-                    Icon(painterResource(R.drawable.ic_attach_file), contentDescription = "附件")
-                }
-                IconButton(
-                    onClick = { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                    enabled = ui.clientConnected,
-                ) {
-                    Icon(painterResource(R.drawable.ic_image), contentDescription = "图片")
-                }
                 OutlinedTextField(
                     value = draft,
                     onValueChange = { draft = it },
@@ -333,6 +314,12 @@ fun ServingScreen(
                     modifier = Modifier.weight(1f),
                     maxLines = 4,
                 )
+                IconButton(
+                    onClick = { showAttachSheet = true },
+                    enabled = ui.clientConnected,
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "添加")
+                }
                 IconButton(
                     onClick = { viewModel.sendText(draft); draft = "" },
                     enabled = draft.isNotBlank() && ui.clientConnected,
@@ -346,6 +333,12 @@ fun ServingScreen(
                     )
                 }
             }
+
+            ConversationStatusRow(
+                uptimeSeconds = ui.uptimeSeconds,
+                fileCount = ui.fileCount,
+                bytesPerSecond = ui.bytesPerSecond,
+            )
         }
     }
 
@@ -364,6 +357,14 @@ fun ServingScreen(
             dismissButton = {
                 TextButton(onClick = { recallTarget = null }) { Text("取消") }
             },
+        )
+    }
+
+    if (showAttachSheet) {
+        AttachBottomSheet(
+            onPickFile = { showAttachSheet = false; pickFile.launch("*/*") },
+            onPickImage = { showAttachSheet = false; pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            onDismiss = { showAttachSheet = false },
         )
     }
 }

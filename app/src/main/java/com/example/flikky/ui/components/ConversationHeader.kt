@@ -15,17 +15,14 @@ import androidx.compose.ui.unit.dp
 import com.example.flikky.ui.theme.connected
 
 /**
- * 连接后纤细头部：对端头像 + 对端名 + 已连接状态 + 运行统计。
- * 替代连接前的 ConnectionInfoCard，并吸收原底部 StatusBar 的统计信息。
- * trailing 槽留给停止服务按钮（Task 7 注入）。
+ * 连接后纤细头部：对端头像 + 对端名 + 已连接状态。
+ * 数值统计（运行时长 / 文件数 / 速率）已移至底部 ConversationStatusRow。
+ * trailing 槽留给停止服务按钮。
  */
 @Composable
 fun ConversationHeader(
     peerAvatarId: Int,
     peerName: String,
-    uptimeSeconds: Long,
-    fileCount: Int,
-    bytesPerSecond: Long,
     modifier: Modifier = Modifier,
     trailing: @Composable () -> Unit = {},
 ) {
@@ -42,7 +39,7 @@ fun ConversationHeader(
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "已连接 · 运行 ${formatUptime(uptimeSeconds)} · $fileCount 文件 · ${formatRate(bytesPerSecond)}",
+                text = "已连接",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.connected,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -50,20 +47,4 @@ fun ConversationHeader(
         }
         trailing()
     }
-}
-
-// Uptime/rate formatters — moved here from the now-deleted StatusBar composable
-// (v1.6.0 folded the bottom StatusBar into this header). ConversationHeader is
-// their only consumer, so they live here as file-private helpers.
-private fun formatUptime(seconds: Long): String {
-    val h = seconds / 3600
-    val m = (seconds % 3600) / 60
-    val s = seconds % 60
-    return if (h > 0) "%02d:%02d:%02d".format(h, m, s) else "%02d:%02d".format(m, s)
-}
-
-private fun formatRate(bps: Long): String = when {
-    bps >= 1_000_000 -> "%.1f MB/s".format(bps / 1_000_000.0)
-    bps >= 1_000 -> "%.1f KB/s".format(bps / 1_000.0)
-    else -> "$bps B/s"
 }
