@@ -245,8 +245,9 @@ fun HistoryScreen(
                                     openFile(ctx, sessionId, msg)
                                 }
                             },
-                            onLongPress = if (floating) null
-                                          else { { actionTarget = if (isActionTarget) null else msg.id } },
+                            // 两种模式长按都让给 SelectionContainer 起划词选择：
+                            // floating 单击召唤工具栏；inline 操作栏常驻显示，无需长按。
+                            onLongPress = null,
                             showAvatar = showAvatar,
                             avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
                                        else (session?.peerAvatarId ?: 0),
@@ -254,17 +255,18 @@ fun HistoryScreen(
                             selected = floating && isActionTarget,
                         )
                         if (!floating) {
+                            // 常驻模式：每条气泡下方固定显示操作栏，按 origin 与气泡同侧边缘对齐。
                             val barAlignment = if (msg.origin == Origin.PHONE) Alignment.CenterEnd else Alignment.CenterStart
                             Box(
                                 modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
                                 contentAlignment = barAlignment,
                             ) {
                                 MessageActionBar(
-                                    visible = isActionTarget,
+                                    visible = true,
                                     actions = buildActionsFor(msg),
                                 )
                             }
-                            if (isActionTarget) androidx.compose.foundation.layout.Spacer(Modifier.height(4.dp))
+                            androidx.compose.foundation.layout.Spacer(Modifier.height(4.dp))
                         }
                     }
                 }

@@ -8,13 +8,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -23,6 +28,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -176,7 +182,18 @@ fun ServingScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // 顶部 inset 由 Scaffold 提供；底部用 navigationBars ∪ ime（取最大而非叠加），
+        // 整块内容在键盘弹起时统一上移——避免之前把 imePadding 加在输入行上导致输入框
+        // 与键盘之间出现一截「键盘高度」的空白。
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = padding.calculateTopPadding())
+                .windowInsetsPadding(
+                    WindowInsets.navigationBars.union(WindowInsets.ime)
+                        .only(WindowInsetsSides.Bottom)
+                ),
+        ) {
             NetworkStatusBanner(
                 status = ui.networkStatus,
                 onAcknowledge = { viewModel.acknowledgeNetworkSwitch() },
@@ -195,7 +212,7 @@ fun ServingScreen(
                         trailing = {
                             IconButton(onClick = { viewModel.stopService(); onStopped() }) {
                                 Icon(
-                                    painter = painterResource(R.drawable.ic_stop),
+                                    painter = painterResource(R.drawable.ic_power),
                                     contentDescription = "停止服务",
                                     tint = MaterialTheme.colorScheme.error,
                                 )
@@ -264,8 +281,9 @@ fun ServingScreen(
                                             viewModel.openFile(msg)
                                         }
                                     },
-                                    onLongPress = if (floating) null
-                                                  else { { actionTarget = if (isActionTarget) null else msg.id } },
+                                    // 两种模式长按都让给 SelectionContainer 起划词选择：
+                                    // floating 单击召唤工具栏；inline 操作栏常驻显示，无需长按。
+                                    onLongPress = null,
                                     transferProgress = progressMap[msg.id],
                                     showAvatar = showAvatar,
                                     avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
@@ -274,17 +292,18 @@ fun ServingScreen(
                                     selected = floating && isActionTarget,
                                 )
                                 if (!floating) {
+                                    // 常驻模式：每条气泡下方固定显示操作栏，按 origin 与气泡同侧边缘对齐。
                                     val barAlignment = if (msg.origin == Origin.PHONE) Alignment.CenterEnd else Alignment.CenterStart
                                     Box(
                                         modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
                                         contentAlignment = barAlignment,
                                     ) {
                                         MessageActionBar(
-                                            visible = isActionTarget,
+                                            visible = true,
                                             actions = buildActionsFor(msg),
                                         )
                                     }
-                                    if (isActionTarget) Spacer(Modifier.height(4.dp))
+                                    Spacer(Modifier.height(4.dp))
                                 }
                             }
                         }
@@ -309,8 +328,7 @@ fun ServingScreen(
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp)
-                    .navigationBarsPadding().imePadding(),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
@@ -327,16 +345,14 @@ fun ServingScreen(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "添加")
                 }
-                IconButton(
+                // 圆形填充发送按钮（上箭头），与左侧 add 的线性按钮区分度更高。
+                FilledIconButton(
                     onClick = { viewModel.sendText(draft); draft = "" },
                     enabled = draft.isNotBlank() && ui.clientConnected,
                 ) {
                     Icon(
-                        painterResource(R.drawable.ic_send),
+                        painterResource(R.drawable.ic_arrow_upward),
                         contentDescription = "发送",
-                        tint = if (draft.isNotBlank() && ui.clientConnected)
-                            MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
