@@ -44,6 +44,24 @@ internal fun lightToneFromHue(hue: Float): Long {
     return c.toArgb().toLong() and 0xFFFFFFFFL or 0xFF000000L
 }
 
+/**
+ * 从 argb 反推 HSL 色相（0..360），用于重新打开面板时让自定义 slider 回到当前背景对应位置。
+ * 灰色（无色相）回退默认 210。
+ */
+internal fun hueFromArgb(argb: Long): Float {
+    val color = Color(argb.toInt())
+    val r = color.red; val g = color.green; val b = color.blue
+    val max = maxOf(r, g, b); val min = minOf(r, g, b)
+    val d = max - min
+    if (d <= 0.0001f) return 210f
+    val h = when (max) {
+        r -> 60f * (((g - b) / d).mod(6f))
+        g -> 60f * (((b - r) / d) + 2f)
+        else -> 60f * (((r - g) / d) + 4f)
+    }
+    return (h % 360f + 360f) % 360f
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BackgroundPickerSheet(
@@ -53,14 +71,21 @@ fun BackgroundPickerSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    // distinct(): 某些主题（如珊瑚/蘑菇）secondaryContainer 与 tertiaryContainer 同色，
+    // 去重避免两个相同色块、以及按颜色判断选中时的联动高亮。
     val presets: List<Long> = listOf(
         MaterialTheme.colorScheme.surfaceVariant,
         MaterialTheme.colorScheme.primaryContainer,
         MaterialTheme.colorScheme.secondaryContainer,
         MaterialTheme.colorScheme.tertiaryContainer,
-    ).map { it.toArgb().toLong() and 0xFFFFFFFFL or 0xFF000000L }
+    ).map { it.toArgb().toLong() and 0xFFFFFFFFL or 0xFF000000L }.distinct()
 
-    var hue by remember { mutableFloatStateOf(210f) }
+    // 重新打开面板时 slider 回到当前背景对应色相（解决"背景已变但 slider 不回读"）。
+    var hue by remember(current) {
+        mutableFloatStateOf(
+            if (current is BackgroundSetting.Solid) hueFromArgb(current.argb) else 210f
+        )
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

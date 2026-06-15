@@ -331,8 +331,9 @@ fun SettingsScreen(
             onDismiss = { activeSheet = null },
         )
         ActiveSheet.Background -> BackgroundPickerSheet(
+            // 选项点选只更新背景、不关面板，便于连续比较/微调；关闭靠下滑或点外部。
             current = s.background,
-            onSelect = { viewModel.setBackground(it); activeSheet = null },
+            onSelect = { viewModel.setBackground(it) },
             onDismiss = { activeSheet = null },
         )
         null -> Unit
