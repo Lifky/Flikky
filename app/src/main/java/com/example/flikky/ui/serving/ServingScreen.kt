@@ -174,6 +174,13 @@ fun ServingScreen(
     }
     // System-back dismisses the action target before exiting the screen.
     androidx.activity.compose.BackHandler(enabled = actionTarget != null) { actionTarget = null }
+    // 会话进行中默认拦截返回，保护会话稳定（须点停止服务才离开）。开「允许会话中返回」后
+    // 不拦截，系统返回正常弹回主页（服务仍运行，可从主页"继续服务"重进）。优先级低于上面关闭工具栏。
+    androidx.activity.compose.BackHandler(
+        enabled = actionTarget == null && !settings.allowBackDuringSession,
+    ) {
+        scope.launch { snackbarHostState.showSnackbar("会话进行中，请点右上角停止服务以退出") }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.events.collect { snackbarHostState.showSnackbar(it) }

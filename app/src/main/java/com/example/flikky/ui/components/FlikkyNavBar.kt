@@ -11,7 +11,11 @@ import androidx.compose.ui.res.painterResource
 import com.example.flikky.R
 
 @Composable
-fun FlikkyNavBar(currentRoute: String?, onNavigate: (String) -> Unit) {
+fun FlikkyNavBar(
+    currentRoute: String?,
+    settingsEnabled: Boolean = true,
+    onNavigate: (String) -> Unit,
+) {
     NavigationBar {
         NavigationBarItem(
             selected = currentRoute == "transfer",
@@ -21,7 +25,9 @@ fun FlikkyNavBar(currentRoute: String?, onNavigate: (String) -> Unit) {
             alwaysShowLabel = false,
         )
         NavigationBarItem(
+            // 会话进行中锁定设置入口（置灰不可点）。
             selected = currentRoute == "settings",
+            enabled = settingsEnabled,
             onClick = { onNavigate("settings") },
             icon = { Icon(Icons.Default.Settings, contentDescription = "设置") },
             label = { Text("设置") },

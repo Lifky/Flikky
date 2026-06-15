@@ -20,6 +20,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val bubbleCorner = intPreferencesKey("bubble_corner")
         val msgActionStyle = stringPreferencesKey("msg_action_style")
         val avatarGrouping = stringPreferencesKey("avatar_grouping")
+        val allowBackDuringSession = booleanPreferencesKey("allow_back_during_session")
     }
 
     val settings: Flow<FlikkySettings> = ds.data.map { p ->
@@ -41,6 +42,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             avatarGrouping = p[Keys.avatarGrouping]
                 ?.let { runCatching { AvatarGroupingMode.valueOf(it) }.getOrNull() }
                 ?: AvatarGroupingMode.FIRST,
+            allowBackDuringSession = p[Keys.allowBackDuringSession] ?: false,
         )
     }
 
@@ -57,6 +59,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     }
     suspend fun setMessageActionStyle(v: MessageActionStyle) = ds.edit { it[Keys.msgActionStyle] = v.name }
     suspend fun setAvatarGrouping(v: AvatarGroupingMode) = ds.edit { it[Keys.avatarGrouping] = v.name }
+    suspend fun setAllowBackDuringSession(v: Boolean) = ds.edit { it[Keys.allowBackDuringSession] = v }
     suspend fun setBackground(v: BackgroundSetting) = ds.edit {
         when (v) {
             BackgroundSetting.Default -> { it[Keys.bgMode] = "DEFAULT"; it.remove(Keys.bgValue) }

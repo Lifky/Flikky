@@ -37,6 +37,7 @@ class SettingsViewModel @JvmOverloads constructor(
     fun setRecallBeta(v: Boolean) = viewModelScope.launch { repo.setRecallBeta(v) }
     fun setMessageActionStyle(v: MessageActionStyle) = viewModelScope.launch { repo.setMessageActionStyle(v) }
     fun setAvatarGrouping(v: AvatarGroupingMode) = viewModelScope.launch { repo.setAvatarGrouping(v) }
+    fun setAllowBackDuringSession(v: Boolean) = viewModelScope.launch { repo.setAllowBackDuringSession(v) }
     fun setBubbleCornerRadius(v: Int) = viewModelScope.launch { repo.setBubbleCornerRadius(v) }
     fun setHistoryRetainLimit(v: Int) = viewModelScope.launch {
         repo.setHistoryRetainLimit(v)

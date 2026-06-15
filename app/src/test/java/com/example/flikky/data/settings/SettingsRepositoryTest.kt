@@ -93,4 +93,13 @@ class SettingsRepositoryTest {
         repo.setAvatarGrouping(AvatarGroupingMode.EACH)
         assertEquals(AvatarGroupingMode.EACH, repo.settings.first().avatarGrouping)
     }
+
+    @Test fun allow_back_during_session_roundtrips() = runTest {
+        val repo = makeRepo(this)
+        assertEquals(false, repo.settings.first().allowBackDuringSession)
+        repo.setAllowBackDuringSession(true)
+        assertTrue(repo.settings.first().allowBackDuringSession)
+        repo.setAllowBackDuringSession(false)
+        assertEquals(false, repo.settings.first().allowBackDuringSession)
+    }
 }

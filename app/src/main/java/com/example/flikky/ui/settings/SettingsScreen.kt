@@ -215,7 +215,7 @@ fun SettingsScreen(
 
             // ─── 会话 ─────────────────────────────────────────────────────────
             item {
-                val sessionItems = 4
+                val sessionItems = 5
                 SettingSection(title = "会话") {
                     SettingItem(
                         title = "本机名称",
@@ -254,6 +254,17 @@ fun SettingsScreen(
                         subtitle = groupingSubtitle,
                         onClick = { showAvatarGroupingDialog = true },
                         shape = groupedItemShape(3, sessionItems),
+                    )
+                    SettingItem(
+                        title = "允许会话中返回",
+                        subtitle = "默认拦截返回键保护会话；开启后可返回主页查看历史（会话期间设置入口锁定）",
+                        trailing = {
+                            Switch(
+                                checked = s.allowBackDuringSession,
+                                onCheckedChange = { viewModel.setAllowBackDuringSession(it) },
+                            )
+                        },
+                        shape = groupedItemShape(4, sessionItems),
                     )
                 }
             }
