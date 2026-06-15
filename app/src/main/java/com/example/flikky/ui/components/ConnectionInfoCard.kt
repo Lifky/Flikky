@@ -2,17 +2,18 @@ package com.example.flikky.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,6 +22,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 
@@ -49,25 +51,22 @@ fun ConnectionInfoCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                // weight(1f, fill = false): URL text wraps on narrow screens instead of
-                // pushing the copy IconButton off-screen; fill=false avoids extra blank space
-                // when the URL is short.
-                Text(
-                    text = url,
-                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = FontFamily.Monospace),
-                    modifier = Modifier.weight(1f, fill = false),
+            // URL 单独整行居中（长地址自动换行不再与按钮挤在一行），
+            // 复制动作下移为独立按钮，避免长 URL 时图标垂直错位。
+            Text(
+                text = url,
+                style = MaterialTheme.typography.headlineSmall.copy(fontFamily = FontFamily.Monospace),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            TextButton(onClick = { clipboard.setText(AnnotatedString(url)) }) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_content_copy),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
                 )
-                IconButton(onClick = { clipboard.setText(AnnotatedString(url)) }) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_content_copy),
-                        contentDescription = "复制地址",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Spacer(Modifier.width(6.dp))
+                Text("复制地址")
             }
             Spacer(Modifier.height(4.dp))
             Text(
