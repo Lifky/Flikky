@@ -340,6 +340,8 @@ fun ServingScreen(
                     placeholder = { Text("输入消息") },
                     modifier = Modifier.weight(1f),
                     maxLines = 4,
+                    // 未连接时禁用输入框：不可点、不弹键盘，避免无连接时编辑/发送的边界态。
+                    enabled = ui.clientConnected,
                 )
                 IconButton(
                     onClick = { showAttachSheet = true },
