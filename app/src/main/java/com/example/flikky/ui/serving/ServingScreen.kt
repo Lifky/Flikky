@@ -8,18 +8,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.union
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -189,17 +184,17 @@ fun ServingScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { padding ->
-        // 顶部 inset 由 Scaffold 提供；底部用 navigationBars ∪ ime（取最大而非叠加），
-        // 整块内容在键盘弹起时统一上移——避免之前把 imePadding 加在输入行上导致输入框
-        // 与键盘之间出现一截「键盘高度」的空白。
+        // Edge-to-edge IME 标准写法（官方规范）：Scaffold 默认 innerPadding 含 systemBars（不含 ime）。
+        // padding(innerPadding) 应用 systemBars → consumeWindowInsets 标记已消费 → imePadding() 再补 ime，
+        // 三者配合保证 ime 只生效一次。配合 manifest 的 windowSoftInputMode=adjustResize。
+        // 缺 consumeWindowInsets 或 adjustResize 都会导致键盘弹起时 pan/inset 叠加：输入行被顶到顶部、
+        // 上方留出键盘高度空白（test2 §5 复盘）。
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = padding.calculateTopPadding())
-                .windowInsetsPadding(
-                    WindowInsets.navigationBars.union(WindowInsets.ime)
-                        .only(WindowInsetsSides.Bottom)
-                ),
+                .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding(),
         ) {
             NetworkStatusBanner(
                 status = ui.networkStatus,
@@ -364,6 +359,7 @@ fun ServingScreen(
                 }
             }
 
+            // 统计行常显，键盘弹起时随整列上移、紧贴键盘上方（对齐底部）。这是预期布局，不要隐藏它。
             ConversationStatusRow(
                 uptimeSeconds = ui.uptimeSeconds,
                 fileCount = ui.fileCount,
