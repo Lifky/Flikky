@@ -14,6 +14,8 @@ The phone runs an embedded HTTP server. Any browser on the same Wi-Fi opens the 
 - **v1.3** — *released (2026-05-24)* — cross-session message search (FTS4 + LIKE fallback), message recall in active sessions (hard-delete + dual-side confirm + instant sync), per-message delete in history, app-layer ping/pong replacing passive frame timeout, closure-capture audit with regression guard, export-page health detection via WS + fetch probe.
 - **v1.4.0** — *released (2026-06-04)* — async file transfer (immediate bidirectional IN_PROGRESS bubbles + progress bars + failure feedback + interrupted-upload cleanup), import from zip back into the app (backward-compatible with v1.2/v1.3 format + duplicate detection + post-import FIFO sweep), export `relativePath` dedup fix (messages.json matches zip entries, version bumped to 1.4).
 - **v1.5.0** — *released (2026-06-08)* — UI/UX overhaul: bottom navigation (Transfer / Settings), a full settings system on DataStore with instant theme switching (Material You dynamic color + 4 warm presets + three-state dark + AMOLED), app/peer preset avatars and in-progress conversation background **synced across both ends** (via a `peer-info` endpoint + `client_hello`), a long-press message action bar (copy / recall / open / delete-with-undo, staggered pop-out), configurable history retention (incl. `0`=keep none, `-1`=unlimited), editable device name, a recall Beta toggle, and the full emoji→Material icon migration with +1-step rounded shapes.
+- **v1.5.1** — *released (2026-06-16)* — browser chat-page scroll fix (mdui's fixed top-app-bar injected `padding-top` on `<body>` and fought the `100vh` flex shell → scoped `body.chat-page` overrides + `100dvh`), plus cosmetic cleanup of leftover v1.5.0 minors.
+- **v1.6.0** — *released (2026-06-16)* — **conversation experience overhaul**: a context-adaptive top (connection card before pairing → spring-collapse to a slim peer header on connect), a floating message toolbar (tap to summon, long-press for text selection, tap empty to clear) with a settings toggle for a persistent per-bubble action bar, unified equal-corner bubbles (default 18dp) + a corner-radius slider, an avatar-grouping setting (first / last / each), a redesigned input row (text field + add-sheet with file/image cards + circular send) with a second stats row doubling as the snackbar zone, gradient backgrounds dropped in favor of theme-derived solids + a custom-hue slider, a waiting loading indicator, stop-service moved to the header, an "allow back during session" guard (back is intercepted by default; the Settings tab locks while a session runs), and correct edge-to-edge IME insets so the input row sits right above the keyboard. App `versionName`/`versionCode` are now tracked (previously frozen at 1.0/1).
 
 Design docs are kept in a local-only `docs/others/` tree; the public repo carries only the source.
 
@@ -55,6 +57,14 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] App & peer preset avatars (12 presets) + in-progress conversation background (default / blank / solid / gradient), **synced across both ends** via `GET /api/peer-info` + WS `client_hello`, plus a browser-side avatar picker *(v1.5.0)*
 - [x] User-configurable history retention in settings (default 20, `0` = keep none, `-1` = unlimited); peer avatar id persisted so history shows the correct browser-side avatar *(v1.5.0)*
 - [x] emoji → Material icon migration (`material-icons-core` + bundled Symbols vectors), +1-step rounded MD3 shapes, CJK paragraph line-break in bubbles *(v1.5.0)*
+- [x] Context-adaptive conversation top: `ConnectionInfoCard` (URL + copy + large PIN) before pairing, spring-collapses to a slim peer header (avatar + name + 已连接 + stop) on connect; shared with the export page *(v1.6.0)*
+- [x] Floating message toolbar (default): tap a bubble to summon, long-press for native text selection, tap empty to clear; settings toggle switches to a persistent per-bubble action bar; applied to both active session and history *(v1.6.0)*
+- [x] Unified equal-corner bubbles on both ends (default 18dp) + a corner-radius slider in settings (8–28dp) *(v1.6.0)*
+- [x] Avatar-grouping setting: show the avatar on the first / last / every message of a same-sender run *(v1.6.0)*
+- [x] Redesigned input row: text field + add button (bottom sheet with file / image square cards) + circular up-arrow send, with a second stats row (uptime / files / rate) that also hosts the snackbar *(v1.6.0)*
+- [x] Conversation background: gradient removed; theme-derived solid presets + a custom-hue slider clamped to a readable light tone *(v1.6.0)*
+- [x] "Allow back during session" setting (default off → back is intercepted with a guiding snackbar); the Settings tab is locked while a transfer session is running *(v1.6.0)*
+- [x] Waiting-for-connection loading indicator; stop-service moved into the header *(v1.6.0)*
 - [ ] HTTPS with self-signed cert *(v2)*
 - [ ] At-rest encryption of local archive *(v2)*
 
@@ -75,6 +85,8 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] Settings persisted via DataStore Preferences; theme flows through a `StateFlow<FlikkySettings>` the `MaterialTheme` observes — theme / dark / AMOLED changes recompose in place, no Activity recreation *(v1.5.0)*
 - [x] `peerInfoProvider` reads a `@Volatile` settings snapshot at call time, so it stays correct across Wi-Fi rebind (KtorServer is rebuilt; the lambda survives on a TransferService field) *(v1.5.0)*
 - [x] `SessionState.addMessage` keeps the in-memory list timestamp-sorted (binary insert), so an undo-restored message returns to its original position while monotonic new messages still append *(v1.5.0)*
+- [x] Correct edge-to-edge IME handling: `adjustResize` + `padding(innerPadding)` + `consumeWindowInsets(innerPadding)` + `imePadding()` so the IME inset is applied exactly once and the input sits right above the keyboard *(v1.6.0)*
+- [x] App `versionName` / `versionCode` now tracked (1.6.0 / 10600 via `major*10000+minor*100+patch`) — both were frozen at `1.0` / `1` since the project start, so the installer always showed 1.0 *(v1.6.0)*
 
 ### fix
 
@@ -110,6 +122,11 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] v1.5.0 undo-delete in an active session dropped the message to the list bottom; `addMessage` now inserts in timestamp order so it returns to its original slot
 - [x] v1.5.0 history showed the wrong browser-side avatar (the peer avatar id lived only in memory) — added a `peerAvatarId` column (DB v2→3 migration) persisted on `endSession` and read back in history
 - [x] v1.5.0 delete / recall snackbars displaced conversation content and could cover the input bar; they now float as an overlay above the input bar on both phone (Compose overlay) and browser (mdui offset)
+- [x] v1.5.1 browser chat page wouldn't scroll: mdui's fixed top-app-bar injected `padding-top` on `<body>`, fighting the `100vh` flex shell → scoped `body.chat-page` overrides + `100dvh`
+- [x] v1.6.0 IME inset double-count: without `windowSoftInputMode` the activity panned the window while the column also applied an ime inset, pushing the input to the top with a keyboard-height void; fixed with the canonical `adjustResize` + `consumeWindowInsets` pattern (single application)
+- [x] v1.6.0 message input is disabled until a client connects (matching add / send), so there's no editing or keyboard pop in the no-connection state
+- [x] v1.6.0 background picker: selecting an option no longer closes the sheet, the custom-hue slider reads back from the current background, and duplicate theme-derived swatches (e.g. coral / mushroom) are de-duplicated
+- [x] v1.6.0 connection-card URL stacks above its copy button so long URLs no longer misalign with the icon
 
 ## Highlights
 
@@ -124,7 +141,8 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 
 - HTTP plaintext (HTTPS self-signed lands in v2).
 - Wi-Fi switch (different IP) tears down the in-flight WS — the browser must reopen the new URL shown in the banner. Same-IP recoveries auto-reconnect within a few seconds. *(v1.2)*
-- Avatars and conversation background are preset-only (icon + color / gradient); custom images are out of scope for v1.5.0.
+- Avatars are preset-only (icon + color); custom images are out of scope. Conversation background offers theme-derived solids + a custom hue (always clamped to a readable light tone); gradients were removed in v1.6.0. *(v1.6.0)*
+- The bubble corner-radius slider applies on the phone; the browser uses a static 18px until two-end theme sync lands. *(v1.8.0 planned)*
 
 ## Tech stack
 

@@ -14,6 +14,8 @@
 - **v1.3** — *已发布（2026-05-24）* — 跨会话消息搜索（FTS4 + LIKE fallback）、进行中服务消息撤回（真删 + 双端二次确认 + 即时同步）、History 单条消息删除、应用层 ping/pong 替代被动心跳、闭包死引用系统性审计 + 回归保护、导出页 WS 健康检测 + 取消导出 dialog。
 - **v1.4.0** — *已发布（2026-06-04）* — 文件传输异步化（双向即时 IN_PROGRESS 气泡 + 进度条 + 失败态 `传输失败`/`发送失败` 反馈 + 上传中断自动清理）、从 zip 导入回 APP（向后兼容 v1.2/v1.3 格式 + name+startedAt 重复检测 + 导入后 FIFO sweep）、导出格式 `relativePath` 去重修复（messages.json 与 zip entry 对齐，版本号升至 1.4）。
 - **v1.5.0** — *已发布（2026-06-08）* — UI/UX 大改：底部导航（传输 / 设置）、基于 DataStore 的完整设置体系 + 即时换肤（Material You 动态色 + 4 套暖调预设 + 三态深色 + AMOLED）、APP/对端预设头像与进行中会话背景**两端同步**（`GET /api/peer-info` + WS `client_hello`）、长按消息操作栏（复制 / 撤回 / 打开 / 删除带撤销，逐个错位弹出）、可配置 History 保存数量（含 `0`=不保存、`-1`=无限制）、可编辑本机名称、消息撤回 Beta 开关、emoji→Material 图标全量迁移与 +1 档圆角形状。
+- **v1.5.1** — *已发布（2026-06-16）* — 浏览器对话页滚动修复（mdui 固定 top-app-bar 给 `<body>` 注入 `padding-top`，与 `100vh` flex 外壳冲突 → 作用域化的 `body.chat-page` 覆盖 + `100dvh`），并清理了 v1.5.0 遗留的若干 cosmetic 小问题。
+- **v1.6.0** — *已发布（2026-06-16）* — **会话体验重构**：顶部上下文自适应（配对前连接卡片 → 连上后 spring 塌缩为纤细对端头部）、悬浮消息工具栏（单击召唤 / 长按选词 / 单击空白清除）+ 设置开关切换为气泡旁常驻操作栏、两端统一四角等圆角气泡（默认 18dp）+ 圆角 slider、头像显示设置（组内首条 / 末条 / 每条）、输入区重做（输入框 + add 底部面板的文件/图片方卡 + 圆形发送）+ 第二行统计兼作 snackbar 落区、会话背景去渐变改为主题派生纯色 + 自定义色相 slider、等待连接加载指示、停止服务移至头部、「允许会话中返回」开关（默认拦截返回；会话运行期间锁定设置入口），以及修正的 edge-to-edge IME inset 让输入行紧贴键盘上方。应用 `versionName`/`versionCode` 现已纳入维护（此前一直冻结在 1.0/1）。
 
 设计文档与复盘/验收清单保存在本地的 `docs/others/`（已 gitignored），公开仓库仅含源码。
 
@@ -55,6 +57,14 @@
 - [x] APP/对端预设头像（12 个）+ 进行中会话背景（默认 / 空白 / 纯色 / 渐变），**两端同步**（`GET /api/peer-info` + WS `client_hello`），浏览器端带头像选择器 *(v1.5.0)*
 - [x] 设置内可配置 History 保存数量（默认 20，`0`=不保存，`-1`=无限制）；对端头像编号持久化，History 正确还原浏览器侧头像 *(v1.5.0)*
 - [x] emoji → Material 图标全量迁移（`material-icons-core` + 离线打包的 Symbols vector）、+1 档圆角 MD3 形状、气泡 CJK 段落折行 *(v1.5.0)*
+- [x] 顶部上下文自适应：配对前 `ConnectionInfoCard`（URL + 复制 + 大号 PIN），连上后 spring 塌缩为纤细对端头部（头像 + 名称 + 已连接 + 停止）；与导出页共用 *(v1.6.0)*
+- [x] 悬浮消息工具栏（默认）：单击气泡召唤、长按起原生选词、单击空白清除；设置开关可切换为气泡旁常驻操作栏；进行中会话与 History 都适用 *(v1.6.0)*
+- [x] 两端统一四角等圆角气泡（默认 18dp）+ 设置内圆角 slider（8–28dp） *(v1.6.0)*
+- [x] 头像显示设置：同来源连续消息组内首条 / 末条 / 每条显示头像 *(v1.6.0)*
+- [x] 输入区重做：输入框 + add 按钮（底部面板含文件 / 图片方卡）+ 圆形上箭头发送，外加第二行统计（运行 / 文件 / 速率）兼作 snackbar 落区 *(v1.6.0)*
+- [x] 会话背景：移除渐变；主题派生纯色预设 + 自定义色相 slider（恒为可读极浅色） *(v1.6.0)*
+- [x] 「允许会话中返回」设置（默认关 → 返回被拦截并弹引导 snackbar）；传输会话运行期间锁定底栏「设置」入口 *(v1.6.0)*
+- [x] 等待连接加载指示；停止服务移入头部 *(v1.6.0)*
 - [ ] HTTPS 自签证书 *(v2)*
 - [ ] 本地归档 at-rest encryption *(v2)*
 
@@ -75,6 +85,8 @@
 - [x] 设置经 DataStore Preferences 持久化；主题走 `StateFlow<FlikkySettings>`，`MaterialTheme` 观察它——主题 / 深色 / AMOLED 切换原地重组，不重建 Activity *(v1.5.0)*
 - [x] `peerInfoProvider` 在调用时读 `@Volatile` settings 快照，跨 WiFi rebind 仍正确（KtorServer 被重建，lambda 存活于 TransferService field） *(v1.5.0)*
 - [x] `SessionState.addMessage` 把内存列表保持时间戳有序（二分插入），撤销恢复的消息回到原位置，而单调递增的新消息仍追加末尾 *(v1.5.0)*
+- [x] 正确的 edge-to-edge IME 处理：`adjustResize` + `padding(innerPadding)` + `consumeWindowInsets(innerPadding)` + `imePadding()`，ime inset 只生效一次，输入行紧贴键盘上方 *(v1.6.0)*
+- [x] 应用 `versionName` / `versionCode` 纳入维护（1.6.0 / 10600，公式 `major*10000+minor*100+patch`）——此前从项目之初一直冻结在 `1.0` / `1`，导致安装器永远显示 1.0 *(v1.6.0)*
 
 ### fix
 
@@ -110,6 +122,11 @@
 - [x] v1.5.0 进行中会话的删除→撤销把消息丢到列表末尾；`addMessage` 改时间戳有序插入，撤销后回到原位置
 - [x] v1.5.0 History 显示错误的浏览器侧头像（对端头像编号只在内存）——新增 `peerAvatarId` 列（DB v2→3 migration），`endSession` 时持久化、History 读回
 - [x] v1.5.0 删除 / 撤回 snackbar 占位挤动会话内容、可能挡住输入框；现在两端都改为悬浮在输入框上方（手机端 Compose overlay，浏览器端 mdui 偏移）
+- [x] v1.5.1 浏览器对话页无法滚动：mdui 固定 top-app-bar 给 `<body>` 注入 `padding-top`，与 `100vh` flex 外壳冲突 → 作用域化 `body.chat-page` 覆盖 + `100dvh`
+- [x] v1.6.0 IME inset 双重计算：未设 `windowSoftInputMode` 时 Activity 用 adjustPan 平移窗口，而列又应用了一次 ime inset，导致输入行被顶到顶部、留出键盘高度空白；改用规范的 `adjustResize` + `consumeWindowInsets` 写法（只生效一次）
+- [x] v1.6.0 未连接时禁用消息输入框（与 add / 发送一致），无连接态不可编辑、不弹键盘
+- [x] v1.6.0 背景选择面板：点选项不再关闭面板、自定义色相 slider 从当前背景回读、主题派生重复色块去重（如珊瑚 / 蘑菇）
+- [x] v1.6.0 连接卡片 URL 改为整行居中 + 下方独立复制按钮，长 URL 不再与图标错位
 
 ## 亮点
 
@@ -124,7 +141,8 @@
 
 - HTTP 明文传输（HTTPS 自签证书在 v2 里加）。
 - WiFi 切换（IP 变了）会断开在飞的 WS，浏览器需打开 banner 提示的新 URL；同 IP 恢复几秒内自动重连。 *(v1.2)*
-- 头像与会话背景仅支持预设（图标 + 颜色 / 渐变）；自定义图片不在 v1.5.0 范围内。
+- 头像仅支持预设（图标 + 颜色）；自定义图片不在范围内。会话背景支持主题派生纯色 + 自定义色相（恒为可读极浅色）；渐变已在 v1.6.0 移除。 *(v1.6.0)*
+- 气泡圆角 slider 仅在手机端生效；浏览器端暂用静态 18px，待两端主题同步落地。 *(计划 v1.8.0)*
 
 ## 技术栈
 
