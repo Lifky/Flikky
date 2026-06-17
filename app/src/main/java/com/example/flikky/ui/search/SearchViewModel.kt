@@ -42,9 +42,13 @@ class SearchViewModel(
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query
 
-    val results: StateFlow<List<SessionRepository.SearchHit>> = _query
+    /** Debounced + trimmed query — shared by [results] and HomeSearchBar's session filter. */
+    val debouncedQuery: StateFlow<String> = _query
         .debounce(300L)
         .map { it.trim() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000L), "")
+
+    val results: StateFlow<List<SessionRepository.SearchHit>> = debouncedQuery
         .flatMapLatest { q ->
             if (q.isEmpty()) flow { emit(emptyList()) }
             else flow { emit(repository.search(q)) }

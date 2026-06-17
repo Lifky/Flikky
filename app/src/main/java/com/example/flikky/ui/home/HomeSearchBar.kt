@@ -68,9 +68,14 @@ fun HomeSearchBar(
         factory = SearchViewModel.factory(ctx.applicationContext as Application),
     )
     val query by searchVm.query.collectAsState()
+    // settledQuery is debounced+trimmed — both result groups derive from it so they move in lockstep.
+    val settledQuery by searchVm.debouncedQuery.collectAsState()
     val msgHits by searchVm.results.collectAsState()
     var expanded by rememberSaveable { mutableStateOf(false) }
-    val sessionHits = remember(sessions, query) { matchSessionsByName(sessions, query) }
+    // Intentionally driven by settledQuery (not raw query) so session hits and message hits
+    // update simultaneously — prevents one group leading the other by ~300 ms.
+    val sessionHits = remember(sessions, settledQuery) { matchSessionsByName(sessions, settledQuery) }
+    val settled = settledQuery == query.trim()
 
     fun collapse() {
         expanded = false
@@ -128,7 +133,10 @@ fun HomeSearchBar(
     ) {
         when {
             query.isBlank() -> CenterHint("输入关键词搜索会话与消息")
-            sessionHits.isEmpty() && msgHits.isEmpty() -> CenterHint("没有找到匹配项")
+            sessionHits.isEmpty() && msgHits.isEmpty() ->
+                // Only show "no match" once the debounce has settled; suppress the ~300ms flash
+                // that would otherwise appear when a query has only message hits (not session-name hits).
+                if (settled) CenterHint("没有找到匹配项") else Box(Modifier.fillMaxSize())
             else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
                 if (sessionHits.isNotEmpty()) {
                     item { SectionHeader("会话") }
