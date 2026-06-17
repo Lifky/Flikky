@@ -36,10 +36,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
+import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.ui.search.SearchViewModel
 import java.text.SimpleDateFormat
@@ -154,6 +157,7 @@ private fun SectionHeader(text: String) {
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier
+            .semantics { heading() }
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     )
@@ -201,7 +205,7 @@ private fun SessionHitRow(s: SessionEntity, onClick: () -> Unit) {
 
 @Composable
 private fun MessageHitRow(
-    hit: com.example.flikky.data.SessionRepository.SearchHit,
+    hit: SessionRepository.SearchHit,
     onClick: () -> Unit,
 ) {
     Column(

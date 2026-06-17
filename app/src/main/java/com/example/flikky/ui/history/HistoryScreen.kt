@@ -95,7 +95,7 @@ fun HistoryScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // v1.3 T20: scroll-to + flash-highlight when arriving from SearchScreen.
+    // v1.3 T20: scroll-to + flash-highlight when arriving from the home search.
     val listState = rememberLazyListState()
     var activeHighlight by remember { mutableStateOf<Long?>(highlightMessageId) }
     LaunchedEffect(highlightMessageId, messages) {
