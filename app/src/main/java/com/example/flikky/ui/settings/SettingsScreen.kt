@@ -310,7 +310,7 @@ fun SettingsScreen(
                 SettingSection(title = "关于") {
                     SettingItem(
                         title = "版本",
-                        subtitle = "v1.6.0",
+                        subtitle = "v1.7.0",
                         shape = groupedItemShape(0, aboutItems),
                     )
                     SettingItem(
