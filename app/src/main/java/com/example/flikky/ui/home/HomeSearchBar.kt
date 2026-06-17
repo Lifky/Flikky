@@ -1,0 +1,242 @@
+package com.example.flikky.ui.home
+
+import android.app.Application
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.flikky.R
+import com.example.flikky.data.db.entities.SessionEntity
+import com.example.flikky.ui.search.SearchViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+/**
+ * 主页顶部 SearchBar：折叠态取代顶栏（去标题），trailing overflow 收纳「导入」。
+ * 原地展开为全屏搜索，结果分「会话」（名称匹配）+「消息」（FTS，复用 SearchViewModel）两组。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HomeSearchBar(
+    sessions: List<SessionEntity>,
+    onOpenSession: (Long) -> Unit,
+    onResume: () -> Unit,
+    onOpenMessageHit: (sessionId: Long, messageId: Long) -> Unit,
+    onImport: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val ctx = LocalContext.current
+    val searchVm: SearchViewModel = viewModel(
+        factory = SearchViewModel.factory(ctx.applicationContext as Application),
+    )
+    val query by searchVm.query.collectAsState()
+    val msgHits by searchVm.results.collectAsState()
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val sessionHits = remember(sessions, query) { matchSessionsByName(sessions, query) }
+
+    fun collapse() {
+        expanded = false
+        searchVm.onQueryChange("")
+    }
+
+    SearchBar(
+        modifier = modifier.fillMaxWidth(),
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        inputField = {
+            SearchBarDefaults.InputField(
+                query = query,
+                onQueryChange = searchVm::onQueryChange,
+                onSearch = { },
+                expanded = expanded,
+                onExpandedChange = { expanded = it },
+                placeholder = { Text("搜索会话与消息") },
+                leadingIcon = {
+                    if (expanded) {
+                        IconButton(onClick = { collapse() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "收起搜索")
+                        }
+                    } else {
+                        Icon(Icons.Default.Search, contentDescription = "搜索")
+                    }
+                },
+                trailingIcon = {
+                    if (expanded) {
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { searchVm.onQueryChange("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "清空")
+                            }
+                        }
+                    } else {
+                        var menu by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { menu = true }) {
+                                Icon(painterResource(R.drawable.ic_more_vert), contentDescription = "更多")
+                            }
+                            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("导入") },
+                                    onClick = { menu = false; onImport() },
+                                    leadingIcon = {
+                                        Icon(painterResource(R.drawable.ic_file_download), contentDescription = null)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                },
+            )
+        },
+    ) {
+        when {
+            query.isBlank() -> CenterHint("输入关键词搜索会话与消息")
+            sessionHits.isEmpty() && msgHits.isEmpty() -> CenterHint("没有找到匹配项")
+            else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
+                if (sessionHits.isNotEmpty()) {
+                    item { SectionHeader("会话") }
+                    items(sessionHits, key = { "s${it.id}" }) { s ->
+                        SessionHitRow(s) {
+                            collapse()
+                            if (s.endedAt == null) onResume() else onOpenSession(s.id)
+                        }
+                    }
+                }
+                if (msgHits.isNotEmpty()) {
+                    item { SectionHeader("消息") }
+                    items(msgHits, key = { "m${it.messageId}" }) { hit ->
+                        MessageHitRow(hit) { collapse(); onOpenMessageHit(hit.sessionId, hit.messageId) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    )
+}
+
+@Composable
+private fun CenterHint(text: String) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun SessionHitRow(s: SessionEntity, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Text(
+            s.name,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            if (s.endedAt == null) "进行中" else s.previewText ?: "${s.messageCount} 条消息 · ${s.fileCount} 文件",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun MessageHitRow(
+    hit: com.example.flikky.data.SessionRepository.SearchHit,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Text(
+            hit.sessionName,
+            style = MaterialTheme.typography.titleSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (hit.kind == "FILE") {
+                Icon(
+                    painterResource(R.drawable.ic_attach_file),
+                    contentDescription = "文件",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.size(4.dp))
+            }
+            Text(
+                hit.snippet,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(hit.timestamp)),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}

@@ -27,7 +27,6 @@ import com.example.flikky.ui.components.FlikkyNavBar
 import com.example.flikky.ui.exporting.ExportingScreen
 import com.example.flikky.ui.history.HistoryScreen
 import com.example.flikky.ui.home.HomeScreen
-import com.example.flikky.ui.search.SearchScreen
 import com.example.flikky.ui.serving.ServingScreen
 import com.example.flikky.ui.settings.SettingsScreen
 import com.example.flikky.ui.theme.FlikkyTheme
@@ -84,8 +83,9 @@ class MainActivity : ComponentActivity() {
                                     onStartService = { nav.navigate("serving") },
                                     onStartExport = { nav.navigate("exporting") },
                                     onSelectingChange = { homeSelecting = it },
-                                    // onOpenSearchHit + 删 onOpenSearch 在 Task 5 接线
-                                    onOpenSearch = { nav.navigate("search") },
+                                    onOpenSearchHit = { sessionId, messageId ->
+                                        nav.navigate("history/$sessionId?highlight=$messageId")
+                                    },
                                 )
                             }
                             composable("settings") {
@@ -99,14 +99,6 @@ class MainActivity : ComponentActivity() {
                             composable("exporting") {
                                 ExportingScreen(
                                     onBack = { nav.popBackStack("transfer", inclusive = false) },
-                                )
-                            }
-                            composable("search") {
-                                SearchScreen(
-                                    onBack = { nav.popBackStack() },
-                                    onOpenHit = { sessionId, messageId ->
-                                        nav.navigate("history/$sessionId?highlight=$messageId")
-                                    },
                                 )
                             }
                             composable(

@@ -31,13 +31,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -89,8 +86,7 @@ fun HomeScreen(
     onOpenSession: (Long) -> Unit,
     onStartService: () -> Unit,
     onStartExport: () -> Unit = {},
-    onOpenSearch: () -> Unit = {},
-    onOpenSearchHit: (Long, Long) -> Unit = { _, _ -> },   // Task 5 用（消息命中跳高亮）
+    onOpenSearchHit: (Long, Long) -> Unit = { _, _ -> },
     onSelectingChange: (Boolean) -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
 ) {
@@ -177,10 +173,13 @@ fun HomeScreen(
                     selectAllEnabled = validSessionIds.isNotEmpty(),
                 )
             } else {
-                NormalTopBar(
-                    onEnterSelecting = { viewModel.enterSelecting() },
-                    onOpenSearch = onOpenSearch,
+                HomeSearchBar(
+                    sessions = sessions,
+                    onOpenSession = onOpenSession,
+                    onResume = { resumeNavigate() },
+                    onOpenMessageHit = onOpenSearchHit,
                     onImport = { importLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed")) },
+                    modifier = Modifier.padding(horizontal = 8.dp),
                 )
             }
         },
@@ -307,20 +306,6 @@ fun HomeScreen(
             dismissButton = { TextButton(onClick = { showBatchDeleteDialog = false }) { Text("取消") } },
         )
     }
-}
-
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-@Composable
-private fun NormalTopBar(onEnterSelecting: () -> Unit, onOpenSearch: () -> Unit, onImport: () -> Unit) {
-    TopAppBar(
-        title = { Text("Flikky") },
-        actions = {
-            IconButton(onClick = onOpenSearch) { Icon(Icons.Default.Search, contentDescription = "搜索") }
-            IconButton(onClick = onImport) { Icon(painterResource(R.drawable.ic_file_download), contentDescription = "导入") }
-            TextButton(onClick = onEnterSelecting) { Text("导出") }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(),
-    )
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
