@@ -242,4 +242,42 @@ class HomeViewModelSelectingTest {
         coVerify(exactly = 1) { repo.deleteSession(2L) }
         coVerify(exactly = 1) { repo.deleteSession(3L) }
     }
+
+    @Test fun pinSelected_sets_pinned_for_each_and_exits() = runTest {
+        coEvery { repo.setPinned(any(), any()) } just Runs
+        val vm = buildVm()
+        vm.enterSelecting(); vm.toggleSelection(1L); vm.toggleSelection(2L)
+        vm.pinSelected(true)
+        coVerify(exactly = 1) { repo.setPinned(1L, true) }
+        coVerify(exactly = 1) { repo.setPinned(2L, true) }
+        assertNull(vm.selection.value)
+    }
+
+    @Test fun deleteSelected_deletes_each_and_exits() = runTest {
+        coEvery { repo.deleteSession(any()) } just Runs
+        val vm = buildVm()
+        vm.enterSelecting(); vm.toggleSelection(3L); vm.toggleSelection(4L)
+        vm.deleteSelected()
+        coVerify(exactly = 1) { repo.deleteSession(3L) }
+        coVerify(exactly = 1) { repo.deleteSession(4L) }
+        assertNull(vm.selection.value)
+    }
+
+    @Test fun renameSelected_renames_single_and_exits() = runTest {
+        coEvery { repo.rename(any(), any()) } just Runs
+        val vm = buildVm()
+        vm.enterSelecting(); vm.toggleSelection(5L)
+        vm.renameSelected("新名字")
+        coVerify(exactly = 1) { repo.rename(5L, "新名字") }
+        assertNull(vm.selection.value)
+    }
+
+    @Test fun renameSelected_noop_when_not_single() = runTest {
+        coEvery { repo.rename(any(), any()) } just Runs
+        val vm = buildVm()
+        vm.enterSelecting(); vm.toggleSelection(5L); vm.toggleSelection(6L)
+        vm.renameSelected("x")
+        coVerify(exactly = 0) { repo.rename(any(), any()) }
+        assertEquals(setOf(5L, 6L), vm.selection.value)
+    }
 }

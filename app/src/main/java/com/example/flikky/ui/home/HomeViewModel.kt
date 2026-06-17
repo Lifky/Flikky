@@ -88,6 +88,27 @@ class HomeViewModel @JvmOverloads constructor(
         _selection.value = null
     }
 
+    /** 对当前选中的所有会话设置置顶态（pinned 由 UI 先算"是否全部已置顶"后传入），完成后退出多选。 */
+    suspend fun pinSelected(pinned: Boolean) {
+        val ids = _selection.value ?: return
+        ids.forEach { repository.setPinned(it, pinned) }
+        _selection.value = null
+    }
+
+    /** 批量删除当前选中的所有会话，完成后退出多选。 */
+    suspend fun deleteSelected() {
+        val ids = _selection.value ?: return
+        ids.forEach { repository.deleteSession(it) }
+        _selection.value = null
+    }
+
+    /** 重命名当前唯一选中的会话（UI 仅在恰好选中 1 条时调用），完成后退出多选；非单选则 no-op 且不退出。 */
+    suspend fun renameSelected(newName: String) {
+        val id = _selection.value?.singleOrNull() ?: return
+        repository.rename(id, newName)
+        _selection.value = null
+    }
+
     // --- Export kickoff -----------------------------------------------------
 
     sealed class ExportStartResult {
