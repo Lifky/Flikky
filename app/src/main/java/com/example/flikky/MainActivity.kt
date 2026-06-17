@@ -11,6 +11,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -52,9 +55,11 @@ class MainActivity : ComponentActivity() {
                     val sessionSnap by ServiceLocator.session.snapshot.collectAsState()
                     val servingActive = sessionSnap.currentSessionId != null
 
+                    var homeSelecting by remember { mutableStateOf(false) }
+
                     Scaffold(
                         bottomBar = {
-                            if (topLevel) {
+                            if (topLevel && !homeSelecting) {
                                 FlikkyNavBar(
                                     currentRoute = currentRoute,
                                     settingsEnabled = !servingActive,
@@ -78,6 +83,8 @@ class MainActivity : ComponentActivity() {
                                     onOpenSession = { id -> nav.navigate("history/$id") },
                                     onStartService = { nav.navigate("serving") },
                                     onStartExport = { nav.navigate("exporting") },
+                                    onSelectingChange = { homeSelecting = it },
+                                    // onOpenSearchHit + 删 onOpenSearch 在 Task 5 接线
                                     onOpenSearch = { nav.navigate("search") },
                                 )
                             }

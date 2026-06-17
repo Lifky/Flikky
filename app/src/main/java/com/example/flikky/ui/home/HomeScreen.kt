@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -18,14 +19,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -35,11 +39,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,9 +55,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.ui.res.painterResource
-import com.example.flikky.R
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,10 +66,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.flikky.R
 import com.example.flikky.data.db.entities.SessionEntity
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -82,6 +90,8 @@ fun HomeScreen(
     onStartService: () -> Unit,
     onStartExport: () -> Unit = {},
     onOpenSearch: () -> Unit = {},
+    onOpenSearchHit: (Long, Long) -> Unit = { _, _ -> },   // Task 5 用（消息命中跳高亮）
+    onSelectingChange: (Boolean) -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -148,6 +158,15 @@ fun HomeScreen(
     val selectedCount = selectedIds.size
     val validSessionIds = remember(sessions) { sessions.filter { it.endedAt != null }.map { it.id } }
 
+    val selectedSessions = remember(sessions, selectedIds) { sessions.filter { it.id in selectedIds } }
+    val allSelectedPinned = selectedSessions.isNotEmpty() && selectedSessions.all { it.pinned }
+    val singleSelected = selectedSessions.singleOrNull()
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var showBatchDeleteDialog by remember { mutableStateOf(false) }
+
+    // 上报多选态给 MainActivity，用于多选时隐藏底部导航。
+    LaunchedEffect(selecting) { onSelectingChange(selecting) }
+
     Scaffold(
         topBar = {
             if (selecting) {
@@ -196,10 +215,12 @@ fun HomeScreen(
                 enter = slideInVertically { it },
                 exit = slideOutVertically { it },
             ) {
-                SelectingBottomBar(
+                SelectingActionBar(
                     selectedCount = selectedCount,
-                    totalCount = sessions.size,
-                    onStartExport = {
+                    allPinned = allSelectedPinned,
+                    onPinToggle = { scope.launch { viewModel.pinSelected(!allSelectedPinned) } },
+                    onRename = { showRenameDialog = true },
+                    onExport = {
                         scope.launch {
                             when (viewModel.startExport()) {
                                 HomeViewModel.ExportStartResult.Success -> onStartExport()
@@ -212,6 +233,7 @@ fun HomeScreen(
                             }
                         }
                     },
+                    onDelete = { if (selectedCount > 0) showBatchDeleteDialog = true },
                 )
             }
         },
@@ -231,13 +253,10 @@ fun HomeScreen(
                         selecting = selecting,
                         checked = s.id in selectedIds,
                         onNormalClick = {
-                            // 进行中会话点击 → 进 ServingScreen 继续；其他点开 history.
                             if (s.endedAt == null) resumeNavigate() else onOpenSession(s.id)
                         },
+                        onEnterSelecting = { viewModel.toggleSelection(s.id) }, // 从 null 切换=进多选并选中该条
                         onToggleSelection = { viewModel.toggleSelection(s.id) },
-                        onRename = { name -> viewModel.rename(s.id, name) },
-                        onTogglePin = { viewModel.setPinned(s.id, !s.pinned) },
-                        onDelete = { viewModel.deleteSession(s.id) },
                         onStopInProgress = { viewModel.stopService() },
                     )
                 }
@@ -255,6 +274,37 @@ fun HomeScreen(
                     CircularProgressIndicator()
                 }
             },
+        )
+    }
+
+    if (showRenameDialog && singleSelected != null) {
+        var draft by remember(singleSelected.id) { mutableStateOf(singleSelected.name) }
+        AlertDialog(
+            onDismissRequest = { showRenameDialog = false },
+            title = { Text("重命名会话") },
+            text = { OutlinedTextField(value = draft, onValueChange = { draft = it }, singleLine = true) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRenameDialog = false
+                    scope.launch { viewModel.renameSelected(draft) }
+                }) { Text("确定") }
+            },
+            dismissButton = { TextButton(onClick = { showRenameDialog = false }) { Text("取消") } },
+        )
+    }
+
+    if (showBatchDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showBatchDeleteDialog = false },
+            title = { Text("删除 $selectedCount 个会话") },
+            text = { Text("将删除所选会话的全部消息与文件。该操作不可撤销。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showBatchDeleteDialog = false
+                    scope.launch { viewModel.deleteSelected() }
+                }) { Text("删除") }
+            },
+            dismissButton = { TextButton(onClick = { showBatchDeleteDialog = false }) { Text("取消") } },
         )
     }
 }
@@ -294,34 +344,64 @@ private fun SelectingTopBar(
 }
 
 @Composable
-private fun SelectingBottomBar(
+private fun SelectingActionBar(
     selectedCount: Int,
-    totalCount: Int,
-    onStartExport: () -> Unit,
+    allPinned: Boolean,
+    onPinToggle: () -> Unit,
+    onRename: () -> Unit,
+    onExport: () -> Unit,
+    onDelete: () -> Unit,
 ) {
-    Surface(
-        tonalElevation = 3.dp,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
+    Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .navigationBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
-            Text(
-                text = "已选 $selectedCount 个 / 共 $totalCount 个",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            val enabled = selectedCount > 0
+            ActionBarItem(
+                iconRes = R.drawable.ic_push_pin,
+                label = if (allPinned) "取消置顶" else "置顶",
+                enabled = enabled, onClick = onPinToggle,
             )
-            Button(
-                onClick = onStartExport,
-                enabled = selectedCount > 0,
-            ) {
-                Text("开始导出 ($selectedCount)")
+            if (selectedCount == 1) {
+                ActionBarItem(iconRes = R.drawable.ic_edit, label = "重命名", enabled = true, onClick = onRename)
             }
+            ActionBarItem(iconRes = R.drawable.ic_upload, label = "导出", enabled = enabled, onClick = onExport)
+            ActionBarItem(
+                iconRes = R.drawable.ic_delete, label = "删除",
+                enabled = enabled, onClick = onDelete, danger = true,
+            )
         }
+    }
+}
+
+@Composable
+private fun ActionBarItem(
+    iconRes: Int,
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    danger: Boolean = false,
+) {
+    val tint = when {
+        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+        danger   -> MaterialTheme.colorScheme.error
+        else     -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        Icon(painterResource(iconRes), contentDescription = label, tint = tint, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.height(2.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = tint)
     }
 }
 
@@ -352,31 +432,38 @@ private fun SessionRow(
     selecting: Boolean,
     checked: Boolean,
     onNormalClick: () -> Unit,
+    onEnterSelecting: () -> Unit,
     onToggleSelection: () -> Unit,
-    onRename: (String) -> Unit,
-    onTogglePin: () -> Unit,
-    onDelete: () -> Unit,
     onStopInProgress: () -> Unit,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
-    var showRename by remember { mutableStateOf(false) }
-    var showDeleteConfirm by remember { mutableStateOf(false) }
     val inProgress = s.endedAt == null
     val dimmed = selecting && inProgress
+    val haptic = LocalHapticFeedback.current
 
-    // Click behavior:
-    //   Normal mode      -> open session (long-press = context menu, unless in-progress).
-    //   Selecting mode   -> toggle selection (no-op when in-progress; long-press ignored).
+    // Scheme A 纯色三态：选中 primaryContainer / 多选未选 surfaceContainer / 普通 surfaceContainerLow（置顶 secondaryContainer）。
+    val targetColor = when {
+        selecting && checked && !inProgress -> MaterialTheme.colorScheme.primaryContainer
+        selecting && !inProgress            -> MaterialTheme.colorScheme.surfaceContainer
+        s.pinned                            -> MaterialTheme.colorScheme.secondaryContainer
+        else                                -> MaterialTheme.colorScheme.surfaceContainerLow
+    }
+    val containerColor by animateColorAsState(targetColor, label = "rowSelColor")
+    val selectedNow = selecting && checked && !inProgress
+    val onContent = if (selectedNow) MaterialTheme.colorScheme.onPrimaryContainer
+                    else MaterialTheme.colorScheme.onSurface
+
     val cardModifier = if (selecting) {
-        if (inProgress) {
-            Modifier // no click — in-progress sessions cannot be selected.
-        } else {
-            Modifier.clickable(onClick = onToggleSelection)
-        }
+        if (inProgress) Modifier // 进行中不可选
+        else Modifier.combinedClickable(onClick = onToggleSelection)
     } else {
         Modifier.combinedClickable(
             onClick = onNormalClick,
-            onLongClick = { if (!inProgress) menuExpanded = true },
+            onLongClick = {
+                if (!inProgress) {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onEnterSelecting()
+                }
+            },
         )
     }
 
@@ -385,24 +472,19 @@ private fun SessionRow(
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
             .then(cardModifier)
-            .then(if (dimmed) Modifier.alpha(0.5f) else Modifier),
-        colors = CardDefaults.cardColors(
-            containerColor = if (s.pinned) MaterialTheme.colorScheme.secondaryContainer
-                             else MaterialTheme.colorScheme.surfaceContainerLow
-        ),
+            .then(if (dimmed) Modifier.alpha(0.5f) else Modifier)
+            .then(
+                if (selecting && !inProgress) Modifier.semantics {
+                    selected = checked
+                    stateDescription = if (checked) "已选中" else "未选中"
+                } else Modifier
+            ),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
         Row(
             modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (selecting) {
-                Checkbox(
-                    checked = checked && !inProgress,
-                    onCheckedChange = { if (!inProgress) onToggleSelection() },
-                    enabled = !inProgress,
-                    modifier = Modifier.padding(end = 8.dp),
-                )
-            }
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (s.pinned) {
@@ -410,88 +492,38 @@ private fun SessionRow(
                             painter = painterResource(R.drawable.ic_push_pin),
                             contentDescription = "已置顶",
                             modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.primary,
+                            tint = if (selectedNow) onContent else MaterialTheme.colorScheme.primary,
                         )
                         Spacer(Modifier.width(4.dp))
                     }
-                    Text(
-                        text = s.name,
-                        style = MaterialTheme.typography.titleMedium,
-                    )
+                    Text(text = s.name, style = MaterialTheme.typography.titleMedium, color = onContent)
                 }
                 Text(
                     text = when {
-                        selecting && inProgress -> "结束服务后可导出"
+                        selecting && inProgress -> "结束服务后可选择"
                         else -> s.previewText ?: "${s.messageCount} 条消息 · ${s.fileCount} 文件"
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (selectedNow) onContent.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                 )
                 Text(
                     text = if (inProgress) "进行中" else formatRelative(s.startedAt),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (inProgress) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = when {
+                        selectedNow -> onContent.copy(alpha = 0.8f)
+                        inProgress  -> MaterialTheme.colorScheme.primary
+                        else        -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
-            // 进行中会话项右侧加"停止"按钮，符合用户直觉的就地操作。
             if (inProgress && !selecting) {
                 TextButton(onClick = onStopInProgress) {
                     Text("停止", color = MaterialTheme.colorScheme.error)
                 }
             }
         }
-        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-            DropdownMenuItem(
-                text = { Text(if (s.pinned) "取消置顶" else "置顶") },
-                onClick = { menuExpanded = false; onTogglePin() },
-            )
-            DropdownMenuItem(
-                text = { Text("重命名") },
-                onClick = { menuExpanded = false; showRename = true },
-            )
-            DropdownMenuItem(
-                text = { Text("删除") },
-                onClick = { menuExpanded = false; showDeleteConfirm = true },
-            )
-        }
-    }
-
-    if (showRename) {
-        var draft by remember { mutableStateOf(s.name) }
-        AlertDialog(
-            onDismissRequest = { showRename = false },
-            title = { Text("重命名会话") },
-            text = {
-                OutlinedTextField(
-                    value = draft,
-                    onValueChange = { draft = it },
-                    singleLine = true,
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = { showRename = false; onRename(draft) }) { Text("确定") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRename = false }) { Text("取消") }
-            },
-        )
-    }
-
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("删除会话") },
-            text = { Text("将删除此会话的所有消息与文件。该操作不可撤销。") },
-            confirmButton = {
-                TextButton(onClick = { showDeleteConfirm = false; onDelete() }) { Text("删除") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("取消") }
-            },
-        )
     }
 }
 
