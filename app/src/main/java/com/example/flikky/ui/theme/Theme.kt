@@ -39,8 +39,12 @@ fun FlikkyTheme(settings: FlikkySettings, content: @Composable () -> Unit) {
     if (!view.isInEditMode) {
         DisposableEffect(useDark) {
             val window = (view.context as Activity).window
-            androidx.core.view.WindowCompat.getInsetsController(window, view)
-                .isAppearanceLightStatusBars = !useDark
+            androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
+                // 浅色主题 → 深色系统栏图标；深色主题 → 浅色图标。状态栏与导航栏一起设，
+                // 配合 isNavigationBarContrastEnforced=false 让透明系统栏上的图标始终可读。
+                isAppearanceLightStatusBars = !useDark
+                isAppearanceLightNavigationBars = !useDark
+            }
             onDispose {}
         }
     }

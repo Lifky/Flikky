@@ -59,6 +59,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,6 +89,7 @@ fun HomeScreen(
     onStartExport: () -> Unit = {},
     onOpenSearchHit: (Long, Long) -> Unit = { _, _ -> },
     onSelectingChange: (Boolean) -> Unit = {},
+    onSearchExpandedChange: (Boolean) -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -96,6 +98,10 @@ fun HomeScreen(
     val selecting by viewModel.selecting.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    // SearchBar 展开态上提到这里：用于隐藏 FAB，并上报给 MainActivity 隐藏底栏 + 让主页铺满全屏。
+    var searchExpanded by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(searchExpanded) { onSearchExpandedChange(searchExpanded) }
 
     var showImportDialog by remember { mutableStateOf(false) }
 
@@ -175,16 +181,17 @@ fun HomeScreen(
             } else {
                 HomeSearchBar(
                     sessions = sessions,
+                    expanded = searchExpanded,
+                    onExpandedChange = { searchExpanded = it },
                     onOpenSession = onOpenSession,
                     onResume = { resumeNavigate() },
                     onOpenMessageHit = onOpenSearchHit,
                     onImport = { importLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed")) },
-                    modifier = Modifier.padding(horizontal = 8.dp),
                 )
             }
         },
         floatingActionButton = {
-            if (!selecting) {
+            if (!selecting && !searchExpanded) {
                 ExtendedFloatingActionButton(
                     onClick = {
                         if (hasInProgress) {

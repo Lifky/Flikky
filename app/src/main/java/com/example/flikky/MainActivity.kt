@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -15,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -35,6 +38,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // 去掉系统导航栏的对比度浮层（三键导航/手势线），让 App 自己的底栏/内容颜色铺到屏幕最底，
+        // 系统栏背景与 App 一致，不再割裂。配合 Theme 里的 isAppearanceLightNavigationBars 保证图标可读。
+        window.isNavigationBarContrastEnforced = false
 
         setContent {
             val settings by ServiceLocator.settingsRepository.settings
@@ -55,10 +61,12 @@ class MainActivity : ComponentActivity() {
                     val servingActive = sessionSnap.currentSessionId != null
 
                     var homeSelecting by remember { mutableStateOf(false) }
+                    // 主页搜索展开时也隐藏底栏，让搜索铺满全屏。
+                    var homeSearchExpanded by remember { mutableStateOf(false) }
 
                     Scaffold(
                         bottomBar = {
-                            if (topLevel && !homeSelecting) {
+                            if (topLevel && !homeSelecting && !homeSearchExpanded) {
                                 FlikkyNavBar(
                                     currentRoute = currentRoute,
                                     settingsEnabled = !servingActive,
@@ -72,34 +80,48 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                     ) { innerPadding ->
+                        // 逐目的地施加 padding（而非给整个 NavHost），让主页能 escape 顶部 status bar inset：
+                        // - 主页：交给 SearchBar 自己处理顶部 inset（折叠时落在状态栏下、展开时铺到状态栏下方）；
+                        //   只补底部 inset；搜索展开时连底部也不留 → 真全屏铺满。
+                        // - 其余页面：拿到与之前完全一致的 innerPadding（零回归）。
                         NavHost(
                             navController = nav,
                             startDestination = "transfer",
-                            modifier = Modifier.padding(innerPadding),
                         ) {
                             composable("transfer") {
-                                HomeScreen(
-                                    onOpenSession = { id -> nav.navigate("history/$id") },
-                                    onStartService = { nav.navigate("serving") },
-                                    onStartExport = { nav.navigate("exporting") },
-                                    onSelectingChange = { homeSelecting = it },
-                                    onOpenSearchHit = { sessionId, messageId ->
-                                        nav.navigate("history/$sessionId?highlight=$messageId")
-                                    },
-                                )
+                                val homePadding = if (homeSearchExpanded) PaddingValues(0.dp)
+                                    else PaddingValues(bottom = innerPadding.calculateBottomPadding())
+                                Box(Modifier.padding(homePadding)) {
+                                    HomeScreen(
+                                        onOpenSession = { id -> nav.navigate("history/$id") },
+                                        onStartService = { nav.navigate("serving") },
+                                        onStartExport = { nav.navigate("exporting") },
+                                        onSelectingChange = { homeSelecting = it },
+                                        onSearchExpandedChange = { homeSearchExpanded = it },
+                                        onOpenSearchHit = { sessionId, messageId ->
+                                            nav.navigate("history/$sessionId?highlight=$messageId")
+                                        },
+                                    )
+                                }
                             }
                             composable("settings") {
-                                SettingsScreen(
-                                    onExport = { nav.navigate("exporting") },
-                                )
+                                Box(Modifier.padding(innerPadding)) {
+                                    SettingsScreen(
+                                        onExport = { nav.navigate("exporting") },
+                                    )
+                                }
                             }
                             composable("serving") {
-                                ServingScreen(onStopped = { nav.popBackStack("transfer", inclusive = false) })
+                                Box(Modifier.padding(innerPadding)) {
+                                    ServingScreen(onStopped = { nav.popBackStack("transfer", inclusive = false) })
+                                }
                             }
                             composable("exporting") {
-                                ExportingScreen(
-                                    onBack = { nav.popBackStack("transfer", inclusive = false) },
-                                )
+                                Box(Modifier.padding(innerPadding)) {
+                                    ExportingScreen(
+                                        onBack = { nav.popBackStack("transfer", inclusive = false) },
+                                    )
+                                }
                             }
                             composable(
                                 route = "history/{id}?highlight={messageId}",
@@ -113,11 +135,13 @@ class MainActivity : ComponentActivity() {
                             ) { backStack ->
                                 val id = backStack.arguments!!.getLong("id")
                                 val highlight = backStack.arguments!!.getLong("messageId").takeIf { it > 0L }
-                                HistoryScreen(
-                                    sessionId = id,
-                                    highlightMessageId = highlight,
-                                    onBack = { nav.popBackStack() },
-                                )
+                                Box(Modifier.padding(innerPadding)) {
+                                    HistoryScreen(
+                                        sessionId = id,
+                                        highlightMessageId = highlight,
+                                        onBack = { nav.popBackStack() },
+                                    )
+                                }
                             }
                         }
                     }

@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,7 +32,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +58,8 @@ import java.util.Locale
 @Composable
 fun HomeSearchBar(
     sessions: List<SessionEntity>,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
     onOpenSession: (Long) -> Unit,
     onResume: () -> Unit,
     onOpenMessageHit: (sessionId: Long, messageId: Long) -> Unit,
@@ -71,28 +74,28 @@ fun HomeSearchBar(
     // settledQuery is debounced+trimmed — both result groups derive from it so they move in lockstep.
     val settledQuery by searchVm.debouncedQuery.collectAsState()
     val msgHits by searchVm.results.collectAsState()
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    // expanded 受控（上提到 HomeScreen）：用于隐藏 FAB/底栏并让主页铺满全屏。
     // Intentionally driven by settledQuery (not raw query) so session hits and message hits
     // update simultaneously — prevents one group leading the other by ~300 ms.
     val sessionHits = remember(sessions, settledQuery) { matchSessionsByName(sessions, settledQuery) }
     val settled = settledQuery == query.trim()
 
     fun collapse() {
-        expanded = false
+        onExpandedChange(false)
         searchVm.onQueryChange("")
     }
 
     SearchBar(
         modifier = modifier.fillMaxWidth(),
         expanded = expanded,
-        onExpandedChange = { expanded = it },
+        onExpandedChange = onExpandedChange,
         inputField = {
             SearchBarDefaults.InputField(
                 query = query,
                 onQueryChange = searchVm::onQueryChange,
                 onSearch = { },
                 expanded = expanded,
-                onExpandedChange = { expanded = it },
+                onExpandedChange = onExpandedChange,
                 placeholder = { Text("搜索会话与消息") },
                 leadingIcon = {
                     if (expanded) {
@@ -137,7 +140,8 @@ fun HomeSearchBar(
                 // Only show "no match" once the debounce has settled; suppress the ~300ms flash
                 // that would otherwise appear when a query has only message hits (not session-name hits).
                 if (settled) CenterHint("没有找到匹配项") else Box(Modifier.fillMaxSize())
-            else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
+            // 全屏展开后内容会延伸到导航栏/键盘之下，给结果列表补 nav + ime inset，末项不被遮挡。
+            else -> LazyColumn(modifier = Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
                 if (sessionHits.isNotEmpty()) {
                     item { SectionHeader("会话") }
                     items(sessionHits, key = { "s${it.id}" }) { s ->
@@ -231,7 +235,8 @@ private fun MessageHitRow(
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (hit.kind == "FILE") {
                 Icon(
-                    painterResource(R.drawable.ic_attach_file),
+                    // 与消息文件气泡（MessageBubble 用 ic_description）统一图标风格。
+                    painterResource(R.drawable.ic_description),
                     contentDescription = "文件",
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
