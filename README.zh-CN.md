@@ -16,6 +16,7 @@
 - **v1.5.0** — *已发布（2026-06-08）* — UI/UX 大改：底部导航（传输 / 设置）、基于 DataStore 的完整设置体系 + 即时换肤（Material You 动态色 + 4 套暖调预设 + 三态深色 + AMOLED）、APP/对端预设头像与进行中会话背景**两端同步**（`GET /api/peer-info` + WS `client_hello`）、长按消息操作栏（复制 / 撤回 / 打开 / 删除带撤销，逐个错位弹出）、可配置 History 保存数量（含 `0`=不保存、`-1`=无限制）、可编辑本机名称、消息撤回 Beta 开关、emoji→Material 图标全量迁移与 +1 档圆角形状。
 - **v1.5.1** — *已发布（2026-06-16）* — 浏览器对话页滚动修复（mdui 固定 top-app-bar 给 `<body>` 注入 `padding-top`，与 `100vh` flex 外壳冲突 → 作用域化的 `body.chat-page` 覆盖 + `100dvh`），并清理了 v1.5.0 遗留的若干 cosmetic 小问题。
 - **v1.6.0** — *已发布（2026-06-16）* — **会话体验重构**：顶部上下文自适应（配对前连接卡片 → 连上后 spring 塌缩为纤细对端头部）、悬浮消息工具栏（单击召唤 / 长按选词 / 单击空白清除）+ 设置开关切换为气泡旁常驻操作栏、两端统一四角等圆角气泡（默认 18dp）+ 圆角 slider、头像显示设置（组内首条 / 末条 / 每条）、输入区重做（输入框 + add 底部面板的文件/图片方卡 + 圆形发送）+ 第二行统计兼作 snackbar 落区、会话背景去渐变改为主题派生纯色 + 自定义色相 slider、等待连接加载指示、停止服务移至头部、「允许会话中返回」开关（默认拦截返回；会话运行期间锁定设置入口），以及修正的 edge-to-edge IME inset 让输入行紧贴键盘上方。应用 `versionName`/`versionCode` 现已纳入维护（此前一直冻结在 1.0/1）。
+- **v1.7.0** — *已发布（2026-06-18）* — **主页重构**：去掉标题栏，改为大号 MD3 `SearchBar` 原地展开为**真全屏**，同时搜索**会话名 + 消息内容**（FTS），结果分「会话」「消息」两组；导入入口收进 overflow 菜单。**长按是进多选的唯一入口**，选中态用**无 Checkbox 的纯色三态**（`primaryContainer` 填充）+ TalkBack 选中语义；多选时底部导航被**自适应操作栏**（置顶智能切换 / 单选重命名 / 导出 / 批量删除）顶替。退役独立搜索路由。系统栏现与 App 颜色对齐（`isNavigationBarContrastEnforced=false` + `isAppearanceLightNavigationBars`）。
 
 设计文档与复盘/验收清单保存在本地的 `docs/others/`（已 gitignored），公开仓库仅含源码。
 
@@ -65,6 +66,9 @@
 - [x] 会话背景：移除渐变；主题派生纯色预设 + 自定义色相 slider（恒为可读极浅色） *(v1.6.0)*
 - [x] 「允许会话中返回」设置（默认关 → 返回被拦截并弹引导 snackbar）；传输会话运行期间锁定底栏「设置」入口 *(v1.6.0)*
 - [x] 等待连接加载指示；停止服务移入头部 *(v1.6.0)*
+- [x] 主页顶栏改大号 MD3 `SearchBar`（去标题）原地展开为真全屏；同时搜会话名 + 消息内容（FTS），分「会话」「消息」两组；导入迁入 overflow 菜单 *(v1.7.0)*
+- [x] 长按是进多选的唯一入口；无 Checkbox 的纯色三态选中（`primaryContainer` 填充）+ TalkBack 的 `selected` / `stateDescription` 语义 *(v1.7.0)*
+- [x] 自适应多选操作栏——置顶（智能切换）/ 重命名（仅单选）/ 导出 / 删除（批量）；多选时顶替底部导航；退役独立搜索路由 *(v1.7.0)*
 - [ ] HTTPS 自签证书 *(v2)*
 - [ ] 本地归档 at-rest encryption *(v2)*
 
@@ -87,6 +91,9 @@
 - [x] `SessionState.addMessage` 把内存列表保持时间戳有序（二分插入），撤销恢复的消息回到原位置，而单调递增的新消息仍追加末尾 *(v1.5.0)*
 - [x] 正确的 edge-to-edge IME 处理：`adjustResize` + `padding(innerPadding)` + `consumeWindowInsets(innerPadding)` + `imePadding()`，ime inset 只生效一次，输入行紧贴键盘上方 *(v1.6.0)*
 - [x] 应用 `versionName` / `versionCode` 纳入维护（1.6.0 / 10600，公式 `major*10000+minor*100+patch`）——此前从项目之初一直冻结在 `1.0` / `1`，导致安装器永远显示 1.0 *(v1.6.0)*
+- [x] 搜索的会话名组与消息组由同一 debounce 后的 query 驱动，两组锁步更新，无匹配提示不再在 debounce 中途闪烁 *(v1.7.0)*
+- [x] 真全屏搜索（逐目的地 padding：主页目的地 escape 顶部 status bar inset、展开时隐藏 FAB + 底栏），SearchBar 铺到状态栏/导航栏之下、无侧缝 *(v1.7.0)*
+- [x] 应用 `versionName` / `versionCode` 1.7.0 / 10700 *(v1.7.0)*
 
 ### fix
 
@@ -127,6 +134,9 @@
 - [x] v1.6.0 未连接时禁用消息输入框（与 add / 发送一致），无连接态不可编辑、不弹键盘
 - [x] v1.6.0 背景选择面板：点选项不再关闭面板、自定义色相 slider 从当前背景回读、主题派生重复色块去重（如珊瑚 / 蘑菇）
 - [x] v1.6.0 连接卡片 URL 改为整行居中 + 下方独立复制按钮，长 URL 不再与图标错位
+- [x] v1.7.0 搜索展开非真全屏（FAB / 底部导航透出、状态栏背景不变、左右有缝）；修为真 edge-to-edge 全屏
+- [x] v1.7.0 系统导航栏 / 手势线背景与 App 颜色不一致（对比度浮层）；用 `isNavigationBarContrastEnforced=false` + `isAppearanceLightNavigationBars` 修复
+- [x] v1.7.0 搜索文件命中图标统一为 `ic_description`，与消息文件气泡一致
 
 ## 亮点
 

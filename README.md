@@ -16,6 +16,7 @@ The phone runs an embedded HTTP server. Any browser on the same Wi-Fi opens the 
 - **v1.5.0** — *released (2026-06-08)* — UI/UX overhaul: bottom navigation (Transfer / Settings), a full settings system on DataStore with instant theme switching (Material You dynamic color + 4 warm presets + three-state dark + AMOLED), app/peer preset avatars and in-progress conversation background **synced across both ends** (via a `peer-info` endpoint + `client_hello`), a long-press message action bar (copy / recall / open / delete-with-undo, staggered pop-out), configurable history retention (incl. `0`=keep none, `-1`=unlimited), editable device name, a recall Beta toggle, and the full emoji→Material icon migration with +1-step rounded shapes.
 - **v1.5.1** — *released (2026-06-16)* — browser chat-page scroll fix (mdui's fixed top-app-bar injected `padding-top` on `<body>` and fought the `100vh` flex shell → scoped `body.chat-page` overrides + `100dvh`), plus cosmetic cleanup of leftover v1.5.0 minors.
 - **v1.6.0** — *released (2026-06-16)* — **conversation experience overhaul**: a context-adaptive top (connection card before pairing → spring-collapse to a slim peer header on connect), a floating message toolbar (tap to summon, long-press for text selection, tap empty to clear) with a settings toggle for a persistent per-bubble action bar, unified equal-corner bubbles (default 18dp) + a corner-radius slider, an avatar-grouping setting (first / last / each), a redesigned input row (text field + add-sheet with file/image cards + circular send) with a second stats row doubling as the snackbar zone, gradient backgrounds dropped in favor of theme-derived solids + a custom-hue slider, a waiting loading indicator, stop-service moved to the header, an "allow back during session" guard (back is intercepted by default; the Settings tab locks while a session runs), and correct edge-to-edge IME insets so the input row sits right above the keyboard. App `versionName`/`versionCode` are now tracked (previously frozen at 1.0/1).
+- **v1.7.0** — *released (2026-06-18)* — **home redesign**: the title bar is replaced by a large MD3 SearchBar that expands in place to true fullscreen and searches both session names and message content (FTS), grouped into 会话 / 消息 sections; import moves into an overflow menu. Long-press is the sole entry to multi-select, with a no-checkbox color tri-state selection (`primaryContainer` fill) + selection semantics for TalkBack; an adaptive bottom action bar (pin with smart toggle / rename when single / export / delete) replaces the bottom nav while selecting. The standalone search route is retired. System bars now align with the app (`isNavigationBarContrastEnforced=false` + `isAppearanceLightNavigationBars`).
 
 Design docs are kept in a local-only `docs/others/` tree; the public repo carries only the source.
 
@@ -65,6 +66,9 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] Conversation background: gradient removed; theme-derived solid presets + a custom-hue slider clamped to a readable light tone *(v1.6.0)*
 - [x] "Allow back during session" setting (default off → back is intercepted with a guiding snackbar); the Settings tab is locked while a transfer session is running *(v1.6.0)*
 - [x] Waiting-for-connection loading indicator; stop-service moved into the header *(v1.6.0)*
+- [x] Home top bar replaced by a large MD3 `SearchBar` (no title) that expands in place to true fullscreen; searches session names + message content (FTS), grouped into 会话 / 消息; import moved to an overflow menu *(v1.7.0)*
+- [x] Long-press is the sole entry to multi-select; no-checkbox color tri-state selection (`primaryContainer` fill) + `selected` / `stateDescription` semantics for TalkBack *(v1.7.0)*
+- [x] Adaptive multi-select action bar — pin (smart toggle) / rename (single only) / export / delete (batch); replaces the bottom nav while selecting; standalone search route retired *(v1.7.0)*
 - [ ] HTTPS with self-signed cert *(v2)*
 - [ ] At-rest encryption of local archive *(v2)*
 
@@ -87,6 +91,9 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] `SessionState.addMessage` keeps the in-memory list timestamp-sorted (binary insert), so an undo-restored message returns to its original position while monotonic new messages still append *(v1.5.0)*
 - [x] Correct edge-to-edge IME handling: `adjustResize` + `padding(innerPadding)` + `consumeWindowInsets(innerPadding)` + `imePadding()` so the IME inset is applied exactly once and the input sits right above the keyboard *(v1.6.0)*
 - [x] App `versionName` / `versionCode` now tracked (1.6.0 / 10600 via `major*10000+minor*100+patch`) — both were frozen at `1.0` / `1` since the project start, so the installer always showed 1.0 *(v1.6.0)*
+- [x] Search session-name and message groups are driven by one debounced query, so they update in lockstep and the "no match" hint never flashes mid-debounce *(v1.7.0)*
+- [x] True fullscreen search via per-destination padding (the home destination escapes the top status-bar inset; FAB + bottom nav hidden while expanded), so the SearchBar surface reaches under the status/navigation bars with no side gaps *(v1.7.0)*
+- [x] App `versionName` / `versionCode` 1.7.0 / 10700 *(v1.7.0)*
 
 ### fix
 
@@ -127,6 +134,9 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] v1.6.0 message input is disabled until a client connects (matching add / send), so there's no editing or keyboard pop in the no-connection state
 - [x] v1.6.0 background picker: selecting an option no longer closes the sheet, the custom-hue slider reads back from the current background, and duplicate theme-derived swatches (e.g. coral / mushroom) are de-duplicated
 - [x] v1.6.0 connection-card URL stacks above its copy button so long URLs no longer misalign with the icon
+- [x] v1.7.0 search expand was not truly fullscreen (FAB / bottom nav showed through, status-bar background unchanged, side gaps); fixed to true edge-to-edge fullscreen
+- [x] v1.7.0 system navigation bar / gesture pill background did not match the app color (contrast scrim); fixed with `isNavigationBarContrastEnforced=false` + `isAppearanceLightNavigationBars`
+- [x] v1.7.0 search file-hit icon unified to `ic_description` to match the file message bubble
 
 ## Highlights
 
