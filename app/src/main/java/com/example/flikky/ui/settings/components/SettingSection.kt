@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.flikky.ui.theme.Spacing
 
 /**
  * A labeled group of settings items displayed in the inset-grouped style.
@@ -40,7 +41,7 @@ fun SettingSection(
             text = title,
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+            modifier = Modifier.padding(start = Spacing.xs, bottom = Spacing.xs),
         )
         Column(modifier = Modifier.fillMaxWidth()) {
             content()

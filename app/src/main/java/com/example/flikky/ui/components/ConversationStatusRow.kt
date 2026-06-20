@@ -11,6 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.flikky.ui.theme.Sizes
+import com.example.flikky.ui.theme.Spacing
 
 /**
  * 会话底部统计行：运行时长 / 文件数 / 速率。
@@ -25,7 +27,7 @@ fun ConversationStatusRow(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 16.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = Sizes.rowMinH).padding(horizontal = Spacing.screenEdge),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {

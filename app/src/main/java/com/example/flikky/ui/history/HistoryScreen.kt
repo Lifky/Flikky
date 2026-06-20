@@ -64,6 +64,7 @@ import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
+import com.example.flikky.ui.theme.Spacing
 import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -202,8 +203,8 @@ fun HistoryScreen(
       Box(modifier = Modifier.padding(pad).fillMaxSize()) {
         SelectionContainer {
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             state = listState,
         ) {
             itemsIndexed(messages, key = { _, m -> m.id }) { index, msg ->
@@ -266,7 +267,7 @@ fun HistoryScreen(
                                     actions = buildActionsFor(msg),
                                 )
                             }
-                            androidx.compose.foundation.layout.Spacer(Modifier.height(4.dp))
+                            androidx.compose.foundation.layout.Spacer(Modifier.height(Spacing.xs))
                         }
                     }
                 }
@@ -285,7 +286,7 @@ fun HistoryScreen(
             MessageFloatingToolbarOverlay(
                 visible = target != null,
                 actions = lastActions,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = Spacing.md),
             )
         }
       }

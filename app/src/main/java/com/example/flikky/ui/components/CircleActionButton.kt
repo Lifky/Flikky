@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.dp
+import com.example.flikky.ui.theme.Sizes
 
 @Composable
 fun CircleActionButton(
@@ -24,12 +25,12 @@ fun CircleActionButton(
              else MaterialTheme.colorScheme.secondaryContainer
     val fg = if (danger) MaterialTheme.colorScheme.onErrorContainer
              else MaterialTheme.colorScheme.onSecondaryContainer
-    Box(Modifier.size(48.dp), Alignment.Center) {
+    Box(Modifier.size(Sizes.touchTarget), Alignment.Center) {
         Surface(
             onClick = onClick,
             shape = CircleShape,
             color = bg,
-            modifier = Modifier.size(40.dp),
+            modifier = Modifier.size(Sizes.avatar),
         ) {
             Box(Modifier.fillMaxSize(), Alignment.Center) {
                 Icon(icon, contentDescription, tint = fg, modifier = Modifier.size(22.dp))

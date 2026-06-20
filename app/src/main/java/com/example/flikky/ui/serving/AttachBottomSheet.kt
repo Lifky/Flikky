@@ -26,6 +26,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
+import com.example.flikky.ui.theme.Spacing
 
 /**
  * 「添加」底部面板：两张正方形操作卡片（附件 / 图片）左右并排。
@@ -45,11 +46,11 @@ fun AttachBottomSheet(
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
     ) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 32.dp)) {
-            Text("添加", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 16.dp))
+        Column(Modifier.fillMaxWidth().padding(horizontal = Spacing.screenEdge).padding(bottom = Spacing.xxxl)) {
+            Text("添加", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = Spacing.lg))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
                 AttachOptionCard(
                     iconRes = R.drawable.ic_attach_file,
@@ -83,7 +84,7 @@ private fun AttachOptionCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
+            modifier = Modifier.fillMaxSize().padding(Spacing.screenEdge),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -93,7 +94,7 @@ private fun AttachOptionCard(
                 modifier = Modifier.size(36.dp),
                 tint = MaterialTheme.colorScheme.primary,
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(Spacing.md))
             Text(title, style = MaterialTheme.typography.titleSmall)
             Spacer(Modifier.height(2.dp))
             Text(

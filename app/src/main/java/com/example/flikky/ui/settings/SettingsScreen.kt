@@ -53,6 +53,8 @@ import com.example.flikky.ui.settings.components.groupedItemShape
 import com.example.flikky.ui.settings.sheets.AvatarPickerSheet
 import com.example.flikky.ui.settings.sheets.BackgroundPickerSheet
 import com.example.flikky.ui.settings.sheets.ThemePickerSheet
+import com.example.flikky.ui.theme.Sizes
+import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.launch
 
 // Which sheet / dialog is open
@@ -110,8 +112,8 @@ fun SettingsScreen(
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+            contentPadding = PaddingValues(horizontal = Spacing.screenEdge, vertical = Spacing.screenEdge),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sectionGap),
         ) {
             // ─── 外观 ─────────────────────────────────────────────────────────
             item {
@@ -172,7 +174,7 @@ fun SettingsScreen(
                     // APP 端头像
                     SettingItem(
                         title = "APP 端头像",
-                        trailing = { Avatar(avatarId = s.phoneAvatarId, size = 40.dp) },
+                        trailing = { Avatar(avatarId = s.phoneAvatarId, size = Sizes.avatar) },
                         onClick = { activeSheet = ActiveSheet.Avatar },
                         shape = groupedItemShape(3, appearanceItems),
                     )
@@ -373,7 +375,7 @@ fun SettingsScreen(
                                     showDarkModeDialog = false
                                 },
                             )
-                            Text(label, modifier = Modifier.padding(start = 8.dp))
+                            Text(label, modifier = Modifier.padding(start = Spacing.sm))
                         }
                     }
                 }
@@ -406,7 +408,7 @@ fun SettingsScreen(
                                     showActionStyleDialog = false
                                 },
                             )
-                            Text(label, modifier = Modifier.padding(start = 8.dp))
+                            Text(label, modifier = Modifier.padding(start = Spacing.sm))
                         }
                     }
                 }
@@ -440,7 +442,7 @@ fun SettingsScreen(
                                     showAvatarGroupingDialog = false
                                 },
                             )
-                            Text(label, modifier = Modifier.padding(start = 8.dp))
+                            Text(label, modifier = Modifier.padding(start = Spacing.sm))
                         }
                     }
                 }
@@ -498,7 +500,7 @@ fun SettingsScreen(
                             selected = useDefault,
                             onClick = { useDefault = true },
                         )
-                        Text("默认（20 条）", modifier = Modifier.padding(start = 8.dp))
+                        Text("默认（20 条）", modifier = Modifier.padding(start = Spacing.sm))
                     }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -508,7 +510,7 @@ fun SettingsScreen(
                             selected = !useDefault,
                             onClick = { useDefault = false },
                         )
-                        Text("自定义", modifier = Modifier.padding(start = 8.dp))
+                        Text("自定义", modifier = Modifier.padding(start = Spacing.sm))
                     }
                     if (!useDefault) {
                         OutlinedTextField(
@@ -517,7 +519,7 @@ fun SettingsScreen(
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             label = { Text("0=不保存，-1=无限制") },
-                            modifier = Modifier.padding(top = 8.dp),
+                            modifier = Modifier.padding(top = Spacing.sm),
                         )
                     }
                 }

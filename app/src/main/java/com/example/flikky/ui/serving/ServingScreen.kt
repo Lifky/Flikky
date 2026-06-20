@@ -68,6 +68,7 @@ import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
 import com.example.flikky.ui.components.NetworkStatusBanner
+import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.launch
 
 @Composable
@@ -222,12 +223,12 @@ fun ServingScreen(
                         },
                     )
                 } else {
-                    Column(Modifier.padding(24.dp)) {
+                    Column(Modifier.padding(Spacing.sectionGap)) {
                         ConnectionInfoCard(url = ui.url, pin = ui.pin)
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(top = 16.dp).align(Alignment.CenterHorizontally),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                            modifier = Modifier.padding(top = Spacing.lg).align(Alignment.CenterHorizontally),
                         ) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                             Text(
@@ -236,7 +237,7 @@ fun ServingScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(Spacing.sm))
                         TextButton(
                             onClick = { viewModel.stopService(); onStopped() },
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
@@ -256,8 +257,8 @@ fun ServingScreen(
                   androidx.compose.foundation.text.selection.SelectionContainer {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxSize().padding(horizontal = Spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                     ) {
                         itemsIndexed(ui.messages, key = { _, m -> m.id }) { index, msg ->
                             val prevMsg = if (index > 0) ui.messages[index - 1] else null
@@ -305,7 +306,7 @@ fun ServingScreen(
                                             actions = buildActionsFor(msg),
                                         )
                                     }
-                                    Spacer(Modifier.height(4.dp))
+                                    Spacer(Modifier.height(Spacing.xs))
                                 }
                             }
                         }
@@ -324,15 +325,15 @@ fun ServingScreen(
                     MessageFloatingToolbarOverlay(
                         visible = target != null,
                         actions = lastActions,
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = Spacing.md),
                     )
                 }
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.sm, vertical = Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
             ) {
                 OutlinedTextField(
                     value = draft,

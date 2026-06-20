@@ -77,6 +77,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.db.entities.SessionEntity
+import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -250,8 +251,8 @@ fun HomeScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.padding(padding).fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                contentPadding = PaddingValues(vertical = Spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
             ) {
                 items(sessions, key = { it.id }) { s ->
                     SessionRow(
@@ -349,7 +350,7 @@ private fun SelectingActionBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .padding(horizontal = Spacing.sm, vertical = Spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
@@ -389,7 +390,7 @@ private fun ActionBarItem(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm),
     ) {
         Icon(painterResource(iconRes), contentDescription = label, tint = tint, modifier = Modifier.size(24.dp))
         Spacer(Modifier.height(2.dp))
@@ -405,13 +406,13 @@ private fun EmptyHero(modifier: Modifier = Modifier) {
             Text(
                 "局域网文件与消息传输",
                 style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 8.dp),
+                modifier = Modifier.padding(top = Spacing.sm),
             )
             Text(
                 "尚无历史会话。点右下「启动服务」开始第一次传输。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 16.dp),
+                modifier = Modifier.padding(top = Spacing.lg),
             )
         }
     }
@@ -462,7 +463,7 @@ private fun SessionRow(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp)
+            .padding(horizontal = Spacing.md)
             .then(cardModifier)
             .then(if (dimmed) Modifier.alpha(0.5f) else Modifier)
             .then(
@@ -474,7 +475,7 @@ private fun SessionRow(
         colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(Spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
@@ -486,7 +487,7 @@ private fun SessionRow(
                             modifier = Modifier.size(16.dp),
                             tint = if (selectedNow) onContent else MaterialTheme.colorScheme.primary,
                         )
-                        Spacer(Modifier.width(4.dp))
+                        Spacer(Modifier.width(Spacing.xs))
                     }
                     Text(text = s.name, style = MaterialTheme.typography.titleMedium, color = onContent)
                 }
@@ -507,7 +508,7 @@ private fun SessionRow(
                         inProgress  -> MaterialTheme.colorScheme.primary
                         else        -> MaterialTheme.colorScheme.onSurfaceVariant
                     },
-                    modifier = Modifier.padding(top = 4.dp),
+                    modifier = Modifier.padding(top = Spacing.xs),
                 )
             }
             if (inProgress && !selecting) {

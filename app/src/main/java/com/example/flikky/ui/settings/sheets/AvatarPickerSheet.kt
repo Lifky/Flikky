@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.flikky.ui.components.Avatar
 import com.example.flikky.ui.components.PRESET_AVATARS
+import com.example.flikky.ui.theme.Sizes
+import com.example.flikky.ui.theme.Spacing
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,22 +47,22 @@ fun AvatarPickerSheet(
             text = "选择头像",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 16.dp),
+                .padding(horizontal = Spacing.screenEdge)
+                .padding(bottom = Spacing.lg),
         )
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(4),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
+                .padding(horizontal = Spacing.screenEdge)
+                .padding(bottom = Spacing.xxxl),
         ) {
             items(PRESET_AVATARS.size) { id ->
                 val isSelected = id == currentId
                 Box(
                     modifier = Modifier
-                        .padding(8.dp)
+                        .padding(Spacing.sm)
                         .size(64.dp)
                         .then(
                             if (isSelected)
@@ -75,11 +77,11 @@ fun AvatarPickerSheet(
                         .clickable { onSelect(id) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Avatar(avatarId = id, size = 56.dp)
+                    Avatar(avatarId = id, size = Sizes.rowMinH)
                     if (isSelected) {
                         Box(
                             modifier = Modifier
-                                .size(56.dp)
+                                .size(Sizes.rowMinH)
                                 .clip(CircleShape),
                             contentAlignment = Alignment.Center,
                         ) {

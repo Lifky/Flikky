@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import com.example.flikky.data.settings.BackgroundSetting
+import com.example.flikky.ui.theme.Spacing
 
 /**
  * 把任意 hue (0..360) 转成 MD3 极浅 tone 的纯色：HSL 高亮度 + 低饱和，保证深色文字可读。
@@ -94,11 +95,11 @@ fun BackgroundPickerSheet(
         tonalElevation = 0.dp,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 32.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.screenEdge).padding(bottom = Spacing.xxxl),
         ) {
-            Text("会话背景", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 16.dp))
+            Text("会话背景", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = Spacing.lg))
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), modifier = Modifier.fillMaxWidth()) {
                 listOf(BackgroundSetting.Default to "默认", BackgroundSetting.Blank to "空白").forEach { (setting, label) ->
                     val selected = current == setting
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -118,17 +119,17 @@ fun BackgroundPickerSheet(
                         ) {
                             if (selected) Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         }
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(Spacing.xs))
                         Text(label, style = MaterialTheme.typography.labelSmall,
                             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(Spacing.xl))
             Text("纯色（跟随主题）", style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = Spacing.sm))
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), modifier = Modifier.fillMaxWidth()) {
                 presets.forEach { argb ->
                     val selected = current is BackgroundSetting.Solid && current.argb == argb
                     Box(
@@ -144,9 +145,9 @@ fun BackgroundPickerSheet(
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(Spacing.xl))
             Text("自定义（色相）", style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = Spacing.sm))
             val previewArgb = lightToneFromHue(hue)
             Box(Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(8.dp)).background(Color(previewArgb)))
             Slider(

@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.ui.components.ConnectionInfoCard
 import com.example.flikky.ui.components.NetworkStatusBanner
+import com.example.flikky.ui.theme.Spacing
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -126,8 +127,8 @@ private fun ArmedContent(
     onCancel: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxSize().padding(Spacing.sectionGap),
+        verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         ConnectionInfoCard(url = url, pin = pin)
@@ -160,8 +161,8 @@ private fun SendingContent(
     } else 0f
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxSize().padding(Spacing.sectionGap),
+        verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -201,11 +202,11 @@ private fun DoneContent(
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxSize().padding(Spacing.sectionGap),
+        verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(Spacing.xxxl))
         Text(
             text = "✓",
             style = MaterialTheme.typography.displayLarge,

@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
+import com.example.flikky.ui.theme.Sizes
+import com.example.flikky.ui.theme.Spacing
 
 /**
  * A single settings row inside a grouped section.
@@ -42,8 +44,8 @@ fun SettingItem(
         Row(
             modifier = Modifier
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-                .defaultMinSize(minHeight = 56.dp)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .defaultMinSize(minHeight = Sizes.rowMinH)
+                .padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {

@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
+import com.example.flikky.ui.theme.Spacing
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -83,7 +84,7 @@ fun MessageBubble(
     ) {
         if (!mine) {
             avatarSlot()
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(Spacing.sm))
         }
         // FLOATING 模式（onLongPress == null）：用纯 clickable 只检测 TAP，
         // 不消费 long-press，把长按留给屏幕级 SelectionContainer 起划词选择。
@@ -108,7 +109,7 @@ fun MessageBubble(
                 .clip(shape)
                 .background(bg)
                 .then(clickModifier)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
+                .padding(horizontal = Spacing.lg, vertical = Spacing.md),
         ) {
             when (msg) {
                 is Message.Text -> Text(
@@ -124,7 +125,7 @@ fun MessageBubble(
             }
         }
         if (mine) {
-            Spacer(Modifier.width(6.dp))
+            Spacer(Modifier.width(Spacing.sm))
             avatarSlot()
         }
     }
@@ -145,7 +146,7 @@ private fun FileBubbleContent(
             modifier = Modifier.size(28.dp),
             tint = fg,
         )
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(Spacing.md))
         Column {
             Text(
                 text = msg.name,
@@ -169,7 +170,7 @@ private fun FileBubbleContent(
                 style = MaterialTheme.typography.bodySmall,
             )
             if (isTransferring && transferProgress != null) {
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(Spacing.xs))
                 LinearProgressIndicator(
                     progress = { transferProgress },
                     modifier = Modifier.fillMaxWidth(),

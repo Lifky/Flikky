@@ -10,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.flikky.ui.theme.Spacing
 
 /**
  * 悬浮消息操作工具栏：一行 icon button，对选中消息的可用操作。复用 MessageAction。
@@ -33,7 +34,7 @@ fun MessageFloatingToolbar(
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
     ) {
-        Row(modifier = Modifier.padding(horizontal = 4.dp)) {
+        Row(modifier = Modifier.padding(horizontal = Spacing.xs)) {
             actions.forEach { a ->
                 IconButton(onClick = a.onClick) {
                     Icon(

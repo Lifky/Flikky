@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.flikky.session.NetworkStatus
+import com.example.flikky.ui.theme.Spacing
 
 /**
  * Banner mounted under the top bar of ServingScreen / ExportingScreen to
@@ -60,7 +61,7 @@ fun NetworkStatusBanner(
         modifier = modifier
             .fillMaxWidth()
             .background(bg)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = Spacing.screenEdge, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {

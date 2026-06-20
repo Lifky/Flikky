@@ -12,6 +12,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.flikky.ui.theme.Sizes
+import com.example.flikky.ui.theme.Spacing
 import com.example.flikky.ui.theme.connected
 
 /**
@@ -27,11 +29,11 @@ fun ConversationHeader(
     trailing: @Composable () -> Unit = {},
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.screenEdge, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        Avatar(avatarId = peerAvatarId, size = 40.dp)
+        Avatar(avatarId = peerAvatarId, size = Sizes.avatar)
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = peerName.ifBlank { "对端设备" },

@@ -46,6 +46,7 @@ import com.example.flikky.R
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.ui.search.SearchViewModel
+import com.example.flikky.ui.theme.Spacing
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -171,7 +172,7 @@ private fun SectionHeader(text: String) {
         modifier = Modifier
             .semantics { heading() }
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
     )
 }
 
@@ -180,7 +181,7 @@ private fun CenterHint(text: String) {
     Box(
         Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(Spacing.xxl),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -197,7 +198,7 @@ private fun SessionHitRow(s: SessionEntity, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = Spacing.screenEdge, vertical = Spacing.md),
     ) {
         Text(
             s.name,
@@ -224,7 +225,7 @@ private fun MessageHitRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = Spacing.screenEdge, vertical = Spacing.md),
     ) {
         Text(
             hit.sessionName,
@@ -241,7 +242,7 @@ private fun MessageHitRow(
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Spacer(Modifier.size(4.dp))
+                Spacer(Modifier.size(Spacing.xs))
             }
             Text(
                 hit.snippet,

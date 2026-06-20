@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.data.settings.PresetTheme
 import com.example.flikky.data.settings.ThemeMode
+import com.example.flikky.ui.theme.Spacing
 import com.example.flikky.ui.theme.presetScheme
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,13 +55,13 @@ fun ThemePickerSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
+                .padding(horizontal = Spacing.screenEdge)
+                .padding(bottom = Spacing.xxxl),
         ) {
             Text(
                 text = "主题",
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 16.dp),
+                modifier = Modifier.padding(bottom = Spacing.lg),
             )
 
             // Dynamic toggle row
@@ -73,7 +74,7 @@ fun ThemePickerSheet(
                             else ThemeMode.DYNAMIC
                         )
                     }
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = Spacing.sm),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -98,16 +99,16 @@ fun ThemePickerSheet(
 
             // Preset swatches — visible when PRESET mode
             if (current.themeMode == ThemeMode.PRESET) {
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(Spacing.lg))
                 Text(
                     text = "预设色彩",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 12.dp),
+                    modifier = Modifier.padding(bottom = Spacing.md),
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
                 ) {
                     PresetTheme.values().forEach { preset ->
                         val scheme = presetScheme(preset, dark)
@@ -151,7 +152,7 @@ fun ThemePickerSheet(
                                     )
                                 }
                             }
-                            Spacer(Modifier.height(4.dp))
+                            Spacer(Modifier.height(Spacing.xs))
                             Text(
                                 text = label,
                                 style = MaterialTheme.typography.labelSmall,

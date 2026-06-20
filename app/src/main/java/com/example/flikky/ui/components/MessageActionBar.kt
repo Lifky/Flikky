@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.dp
+import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.delay
 
 data class MessageAction(
@@ -38,7 +39,7 @@ fun MessageActionBar(
         enter = fadeIn(),
         exit = fadeOut() + scaleOut(targetScale = 0.9f),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             actions.forEachIndexed { i, a ->
                 var shown by remember(i, a.label) { mutableStateOf(false) }
                 LaunchedEffect(i) { delay(i * 40L); shown = true }
