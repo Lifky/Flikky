@@ -3,6 +3,8 @@ package com.example.flikky.data.settings
 enum class ThemeMode { DYNAMIC, PRESET }
 enum class PresetTheme { CORAL, MUSHROOM, TEAL, MIST }
 enum class DarkMode { SYSTEM, LIGHT, DARK }
+enum class SortMode { TIME, NAME }
+enum class GroupMode { NONE, STATUS, DATE }
 
 /** 消息操作交互样式：FLOATING=长按弹底部悬浮工具栏；INLINE=气泡旁常驻按钮（旧行为）。 */
 enum class MessageActionStyle { FLOATING, INLINE }
@@ -36,4 +38,6 @@ data class FlikkySettings(
     val avatarGrouping: AvatarGroupingMode = AvatarGroupingMode.FIRST,
     /** 允许会话进行中按返回键退出到主页（默认 false：拦截返回，保护会话稳定）。 */
     val allowBackDuringSession: Boolean = false,
+    val sortMode: SortMode = SortMode.TIME,
+    val groupMode: GroupMode = GroupMode.NONE,
 )
