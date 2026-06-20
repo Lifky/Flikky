@@ -64,6 +64,7 @@ import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
+import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.theme.Spacing
 import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlinx.coroutines.delay
@@ -200,10 +201,13 @@ fun HistoryScreen(
             )
         },
     ) { pad ->
-      Box(modifier = Modifier.padding(pad).fillMaxSize()) {
+      Box(
+          modifier = Modifier.padding(pad).fillMaxSize(),
+          contentAlignment = Alignment.TopCenter,
+      ) {
         SelectionContainer {
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = Spacing.md),
+            modifier = Modifier.fillMaxSize().maxContentWidth().padding(horizontal = Spacing.md),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             state = listState,
         ) {
