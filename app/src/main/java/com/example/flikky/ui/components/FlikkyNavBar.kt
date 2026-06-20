@@ -1,7 +1,5 @@
 package com.example.flikky.ui.components
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -29,7 +27,7 @@ fun FlikkyNavBar(
             selected = currentRoute == "settings",
             enabled = settingsEnabled,
             onClick = { onNavigate("settings") },
-            icon = { Icon(Icons.Default.Settings, contentDescription = "设置") },
+            icon = { Icon(painterResource(R.drawable.ic_settings), contentDescription = "设置") },
             label = { Text("设置") },
             alwaysShowLabel = false,
         )
