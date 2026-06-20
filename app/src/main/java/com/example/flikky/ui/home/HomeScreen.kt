@@ -40,7 +40,6 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -76,6 +75,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.ui.components.ActionBarItem
+import com.example.flikky.ui.components.ConfirmDialog
+import com.example.flikky.ui.components.RenameDialog
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -284,33 +285,27 @@ fun HomeScreen(
     }
 
     if (showRenameDialog && singleSelected != null) {
-        var draft by remember(singleSelected.id) { mutableStateOf(singleSelected.name) }
-        AlertDialog(
-            onDismissRequest = { showRenameDialog = false },
-            title = { Text("重命名会话") },
-            text = { OutlinedTextField(value = draft, onValueChange = { draft = it }, singleLine = true) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showRenameDialog = false
-                    scope.launch { viewModel.renameSelected(draft) }
-                }) { Text("确定") }
+        RenameDialog(
+            initial = singleSelected.name,
+            onConfirm = { name ->
+                showRenameDialog = false
+                scope.launch { viewModel.renameSelected(name) }
             },
-            dismissButton = { TextButton(onClick = { showRenameDialog = false }) { Text("取消") } },
+            onDismiss = { showRenameDialog = false },
         )
     }
 
     if (showBatchDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showBatchDeleteDialog = false },
-            title = { Text("删除 $selectedCount 个会话") },
-            text = { Text("将删除所选会话的全部消息与文件。该操作不可撤销。") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showBatchDeleteDialog = false
-                    scope.launch { viewModel.deleteSelected() }
-                }) { Text("删除") }
+        ConfirmDialog(
+            title = "删除 $selectedCount 个会话",
+            text = "将删除所选会话的全部消息与文件。该操作不可撤销。",
+            confirmLabel = "删除",
+            danger = true,
+            onConfirm = {
+                showBatchDeleteDialog = false
+                scope.launch { viewModel.deleteSelected() }
             },
-            dismissButton = { TextButton(onClick = { showBatchDeleteDialog = false }) { Text("取消") } },
+            onDismiss = { showBatchDeleteDialog = false },
         )
     }
 }
