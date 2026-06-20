@@ -12,7 +12,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -76,6 +75,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.db.entities.SessionEntity
+import com.example.flikky.ui.components.ActionBarItem
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -368,32 +368,6 @@ private fun SelectingActionBar(
                 enabled = enabled, onClick = onDelete, danger = true,
             )
         }
-    }
-}
-
-@Composable
-private fun ActionBarItem(
-    iconRes: Int,
-    label: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    danger: Boolean = false,
-) {
-    val tint = when {
-        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-        danger   -> MaterialTheme.colorScheme.error
-        else     -> MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clip(MaterialTheme.shapes.small)
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = Spacing.md, vertical = Spacing.sm),
-    ) {
-        Icon(painterResource(iconRes), contentDescription = label, tint = tint, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.height(2.dp))
-        Text(label, style = MaterialTheme.typography.labelSmall, color = tint)
     }
 }
 
