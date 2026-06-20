@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -104,7 +103,7 @@ fun BackgroundPickerSheet(
                     val selected = current == setting
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
-                            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
+                            modifier = Modifier.size(56.dp).clip(MaterialTheme.shapes.extraSmall)
                                 .background(
                                     if (setting == BackgroundSetting.Default) MaterialTheme.colorScheme.surfaceVariant
                                     else MaterialTheme.colorScheme.surface
@@ -112,7 +111,7 @@ fun BackgroundPickerSheet(
                                 .border(
                                     if (selected) 2.dp else 1.dp,
                                     if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                                    RoundedCornerShape(8.dp),
+                                    MaterialTheme.shapes.extraSmall,
                                 )
                                 .clickable { onSelect(setting) },
                             contentAlignment = Alignment.Center,
@@ -149,7 +148,7 @@ fun BackgroundPickerSheet(
             Text("自定义（色相）", style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = Spacing.sm))
             val previewArgb = lightToneFromHue(hue)
-            Box(Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(8.dp)).background(Color(previewArgb)))
+            Box(Modifier.fillMaxWidth().height(40.dp).clip(MaterialTheme.shapes.extraSmall).background(Color(previewArgb)))
             Slider(
                 value = hue,
                 onValueChange = { hue = it },
