@@ -66,6 +66,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -95,6 +96,9 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val sessions by viewModel.sessions.collectAsState(initial = emptyList())
+    val homeItems by viewModel.homeItems.collectAsState(initial = emptyList())
+    val sortMode by viewModel.sortMode.collectAsState(initial = com.example.flikky.data.settings.SortMode.TIME)
+    val groupMode by viewModel.groupMode.collectAsState(initial = com.example.flikky.data.settings.GroupMode.NONE)
     val selection by viewModel.selection.collectAsState()
     val selecting by viewModel.selecting.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -249,23 +253,47 @@ fun HomeScreen(
         if (sessions.isEmpty()) {
             EmptyHero(modifier = Modifier.padding(padding).fillMaxSize())
         } else {
-            LazyColumn(
-                modifier = Modifier.padding(padding).fillMaxSize(),
-                contentPadding = PaddingValues(vertical = Spacing.sm),
-                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-            ) {
-                items(sessions, key = { it.id }) { s ->
-                    SessionRow(
-                        s = s,
-                        selecting = selecting,
-                        checked = s.id in selectedIds,
-                        onNormalClick = {
-                            if (s.endedAt == null) resumeNavigate() else onOpenSession(s.id)
-                        },
-                        onEnterSelecting = { viewModel.toggleSelection(s.id) }, // 从 null 切换=进多选并选中该条
-                        onToggleSelection = { viewModel.toggleSelection(s.id) },
-                        onStopInProgress = { viewModel.stopService() },
+            Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+                if (!selecting && !searchExpanded) {
+                    SortGroupChips(
+                        sort = sortMode,
+                        group = groupMode,
+                        onSortChange = { viewModel.setSortMode(it) },
+                        onGroupChange = { viewModel.setGroupMode(it) },
                     )
+                }
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(vertical = Spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                ) {
+                    items(
+                        homeItems,
+                        key = { item ->
+                            when (item) {
+                                is HomeListItem.Header -> "h:${item.label}"
+                                is HomeListItem.SessionItem -> "s:${item.session.id}"
+                            }
+                        },
+                    ) { item ->
+                        when (item) {
+                            is HomeListItem.Header -> SectionHeader(item.label)
+                            is HomeListItem.SessionItem -> {
+                                val s = item.session
+                                SessionRow(
+                                    s = s,
+                                    selecting = selecting,
+                                    checked = s.id in selectedIds,
+                                    onNormalClick = {
+                                        if (s.endedAt == null) resumeNavigate() else onOpenSession(s.id)
+                                    },
+                                    onEnterSelecting = { viewModel.toggleSelection(s.id) },
+                                    onToggleSelection = { viewModel.toggleSelection(s.id) },
+                                    onStopInProgress = { viewModel.stopService() },
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -308,6 +336,18 @@ fun HomeScreen(
             onDismiss = { showBatchDeleteDialog = false },
         )
     }
+}
+
+@Composable
+private fun SectionHeader(label: String) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm)
+            .semantics { heading() },
+    )
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
