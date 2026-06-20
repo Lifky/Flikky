@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.ui.components.ConnectionInfoCard
 import com.example.flikky.ui.components.NetworkStatusBanner
+import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.theme.Spacing
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -72,35 +73,41 @@ fun ExportingScreen(
             label = "ExportingPhase",
         ) { phase ->
             when (phase) {
-                ExportingUiState.Phase.Armed -> ArmedContent(
-                    url = ui.url,
-                    pin = ui.pin,
-                    onCancel = {
-                        viewModel.cancelExport()
-                        onBack()
-                    },
-                )
-                ExportingUiState.Phase.Sending -> SendingContent(
-                    bytesSent = ui.bytesSent,
-                    totalBytes = ui.totalBytes,
-                    onCancel = {
-                        viewModel.cancelExport()
-                        onBack()
-                    },
-                )
-                ExportingUiState.Phase.Done -> DoneContent(
-                    sessionCount = ui.sessionCount,
-                    sessionIds = ui.sessionIds,
-                    onKeep = {
-                        viewModel.acknowledge()
-                        onBack()
-                    },
-                    onConfirmDelete = { ids ->
-                        viewModel.deleteLocal(ids)
-                        viewModel.acknowledge()
-                        onBack()
-                    },
-                )
+                ExportingUiState.Phase.Armed -> PhaseContainer {
+                    ArmedContent(
+                        url = ui.url,
+                        pin = ui.pin,
+                        onCancel = {
+                            viewModel.cancelExport()
+                            onBack()
+                        },
+                    )
+                }
+                ExportingUiState.Phase.Sending -> PhaseContainer {
+                    SendingContent(
+                        bytesSent = ui.bytesSent,
+                        totalBytes = ui.totalBytes,
+                        onCancel = {
+                            viewModel.cancelExport()
+                            onBack()
+                        },
+                    )
+                }
+                ExportingUiState.Phase.Done -> PhaseContainer {
+                    DoneContent(
+                        sessionCount = ui.sessionCount,
+                        sessionIds = ui.sessionIds,
+                        onKeep = {
+                            viewModel.acknowledge()
+                            onBack()
+                        },
+                        onConfirmDelete = { ids ->
+                            viewModel.deleteLocal(ids)
+                            viewModel.acknowledge()
+                            onBack()
+                        },
+                    )
+                }
                 ExportingUiState.Phase.Gone -> {
                     // Export was cleared out from under us (cancel / crash-recovery
                     // / service stopped). Pop immediately instead of showing a dead
@@ -109,6 +116,18 @@ fun ExportingScreen(
                     Box(modifier = Modifier.fillMaxSize())
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PhaseContainer(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        Box(modifier = Modifier.fillMaxSize().maxContentWidth()) {
+            content()
         }
     }
 }
