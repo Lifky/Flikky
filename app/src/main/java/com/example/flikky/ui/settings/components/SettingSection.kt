@@ -7,14 +7,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.example.flikky.ui.theme.Spacing
+import com.example.flikky.ui.theme.sectionLabel
 
 /**
  * A labeled group of settings items displayed in the inset-grouped style.
  *
  * Renders a section title above the [content] composable. The title is styled
- * with titleSmall in the primary color. Items are laid out in a plain [Column]
+ * with the sectionLabel semantic style in the primary color. Items are laid out in a plain [Column]
  * with no gap between them; callers should add spacers if separation is needed.
  *
  * Typical usage:
@@ -39,7 +39,7 @@ fun SettingSection(
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.sectionLabel,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(start = Spacing.xs, bottom = Spacing.xs),
         )

@@ -115,11 +115,10 @@ fun SettingsScreen(
             contentPadding = PaddingValues(horizontal = Spacing.screenEdge, vertical = Spacing.screenEdge),
             verticalArrangement = Arrangement.spacedBy(Spacing.sectionGap),
         ) {
-            // ─── 外观 ─────────────────────────────────────────────────────────
+            // ─── 主题与色彩 ─────────────────────────────────────────────────────
             item {
-                val appearanceItems = 6
-                SettingSection(title = "外观") {
-                    // 主题
+                val sectionItems = 3
+                SettingSection(title = "主题与色彩") {
                     val themeSubtitle = if (s.themeMode == ThemeMode.DYNAMIC) "跟随壁纸"
                     else when (s.presetTheme) {
                         PresetTheme.CORAL    -> "珊瑚"
@@ -138,9 +137,8 @@ fun SettingsScreen(
                             )
                         },
                         onClick = { activeSheet = ActiveSheet.Theme },
-                        shape = groupedItemShape(0, appearanceItems),
+                        shape = groupedItemShape(0, sectionItems),
                     )
-                    // 深色模式
                     val darkSubtitle = when (s.darkMode) {
                         DarkMode.SYSTEM -> "跟随系统"
                         DarkMode.LIGHT  -> "常亮"
@@ -157,9 +155,8 @@ fun SettingsScreen(
                             )
                         },
                         onClick = { showDarkModeDialog = true },
-                        shape = groupedItemShape(1, appearanceItems),
+                        shape = groupedItemShape(1, sectionItems),
                     )
-                    // AMOLED 纯黑
                     SettingItem(
                         title = "AMOLED 纯黑",
                         subtitle = "深色模式下使用纯黑背景",
@@ -169,29 +166,34 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setAmoled(it) },
                             )
                         },
-                        shape = groupedItemShape(2, appearanceItems),
+                        shape = groupedItemShape(2, sectionItems),
                     )
-                    // APP 端头像
+                }
+            }
+
+            // ─── 身份 ─────────────────────────────────────────────────────────
+            item {
+                val sectionItems = 2
+                SettingSection(title = "身份") {
+                    SettingItem(
+                        title = "本机名称",
+                        subtitle = s.deviceName,
+                        onClick = { showDeviceNameDialog = true },
+                        shape = groupedItemShape(0, sectionItems),
+                    )
                     SettingItem(
                         title = "APP 端头像",
                         trailing = { Avatar(avatarId = s.phoneAvatarId, size = Sizes.avatar) },
                         onClick = { activeSheet = ActiveSheet.Avatar },
-                        shape = groupedItemShape(3, appearanceItems),
+                        shape = groupedItemShape(1, sectionItems),
                     )
-                    // 进行中会话背景
-                    val bgSubtitle = when (val bg = s.background) {
-                        is BackgroundSetting.Default  -> "默认"
-                        is BackgroundSetting.Blank    -> "空白"
-                        is BackgroundSetting.Solid    -> "纯色"
-                        // BackgroundSetting.Gradient removed in v1.6.0
-                    }
-                    SettingItem(
-                        title = "进行中会话背景",
-                        subtitle = bgSubtitle,
-                        onClick = { activeSheet = ActiveSheet.Background },
-                        shape = groupedItemShape(4, appearanceItems),
-                    )
-                    // 气泡圆角（index 5）
+                }
+            }
+
+            // ─── 会话外观 ───────────────────────────────────────────────────────
+            item {
+                val sectionItems = 3
+                SettingSection(title = "会话外观") {
                     var radiusDraft by remember(s.bubbleCornerRadius) {
                         mutableStateOf(s.bubbleCornerRadius.toFloat())
                     }
@@ -210,41 +212,7 @@ fun SettingsScreen(
                                 modifier = Modifier.width(160.dp),
                             )
                         },
-                        shape = groupedItemShape(5, appearanceItems),
-                    )
-                }
-            }
-
-            // ─── 会话 ─────────────────────────────────────────────────────────
-            item {
-                val sessionItems = 5
-                SettingSection(title = "会话") {
-                    SettingItem(
-                        title = "本机名称",
-                        subtitle = s.deviceName,
-                        onClick = { showDeviceNameDialog = true },
-                        shape = groupedItemShape(0, sessionItems),
-                    )
-                    SettingItem(
-                        title = "消息撤回（Beta）",
-                        subtitle = "允许撤回已发送的消息",
-                        trailing = {
-                            Switch(
-                                checked = s.recallBetaEnabled,
-                                onCheckedChange = { viewModel.setRecallBeta(it) },
-                            )
-                        },
-                        shape = groupedItemShape(1, sessionItems),
-                    )
-                    val styleSubtitle = when (s.messageActionStyle) {
-                        MessageActionStyle.FLOATING -> "悬浮工具栏"
-                        MessageActionStyle.INLINE   -> "常驻按钮"
-                    }
-                    SettingItem(
-                        title = "消息操作样式",
-                        subtitle = styleSubtitle,
-                        onClick = { showActionStyleDialog = true },
-                        shape = groupedItemShape(2, sessionItems),
+                        shape = groupedItemShape(0, sectionItems),
                     )
                     val groupingSubtitle = when (s.avatarGrouping) {
                         AvatarGroupingMode.FIRST -> "组内首条显示"
@@ -255,7 +223,47 @@ fun SettingsScreen(
                         title = "头像显示",
                         subtitle = groupingSubtitle,
                         onClick = { showAvatarGroupingDialog = true },
-                        shape = groupedItemShape(3, sessionItems),
+                        shape = groupedItemShape(1, sectionItems),
+                    )
+                    val bgSubtitle = when (val bg = s.background) {
+                        is BackgroundSetting.Default  -> "默认"
+                        is BackgroundSetting.Blank    -> "空白"
+                        is BackgroundSetting.Solid    -> "纯色"
+                        // BackgroundSetting.Gradient removed in v1.6.0
+                    }
+                    SettingItem(
+                        title = "进行中会话背景",
+                        subtitle = bgSubtitle,
+                        onClick = { activeSheet = ActiveSheet.Background },
+                        shape = groupedItemShape(2, sectionItems),
+                    )
+                }
+            }
+
+            // ─── 会话行为 ───────────────────────────────────────────────────────
+            item {
+                val sectionItems = 3
+                SettingSection(title = "会话行为") {
+                    val styleSubtitle = when (s.messageActionStyle) {
+                        MessageActionStyle.FLOATING -> "悬浮工具栏"
+                        MessageActionStyle.INLINE   -> "常驻按钮"
+                    }
+                    SettingItem(
+                        title = "消息操作样式",
+                        subtitle = styleSubtitle,
+                        onClick = { showActionStyleDialog = true },
+                        shape = groupedItemShape(0, sectionItems),
+                    )
+                    SettingItem(
+                        title = "消息撤回（Beta）",
+                        subtitle = "允许撤回已发送的消息",
+                        trailing = {
+                            Switch(
+                                checked = s.recallBetaEnabled,
+                                onCheckedChange = { viewModel.setRecallBeta(it) },
+                            )
+                        },
+                        shape = groupedItemShape(1, sectionItems),
                     )
                     SettingItem(
                         title = "允许会话中返回",
@@ -266,14 +274,14 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setAllowBackDuringSession(it) },
                             )
                         },
-                        shape = groupedItemShape(4, sessionItems),
+                        shape = groupedItemShape(2, sectionItems),
                     )
                 }
             }
 
             // ─── 数据 ─────────────────────────────────────────────────────────
             item {
-                val dataItems = 3
+                val sectionItems = 3
                 SettingSection(title = "数据") {
                     val historySubtitle = when (s.historyRetainLimit) {
                         -1   -> "无限制"
@@ -285,7 +293,7 @@ fun SettingsScreen(
                         title = "历史保存数量",
                         subtitle = historySubtitle,
                         onClick = { showHistoryLimitDialog = true },
-                        shape = groupedItemShape(0, dataItems),
+                        shape = groupedItemShape(0, sectionItems),
                     )
                     SettingItem(
                         title = "导入",
@@ -295,30 +303,30 @@ fun SettingsScreen(
                                 arrayOf("application/zip", "application/x-zip-compressed")
                             )
                         },
-                        shape = groupedItemShape(1, dataItems),
+                        shape = groupedItemShape(1, sectionItems),
                     )
                     SettingItem(
                         title = "导出",
                         subtitle = "将会话导出为 zip 文件",
                         onClick = onExport,
-                        shape = groupedItemShape(2, dataItems),
+                        shape = groupedItemShape(2, sectionItems),
                     )
                 }
             }
 
             // ─── 关于 ─────────────────────────────────────────────────────────
             item {
-                val aboutItems = 2
+                val sectionItems = 2
                 SettingSection(title = "关于") {
                     SettingItem(
                         title = "版本",
                         subtitle = "v1.7.0",
-                        shape = groupedItemShape(0, aboutItems),
+                        shape = groupedItemShape(0, sectionItems),
                     )
                     SettingItem(
                         title = "开源",
                         subtitle = "Ktor · mdui · Apache/MIT",
-                        shape = groupedItemShape(1, aboutItems),
+                        shape = groupedItemShape(1, sectionItems),
                     )
                 }
             }
