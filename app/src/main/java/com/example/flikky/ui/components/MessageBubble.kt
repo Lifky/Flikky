@@ -152,6 +152,7 @@ private fun FileBubbleContent(
                 text = msg.name,
                 color = fg,
                 style = MaterialTheme.typography.bodyLarge,
+                // File names need deliberate emphasis inside the metadata block.
                 fontWeight = FontWeight.Medium,
             )
             Text(

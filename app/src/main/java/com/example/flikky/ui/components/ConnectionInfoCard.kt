@@ -79,6 +79,7 @@ fun ConnectionInfoCard(
                 text = pin,
                 style = MaterialTheme.typography.displayMedium.copy(
                     fontFamily = FontFamily.Monospace,
+                    // PIN is intentionally bold so users can read and transcribe it quickly.
                     fontWeight = FontWeight.Bold,
                 ),
             )
