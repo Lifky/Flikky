@@ -68,6 +68,7 @@ import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
 import com.example.flikky.ui.components.NetworkStatusBanner
+import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.launch
 
@@ -190,12 +191,16 @@ fun ServingScreen(
         // 三者配合保证 ime 只生效一次。配合 manifest 的 windowSoftInputMode=adjustResize。
         // 缺 consumeWindowInsets 或 adjustResize 都会导致键盘弹起时 pan/inset 叠加：输入行被顶到顶部、
         // 上方留出键盘高度空白（test2 §5 复盘）。
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .consumeWindowInsets(padding)
                 .imePadding(),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+        Column(
+            modifier = Modifier.fillMaxSize().maxContentWidth(),
         ) {
             NetworkStatusBanner(
                 status = ui.networkStatus,
@@ -368,6 +373,7 @@ fun ServingScreen(
                 fileCount = ui.fileCount,
                 bytesPerSecond = ui.bytesPerSecond,
             )
+        }
         }
     }
 
