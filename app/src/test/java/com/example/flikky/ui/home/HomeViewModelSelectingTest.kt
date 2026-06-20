@@ -5,6 +5,8 @@ import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.entities.SessionEntity
+import com.example.flikky.data.settings.FlikkySettings
+import com.example.flikky.data.settings.SettingsRepository
 import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSession
 import com.example.flikky.export.ExportSnapshot
@@ -37,6 +39,7 @@ class HomeViewModelSelectingTest {
 
     private lateinit var app: Application
     private lateinit var repo: SessionRepository
+    private lateinit var settingsRepo: SettingsRepository
     private lateinit var session: SessionState
     private var fakeNow: Long = 10_000L
 
@@ -47,6 +50,8 @@ class HomeViewModelSelectingTest {
 
         repo = mockk()
         every { repo.observeSessions() } returns MutableStateFlow(emptyList<SessionEntity>())
+        settingsRepo = mockk()
+        every { settingsRepo.settings } returns MutableStateFlow(FlikkySettings())
         session = SessionState(nowMs = { fakeNow })
     }
 
@@ -58,6 +63,7 @@ class HomeViewModelSelectingTest {
         sessionState = session,
         pinGenerator = { pin },
         now = { fakeNow },
+        settingsRepository = settingsRepo,
     )
 
     @Test fun initial_state_is_not_selecting() {

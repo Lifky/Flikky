@@ -7,6 +7,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.entities.SessionEntity
+import com.example.flikky.data.settings.GroupMode
+import com.example.flikky.data.settings.SettingsRepository
+import com.example.flikky.data.settings.SortMode
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSession
@@ -19,9 +22,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.ZoneId
 
 class HomeViewModel @JvmOverloads constructor(
     app: Application,
@@ -29,9 +35,26 @@ class HomeViewModel @JvmOverloads constructor(
     private val sessionState: SessionState = ServiceLocator.session,
     private val pinGenerator: () -> String = { IdGen.newPin() },
     private val now: () -> Long = { System.currentTimeMillis() },
+    private val settingsRepository: SettingsRepository = ServiceLocator.settingsRepository,
 ) : AndroidViewModel(app) {
 
     val sessions: Flow<List<SessionEntity>> = repository.observeSessions()
+
+    val homeItems: Flow<List<HomeListItem>> = combine(
+        repository.observeSessions(),
+        settingsRepository.settings,
+    ) { sessions, settings ->
+        HomeListBuilder.build(
+            sessions = sessions,
+            sort = settings.sortMode,
+            group = settings.groupMode,
+            today = LocalDate.now(),
+            zone = ZoneId.systemDefault(),
+        )
+    }
+
+    val sortMode: Flow<SortMode> = settingsRepository.settings.map { it.sortMode }
+    val groupMode: Flow<GroupMode> = settingsRepository.settings.map { it.groupMode }
 
     private val _selection = MutableStateFlow<Set<Long>?>(null)
     val selection: StateFlow<Set<Long>?> = _selection.asStateFlow()
@@ -64,6 +87,12 @@ class HomeViewModel @JvmOverloads constructor(
 
     fun deleteSession(sessionId: Long): Job =
         viewModelScope.launch { repository.deleteSession(sessionId) }
+
+    fun setSortMode(value: SortMode): Job =
+        viewModelScope.launch { settingsRepository.setSortMode(value) }
+
+    fun setGroupMode(value: GroupMode): Job =
+        viewModelScope.launch { settingsRepository.setGroupMode(value) }
 
     // --- Selection mode -----------------------------------------------------
 
