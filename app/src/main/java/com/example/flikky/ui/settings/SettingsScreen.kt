@@ -47,6 +47,7 @@ import com.example.flikky.data.settings.MessageActionStyle
 import com.example.flikky.data.settings.PresetTheme
 import com.example.flikky.data.settings.ThemeMode
 import com.example.flikky.ui.components.Avatar
+import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.settings.components.SettingItem
 import com.example.flikky.ui.settings.components.SettingSection
 import com.example.flikky.ui.settings.components.groupedItemShape
@@ -111,7 +112,10 @@ fun SettingsScreen(
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .maxContentWidth()
+                .align(Alignment.TopCenter),
             contentPadding = PaddingValues(horizontal = Spacing.screenEdge, vertical = Spacing.screenEdge),
             verticalArrangement = Arrangement.spacedBy(Spacing.sectionGap),
         ) {

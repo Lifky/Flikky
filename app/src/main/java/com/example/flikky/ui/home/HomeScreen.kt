@@ -78,6 +78,7 @@ import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.ui.components.ActionBarItem
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.RenameDialog
+import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -251,46 +252,60 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { padding ->
         if (sessions.isEmpty()) {
-            EmptyHero(modifier = Modifier.padding(padding).fillMaxSize())
+            Box(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                EmptyHero(modifier = Modifier.fillMaxSize().maxContentWidth())
+            }
         } else {
-            Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-                if (!selecting && !searchExpanded) {
-                    SortGroupChips(
-                        sort = sortMode,
-                        group = groupMode,
-                        onSortChange = { viewModel.setSortMode(it) },
-                        onGroupChange = { viewModel.setGroupMode(it) },
-                    )
-                }
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = Spacing.sm),
-                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-                ) {
-                    items(
-                        homeItems,
-                        key = { item ->
+            Box(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                Column(modifier = Modifier.fillMaxSize().maxContentWidth()) {
+                    if (!selecting && !searchExpanded) {
+                        SortGroupChips(
+                            sort = sortMode,
+                            group = groupMode,
+                            onSortChange = { viewModel.setSortMode(it) },
+                            onGroupChange = { viewModel.setGroupMode(it) },
+                        )
+                    }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(vertical = Spacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                    ) {
+                        items(
+                            homeItems,
+                            key = { item ->
+                                when (item) {
+                                    is HomeListItem.Header -> "h:${item.label}"
+                                    is HomeListItem.SessionItem -> "s:${item.session.id}"
+                                }
+                            },
+                        ) { item ->
                             when (item) {
-                                is HomeListItem.Header -> "h:${item.label}"
-                                is HomeListItem.SessionItem -> "s:${item.session.id}"
-                            }
-                        },
-                    ) { item ->
-                        when (item) {
-                            is HomeListItem.Header -> SectionHeader(item.label)
-                            is HomeListItem.SessionItem -> {
-                                val s = item.session
-                                SessionRow(
-                                    s = s,
-                                    selecting = selecting,
-                                    checked = s.id in selectedIds,
-                                    onNormalClick = {
-                                        if (s.endedAt == null) resumeNavigate() else onOpenSession(s.id)
-                                    },
-                                    onEnterSelecting = { viewModel.toggleSelection(s.id) },
-                                    onToggleSelection = { viewModel.toggleSelection(s.id) },
-                                    onStopInProgress = { viewModel.stopService() },
-                                )
+                                is HomeListItem.Header -> SectionHeader(item.label)
+                                is HomeListItem.SessionItem -> {
+                                    val s = item.session
+                                    SessionRow(
+                                        s = s,
+                                        selecting = selecting,
+                                        checked = s.id in selectedIds,
+                                        onNormalClick = {
+                                            if (s.endedAt == null) resumeNavigate() else onOpenSession(s.id)
+                                        },
+                                        onEnterSelecting = { viewModel.toggleSelection(s.id) },
+                                        onToggleSelection = { viewModel.toggleSelection(s.id) },
+                                        onStopInProgress = { viewModel.stopService() },
+                                    )
+                                }
                             }
                         }
                     }
