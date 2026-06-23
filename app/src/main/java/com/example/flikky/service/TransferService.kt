@@ -38,6 +38,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -132,7 +133,8 @@ class TransferService : Service() {
         val name = defaultSessionName(now)
         val sid = runBlocking {
             runCatching {
-                val id = ServiceLocator.repository.beginSession(name, startedAt = now)
+                val groupId = ServiceLocator.settingsRepository.settings.first().activeGroupId
+                val id = ServiceLocator.repository.beginSession(name, startedAt = now, groupId = groupId)
                 ServiceLocator.repository.fifoSweep()
                 id
             }.getOrNull()
