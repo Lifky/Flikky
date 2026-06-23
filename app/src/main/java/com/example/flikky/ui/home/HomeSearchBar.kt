@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -45,6 +47,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.entities.SessionEntity
+import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
 import com.example.flikky.ui.search.SearchViewModel
 import com.example.flikky.ui.theme.Spacing
 import java.text.SimpleDateFormat
@@ -86,8 +89,22 @@ fun HomeSearchBar(
         searchVm.onQueryChange("")
     }
 
+    // 折叠态：补 MD3 标准屏幕边距(screenEdge=16dp)，宽屏限宽 600dp 居中（与下方内容区一致）。
+    // 展开态铺满全屏、不留边距，避免把全屏搜索视图也内缩。
+    // fillMaxWidth → wrapContentWidth(Center) → widthIn(max) → fillMaxWidth 是「限宽并居中」的标准写法。
     SearchBar(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.then(
+            if (expanded) {
+                Modifier.fillMaxWidth()
+            } else {
+                Modifier
+                    .fillMaxWidth()
+                    .wrapContentWidth(Alignment.CenterHorizontally)
+                    .widthIn(max = MAX_CONTENT_WIDTH_DP.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = Spacing.screenEdge)
+            },
+        ),
         expanded = expanded,
         onExpandedChange = onExpandedChange,
         inputField = {

@@ -486,7 +486,7 @@ private fun SessionRow(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = Spacing.md)
+            .padding(horizontal = Spacing.screenEdge)
             .then(cardModifier)
             .then(if (dimmed) Modifier.alpha(0.5f) else Modifier)
             .then(
