@@ -11,10 +11,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -273,12 +271,7 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .padding(padding)
-                    .fillMaxSize()
-                    .clickable(
-                        enabled = groupEditing,
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                    ) { groupEditing = false },
+                    .fillMaxSize(),
                 contentAlignment = Alignment.TopCenter,
             ) {
                 Column(modifier = Modifier.fillMaxSize().maxContentWidth()) {
