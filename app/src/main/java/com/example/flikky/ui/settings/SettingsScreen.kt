@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -14,18 +16,24 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Slider
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,6 +43,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -65,6 +75,7 @@ private sealed interface ActiveSheet {
     object Background : ActiveSheet
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onExport: () -> Unit,
@@ -110,12 +121,33 @@ fun SettingsScreen(
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        // 顶部 inset 交给 LargeTopAppBar 自己处理（标题栏铺到状态栏下方）；底部 inset 已由 MainActivity 施加。
+        contentWindowInsets = WindowInsets(0),
+        topBar = {
+            LargeTopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(painter = painterResource(R.drawable.ic_settings), contentDescription = null)
+                        Spacer(Modifier.width(Spacing.sm))
+                        Text("设置")
+                    }
+                },
+                scrollBehavior = scrollBehavior,
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
+    ) { innerPad ->
+        Box(
+            modifier = Modifier.fillMaxSize().padding(innerPad),
+            contentAlignment = Alignment.TopCenter,
+        ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .maxContentWidth()
-                .align(Alignment.TopCenter),
+                .maxContentWidth(),
             contentPadding = PaddingValues(horizontal = Spacing.screenEdge, vertical = Spacing.screenEdge),
             verticalArrangement = Arrangement.spacedBy(Spacing.sectionGap),
         ) {
@@ -132,6 +164,7 @@ fun SettingsScreen(
                     }
                     SettingItem(
                         title = "主题",
+                        leadingIcon = painterResource(R.drawable.ic_palette),
                         subtitle = themeSubtitle,
                         trailing = {
                             Icon(
@@ -150,6 +183,7 @@ fun SettingsScreen(
                     }
                     SettingItem(
                         title = "深色模式",
+                        leadingIcon = painterResource(R.drawable.ic_dark_mode),
                         subtitle = darkSubtitle,
                         trailing = {
                             Icon(
@@ -163,6 +197,7 @@ fun SettingsScreen(
                     )
                     SettingItem(
                         title = "AMOLED 纯黑",
+                        leadingIcon = painterResource(R.drawable.ic_contrast),
                         subtitle = "深色模式下使用纯黑背景",
                         trailing = {
                             Switch(
@@ -181,12 +216,14 @@ fun SettingsScreen(
                 SettingSection(title = "身份") {
                     SettingItem(
                         title = "本机名称",
+                        leadingIcon = painterResource(R.drawable.ic_smartphone),
                         subtitle = s.deviceName,
                         onClick = { showDeviceNameDialog = true },
                         shape = groupedItemShape(0, sectionItems),
                     )
                     SettingItem(
                         title = "APP 端头像",
+                        leadingIcon = painterResource(R.drawable.ic_account_circle),
                         trailing = { Avatar(avatarId = s.phoneAvatarId, size = Sizes.avatar) },
                         onClick = { activeSheet = ActiveSheet.Avatar },
                         shape = groupedItemShape(1, sectionItems),
@@ -203,6 +240,7 @@ fun SettingsScreen(
                     }
                     SettingItem(
                         title = "气泡圆角",
+                        leadingIcon = painterResource(R.drawable.ic_rounded_corner),
                         subtitle = "${radiusDraft.toInt()} dp",
                         trailing = {
                             Slider(
@@ -225,6 +263,7 @@ fun SettingsScreen(
                     }
                     SettingItem(
                         title = "头像显示",
+                        leadingIcon = painterResource(R.drawable.ic_face),
                         subtitle = groupingSubtitle,
                         onClick = { showAvatarGroupingDialog = true },
                         shape = groupedItemShape(1, sectionItems),
@@ -237,6 +276,7 @@ fun SettingsScreen(
                     }
                     SettingItem(
                         title = "进行中会话背景",
+                        leadingIcon = painterResource(R.drawable.ic_image),
                         subtitle = bgSubtitle,
                         onClick = { activeSheet = ActiveSheet.Background },
                         shape = groupedItemShape(2, sectionItems),
@@ -254,12 +294,14 @@ fun SettingsScreen(
                     }
                     SettingItem(
                         title = "消息操作样式",
+                        leadingIcon = painterResource(R.drawable.ic_touch_app),
                         subtitle = styleSubtitle,
                         onClick = { showActionStyleDialog = true },
                         shape = groupedItemShape(0, sectionItems),
                     )
                     SettingItem(
                         title = "消息撤回（Beta）",
+                        leadingIcon = painterResource(R.drawable.ic_undo),
                         subtitle = "允许撤回已发送的消息",
                         trailing = {
                             Switch(
@@ -271,6 +313,7 @@ fun SettingsScreen(
                     )
                     SettingItem(
                         title = "允许会话中返回",
+                        leadingIcon = rememberVectorPainter(Icons.AutoMirrored.Filled.ArrowBack),
                         subtitle = "默认拦截返回键保护会话；开启后可返回主页查看历史（会话期间设置入口锁定）",
                         trailing = {
                             Switch(
@@ -295,12 +338,14 @@ fun SettingsScreen(
                     }
                     SettingItem(
                         title = "历史保存数量",
+                        leadingIcon = painterResource(R.drawable.ic_history),
                         subtitle = historySubtitle,
                         onClick = { showHistoryLimitDialog = true },
                         shape = groupedItemShape(0, sectionItems),
                     )
                     SettingItem(
                         title = "导入",
+                        leadingIcon = painterResource(R.drawable.ic_file_download),
                         subtitle = "从 zip 文件导入会话",
                         onClick = {
                             importLauncher.launch(
@@ -311,6 +356,7 @@ fun SettingsScreen(
                     )
                     SettingItem(
                         title = "导出",
+                        leadingIcon = painterResource(R.drawable.ic_upload),
                         subtitle = "将会话导出为 zip 文件",
                         onClick = onExport,
                         shape = groupedItemShape(2, sectionItems),
@@ -324,22 +370,20 @@ fun SettingsScreen(
                 SettingSection(title = "关于") {
                     SettingItem(
                         title = "版本",
+                        leadingIcon = painterResource(R.drawable.ic_info),
                         subtitle = "v1.7.0",
                         shape = groupedItemShape(0, sectionItems),
                     )
                     SettingItem(
                         title = "开源",
+                        leadingIcon = painterResource(R.drawable.ic_code),
                         subtitle = "Ktor · mdui · Apache/MIT",
                         shape = groupedItemShape(1, sectionItems),
                     )
                 }
             }
         }
-
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) { Snackbar(it) }
+        }
     }
 
     // ─── Picker sheets ────────────────────────────────────────────────────────

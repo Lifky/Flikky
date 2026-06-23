@@ -105,7 +105,8 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                             composable("settings") {
-                                Box(Modifier.padding(innerPadding)) {
+                                // 顶部 inset 交给 SettingsScreen 的 LargeTopAppBar 自己消费（标题栏铺到状态栏下方），这里只补底部。
+                                Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
                                     SettingsScreen(
                                         onExport = { nav.navigate("exporting") },
                                     )
