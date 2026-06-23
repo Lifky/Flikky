@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,7 +39,7 @@ fun SettingItem(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        color = MaterialTheme.colorScheme.surfaceBright,
         shape = shape,
     ) {
         Row(
@@ -71,26 +72,28 @@ fun SettingItem(
 }
 
 /**
- * Returns the appropriate [Shape] for an item at [index] within a group of [total] items.
+ * Returns the [Shape] for an item at [index] within a group of [total] items,
+ * for the M3 Expressive *segmented* list look: large outer corners at the group
+ * ends, small inner corners between adjacent segments (paired with the small gap
+ * [SettingSection] puts between items).
  *
- * - Single item (total == 1): all corners rounded (16.dp).
- * - First item: top corners rounded, bottom corners square.
- * - Last item: bottom corners rounded, top corners square.
- * - Middle items: all corners square (rectangle).
+ * - Single item (total == 1): all corners large (16.dp).
+ * - First item: top corners large, bottom corners small (4.dp).
+ * - Last item: bottom corners large, top corners small.
+ * - Middle items: all corners small.
  */
 @Composable
 fun groupedItemShape(index: Int, total: Int): Shape {
-    val r = 16.dp
-    val zero = 0.dp
-    val shapes = MaterialTheme.shapes
+    val outer = 16.dp
+    val inner = 4.dp
     return when {
-        total == 1 -> androidx.compose.foundation.shape.RoundedCornerShape(r)
-        index == 0 -> androidx.compose.foundation.shape.RoundedCornerShape(
-            topStart = r, topEnd = r, bottomStart = zero, bottomEnd = zero,
+        total == 1 -> RoundedCornerShape(outer)
+        index == 0 -> RoundedCornerShape(
+            topStart = outer, topEnd = outer, bottomStart = inner, bottomEnd = inner,
         )
-        index == total - 1 -> androidx.compose.foundation.shape.RoundedCornerShape(
-            topStart = zero, topEnd = zero, bottomStart = r, bottomEnd = r,
+        index == total - 1 -> RoundedCornerShape(
+            topStart = inner, topEnd = inner, bottomStart = outer, bottomEnd = outer,
         )
-        else -> androidx.compose.foundation.shape.RoundedCornerShape(zero)
+        else -> RoundedCornerShape(inner)
     }
 }
