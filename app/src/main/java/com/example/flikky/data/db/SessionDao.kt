@@ -37,4 +37,10 @@ interface SessionDao {
 
     @Query("SELECT * FROM sessions WHERE name = :name AND startedAt = :startedAt LIMIT 1")
     suspend fun findByNameAndStartedAt(name: String, startedAt: Long): SessionEntity?
+
+    @Query("UPDATE sessions SET groupId = NULL WHERE groupId = :gid")
+    suspend fun unbindGroup(gid: Long)
+
+    @Query("UPDATE sessions SET groupId = :gid WHERE id IN (:ids)")
+    suspend fun bindSessions(gid: Long, ids: List<Long>)
 }
