@@ -117,6 +117,24 @@ class HomeViewModelTest {
         coVerify { settings.setActiveGroup(9L) }
     }
 
+    @Test fun createGroup_ignores_blank_names_and_truncates_to_twelve_chars() = runTest {
+        val app = mockk<Application>(relaxed = true)
+        val repo = mockk<SessionRepository>()
+        val settings = mockk<SettingsRepository>()
+        every { repo.observeSessions() } returns MutableStateFlow(emptyList())
+        every { repo.observeGroups() } returns MutableStateFlow(emptyList())
+        every { settings.settings } returns MutableStateFlow(FlikkySettings())
+        coEvery { repo.createGroup(any()) } returns 9L
+        coEvery { settings.setActiveGroup(any()) } returns preferences()
+
+        val vm = HomeViewModel(app, repo, stubSession(), settingsRepository = settings)
+        vm.createGroup("   ").join()
+        vm.createGroup("123456789012345").join()
+
+        coVerify(exactly = 0) { repo.createGroup("   ") }
+        coVerify { repo.createGroup("123456789012") }
+    }
+
     @Test fun deleteGroupWithUndo_clears_active_group_only_when_current_group_is_deleted() = runTest {
         val app = mockk<Application>(relaxed = true)
         val repo = mockk<SessionRepository>()
@@ -152,6 +170,21 @@ class HomeViewModelTest {
 
         coVerify { repo.restoreGroup(group, listOf(1L, 2L)) }
         coVerify { settings.setActiveGroup(11L) }
+    }
+
+    @Test fun renameGroup_ignores_blank_names_and_truncates_to_twelve_chars() = runTest {
+        val app = mockk<Application>(relaxed = true)
+        val repo = mockk<SessionRepository>()
+        every { repo.observeSessions() } returns MutableStateFlow(emptyList())
+        every { repo.observeGroups() } returns MutableStateFlow(emptyList())
+        coEvery { repo.renameGroup(any(), any()) } just Runs
+
+        val vm = HomeViewModel(app, repo, stubSession(), settingsRepository = stubSettings())
+        vm.renameGroup(7L, "   ").join()
+        vm.renameGroup(7L, "123456789012345").join()
+
+        coVerify(exactly = 0) { repo.renameGroup(7L, "   ") }
+        coVerify { repo.renameGroup(7L, "123456789012") }
     }
 
     private fun List<HomeListItem>.headers() =

@@ -103,12 +103,16 @@ class HomeViewModel @JvmOverloads constructor(
 
     fun createGroup(name: String): Job =
         viewModelScope.launch {
-            val id = repository.createGroup(name)
+            val validName = normalizeGroupName(name) ?: return@launch
+            val id = repository.createGroup(validName)
             settingsRepository.setActiveGroup(id)
         }
 
     fun renameGroup(id: Long, name: String): Job =
-        viewModelScope.launch { repository.renameGroup(id, name) }
+        viewModelScope.launch {
+            val validName = normalizeGroupName(name) ?: return@launch
+            repository.renameGroup(id, validName)
+        }
 
     suspend fun deleteGroupWithUndo(id: Long): Pair<GroupEntity, List<Long>>? {
         val active = settingsRepository.settings.first().activeGroupId
@@ -124,6 +128,9 @@ class HomeViewModel @JvmOverloads constructor(
 
     fun reorderGroups(orderedIds: List<Long>): Job =
         viewModelScope.launch { repository.reorderGroups(orderedIds) }
+
+    private fun normalizeGroupName(name: String): String? =
+        name.trim().take(12).ifEmpty { null }
 
     // --- Selection mode -----------------------------------------------------
 

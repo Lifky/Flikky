@@ -40,10 +40,12 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -74,6 +76,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
+import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.ui.components.ActionBarItem
 import com.example.flikky.ui.components.ConfirmDialog
@@ -172,9 +175,12 @@ fun HomeScreen(
     var showRenameDialog by remember { mutableStateOf(false) }
     var showBatchDeleteDialog by remember { mutableStateOf(false) }
     var groupEditing by remember { mutableStateOf(false) }
+    var showCreateGroupDialog by remember { mutableStateOf(false) }
+    var renamingGroup by remember { mutableStateOf<GroupEntity?>(null) }
 
     // 上报多选态给 MainActivity，用于多选时隐藏底部导航。
     LaunchedEffect(selecting) { onSelectingChange(selecting) }
+    BackHandler(enabled = groupEditing && !selecting) { groupEditing = false }
 
     Scaffold(
         topBar = {
@@ -252,7 +258,7 @@ fun HomeScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { padding ->
-        if (sessions.isEmpty()) {
+        if (activeGroupId == null && sessions.isEmpty()) {
             Box(
                 modifier = Modifier
                     .padding(padding)
@@ -275,42 +281,76 @@ fun HomeScreen(
                             groups = groups,
                             activeGroupId = activeGroupId,
                             editing = groupEditing,
-                            onSelect = { viewModel.setActiveGroup(it) },
-                            onAdd = {},
+                            onSelect = {
+                                groupEditing = false
+                                viewModel.setActiveGroup(it)
+                            },
+                            onAdd = {
+                                groupEditing = false
+                                showCreateGroupDialog = true
+                            },
                             onEnterEdit = { groupEditing = true },
-                            onRename = {},
-                            onDelete = {},
-                        )
-                    }
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = Spacing.sm),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-                    ) {
-                        items(
-                            homeItems,
-                            key = { item ->
-                                when (item) {
-                                    is HomeListItem.Header -> "h:${item.label}"
-                                    is HomeListItem.SessionItem -> "s:${item.session.id}"
+                            onRename = { renamingGroup = it },
+                            onDelete = { group ->
+                                scope.launch {
+                                    val token = viewModel.deleteGroupWithUndo(group.id)
+                                    if (token != null) {
+                                        val result = snackbarHostState.showSnackbar(
+                                            message = "已删除分组「${group.name}」",
+                                            actionLabel = "撤销",
+                                        )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            viewModel.restoreGroup(token.first, token.second)
+                                        }
+                                    }
                                 }
                             },
-                        ) { item ->
-                            when (item) {
-                                is HomeListItem.Header -> SectionHeader(item.label)
-                                is HomeListItem.SessionItem -> {
-                                    val s = item.session
-                                    SessionRow(
-                                        s = s,
-                                        selecting = selecting,
-                                        checked = s.id in selectedIds,
-                                        onNormalClick = {
-                                            if (s.endedAt == null) resumeNavigate() else onOpenSession(s.id)
-                                        },
-                                        onEnterSelecting = { viewModel.toggleSelection(s.id) },
-                                        onToggleSelection = { viewModel.toggleSelection(s.id) },
-                                        onStopInProgress = { viewModel.stopService() },
-                                    )
+                        )
+                    }
+                    if (homeItems.isEmpty() && activeGroupId != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(Spacing.screenEdge),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "该分组还没有会话",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = Spacing.sm),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        ) {
+                            items(
+                                homeItems,
+                                key = { item ->
+                                    when (item) {
+                                        is HomeListItem.Header -> "h:${item.label}"
+                                        is HomeListItem.SessionItem -> "s:${item.session.id}"
+                                    }
+                                },
+                            ) { item ->
+                                when (item) {
+                                    is HomeListItem.Header -> SectionHeader(item.label)
+                                    is HomeListItem.SessionItem -> {
+                                        val s = item.session
+                                        SessionRow(
+                                            s = s,
+                                            selecting = selecting,
+                                            checked = s.id in selectedIds,
+                                            onNormalClick = {
+                                                if (s.endedAt == null) resumeNavigate() else onOpenSession(s.id)
+                                            },
+                                            onEnterSelecting = { viewModel.toggleSelection(s.id) },
+                                            onToggleSelection = { viewModel.toggleSelection(s.id) },
+                                            onStopInProgress = { viewModel.stopService() },
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -341,6 +381,30 @@ fun HomeScreen(
                 scope.launch { viewModel.renameSelected(name) }
             },
             onDismiss = { showRenameDialog = false },
+        )
+    }
+
+    if (showCreateGroupDialog) {
+        GroupNameDialog(
+            title = "新建分组",
+            initial = "",
+            onConfirm = { name ->
+                showCreateGroupDialog = false
+                viewModel.createGroup(name)
+            },
+            onDismiss = { showCreateGroupDialog = false },
+        )
+    }
+
+    renamingGroup?.let { group ->
+        GroupNameDialog(
+            title = "重命名分组",
+            initial = group.name,
+            onConfirm = { name ->
+                renamingGroup = null
+                viewModel.renameGroup(group.id, name)
+            },
+            onDismiss = { renamingGroup = null },
         )
     }
 
@@ -445,6 +509,38 @@ private fun EmptyHero(modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+@Composable
+private fun GroupNameDialog(
+    title: String,
+    initial: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var draft by remember(initial) { mutableStateOf(initial.take(12)) }
+    val trimmed = draft.trim()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = draft,
+                onValueChange = { draft = it.take(12) },
+                singleLine = true,
+                label = { Text("分组名") },
+                supportingText = { Text("${draft.length}/12") },
+                isError = draft.isNotEmpty() && trimmed.isEmpty(),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(trimmed) },
+                enabled = trimmed.isNotEmpty(),
+            ) { Text("确定") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
