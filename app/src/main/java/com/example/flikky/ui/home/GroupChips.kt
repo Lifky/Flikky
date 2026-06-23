@@ -3,18 +3,14 @@ package com.example.flikky.ui.home
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -25,13 +21,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.ui.theme.Spacing
 
@@ -39,21 +35,14 @@ data class GroupChipModel(
     val id: Long?,
     val label: String,
     val selected: Boolean,
-    val showDelete: Boolean,
 )
 
 fun buildGroupChipModels(
     groups: List<GroupEntity>,
     activeGroupId: Long?,
-    editing: Boolean,
 ): List<GroupChipModel> =
     listOf(
-        GroupChipModel(
-            id = null,
-            label = "全部",
-            selected = activeGroupId == null,
-            showDelete = false,
-        )
+        GroupChipModel(id = null, label = "全部", selected = activeGroupId == null),
     ) + groups
         .sortedWith(compareBy<GroupEntity> { it.sortOrder }.thenBy { it.createdAt }.thenBy { it.id })
         .map { group ->
@@ -61,24 +50,24 @@ fun buildGroupChipModels(
                 id = group.id,
                 label = group.name,
                 selected = activeGroupId == group.id,
-                showDelete = editing,
             )
         }
 
+/**
+ * 主页分组单选行：「全部」+ 自定义分组 FilterChip（横滑）+ 右侧固定「新建」。
+ * 单击切换分组；长按自定义分组弹「管理分组」框（重命名/排序/删除统一在那里）。「全部」不可管理。
+ */
 @Composable
 fun GroupChips(
     groups: List<GroupEntity>,
     activeGroupId: Long?,
-    editing: Boolean,
     onSelect: (Long?) -> Unit,
     onAdd: () -> Unit,
-    onEnterEdit: () -> Unit,
-    onRename: (GroupEntity) -> Unit,
-    onDelete: (GroupEntity) -> Unit,
+    onManage: (GroupEntity) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val byId = groups.associateBy { it.id }
-    val models = buildGroupChipModels(groups, activeGroupId, editing)
+    val models = buildGroupChipModels(groups, activeGroupId)
 
     Row(
         modifier = modifier
@@ -91,28 +80,13 @@ fun GroupChips(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             items(models, key = { it.id ?: Long.MIN_VALUE }) { model ->
-                val group = model.id?.let(byId::get)
-                Box(
-                    modifier = Modifier
-                        .padding(end = Spacing.sm)
-                        .heightIn(min = 32.dp),
-                    contentAlignment = Alignment.TopEnd,
-                ) {
-                    GroupFilterChip(
-                        model = model,
-                        group = group,
-                        editing = editing,
-                        onSelect = onSelect,
-                        onEnterEdit = onEnterEdit,
-                        onRename = onRename,
-                    )
-                    if (model.showDelete && group != null) {
-                        DeleteBadge(
-                            group = group,
-                            onDelete = onDelete,
-                        )
-                    }
-                }
+                GroupFilterChip(
+                    model = model,
+                    group = model.id?.let(byId::get),
+                    onSelect = onSelect,
+                    onManage = onManage,
+                    modifier = Modifier.padding(end = Spacing.sm),
+                )
             }
         }
         IconButton(
@@ -128,16 +102,14 @@ fun GroupChips(
 private fun GroupFilterChip(
     model: GroupChipModel,
     group: GroupEntity?,
-    editing: Boolean,
     onSelect: (Long?) -> Unit,
-    onEnterEdit: () -> Unit,
-    onRename: (GroupEntity) -> Unit,
+    onManage: (GroupEntity) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
+    val haptic = LocalHapticFeedback.current
     FilterChip(
         selected = model.selected,
-        onClick = {
-            if (editing && group != null) onRename(group) else onSelect(model.id)
-        },
+        onClick = { onSelect(model.id) },
         label = {
             Text(
                 text = model.label,
@@ -157,47 +129,29 @@ private fun GroupFilterChip(
         } else {
             null
         },
-        // 长按进入编辑态。FilterChip 自带 onClick 在内层装了 selectable，会抢先消费按下事件，
-        // 外层 combinedClickable 收不到长按（test1「长按无效果」根因）。改用低层手势：
+        // 长按自定义分组 → 弹「管理分组」框；「全部」(group==null) 无长按。
+        // FilterChip 内层 selectable 会先消费按下，外层 combinedClickable 收不到长按，故用低层手势：
         // awaitFirstDown(requireUnconsumed=false) 不消费 → 原生单击/ripple 照常；
-        // awaitLongPressOrCancellation 仅在长按时触发，快速点击返回 null 不打扰单击；
-        // 触发后在 Initial 段消费剩余事件，抢在内层 selectable 前，免得松手再补一次单击。
-        modifier = Modifier.pointerInput(model.id, editing) {
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false)
-                if (awaitLongPressOrCancellation(down.id) != null) {
-                    onEnterEdit()
-                    var pressed = true
-                    while (pressed) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        event.changes.forEach { it.consume() }
-                        pressed = event.changes.any { it.pressed }
+        // 长按触发时震动 + 回调，再于 Initial 段消费收尾，避免松手补一次单击。
+        modifier = if (group != null) {
+            modifier.pointerInput(group.id) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    if (awaitLongPressOrCancellation(down.id) != null) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onManage(group)
+                        var pressed = true
+                        while (pressed) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            event.changes.forEach { it.consume() }
+                            pressed = event.changes.any { it.pressed }
+                        }
                     }
                 }
             }
+        } else {
+            modifier
         },
         shape = MaterialTheme.shapes.small,
     )
-}
-
-@Composable
-private fun BoxScope.DeleteBadge(
-    group: GroupEntity,
-    onDelete: (GroupEntity) -> Unit,
-) {
-    IconButton(
-        onClick = { onDelete(group) },
-        modifier = Modifier
-            .align(Alignment.TopEnd)
-            .size(24.dp)
-            .clip(MaterialTheme.shapes.small)
-            .semantics { contentDescription = "删除分组 ${group.name}" },
-    ) {
-        Icon(
-            imageVector = Icons.Default.Close,
-            contentDescription = "删除分组 ${group.name}",
-            modifier = Modifier.size(14.dp),
-            tint = MaterialTheme.colorScheme.error,
-        )
-    }
 }

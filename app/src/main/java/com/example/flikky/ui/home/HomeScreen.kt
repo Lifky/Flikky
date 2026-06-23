@@ -174,13 +174,11 @@ fun HomeScreen(
     val singleSelected = selectedSessions.singleOrNull()
     var showRenameDialog by remember { mutableStateOf(false) }
     var showBatchDeleteDialog by remember { mutableStateOf(false) }
-    var groupEditing by remember { mutableStateOf(false) }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
-    var renamingGroup by remember { mutableStateOf<GroupEntity?>(null) }
+    var managingGroup by remember { mutableStateOf<GroupEntity?>(null) }
 
     // 上报多选态给 MainActivity，用于多选时隐藏底部导航。
     LaunchedEffect(selecting) { onSelectingChange(selecting) }
-    BackHandler(enabled = groupEditing && !selecting) { groupEditing = false }
 
     Scaffold(
         topBar = {
@@ -280,31 +278,9 @@ fun HomeScreen(
                         GroupChips(
                             groups = groups,
                             activeGroupId = activeGroupId,
-                            editing = groupEditing,
-                            onSelect = {
-                                groupEditing = false
-                                viewModel.setActiveGroup(it)
-                            },
-                            onAdd = {
-                                groupEditing = false
-                                showCreateGroupDialog = true
-                            },
-                            onEnterEdit = { groupEditing = true },
-                            onRename = { renamingGroup = it },
-                            onDelete = { group ->
-                                scope.launch {
-                                    val token = viewModel.deleteGroupWithUndo(group.id)
-                                    if (token != null) {
-                                        val result = snackbarHostState.showSnackbar(
-                                            message = "已删除分组「${group.name}」",
-                                            actionLabel = "撤销",
-                                        )
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            viewModel.restoreGroup(token.first, token.second)
-                                        }
-                                    }
-                                }
-                            },
+                            onSelect = { viewModel.setActiveGroup(it) },
+                            onAdd = { showCreateGroupDialog = true },
+                            onManage = { managingGroup = it },
                         )
                     }
                     if (homeItems.isEmpty() && activeGroupId != null) {
@@ -396,15 +372,44 @@ fun HomeScreen(
         )
     }
 
-    renamingGroup?.let { group ->
-        GroupNameDialog(
-            title = "重命名分组",
-            initial = group.name,
-            onConfirm = { name ->
-                renamingGroup = null
-                viewModel.renameGroup(group.id, name)
+    managingGroup?.let { group ->
+        val ordered = groups
+            .sortedWith(compareBy<GroupEntity> { it.sortOrder }.thenBy { it.createdAt }.thenBy { it.id })
+        val idx = ordered.indexOfFirst { it.id == group.id }
+        GroupManageDialog(
+            group = group,
+            canMoveUp = idx > 0,
+            canMoveDown = idx >= 0 && idx < ordered.lastIndex,
+            onSave = { name -> viewModel.renameGroup(group.id, name) },
+            onMoveUp = {
+                if (idx > 0) {
+                    val ids = ordered.map { it.id }.toMutableList()
+                    val tmp = ids[idx]; ids[idx] = ids[idx - 1]; ids[idx - 1] = tmp
+                    viewModel.reorderGroups(ids)
+                }
             },
-            onDismiss = { renamingGroup = null },
+            onMoveDown = {
+                if (idx in 0 until ordered.lastIndex) {
+                    val ids = ordered.map { it.id }.toMutableList()
+                    val tmp = ids[idx]; ids[idx] = ids[idx + 1]; ids[idx + 1] = tmp
+                    viewModel.reorderGroups(ids)
+                }
+            },
+            onDelete = {
+                scope.launch {
+                    val token = viewModel.deleteGroupWithUndo(group.id)
+                    if (token != null) {
+                        val result = snackbarHostState.showSnackbar(
+                            message = "已删除分组「${group.name}」",
+                            actionLabel = "撤销",
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            viewModel.restoreGroup(token.first, token.second)
+                        }
+                    }
+                }
+            },
+            onDismiss = { managingGroup = null },
         )
     }
 

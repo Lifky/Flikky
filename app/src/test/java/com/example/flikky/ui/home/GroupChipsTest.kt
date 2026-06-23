@@ -14,7 +14,7 @@ class GroupChipsTest {
             GroupEntity(id = 1L, name = "A", sortOrder = 0, createdAt = 10L),
         )
 
-        val models = buildGroupChipModels(groups, activeGroupId = null, editing = false)
+        val models = buildGroupChipModels(groups, activeGroupId = null)
 
         assertEquals(listOf(null, 1L, 2L), models.map { it.id })
         assertEquals(listOf("全部", "A", "B"), models.map { it.label })
@@ -27,22 +27,18 @@ class GroupChipsTest {
             GroupEntity(id = 2L, name = "B", sortOrder = 1, createdAt = 20L),
         )
 
-        val models = buildGroupChipModels(groups, activeGroupId = 2L, editing = false)
+        val models = buildGroupChipModels(groups, activeGroupId = 2L)
 
         assertFalse(models[0].selected)
         assertFalse(models[1].selected)
         assertTrue(models[2].selected)
     }
 
-    @Test fun models_allow_delete_only_for_custom_groups_in_editing_mode() {
-        val groups = listOf(GroupEntity(id = 1L, name = "A", sortOrder = 0, createdAt = 10L))
+    @Test fun models_with_no_custom_groups_show_only_all_selected() {
+        val models = buildGroupChipModels(emptyList(), activeGroupId = null)
 
-        val editing = buildGroupChipModels(groups, activeGroupId = null, editing = true)
-        val normal = buildGroupChipModels(groups, activeGroupId = null, editing = false)
-
-        assertNull(editing.first().id)
-        assertFalse(editing.first().showDelete)
-        assertTrue(editing.last().showDelete)
-        assertFalse(normal.last().showDelete)
+        assertEquals(1, models.size)
+        assertNull(models.first().id)
+        assertTrue(models.first().selected)
     }
 }
