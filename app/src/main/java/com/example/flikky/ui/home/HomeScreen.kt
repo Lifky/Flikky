@@ -98,8 +98,8 @@ fun HomeScreen(
     val context = LocalContext.current
     val sessions by viewModel.sessions.collectAsState(initial = emptyList())
     val homeItems by viewModel.homeItems.collectAsState(initial = emptyList())
-    val sortMode by viewModel.sortMode.collectAsState(initial = com.example.flikky.data.settings.SortMode.TIME)
-    val groupMode by viewModel.groupMode.collectAsState(initial = com.example.flikky.data.settings.GroupMode.NONE)
+    val groups by viewModel.groups.collectAsState(initial = emptyList())
+    val activeGroupId by viewModel.activeGroupId.collectAsState(initial = null)
     val selection by viewModel.selection.collectAsState()
     val selecting by viewModel.selecting.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -171,6 +171,7 @@ fun HomeScreen(
     val singleSelected = selectedSessions.singleOrNull()
     var showRenameDialog by remember { mutableStateOf(false) }
     var showBatchDeleteDialog by remember { mutableStateOf(false) }
+    var groupEditing by remember { mutableStateOf(false) }
 
     // 上报多选态给 MainActivity，用于多选时隐藏底部导航。
     LaunchedEffect(selecting) { onSelectingChange(selecting) }
@@ -270,11 +271,15 @@ fun HomeScreen(
                 Column(modifier = Modifier.fillMaxSize().maxContentWidth()) {
                     // 淡出/收起而非硬切，配合搜索框展开动画，避免 chip 行同帧消失造成的「卡顿」观感。
                     AnimatedVisibility(visible = !selecting && !searchExpanded) {
-                        SortGroupChips(
-                            sort = sortMode,
-                            group = groupMode,
-                            onSortChange = { viewModel.setSortMode(it) },
-                            onGroupChange = { viewModel.setGroupMode(it) },
+                        GroupChips(
+                            groups = groups,
+                            activeGroupId = activeGroupId,
+                            editing = groupEditing,
+                            onSelect = { viewModel.setActiveGroup(it) },
+                            onAdd = {},
+                            onEnterEdit = { groupEditing = true },
+                            onRename = {},
+                            onDelete = {},
                         )
                     }
                     LazyColumn(
