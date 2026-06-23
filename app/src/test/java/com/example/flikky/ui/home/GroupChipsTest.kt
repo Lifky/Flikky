@@ -32,6 +32,7 @@ class GroupChipsTest {
         assertFalse(models[0].selected)
         assertFalse(models[1].selected)
         assertTrue(models[2].selected)
+        assertEquals(listOf(false, false, true), models.map { it.showCheck })
     }
 
     @Test fun models_allow_delete_only_for_custom_groups_in_editing_mode() {
@@ -44,5 +45,14 @@ class GroupChipsTest {
         assertFalse(editing.first().showDelete)
         assertTrue(editing.last().showDelete)
         assertFalse(normal.last().showDelete)
+    }
+
+    @Test fun models_allow_entering_edit_from_any_chip_without_making_all_deletable() {
+        val groups = listOf(GroupEntity(id = 1L, name = "A", sortOrder = 0, createdAt = 10L))
+
+        val models = buildGroupChipModels(groups, activeGroupId = null, editing = false)
+
+        assertEquals(listOf(true, true), models.map { it.canEnterEdit })
+        assertEquals(listOf(false, false), models.map { it.showDelete })
     }
 }

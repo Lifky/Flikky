@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -35,6 +36,8 @@ data class GroupChipModel(
     val label: String,
     val selected: Boolean,
     val showDelete: Boolean,
+    val showCheck: Boolean,
+    val canEnterEdit: Boolean,
 )
 
 fun buildGroupChipModels(
@@ -48,6 +51,8 @@ fun buildGroupChipModels(
             label = "全部",
             selected = activeGroupId == null,
             showDelete = false,
+            showCheck = activeGroupId == null,
+            canEnterEdit = true,
         )
     ) + groups
         .sortedWith(compareBy<GroupEntity> { it.sortOrder }.thenBy { it.createdAt }.thenBy { it.id })
@@ -57,6 +62,8 @@ fun buildGroupChipModels(
                 label = group.name,
                 selected = activeGroupId == group.id,
                 showDelete = editing,
+                showCheck = activeGroupId == group.id,
+                canEnterEdit = true,
             )
         }
 
@@ -96,11 +103,18 @@ fun GroupChips(
                 ) {
                     GroupFilterChip(
                         model = model,
-                        group = group,
-                        editing = editing,
-                        onSelect = onSelect,
-                        onEnterEdit = onEnterEdit,
-                        onRename = onRename,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .combinedClickable(
+                                onClick = {
+                                    if (editing && group != null) onRename(group) else onSelect(model.id)
+                                },
+                                onLongClick = {
+                                    if (model.canEnterEdit) onEnterEdit()
+                                },
+                            ),
                     )
                     if (model.showDelete && group != null) {
                         DeleteBadge(
@@ -124,17 +138,10 @@ fun GroupChips(
 @Composable
 private fun GroupFilterChip(
     model: GroupChipModel,
-    group: GroupEntity?,
-    editing: Boolean,
-    onSelect: (Long?) -> Unit,
-    onEnterEdit: () -> Unit,
-    onRename: (GroupEntity) -> Unit,
 ) {
     FilterChip(
         selected = model.selected,
-        onClick = {
-            if (editing && group != null) onRename(group) else onSelect(model.id)
-        },
+        onClick = {},
         label = {
             Text(
                 text = model.label,
@@ -143,12 +150,17 @@ private fun GroupFilterChip(
                 overflow = TextOverflow.Ellipsis,
             )
         },
-        modifier = Modifier.combinedClickable(
-            onClick = {
-                if (editing && group != null) onRename(group) else onSelect(model.id)
-            },
-            onLongClick = onEnterEdit,
-        ),
+        leadingIcon = if (model.showCheck) {
+            {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "已选中",
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        } else {
+            null
+        },
         shape = MaterialTheme.shapes.small,
     )
 }
