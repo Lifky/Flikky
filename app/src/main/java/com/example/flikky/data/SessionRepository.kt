@@ -1,7 +1,9 @@
 package com.example.flikky.data
 
 import com.example.flikky.data.db.MessageDao
+import com.example.flikky.data.db.GroupDao
 import com.example.flikky.data.db.SessionDao
+import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.MessageEntity
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.export.ExportSnapshot
@@ -28,6 +30,7 @@ import java.util.zip.ZipFile
 class SessionRepository(
     private val sessionDao: SessionDao,
     private val messageDao: MessageDao,
+    private val groupDao: GroupDao,
     private val fileStore: SessionFileStore,
     private val now: () -> Long,
     private val retainLimitProvider: suspend () -> Int = { 20 },
@@ -167,6 +170,41 @@ class SessionRepository(
     }
 
     fun observeSessions(): Flow<List<SessionEntity>> = sessionDao.observeAll()
+
+    fun observeGroups(): Flow<List<GroupEntity>> = groupDao.observeAll()
+
+    suspend fun createGroup(name: String): Long =
+        groupDao.insert(
+            GroupEntity(
+                name = name.trim(),
+                sortOrder = groupDao.maxSortOrder() + 1,
+                createdAt = now(),
+            )
+        )
+
+    suspend fun renameGroup(id: Long, name: String) {
+        groupDao.getById(id)?.let { groupDao.update(it.copy(name = name.trim())) }
+    }
+
+    suspend fun deleteGroup(id: Long): Pair<GroupEntity, List<Long>>? {
+        val group = groupDao.getById(id) ?: return null
+        val members = groupDao.memberIds(id)
+        sessionDao.unbindGroup(id)
+        groupDao.deleteById(id)
+        return group to members
+    }
+
+    suspend fun restoreGroup(group: GroupEntity, memberIds: List<Long>): Long {
+        val newId = groupDao.insert(group.copy(id = 0))
+        if (memberIds.isNotEmpty()) sessionDao.bindSessions(newId, memberIds)
+        return newId
+    }
+
+    suspend fun reorderGroups(orderedIds: List<Long>) {
+        orderedIds.forEachIndexed { index, id ->
+            groupDao.getById(id)?.let { groupDao.update(it.copy(sortOrder = index)) }
+        }
+    }
 
     fun observeSession(sessionId: Long): Flow<SessionEntity?> = sessionDao.observeById(sessionId)
 

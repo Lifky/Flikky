@@ -4,8 +4,10 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.example.flikky.data.db.FlikkyDatabase
+import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import app.cash.turbine.test
 import org.junit.After
@@ -37,6 +39,7 @@ class SessionRepositoryTest {
         repo = SessionRepository(
             sessionDao = db.sessionDao(),
             messageDao = db.messageDao(),
+            groupDao = db.groupDao(),
             fileStore = store,
             now = now,
             retainLimitProvider = { 20 },
@@ -130,6 +133,7 @@ class SessionRepositoryTest {
         val aggressive = SessionRepository(
             sessionDao = db.sessionDao(),
             messageDao = db.messageDao(),
+            groupDao = db.groupDao(),
             fileStore = store,
             now = now, retainLimitProvider = { 0 },
         )
@@ -212,6 +216,42 @@ class SessionRepositoryTest {
             org.junit.Assert.assertEquals(listOf("b", "a"), got)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test fun createGroup_appends_sortOrder_and_rename_trims_name() = runTest {
+        clock = 10L
+        val first = repo.createGroup(" Work ")
+        clock = 20L
+        val second = repo.createGroup("Personal")
+
+        repo.renameGroup(first, "  Home  ")
+
+        val groups = db.groupDao().observeAll().first()
+        org.junit.Assert.assertEquals(listOf(first, second), groups.map { it.id })
+        org.junit.Assert.assertEquals("Home", groups.first().name)
+        org.junit.Assert.assertEquals(0, groups.first().sortOrder)
+        org.junit.Assert.assertEquals(1, groups.last().sortOrder)
+        org.junit.Assert.assertEquals(20L, groups.last().createdAt)
+    }
+
+    @Test fun deleteGroup_unbinds_members_and_restore_recreates_group_and_rebinds() = runTest {
+        val groupId = db.groupDao().insert(GroupEntity(name = "Work", sortOrder = 0, createdAt = 1L))
+        val first = repo.beginSession("first", startedAt = 100L, groupId = groupId)
+        val second = repo.beginSession("second", startedAt = 200L, groupId = groupId)
+
+        val deleted = repo.deleteGroup(groupId)!!
+
+        org.junit.Assert.assertEquals("Work", deleted.first.name)
+        org.junit.Assert.assertEquals(listOf(first, second), deleted.second)
+        org.junit.Assert.assertNull(db.groupDao().getById(groupId))
+        org.junit.Assert.assertNull(db.sessionDao().getById(first)!!.groupId)
+        org.junit.Assert.assertNull(db.sessionDao().getById(second)!!.groupId)
+
+        val restoredId = repo.restoreGroup(deleted.first, deleted.second)
+
+        org.junit.Assert.assertNotEquals(groupId, restoredId)
+        org.junit.Assert.assertEquals(restoredId, db.sessionDao().getById(first)!!.groupId)
+        org.junit.Assert.assertEquals(restoredId, db.sessionDao().getById(second)!!.groupId)
     }
 
     @Test fun observeMessages_maps_entities_to_domain_model() = runTest {

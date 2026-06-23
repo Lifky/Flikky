@@ -40,6 +40,7 @@ class SessionRepositoryExportSnapshotTest {
         repo = SessionRepository(
             sessionDao = db.sessionDao(),
             messageDao = db.messageDao(),
+            groupDao = db.groupDao(),
             fileStore = store,
             now = now,
             retainLimitProvider = { 20 },

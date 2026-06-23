@@ -110,6 +110,7 @@ class SessionRepositoryImportDataStoreProviderTest {
         val repo = SessionRepository(
             sessionDao = db.sessionDao(),
             messageDao = db.messageDao(),
+            groupDao = db.groupDao(),
             fileStore = store,
             now = { 1_000L },
             retainLimitProvider = { settingsRepo.settings.first().historyRetainLimit },
@@ -135,6 +136,7 @@ class SessionRepositoryImportDataStoreProviderTest {
         val repo = SessionRepository(
             sessionDao = db.sessionDao(),
             messageDao = db.messageDao(),
+            groupDao = db.groupDao(),
             fileStore = store,
             now = { 1_000L },
             retainLimitProvider = { settingsRepo.settings.first().historyRetainLimit },
@@ -167,6 +169,7 @@ class SessionRepositoryImportDataStoreProviderTest {
         val repo = SessionRepository(
             sessionDao = db.sessionDao(),
             messageDao = db.messageDao(),
+            groupDao = db.groupDao(),
             fileStore = store,
             now = { 1_000L },
             retainLimitProvider = { settingsRepo.settings.first().historyRetainLimit },

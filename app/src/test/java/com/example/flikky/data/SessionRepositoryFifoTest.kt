@@ -40,6 +40,7 @@ class SessionRepositoryFifoTest {
         repo = SessionRepository(
             sessionDao = db.sessionDao(),
             messageDao = db.messageDao(),
+            groupDao = db.groupDao(),
             fileStore = store,
             now = { 1_000L },
             retainLimitProvider = limitProvider,

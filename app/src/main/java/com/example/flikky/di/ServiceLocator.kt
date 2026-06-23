@@ -66,6 +66,7 @@ object ServiceLocator {
         repository = SessionRepository(
             sessionDao = database.sessionDao(),
             messageDao = database.messageDao(),
+            groupDao = database.groupDao(),
             fileStore = fileStore,
             now = System::currentTimeMillis,
             retainLimitProvider = { settingsRepository.settings.first().historyRetainLimit },
