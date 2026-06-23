@@ -268,7 +268,8 @@ fun HomeScreen(
                 contentAlignment = Alignment.TopCenter,
             ) {
                 Column(modifier = Modifier.fillMaxSize().maxContentWidth()) {
-                    if (!selecting && !searchExpanded) {
+                    // 淡出/收起而非硬切，配合搜索框展开动画，避免 chip 行同帧消失造成的「卡顿」观感。
+                    AnimatedVisibility(visible = !selecting && !searchExpanded) {
                         SortGroupChips(
                             sort = sortMode,
                             group = groupMode,

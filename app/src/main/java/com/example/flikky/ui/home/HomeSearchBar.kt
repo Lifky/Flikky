@@ -1,6 +1,9 @@
 package com.example.flikky.ui.home
 
 import android.app.Application
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +45,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
@@ -89,22 +93,20 @@ fun HomeSearchBar(
         searchVm.onQueryChange("")
     }
 
-    // 折叠态：补 MD3 标准屏幕边距(screenEdge=16dp)，宽屏限宽 600dp 居中（与下方内容区一致）。
-    // 展开态铺满全屏、不留边距，避免把全屏搜索视图也内缩。
-    // fillMaxWidth → wrapContentWidth(Center) → widthIn(max) → fillMaxWidth 是「限宽并居中」的标准写法。
+    // 折叠态：补 16dp 屏幕边距、宽屏限宽 600dp 居中；展开成全屏时边距动画归零、解除限宽。
+    // 关键：边距用 animateDpAsState 平滑收拢，否则点击瞬间会先「闪成贴边」再播放展开动画。
+    val sidePadding by animateDpAsState(
+        targetValue = if (expanded) 0.dp else Spacing.screenEdge,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "searchBarSidePadding",
+    )
     SearchBar(
-        modifier = modifier.then(
-            if (expanded) {
-                Modifier.fillMaxWidth()
-            } else {
-                Modifier
-                    .fillMaxWidth()
-                    .wrapContentWidth(Alignment.CenterHorizontally)
-                    .widthIn(max = MAX_CONTENT_WIDTH_DP.dp)
-                    .fillMaxWidth()
-                    .padding(horizontal = Spacing.screenEdge)
-            },
-        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .wrapContentWidth(Alignment.CenterHorizontally)
+            .widthIn(max = if (expanded) Dp.Unspecified else MAX_CONTENT_WIDTH_DP.dp)
+            .fillMaxWidth()
+            .padding(horizontal = sidePadding),
         expanded = expanded,
         onExpandedChange = onExpandedChange,
         inputField = {
