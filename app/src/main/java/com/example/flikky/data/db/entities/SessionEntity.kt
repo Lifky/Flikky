@@ -16,4 +16,5 @@ data class SessionEntity(
     val previewText: String? = null,
     /** Browser-side avatar index chosen by the PC user; persisted so History can restore it. */
     val peerAvatarId: Int = 0,
+    val groupId: Long? = null,
 )
