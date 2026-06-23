@@ -20,12 +20,14 @@ private fun session(
     startedAt: Long,
     ended: Boolean = true,
     pinned: Boolean = false,
+    groupId: Long? = null,
 ) = SessionEntity(
     id = id,
     startedAt = startedAt,
     endedAt = if (ended) startedAt + 1000 else null,
     name = name,
     pinned = pinned,
+    groupId = groupId,
 )
 
 class HomeListBuilderTest {
@@ -133,6 +135,37 @@ class HomeListBuilderTest {
 
         assertEquals(emptyList<String>(), out.headers())
         assertEquals(emptyList<Long>(), out.sessionIds())
+    }
+
+    @Test
+    fun filterByGroup_nullActiveGroup_returnsAllSessions() {
+        val ungrouped = session(1, "Ungrouped", ms(TODAY))
+        val grouped = session(2, "Grouped", ms(TODAY), groupId = 7L)
+
+        val out = HomeListBuilder.filterByGroup(listOf(ungrouped, grouped), activeGroupId = null)
+
+        assertEquals(listOf(1L, 2L), out.map { it.id })
+    }
+
+    @Test
+    fun filterByGroup_activeGroup_returnsOnlyMatchingSessions() {
+        val a = session(1, "A", ms(TODAY), groupId = 7L)
+        val b = session(2, "B", ms(TODAY), groupId = 8L)
+        val ungrouped = session(3, "Ungrouped", ms(TODAY))
+
+        val out = HomeListBuilder.filterByGroup(listOf(a, b, ungrouped), activeGroupId = 7L)
+
+        assertEquals(listOf(1L), out.map { it.id })
+    }
+
+    @Test
+    fun filterByGroup_activeGroupWithoutMembers_returnsEmptyList() {
+        val ungrouped = session(1, "Ungrouped", ms(TODAY))
+        val other = session(2, "Other", ms(TODAY), groupId = 8L)
+
+        val out = HomeListBuilder.filterByGroup(listOf(ungrouped, other), activeGroupId = 7L)
+
+        assertEquals(emptyList<Long>(), out.map { it.id })
     }
 
     private fun List<HomeListItem>.headers() =

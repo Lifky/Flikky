@@ -20,6 +20,13 @@ object HomeListBuilder {
     const val BUCKET_YESTERDAY = "昨天"
     const val BUCKET_EARLIER = "更早"
 
+    fun filterByGroup(sessions: List<SessionEntity>, activeGroupId: Long?): List<SessionEntity> =
+        if (activeGroupId == null) {
+            sessions
+        } else {
+            sessions.filter { it.groupId == activeGroupId }
+        }
+
     fun build(
         sessions: List<SessionEntity>,
         sort: SortMode,
