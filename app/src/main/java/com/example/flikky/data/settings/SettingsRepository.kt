@@ -23,6 +23,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val allowBackDuringSession = booleanPreferencesKey("allow_back_during_session")
         val sortMode = stringPreferencesKey("sort_mode")
         val groupMode = stringPreferencesKey("group_mode")
+        val activeGroupId = longPreferencesKey("active_group_id")
     }
 
     val settings: Flow<FlikkySettings> = ds.data.map { p ->
@@ -51,6 +52,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             groupMode = p[Keys.groupMode]
                 ?.let { runCatching { GroupMode.valueOf(it) }.getOrNull() }
                 ?: GroupMode.NONE,
+            activeGroupId = p[Keys.activeGroupId]?.takeIf { it > 0L },
         )
     }
 
@@ -70,6 +72,10 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setAllowBackDuringSession(v: Boolean) = ds.edit { it[Keys.allowBackDuringSession] = v }
     suspend fun setSortMode(v: SortMode) = ds.edit { it[Keys.sortMode] = v.name }
     suspend fun setGroupMode(v: GroupMode) = ds.edit { it[Keys.groupMode] = v.name }
+    suspend fun setActiveGroup(id: Long?) = ds.edit { prefs ->
+        val valid = id?.takeIf { it > 0L }
+        if (valid != null) prefs[Keys.activeGroupId] = valid else prefs.remove(Keys.activeGroupId)
+    }
     suspend fun setBackground(v: BackgroundSetting) = ds.edit {
         when (v) {
             BackgroundSetting.Default -> { it[Keys.bgMode] = "DEFAULT"; it.remove(Keys.bgValue) }

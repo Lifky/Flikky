@@ -102,4 +102,15 @@ class SettingsRepositoryTest {
         repo.setAllowBackDuringSession(false)
         assertEquals(false, repo.settings.first().allowBackDuringSession)
     }
+
+    @Test fun active_group_id_roundtrips_and_null_clears() = runTest {
+        val repo = makeRepo(this)
+        assertEquals(null, repo.settings.first().activeGroupId)
+
+        repo.setActiveGroup(42L)
+        assertEquals(42L, repo.settings.first().activeGroupId)
+
+        repo.setActiveGroup(null)
+        assertEquals(null, repo.settings.first().activeGroupId)
+    }
 }

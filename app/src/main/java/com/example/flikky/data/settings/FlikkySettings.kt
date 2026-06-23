@@ -40,4 +40,5 @@ data class FlikkySettings(
     val allowBackDuringSession: Boolean = false,
     val sortMode: SortMode = SortMode.TIME,
     val groupMode: GroupMode = GroupMode.NONE,
+    val activeGroupId: Long? = null,
 )
