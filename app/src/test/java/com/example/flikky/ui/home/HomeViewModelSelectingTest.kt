@@ -50,6 +50,7 @@ class HomeViewModelSelectingTest {
 
         repo = mockk()
         every { repo.observeSessions() } returns MutableStateFlow(emptyList<SessionEntity>())
+        every { repo.observeGroups() } returns MutableStateFlow(emptyList())
         settingsRepo = mockk()
         every { settingsRepo.settings } returns MutableStateFlow(FlikkySettings())
         session = SessionState(nowMs = { fakeNow })

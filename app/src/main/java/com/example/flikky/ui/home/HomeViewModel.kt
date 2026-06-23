@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flikky.data.SessionRepository
+import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.data.settings.GroupMode
 import com.example.flikky.data.settings.SettingsRepository
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -39,15 +41,17 @@ class HomeViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(app) {
 
     val sessions: Flow<List<SessionEntity>> = repository.observeSessions()
+    val groups: Flow<List<GroupEntity>> = repository.observeGroups()
+    val activeGroupId: Flow<Long?> = settingsRepository.settings.map { it.activeGroupId }
 
     val homeItems: Flow<List<HomeListItem>> = combine(
         repository.observeSessions(),
         settingsRepository.settings,
     ) { sessions, settings ->
         HomeListBuilder.build(
-            sessions = sessions,
-            sort = settings.sortMode,
-            group = settings.groupMode,
+            sessions = HomeListBuilder.filterByGroup(sessions, settings.activeGroupId),
+            sort = SortMode.TIME,
+            group = GroupMode.DATE,
             today = LocalDate.now(),
             zone = ZoneId.systemDefault(),
         )
@@ -93,6 +97,33 @@ class HomeViewModel @JvmOverloads constructor(
 
     fun setGroupMode(value: GroupMode): Job =
         viewModelScope.launch { settingsRepository.setGroupMode(value) }
+
+    fun setActiveGroup(id: Long?): Job =
+        viewModelScope.launch { settingsRepository.setActiveGroup(id) }
+
+    fun createGroup(name: String): Job =
+        viewModelScope.launch {
+            val id = repository.createGroup(name)
+            settingsRepository.setActiveGroup(id)
+        }
+
+    fun renameGroup(id: Long, name: String): Job =
+        viewModelScope.launch { repository.renameGroup(id, name) }
+
+    suspend fun deleteGroupWithUndo(id: Long): Pair<GroupEntity, List<Long>>? {
+        val active = settingsRepository.settings.first().activeGroupId
+        val token = repository.deleteGroup(id) ?: return null
+        if (active == id) settingsRepository.setActiveGroup(null)
+        return token
+    }
+
+    suspend fun restoreGroup(group: GroupEntity, members: List<Long>) {
+        val restoredId = repository.restoreGroup(group, members)
+        settingsRepository.setActiveGroup(restoredId)
+    }
+
+    fun reorderGroups(orderedIds: List<Long>): Job =
+        viewModelScope.launch { repository.reorderGroups(orderedIds) }
 
     // --- Selection mode -----------------------------------------------------
 
