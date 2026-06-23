@@ -8,16 +8,18 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.flikky.data.db.entities.MessageEntity
 import com.example.flikky.data.db.entities.MessageFtsEntity
+import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.SessionEntity
 
 @Database(
-    entities = [SessionEntity::class, MessageEntity::class, MessageFtsEntity::class],
-    version = 3,
+    entities = [SessionEntity::class, MessageEntity::class, MessageFtsEntity::class, GroupEntity::class],
+    version = 4,
     exportSchema = false,
 )
 abstract class FlikkyDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
     abstract fun messageDao(): MessageDao
+    abstract fun groupDao(): GroupDao
 
     companion object {
         /**
@@ -128,13 +130,26 @@ abstract class FlikkyDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `session_groups` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`name` TEXT NOT NULL, " +
+                        "`sortOrder` INTEGER NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL)"
+                )
+                db.execSQL("ALTER TABLE sessions ADD COLUMN groupId INTEGER DEFAULT NULL")
+            }
+        }
+
         fun build(context: Context): FlikkyDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 FlikkyDatabase::class.java,
                 "flikky.db",
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .addCallback(onCreateCallback)
                 .build()
     }
