@@ -76,6 +76,12 @@ class SessionRepositoryTest {
         org.junit.Assert.assertNull(row)
     }
 
+    @Test fun beginSession_persists_groupId_when_provided() = runTest {
+        val sid = repo.beginSession("grouped", startedAt = 100L, groupId = 42L)
+
+        org.junit.Assert.assertEquals(42L, db.sessionDao().getById(sid)!!.groupId)
+    }
+
     @Test fun endSession_empty_removes_session_dir() = runTest {
         val sid = repo.beginSession("empty", startedAt = 100L)
         store.fileDir(sid)

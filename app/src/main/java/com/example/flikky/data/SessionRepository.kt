@@ -32,9 +32,12 @@ class SessionRepository(
     private val now: () -> Long,
     private val retainLimitProvider: suspend () -> Int = { 20 },
 ) {
-    suspend fun beginSession(name: String, startedAt: Long): Long {
+    suspend fun beginSession(name: String, startedAt: Long, groupId: Long? = null): Long {
         return sessionDao.insert(SessionEntity(
-            startedAt = startedAt, endedAt = null, name = name,
+            startedAt = startedAt,
+            endedAt = null,
+            name = name,
+            groupId = groupId,
         ))
     }
 
