@@ -1,7 +1,8 @@
 package com.example.flikky.ui.home
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Row
@@ -14,7 +15,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +26,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,7 +65,6 @@ fun buildGroupChipModels(
             )
         }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GroupChips(
     groups: List<GroupEntity>,
@@ -120,7 +124,6 @@ fun GroupChips(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun GroupFilterChip(
     model: GroupChipModel,
@@ -143,12 +146,36 @@ private fun GroupFilterChip(
                 overflow = TextOverflow.Ellipsis,
             )
         },
-        modifier = Modifier.combinedClickable(
-            onClick = {
-                if (editing && group != null) onRename(group) else onSelect(model.id)
-            },
-            onLongClick = onEnterEdit,
-        ),
+        leadingIcon = if (model.selected) {
+            {
+                Icon(
+                    imageVector = Icons.Filled.Done,
+                    contentDescription = null,
+                    modifier = Modifier.size(FilterChipDefaults.IconSize),
+                )
+            }
+        } else {
+            null
+        },
+        // 长按进入编辑态。FilterChip 自带 onClick 在内层装了 selectable，会抢先消费按下事件，
+        // 外层 combinedClickable 收不到长按（test1「长按无效果」根因）。改用低层手势：
+        // awaitFirstDown(requireUnconsumed=false) 不消费 → 原生单击/ripple 照常；
+        // awaitLongPressOrCancellation 仅在长按时触发，快速点击返回 null 不打扰单击；
+        // 触发后在 Initial 段消费剩余事件，抢在内层 selectable 前，免得松手再补一次单击。
+        modifier = Modifier.pointerInput(model.id, editing) {
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                if (awaitLongPressOrCancellation(down.id) != null) {
+                    onEnterEdit()
+                    var pressed = true
+                    while (pressed) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        event.changes.forEach { it.consume() }
+                        pressed = event.changes.any { it.pressed }
+                    }
+                }
+            }
+        },
         shape = MaterialTheme.shapes.small,
     )
 }
