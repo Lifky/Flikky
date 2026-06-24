@@ -41,4 +41,5 @@ data class FlikkySettings(
     val sortMode: SortMode = SortMode.TIME,
     val groupMode: GroupMode = GroupMode.NONE,
     val activeGroupId: Long? = null,
+    val activeFavoriteGroupId: Long? = null,
 )

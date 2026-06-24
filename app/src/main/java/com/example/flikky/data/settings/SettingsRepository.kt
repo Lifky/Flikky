@@ -24,6 +24,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val sortMode = stringPreferencesKey("sort_mode")
         val groupMode = stringPreferencesKey("group_mode")
         val activeGroupId = longPreferencesKey("active_group_id")
+        val activeFavoriteGroupId = longPreferencesKey("active_favorite_group_id")
     }
 
     val settings: Flow<FlikkySettings> = ds.data.map { p ->
@@ -53,6 +54,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
                 ?.let { runCatching { GroupMode.valueOf(it) }.getOrNull() }
                 ?: GroupMode.NONE,
             activeGroupId = p[Keys.activeGroupId]?.takeIf { it > 0L },
+            activeFavoriteGroupId = p[Keys.activeFavoriteGroupId]?.takeIf { it > 0L },
         )
     }
 
@@ -75,6 +77,10 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setActiveGroup(id: Long?) = ds.edit { prefs ->
         val valid = id?.takeIf { it > 0L }
         if (valid != null) prefs[Keys.activeGroupId] = valid else prefs.remove(Keys.activeGroupId)
+    }
+    suspend fun setActiveFavoriteGroup(id: Long?) = ds.edit { prefs ->
+        val valid = id?.takeIf { it > 0L }
+        if (valid != null) prefs[Keys.activeFavoriteGroupId] = valid else prefs.remove(Keys.activeFavoriteGroupId)
     }
     suspend fun setBackground(v: BackgroundSetting) = ds.edit {
         when (v) {

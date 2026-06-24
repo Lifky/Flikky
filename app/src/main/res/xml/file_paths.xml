@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <files-path name="session_files" path="sessions/" />
+    <files-path name="favorite_files" path="favorites/" />
 </paths>

@@ -113,4 +113,24 @@ class SettingsRepositoryTest {
         repo.setActiveGroup(null)
         assertEquals(null, repo.settings.first().activeGroupId)
     }
+
+    @Test fun active_favorite_group_id_roundtrips_clamps_invalid_and_is_independent() = runTest {
+        val repo = makeRepo(this)
+        assertEquals(null, repo.settings.first().activeFavoriteGroupId)
+
+        repo.setActiveGroup(7L)
+        repo.setActiveFavoriteGroup(42L)
+
+        var settings = repo.settings.first()
+        assertEquals(7L, settings.activeGroupId)
+        assertEquals(42L, settings.activeFavoriteGroupId)
+
+        repo.setActiveFavoriteGroup(0L)
+        settings = repo.settings.first()
+        assertEquals(7L, settings.activeGroupId)
+        assertEquals(null, settings.activeFavoriteGroupId)
+
+        repo.setActiveFavoriteGroup(-1L)
+        assertEquals(null, repo.settings.first().activeFavoriteGroupId)
+    }
 }

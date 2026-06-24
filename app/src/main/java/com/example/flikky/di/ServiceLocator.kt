@@ -2,6 +2,8 @@ package com.example.flikky.di
 
 import android.content.Context
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.flikky.data.FavoriteFileStore
+import com.example.flikky.data.FavoritesRepository
 import com.example.flikky.data.SessionFileStore
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.FlikkyDatabase
@@ -25,11 +27,15 @@ object ServiceLocator {
         private set
     lateinit var fileStore: SessionFileStore
         private set
+    lateinit var favoriteFileStore: FavoriteFileStore
+        private set
     lateinit var networkInfo: NetworkInfo
         private set
     lateinit var database: FlikkyDatabase
         private set
     lateinit var repository: SessionRepository
+        private set
+    lateinit var favoritesRepository: FavoritesRepository
         private set
     lateinit var settingsRepository: SettingsRepository
         private set
@@ -60,6 +66,7 @@ object ServiceLocator {
         session = SessionState(nowMs = System::currentTimeMillis)
         stats = TransferStats(nowMs = System::currentTimeMillis)
         fileStore = SessionFileStore(filesDir = appContext.filesDir)
+        favoriteFileStore = FavoriteFileStore(filesDir = appContext.filesDir)
         networkInfo = NetworkInfo(appContext)
         database = FlikkyDatabase.build(appContext)
         settingsRepository = SettingsRepository(appContext.settingsDataStore)
@@ -70,6 +77,13 @@ object ServiceLocator {
             fileStore = fileStore,
             now = System::currentTimeMillis,
             retainLimitProvider = { settingsRepository.settings.first().historyRetainLimit },
+        )
+        favoritesRepository = FavoritesRepository(
+            favoriteDao = database.favoriteDao(),
+            favoriteGroupDao = database.favoriteGroupDao(),
+            sessionFileStore = fileStore,
+            favoriteFileStore = favoriteFileStore,
+            now = System::currentTimeMillis,
         )
     }
 
