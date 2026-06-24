@@ -206,6 +206,12 @@ class SessionRepository(
         }
     }
 
+    /** 批量把会话移动到 [groupId]（null = 移出分组，回到「全部」）。 */
+    suspend fun moveSessionsToGroup(ids: List<Long>, groupId: Long?) {
+        if (ids.isEmpty()) return
+        sessionDao.setGroupForSessions(ids, groupId)
+    }
+
     fun observeSession(sessionId: Long): Flow<SessionEntity?> = sessionDao.observeById(sessionId)
 
     fun observeMessages(sessionId: Long): Flow<List<Message>> =

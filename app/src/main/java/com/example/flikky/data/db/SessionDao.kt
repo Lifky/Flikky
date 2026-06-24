@@ -43,4 +43,8 @@ interface SessionDao {
 
     @Query("UPDATE sessions SET groupId = :gid WHERE id IN (:ids)")
     suspend fun bindSessions(gid: Long, ids: List<Long>)
+
+    /** 批量把会话改到某分组；gid 为 null 表示移出分组（回到「全部」）。 */
+    @Query("UPDATE sessions SET groupId = :gid WHERE id IN (:ids)")
+    suspend fun setGroupForSessions(ids: List<Long>, gid: Long?)
 }

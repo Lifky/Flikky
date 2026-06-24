@@ -19,6 +19,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.spyk
 import io.mockk.verify
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -286,5 +287,38 @@ class HomeViewModelSelectingTest {
         vm.renameSelected("x")
         coVerify(exactly = 0) { repo.rename(any(), any()) }
         assertEquals(setOf(5L, 6L), vm.selection.value)
+    }
+
+    @Test fun moveSelectedToGroup_binds_each_and_exits() = runTest {
+        val captured = slot<List<Long>>()
+        coEvery { repo.moveSessionsToGroup(capture(captured), 7L) } just Runs
+        val vm = buildVm()
+        vm.enterSelecting(); vm.toggleSelection(1L); vm.toggleSelection(2L)
+
+        val count = vm.moveSelectedToGroup(7L)
+
+        assertEquals(2, count)
+        assertEquals(setOf(1L, 2L), captured.captured.toSet())
+        coVerify(exactly = 1) { repo.moveSessionsToGroup(any(), 7L) }
+        assertNull(vm.selection.value)
+    }
+
+    @Test fun moveSelectedToGroup_to_null_ungroups_and_exits() = runTest {
+        coEvery { repo.moveSessionsToGroup(any(), null) } just Runs
+        val vm = buildVm()
+        vm.enterSelecting(); vm.toggleSelection(3L)
+
+        val count = vm.moveSelectedToGroup(null)
+
+        assertEquals(1, count)
+        coVerify(exactly = 1) { repo.moveSessionsToGroup(listOf(3L), null) }
+        assertNull(vm.selection.value)
+    }
+
+    @Test fun moveSelectedToGroup_noop_when_empty() = runTest {
+        val vm = buildVm()
+        val count = vm.moveSelectedToGroup(7L)
+        assertEquals(0, count)
+        coVerify(exactly = 0) { repo.moveSessionsToGroup(any(), any()) }
     }
 }

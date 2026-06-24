@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -39,6 +40,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -78,7 +80,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.SessionEntity
-import com.example.flikky.ui.components.ActionBarItem
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.RenameDialog
 import com.example.flikky.ui.components.maxContentWidth
@@ -174,6 +175,7 @@ fun HomeScreen(
     val singleSelected = selectedSessions.singleOrNull()
     var showRenameDialog by remember { mutableStateOf(false) }
     var showBatchDeleteDialog by remember { mutableStateOf(false) }
+    var showMoveSheet by remember { mutableStateOf(false) }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
     var managingGroup by remember { mutableStateOf<GroupEntity?>(null) }
 
@@ -232,26 +234,35 @@ fun HomeScreen(
                 enter = slideInVertically { it },
                 exit = slideOutVertically { it },
             ) {
-                SelectingActionBar(
-                    selectedCount = selectedCount,
-                    allPinned = allSelectedPinned,
-                    onPinToggle = { scope.launch { viewModel.pinSelected(!allSelectedPinned) } },
-                    onRename = { showRenameDialog = true },
-                    onExport = {
-                        scope.launch {
-                            when (viewModel.startExport()) {
-                                HomeViewModel.ExportStartResult.Success -> onStartExport()
-                                HomeViewModel.ExportStartResult.TransferRunning ->
-                                    snackbarHostState.showSnackbar("请先停止当前服务")
-                                HomeViewModel.ExportStartResult.NoValidSessions ->
-                                    snackbarHostState.showSnackbar("所选会话无法导出（可能都在进行中）")
-                                HomeViewModel.ExportStartResult.EmptySelection ->
-                                    snackbarHostState.showSnackbar("请先勾选会话")
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(bottom = Spacing.md),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    SelectingFloatingToolbar(
+                        selectedCount = selectedCount,
+                        allPinned = allSelectedPinned,
+                        onPinToggle = { scope.launch { viewModel.pinSelected(!allSelectedPinned) } },
+                        onRename = { showRenameDialog = true },
+                        onMove = { showMoveSheet = true },
+                        onExport = {
+                            scope.launch {
+                                when (viewModel.startExport()) {
+                                    HomeViewModel.ExportStartResult.Success -> onStartExport()
+                                    HomeViewModel.ExportStartResult.TransferRunning ->
+                                        snackbarHostState.showSnackbar("请先停止当前服务")
+                                    HomeViewModel.ExportStartResult.NoValidSessions ->
+                                        snackbarHostState.showSnackbar("所选会话无法导出（可能都在进行中）")
+                                    HomeViewModel.ExportStartResult.EmptySelection ->
+                                        snackbarHostState.showSnackbar("请先勾选会话")
+                                }
                             }
-                        }
-                    },
-                    onDelete = { if (selectedCount > 0) showBatchDeleteDialog = true },
-                )
+                        },
+                        onDelete = { if (selectedCount > 0) showBatchDeleteDialog = true },
+                    )
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
@@ -360,6 +371,25 @@ fun HomeScreen(
         )
     }
 
+    if (showMoveSheet) {
+        MoveToGroupSheet(
+            groups = groups,
+            onSelect = { targetGroupId ->
+                showMoveSheet = false
+                val targetName =
+                    if (targetGroupId == null) "全部"
+                    else groups.firstOrNull { it.id == targetGroupId }?.name ?: "分组"
+                scope.launch {
+                    val count = viewModel.moveSelectedToGroup(targetGroupId)
+                    if (count > 0) {
+                        snackbarHostState.showSnackbar("已移动 $count 个会话到「$targetName」")
+                    }
+                }
+            },
+            onDismiss = { showMoveSheet = false },
+        )
+    }
+
     if (showCreateGroupDialog) {
         GroupNameDialog(
             title = "新建分组",
@@ -460,38 +490,56 @@ private fun SelectingTopBar(
     )
 }
 
+/**
+ * 多选态的悬浮操作栏（MD3 Floating toolbar 规格：胶囊形 surfaceContainer 容器 + 阴影，内含纯图标按钮）。
+ *
+ * material3 1.4.0 stable 仍把 Expressive 的 `HorizontalFloatingToolbar` 关在 internal 注解后，
+ * 不能直接用；这里用稳定组件按同一规格手搓，视觉/行为一致，避免为单个组件升到 pre-release。
+ */
 @Composable
-private fun SelectingActionBar(
+private fun SelectingFloatingToolbar(
     selectedCount: Int,
     allPinned: Boolean,
     onPinToggle: () -> Unit,
     onRename: () -> Unit,
+    onMove: () -> Unit,
     onExport: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
+    val enabled = selectedCount > 0
+    Surface(
+        shape = RoundedCornerShape(percent = 50),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shadowElevation = 3.dp,
+    ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = Spacing.sm, vertical = Spacing.sm),
+            modifier = Modifier.padding(horizontal = Spacing.xs),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
-            val enabled = selectedCount > 0
-            ActionBarItem(
-                iconRes = R.drawable.ic_push_pin,
-                label = if (allPinned) "取消置顶" else "置顶",
-                enabled = enabled, onClick = onPinToggle,
-            )
-            if (selectedCount == 1) {
-                ActionBarItem(iconRes = R.drawable.ic_edit, label = "重命名", enabled = true, onClick = onRename)
+            IconButton(onClick = onPinToggle, enabled = enabled) {
+                Icon(
+                    painterResource(R.drawable.ic_push_pin),
+                    contentDescription = if (allPinned) "取消置顶" else "置顶",
+                )
             }
-            ActionBarItem(iconRes = R.drawable.ic_upload, label = "导出", enabled = enabled, onClick = onExport)
-            ActionBarItem(
-                iconRes = R.drawable.ic_delete, label = "删除",
-                enabled = enabled, onClick = onDelete, danger = true,
-            )
+            if (selectedCount == 1) {
+                IconButton(onClick = onRename) {
+                    Icon(painterResource(R.drawable.ic_edit), contentDescription = "重命名")
+                }
+            }
+            IconButton(onClick = onMove, enabled = enabled) {
+                Icon(painterResource(R.drawable.ic_drive_file_move), contentDescription = "移动到分组")
+            }
+            IconButton(onClick = onExport, enabled = enabled) {
+                Icon(painterResource(R.drawable.ic_upload), contentDescription = "导出")
+            }
+            IconButton(onClick = onDelete, enabled = enabled) {
+                Icon(
+                    painterResource(R.drawable.ic_delete),
+                    contentDescription = "删除",
+                    tint = if (enabled) MaterialTheme.colorScheme.error else LocalContentColor.current,
+                )
+            }
         }
     }
 }

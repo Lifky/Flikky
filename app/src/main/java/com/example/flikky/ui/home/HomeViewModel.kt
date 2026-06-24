@@ -176,6 +176,18 @@ class HomeViewModel @JvmOverloads constructor(
         _selection.value = null
     }
 
+    /**
+     * 把当前选中的会话整体移动到 [groupId]（null = 移出分组，回到「全部」），
+     * 完成后退出多选并返回移动的数量；空选则 no-op 返回 0。
+     */
+    suspend fun moveSelectedToGroup(groupId: Long?): Int {
+        val ids = _selection.value?.toList().orEmpty()
+        if (ids.isEmpty()) return 0
+        repository.moveSessionsToGroup(ids, groupId)
+        _selection.value = null
+        return ids.size
+    }
+
     // --- Export kickoff -----------------------------------------------------
 
     sealed class ExportStartResult {
