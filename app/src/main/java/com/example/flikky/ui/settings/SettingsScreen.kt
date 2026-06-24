@@ -4,7 +4,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,8 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Slider
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -27,7 +24,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -48,8 +44,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.settings.BackgroundSetting
@@ -59,6 +55,8 @@ import com.example.flikky.data.settings.MessageActionStyle
 import com.example.flikky.data.settings.PresetTheme
 import com.example.flikky.data.settings.ThemeMode
 import com.example.flikky.ui.components.Avatar
+import com.example.flikky.ui.components.ChoiceDialog
+import com.example.flikky.ui.components.ChoiceRow
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.settings.components.SettingItem
 import com.example.flikky.ui.settings.components.SettingSection
@@ -359,7 +357,7 @@ fun SettingsScreen(
                     SettingItem(
                         title = "版本",
                         leadingIcon = painterResource(R.drawable.ic_info),
-                        subtitle = "v1.9.0",
+                        subtitle = "v1.9.1",
                         shape = groupedItemShape(0, sectionItems),
                     )
                     SettingItem(
@@ -398,115 +396,61 @@ fun SettingsScreen(
 
     // ─── Dark mode dialog ─────────────────────────────────────────────────────
     if (showDarkModeDialog) {
-        AlertDialog(
-            onDismissRequest = { showDarkModeDialog = false },
-            title = { Text("深色模式") },
-            text = {
-                Column(modifier = Modifier.selectableGroup()) {
-                    listOf(
-                        DarkMode.SYSTEM to "跟随系统",
-                        DarkMode.LIGHT  to "常亮",
-                        DarkMode.DARK   to "常暗",
-                    ).forEach { (mode, label) ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .selectable(
-                                    selected = s.darkMode == mode,
-                                    role = Role.RadioButton,
-                                    onClick = {
-                                        viewModel.setDarkMode(mode)
-                                        showDarkModeDialog = false
-                                    },
-                                )
-                                .padding(vertical = Spacing.xs),
-                        ) {
-                            RadioButton(selected = s.darkMode == mode, onClick = null)
-                            Text(label, modifier = Modifier.padding(start = Spacing.sm))
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDarkModeDialog = false }) { Text("取消") }
-            },
-        )
+        ChoiceDialog(title = "深色模式", onDismiss = { showDarkModeDialog = false }) {
+            listOf(
+                DarkMode.SYSTEM to "跟随系统",
+                DarkMode.LIGHT  to "常亮",
+                DarkMode.DARK   to "常暗",
+            ).forEach { (mode, label) ->
+                ChoiceRow(
+                    label = label,
+                    selected = s.darkMode == mode,
+                    onClick = {
+                        viewModel.setDarkMode(mode)
+                        showDarkModeDialog = false
+                    },
+                )
+            }
+        }
     }
 
     // ─── Message action style dialog ──────────────────────────────────────────
     if (showActionStyleDialog) {
-        AlertDialog(
-            onDismissRequest = { showActionStyleDialog = false },
-            title = { Text("消息操作样式") },
-            text = {
-                Column(modifier = Modifier.selectableGroup()) {
-                    listOf(
-                        MessageActionStyle.FLOATING to "悬浮工具栏",
-                        MessageActionStyle.INLINE   to "常驻按钮",
-                    ).forEach { (style, label) ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .selectable(
-                                    selected = s.messageActionStyle == style,
-                                    role = Role.RadioButton,
-                                    onClick = {
-                                        viewModel.setMessageActionStyle(style)
-                                        showActionStyleDialog = false
-                                    },
-                                )
-                                .padding(vertical = Spacing.xs),
-                        ) {
-                            RadioButton(selected = s.messageActionStyle == style, onClick = null)
-                            Text(label, modifier = Modifier.padding(start = Spacing.sm))
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showActionStyleDialog = false }) { Text("取消") }
-            },
-        )
+        ChoiceDialog(title = "消息操作样式", onDismiss = { showActionStyleDialog = false }) {
+            listOf(
+                MessageActionStyle.FLOATING to "悬浮工具栏",
+                MessageActionStyle.INLINE   to "常驻按钮",
+            ).forEach { (style, label) ->
+                ChoiceRow(
+                    label = label,
+                    selected = s.messageActionStyle == style,
+                    onClick = {
+                        viewModel.setMessageActionStyle(style)
+                        showActionStyleDialog = false
+                    },
+                )
+            }
+        }
     }
 
     // ─── Avatar grouping dialog ───────────────────────────────────────────────
     if (showAvatarGroupingDialog) {
-        AlertDialog(
-            onDismissRequest = { showAvatarGroupingDialog = false },
-            title = { Text("头像显示") },
-            text = {
-                Column(modifier = Modifier.selectableGroup()) {
-                    listOf(
-                        AvatarGroupingMode.FIRST to "组内首条显示",
-                        AvatarGroupingMode.LAST  to "组内末条显示",
-                        AvatarGroupingMode.EACH  to "每条都显示",
-                    ).forEach { (mode, label) ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .selectable(
-                                    selected = s.avatarGrouping == mode,
-                                    role = Role.RadioButton,
-                                    onClick = {
-                                        viewModel.setAvatarGrouping(mode)
-                                        showAvatarGroupingDialog = false
-                                    },
-                                )
-                                .padding(vertical = Spacing.xs),
-                        ) {
-                            RadioButton(selected = s.avatarGrouping == mode, onClick = null)
-                            Text(label, modifier = Modifier.padding(start = Spacing.sm))
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAvatarGroupingDialog = false }) { Text("取消") }
-            },
-        )
+        ChoiceDialog(title = "头像显示", onDismiss = { showAvatarGroupingDialog = false }) {
+            listOf(
+                AvatarGroupingMode.FIRST to "组内首条显示",
+                AvatarGroupingMode.LAST  to "组内末条显示",
+                AvatarGroupingMode.EACH  to "每条都显示",
+            ).forEach { (mode, label) ->
+                ChoiceRow(
+                    label = label,
+                    selected = s.avatarGrouping == mode,
+                    onClick = {
+                        viewModel.setAvatarGrouping(mode)
+                        showAvatarGroupingDialog = false
+                    },
+                )
+            }
+        }
     }
 
     // ─── Device name dialog ───────────────────────────────────────────────────
@@ -543,51 +487,9 @@ fun SettingsScreen(
                 if (s.historyRetainLimit == 20) "" else s.historyRetainLimit.toString()
             )
         }
-        AlertDialog(
-            onDismissRequest = { showHistoryLimitDialog = false },
-            title = { Text("历史保存数量") },
-            text = {
-                Column(modifier = Modifier.selectableGroup()) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = useDefault,
-                                role = Role.RadioButton,
-                                onClick = { useDefault = true },
-                            )
-                            .padding(vertical = Spacing.xs),
-                    ) {
-                        RadioButton(selected = useDefault, onClick = null)
-                        Text("默认（20 条）", modifier = Modifier.padding(start = Spacing.sm))
-                    }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = !useDefault,
-                                role = Role.RadioButton,
-                                onClick = { useDefault = false },
-                            )
-                            .padding(vertical = Spacing.xs),
-                    ) {
-                        RadioButton(selected = !useDefault, onClick = null)
-                        Text("自定义", modifier = Modifier.padding(start = Spacing.sm))
-                    }
-                    if (!useDefault) {
-                        OutlinedTextField(
-                            value = customStr,
-                            onValueChange = { customStr = it },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            label = { Text("0=不保存，-1=无限制") },
-                            modifier = Modifier.padding(top = Spacing.sm),
-                        )
-                    }
-                }
-            },
+        ChoiceDialog(
+            title = "历史保存数量",
+            onDismiss = { showHistoryLimitDialog = false },
             confirmButton = {
                 TextButton(onClick = {
                     val limit = if (useDefault) 20 else customStr.toIntOrNull() ?: s.historyRetainLimit
@@ -595,10 +497,22 @@ fun SettingsScreen(
                     showHistoryLimitDialog = false
                 }) { Text("确定") }
             },
-            dismissButton = {
-                TextButton(onClick = { showHistoryLimitDialog = false }) { Text("取消") }
-            },
-        )
+        ) {
+            ChoiceRow(label = "默认（20 条）", selected = useDefault, onClick = { useDefault = true })
+            ChoiceRow(label = "自定义", selected = !useDefault, onClick = { useDefault = false })
+            if (!useDefault) {
+                OutlinedTextField(
+                    value = customStr,
+                    onValueChange = { customStr = it },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    label = { Text("0=不保存，-1=无限制") },
+                    modifier = Modifier
+                        .padding(horizontal = 24.dp)
+                        .padding(top = Spacing.sm),
+                )
+            }
+        }
     }
 
     // ─── Import progress dialog ───────────────────────────────────────────────

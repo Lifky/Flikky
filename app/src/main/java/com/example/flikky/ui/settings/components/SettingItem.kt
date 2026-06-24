@@ -87,6 +87,8 @@ fun SettingItem(
                     }
                 }
                 if (trailing != null) {
+                    // 让出固定间隔，避免长标题/副标题顶到 trailing（如 Switch）上。
+                    Spacer(Modifier.width(Spacing.lg))
                     trailing()
                 }
             }
