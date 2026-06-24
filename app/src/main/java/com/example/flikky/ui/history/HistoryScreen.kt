@@ -65,6 +65,7 @@ import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.theme.Spacing
 import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlinx.coroutines.delay
@@ -93,6 +94,7 @@ fun HistoryScreen(
     var showDelete by remember { mutableStateOf(false) }
     val inProgress = session?.endedAt == null && session != null
     var actionTarget by remember { mutableStateOf<Long?>(null) }
+    var pendingFavoriteMsg by remember { mutableStateOf<Message?>(null) }
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -122,10 +124,29 @@ fun HistoryScreen(
     val copyPainter = painterResource(R.drawable.ic_content_copy)
     val downloadPainter = painterResource(R.drawable.ic_file_download)
     val deletePainter = painterResource(R.drawable.ic_delete)
+    val starPainter = painterResource(R.drawable.ic_star)
+    val starBorderPainter = painterResource(R.drawable.ic_star_border)
+    val favoriteGroups by ServiceLocator.favoritesRepository.observeGroups().collectAsState(initial = emptyList())
+    val favoritedIds by ServiceLocator.favoritesRepository.observeFavoritedIds(sessionId).collectAsState(initial = emptyList())
 
     // Single source of truth for a message's available actions (History has no
     // recall): 复制（text）/ 打开（completed file）/ 删除. Each onClick clears the target.
     fun buildActionsFor(msg: Message): List<MessageAction> = buildList {
+        if (msg is Message.Text || (msg is Message.File && msg.status == Message.File.Status.COMPLETED)) {
+            val faved = msg.id in favoritedIds
+            add(MessageAction(
+                icon = if (faved) starPainter else starBorderPainter,
+                label = if (faved) "取消收藏" else "收藏",
+                onClick = {
+                    actionTarget = null
+                    if (faved) {
+                        scope.launch { ServiceLocator.favoritesRepository.unfavoriteBySource(sessionId, msg.id) }
+                    } else {
+                        pendingFavoriteMsg = msg
+                    }
+                },
+            ))
+        }
         if (msg is Message.Text) {
             add(MessageAction(
                 icon = copyPainter,
@@ -328,6 +349,37 @@ fun HistoryScreen(
                 TextButton(onClick = { showDelete = false }) { Text("取消") }
             },
         )
+    }
+    pendingFavoriteMsg?.let { msg ->
+        FavoriteGroupPickerSheet(
+            groups = favoriteGroups,
+            onSelect = { groupId ->
+                pendingFavoriteMsg = null
+                scope.launch {
+                    runCatching { favoriteHistoryMessage(sessionId, session?.name, msg, groupId) }
+                        .onFailure { snackbarHostState.showSnackbar("收藏失败：源文件不存在") }
+                }
+            },
+            onCreateGroup = { name ->
+                scope.launch {
+                    val groupId = ServiceLocator.favoritesRepository.createGroup(name)
+                    val target = pendingFavoriteMsg
+                    pendingFavoriteMsg = null
+                    if (target != null) {
+                        runCatching { favoriteHistoryMessage(sessionId, session?.name, target, groupId) }
+                            .onFailure { snackbarHostState.showSnackbar("收藏失败：源文件不存在") }
+                    }
+                }
+            },
+            onDismiss = { pendingFavoriteMsg = null },
+        )
+    }
+}
+
+private suspend fun favoriteHistoryMessage(sessionId: Long, sessionName: String?, msg: Message, groupId: Long?) {
+    when (msg) {
+        is Message.Text -> ServiceLocator.favoritesRepository.favoriteText(sessionId, sessionName, msg, groupId)
+        is Message.File -> ServiceLocator.favoritesRepository.favoriteFile(sessionId, sessionName, msg, groupId)
     }
 }
 

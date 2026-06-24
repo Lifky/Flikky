@@ -57,6 +57,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
+import com.example.flikky.di.ServiceLocator
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.ui.components.ConnectionInfoCard
@@ -69,6 +70,7 @@ import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
 import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.launch
 
@@ -85,6 +87,7 @@ fun ServingScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var recallTarget by remember { mutableStateOf<Long?>(null) }
     var actionTarget by remember { mutableStateOf<Long?>(null) }
+    var pendingFavoriteMsg by remember { mutableStateOf<Message?>(null) }
     var showAttachSheet by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
@@ -101,11 +104,38 @@ fun ServingScreen(
     val downloadPainter = painterResource(R.drawable.ic_file_download)
     val copyPainter = painterResource(R.drawable.ic_content_copy)
     val deletePainter = painterResource(R.drawable.ic_delete)
+    val starPainter = painterResource(R.drawable.ic_star)
+    val starBorderPainter = painterResource(R.drawable.ic_star_border)
+    val currentSessionId = ServiceLocator.session.snapshot.collectAsState().value.currentSessionId
+    val favoriteGroups by ServiceLocator.favoritesRepository.observeGroups().collectAsState(initial = emptyList())
+    val favoritedIds by if (currentSessionId != null) {
+        ServiceLocator.favoritesRepository.observeFavoritedIds(currentSessionId).collectAsState(initial = emptyList())
+    } else {
+        remember { mutableStateOf(emptyList<Long>()) }
+    }
 
     // Single source of truth for a message's available actions; used by both the
     // legacy inline bar and the floating toolbar so the logic never diverges.
     fun buildActionsFor(msg: Message): List<MessageAction> = buildList {
         val isFailed = msg is Message.File && msg.status == Message.File.Status.FAILED
+        if (msg is Message.Text || (msg is Message.File && msg.status == Message.File.Status.COMPLETED)) {
+            val sid = currentSessionId
+            val faved = msg.id in favoritedIds
+            if (sid != null) {
+                add(MessageAction(
+                    icon = if (faved) starPainter else starBorderPainter,
+                    label = if (faved) "取消收藏" else "收藏",
+                    onClick = {
+                        actionTarget = null
+                        if (faved) {
+                            scope.launch { ServiceLocator.favoritesRepository.unfavoriteBySource(sid, msg.id) }
+                        } else {
+                            pendingFavoriteMsg = msg
+                        }
+                    },
+                ))
+            }
+        }
         // 复制 — text only
         if (msg is Message.Text) {
             add(MessageAction(
@@ -401,5 +431,40 @@ fun ServingScreen(
             onPickImage = { showAttachSheet = false; pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onDismiss = { showAttachSheet = false },
         )
+    }
+
+    pendingFavoriteMsg?.let { msg ->
+        FavoriteGroupPickerSheet(
+            groups = favoriteGroups,
+            onSelect = { groupId ->
+                val sid = currentSessionId
+                pendingFavoriteMsg = null
+                if (sid == null) return@FavoriteGroupPickerSheet
+                scope.launch {
+                    runCatching { favoriteMessage(sid, "进行中会话", msg, groupId) }
+                        .onFailure { snackbarHostState.showSnackbar("收藏失败：源文件不存在") }
+                }
+            },
+            onCreateGroup = { name ->
+                scope.launch {
+                    val groupId = ServiceLocator.favoritesRepository.createGroup(name)
+                    val sid = currentSessionId
+                    val target = pendingFavoriteMsg
+                    pendingFavoriteMsg = null
+                    if (sid != null && target != null) {
+                        runCatching { favoriteMessage(sid, "进行中会话", target, groupId) }
+                            .onFailure { snackbarHostState.showSnackbar("收藏失败：源文件不存在") }
+                    }
+                }
+            },
+            onDismiss = { pendingFavoriteMsg = null },
+        )
+    }
+}
+
+private suspend fun favoriteMessage(sessionId: Long, sessionName: String?, msg: Message, groupId: Long?) {
+    when (msg) {
+        is Message.Text -> ServiceLocator.favoritesRepository.favoriteText(sessionId, sessionName, msg, groupId)
+        is Message.File -> ServiceLocator.favoritesRepository.favoriteFile(sessionId, sessionName, msg, groupId)
     }
 }
