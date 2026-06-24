@@ -28,6 +28,7 @@ import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.FlikkyNavBar
 import com.example.flikky.ui.exporting.ExportingScreen
+import com.example.flikky.ui.favorites.FavoritesScreen
 import com.example.flikky.ui.history.HistoryScreen
 import com.example.flikky.ui.home.HomeScreen
 import com.example.flikky.ui.serving.ServingScreen
@@ -53,7 +54,7 @@ class MainActivity : ComponentActivity() {
                     val nav = rememberNavController()
                     val backStackEntry by nav.currentBackStackEntryAsState()
                     val currentRoute = backStackEntry?.destination?.route
-                    val topLevel = currentRoute == "transfer" || currentRoute == "settings"
+                    val topLevel = currentRoute == "transfer" || currentRoute == "favorites" || currentRoute == "settings"
 
                     // 传输会话进行中（currentSessionId != null，与 HomeViewModel 同一信号）时锁定
                     // 底栏「设置」入口，避免会话期间误入设置改动配置。服务停止后自动解锁。
@@ -63,10 +64,18 @@ class MainActivity : ComponentActivity() {
                     var homeSelecting by remember { mutableStateOf(false) }
                     // 主页搜索展开时也隐藏底栏，让搜索铺满全屏。
                     var homeSearchExpanded by remember { mutableStateOf(false) }
+                    var favoritesSelecting by remember { mutableStateOf(false) }
+                    var favoritesSearchExpanded by remember { mutableStateOf(false) }
 
                     Scaffold(
                         bottomBar = {
-                            if (topLevel && !homeSelecting && !homeSearchExpanded) {
+                            if (
+                                topLevel &&
+                                !homeSelecting &&
+                                !homeSearchExpanded &&
+                                !favoritesSelecting &&
+                                !favoritesSearchExpanded
+                            ) {
                                 FlikkyNavBar(
                                     currentRoute = currentRoute,
                                     settingsEnabled = !servingActive,
@@ -109,6 +118,14 @@ class MainActivity : ComponentActivity() {
                                 Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
                                     SettingsScreen(
                                         onExport = { nav.navigate("exporting") },
+                                    )
+                                }
+                            }
+                            composable("favorites") {
+                                Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
+                                    FavoritesScreen(
+                                        onSelectingChange = { favoritesSelecting = it },
+                                        onSearchExpandedChange = { favoritesSearchExpanded = it },
                                     )
                                 }
                             }

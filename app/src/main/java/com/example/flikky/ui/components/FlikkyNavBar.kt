@@ -23,7 +23,13 @@ fun FlikkyNavBar(
             alwaysShowLabel = false,
         )
         NavigationBarItem(
-            // 会话进行中锁定设置入口（置灰不可点）。
+            selected = currentRoute == "favorites",
+            onClick = { onNavigate("favorites") },
+            icon = { Icon(painterResource(R.drawable.ic_star), contentDescription = "收藏") },
+            label = { Text("收藏") },
+            alwaysShowLabel = false,
+        )
+        NavigationBarItem(
             selected = currentRoute == "settings",
             enabled = settingsEnabled,
             onClick = { onNavigate("settings") },
