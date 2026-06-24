@@ -3,6 +3,8 @@
 /local.properties
 .idea/
 .claude/
+.codex/
+.agents/
 CLAUDE.md
 AGENTS.md
 .DS_Store
