@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Slider
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -46,8 +48,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.settings.BackgroundSetting
@@ -166,13 +168,6 @@ fun SettingsScreen(
                         title = "主题",
                         leadingIcon = painterResource(R.drawable.ic_palette),
                         subtitle = themeSubtitle,
-                        trailing = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_palette),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
                         onClick = { activeSheet = ActiveSheet.Theme },
                         shape = groupedItemShape(0, sectionItems),
                     )
@@ -185,13 +180,6 @@ fun SettingsScreen(
                         title = "深色模式",
                         leadingIcon = painterResource(R.drawable.ic_dark_mode),
                         subtitle = darkSubtitle,
-                        trailing = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_dark_mode),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        },
                         onClick = { showDarkModeDialog = true },
                         shape = groupedItemShape(1, sectionItems),
                     )
@@ -242,7 +230,7 @@ fun SettingsScreen(
                         title = "气泡圆角",
                         leadingIcon = painterResource(R.drawable.ic_rounded_corner),
                         subtitle = "${radiusDraft.toInt()} dp",
-                        trailing = {
+                        content = {
                             Slider(
                                 value = radiusDraft,
                                 onValueChange = { radiusDraft = it },
@@ -251,7 +239,7 @@ fun SettingsScreen(
                                 steps = (com.example.flikky.data.settings.BUBBLE_CORNER_MAX
                                     - com.example.flikky.data.settings.BUBBLE_CORNER_MIN - 1),
                                 onValueChangeFinished = { viewModel.setBubbleCornerRadius(radiusDraft.toInt()) },
-                                modifier = Modifier.width(160.dp),
+                                modifier = Modifier.fillMaxWidth(),
                             )
                         },
                         shape = groupedItemShape(0, sectionItems),
@@ -414,7 +402,7 @@ fun SettingsScreen(
             onDismissRequest = { showDarkModeDialog = false },
             title = { Text("深色模式") },
             text = {
-                Column {
+                Column(modifier = Modifier.selectableGroup()) {
                     listOf(
                         DarkMode.SYSTEM to "跟随系统",
                         DarkMode.LIGHT  to "常亮",
@@ -422,15 +410,19 @@ fun SettingsScreen(
                     ).forEach { (mode, label) ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = s.darkMode == mode,
+                                    role = Role.RadioButton,
+                                    onClick = {
+                                        viewModel.setDarkMode(mode)
+                                        showDarkModeDialog = false
+                                    },
+                                )
+                                .padding(vertical = Spacing.xs),
                         ) {
-                            RadioButton(
-                                selected = s.darkMode == mode,
-                                onClick = {
-                                    viewModel.setDarkMode(mode)
-                                    showDarkModeDialog = false
-                                },
-                            )
+                            RadioButton(selected = s.darkMode == mode, onClick = null)
                             Text(label, modifier = Modifier.padding(start = Spacing.sm))
                         }
                     }
@@ -448,22 +440,26 @@ fun SettingsScreen(
             onDismissRequest = { showActionStyleDialog = false },
             title = { Text("消息操作样式") },
             text = {
-                Column {
+                Column(modifier = Modifier.selectableGroup()) {
                     listOf(
                         MessageActionStyle.FLOATING to "悬浮工具栏",
                         MessageActionStyle.INLINE   to "常驻按钮",
                     ).forEach { (style, label) ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = s.messageActionStyle == style,
+                                    role = Role.RadioButton,
+                                    onClick = {
+                                        viewModel.setMessageActionStyle(style)
+                                        showActionStyleDialog = false
+                                    },
+                                )
+                                .padding(vertical = Spacing.xs),
                         ) {
-                            RadioButton(
-                                selected = s.messageActionStyle == style,
-                                onClick = {
-                                    viewModel.setMessageActionStyle(style)
-                                    showActionStyleDialog = false
-                                },
-                            )
+                            RadioButton(selected = s.messageActionStyle == style, onClick = null)
                             Text(label, modifier = Modifier.padding(start = Spacing.sm))
                         }
                     }
@@ -481,7 +477,7 @@ fun SettingsScreen(
             onDismissRequest = { showAvatarGroupingDialog = false },
             title = { Text("头像显示") },
             text = {
-                Column {
+                Column(modifier = Modifier.selectableGroup()) {
                     listOf(
                         AvatarGroupingMode.FIRST to "组内首条显示",
                         AvatarGroupingMode.LAST  to "组内末条显示",
@@ -489,15 +485,19 @@ fun SettingsScreen(
                     ).forEach { (mode, label) ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .selectable(
+                                    selected = s.avatarGrouping == mode,
+                                    role = Role.RadioButton,
+                                    onClick = {
+                                        viewModel.setAvatarGrouping(mode)
+                                        showAvatarGroupingDialog = false
+                                    },
+                                )
+                                .padding(vertical = Spacing.xs),
                         ) {
-                            RadioButton(
-                                selected = s.avatarGrouping == mode,
-                                onClick = {
-                                    viewModel.setAvatarGrouping(mode)
-                                    showAvatarGroupingDialog = false
-                                },
-                            )
+                            RadioButton(selected = s.avatarGrouping == mode, onClick = null)
                             Text(label, modifier = Modifier.padding(start = Spacing.sm))
                         }
                     }
@@ -547,25 +547,33 @@ fun SettingsScreen(
             onDismissRequest = { showHistoryLimitDialog = false },
             title = { Text("历史保存数量") },
             text = {
-                Column {
+                Column(modifier = Modifier.selectableGroup()) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = useDefault,
+                                role = Role.RadioButton,
+                                onClick = { useDefault = true },
+                            )
+                            .padding(vertical = Spacing.xs),
                     ) {
-                        RadioButton(
-                            selected = useDefault,
-                            onClick = { useDefault = true },
-                        )
+                        RadioButton(selected = useDefault, onClick = null)
                         Text("默认（20 条）", modifier = Modifier.padding(start = Spacing.sm))
                     }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = !useDefault,
+                                role = Role.RadioButton,
+                                onClick = { useDefault = false },
+                            )
+                            .padding(vertical = Spacing.xs),
                     ) {
-                        RadioButton(
-                            selected = !useDefault,
-                            onClick = { useDefault = false },
-                        )
+                        RadioButton(selected = !useDefault, onClick = null)
                         Text("自定义", modifier = Modifier.padding(start = Spacing.sm))
                     }
                     if (!useDefault) {

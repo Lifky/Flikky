@@ -2,11 +2,13 @@ package com.example.flikky.ui.settings.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +32,8 @@ import com.example.flikky.ui.theme.Spacing
  * @param subtitle Optional secondary label (displayed in bodyMedium, onSurfaceVariant).
  * @param leadingIcon Optional 24dp leading icon shown before the title (onSurfaceVariant tint).
  * @param trailing Optional composable trailing widget (e.g. Switch, Text value).
+ * @param content Optional full-width composable rendered on its own line *below* the title row
+ *   (e.g. a Slider that needs the whole width). Indented to align with the title text.
  * @param onClick When non-null the whole row becomes clickable.
  * @param shape Corner shape — use [groupedItemShape] to get the correct value per index.
  */
@@ -40,6 +44,7 @@ fun SettingItem(
     subtitle: String? = null,
     leadingIcon: Painter? = null,
     trailing: @Composable (() -> Unit)? = null,
+    content: @Composable (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
     shape: Shape = MaterialTheme.shapes.medium,
 ) {
@@ -48,38 +53,50 @@ fun SettingItem(
         color = MaterialTheme.colorScheme.surfaceBright,
         shape = shape,
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
                 .defaultMinSize(minHeight = Sizes.rowMinH)
                 .padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (leadingIcon != null) {
-                Icon(
-                    painter = leadingIcon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.width(Spacing.lg))
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (leadingIcon != null) {
+                    Icon(
+                        painter = leadingIcon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Spacer(Modifier.width(Spacing.lg))
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    if (subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                if (trailing != null) {
+                    trailing()
                 }
             }
-            if (trailing != null) {
-                trailing()
+            if (content != null) {
+                Spacer(Modifier.height(Spacing.xs))
+                // 与标题文字对齐：让出 leading icon（24dp）占的宽度。
+                val startPad = if (leadingIcon != null) 24.dp + Spacing.lg else 0.dp
+                Box(modifier = Modifier.fillMaxWidth().padding(start = startPad)) {
+                    content()
+                }
             }
         }
     }
