@@ -8,18 +8,29 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.flikky.data.db.entities.MessageEntity
 import com.example.flikky.data.db.entities.MessageFtsEntity
+import com.example.flikky.data.db.entities.FavoriteEntity
+import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.SessionEntity
 
 @Database(
-    entities = [SessionEntity::class, MessageEntity::class, MessageFtsEntity::class, GroupEntity::class],
-    version = 4,
+    entities = [
+        SessionEntity::class,
+        MessageEntity::class,
+        MessageFtsEntity::class,
+        GroupEntity::class,
+        FavoriteEntity::class,
+        FavoriteGroupEntity::class,
+    ],
+    version = 5,
     exportSchema = false,
 )
 abstract class FlikkyDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
     abstract fun messageDao(): MessageDao
     abstract fun groupDao(): GroupDao
+    abstract fun favoriteDao(): FavoriteDao
+    abstract fun favoriteGroupDao(): FavoriteGroupDao
 
     companion object {
         /**
@@ -143,13 +154,48 @@ abstract class FlikkyDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `favorite_groups` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`name` TEXT NOT NULL, " +
+                        "`sortOrder` INTEGER NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `favorites` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`sourceSessionId` INTEGER NOT NULL, " +
+                        "`sourceMessageId` INTEGER NOT NULL, " +
+                        "`kind` TEXT NOT NULL, " +
+                        "`textContent` TEXT, " +
+                        "`fileId` TEXT, " +
+                        "`fileName` TEXT, " +
+                        "`fileSize` INTEGER, " +
+                        "`fileMime` TEXT, " +
+                        "`groupId` INTEGER, " +
+                        "`createdAt` INTEGER NOT NULL, " +
+                        "`sourceSessionName` TEXT, " +
+                        "`origin` TEXT)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_favorites_sourceSessionId_sourceMessageId` " +
+                        "ON `favorites` (`sourceSessionId`, `sourceMessageId`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_favorites_groupId` ON `favorites` (`groupId`)"
+                )
+            }
+        }
+
         fun build(context: Context): FlikkyDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 FlikkyDatabase::class.java,
                 "flikky.db",
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .addCallback(onCreateCallback)
                 .build()
     }

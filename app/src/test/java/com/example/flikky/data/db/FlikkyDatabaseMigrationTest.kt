@@ -37,7 +37,12 @@ class FlikkyDatabaseMigrationTest {
         }
 
         val roomDb = Room.databaseBuilder(context, FlikkyDatabase::class.java, TEST_DB)
-            .addMigrations(FlikkyDatabase.MIGRATION_1_2, FlikkyDatabase.MIGRATION_2_3, FlikkyDatabase.MIGRATION_3_4)
+            .addMigrations(
+                FlikkyDatabase.MIGRATION_1_2,
+                FlikkyDatabase.MIGRATION_2_3,
+                FlikkyDatabase.MIGRATION_3_4,
+                FlikkyDatabase.MIGRATION_4_5,
+            )
             .allowMainThreadQueries()
             .build()
         try {
@@ -48,6 +53,50 @@ class FlikkyDatabaseMigrationTest {
                 assertTrue(cursor.moveToFirst())
                 assertTrue(cursor.isNull(0))
             }
+        } finally {
+            roomDb.close()
+        }
+    }
+
+    @Test
+    fun migration4To5AddsFavoritesTablesAndIndexes() {
+        SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(TEST_DB), null).use { db ->
+            createV4Schema(db)
+            db.version = 4
+        }
+
+        val roomDb = Room.databaseBuilder(context, FlikkyDatabase::class.java, TEST_DB)
+            .addMigrations(
+                FlikkyDatabase.MIGRATION_1_2,
+                FlikkyDatabase.MIGRATION_2_3,
+                FlikkyDatabase.MIGRATION_3_4,
+                FlikkyDatabase.MIGRATION_4_5,
+            )
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val db = roomDb.openHelper.writableDatabase
+            assertTrue(hasTable(db, "favorite_groups"))
+            assertTrue(hasTable(db, "favorites"))
+            for (column in listOf(
+                "id",
+                "sourceSessionId",
+                "sourceMessageId",
+                "kind",
+                "textContent",
+                "fileId",
+                "fileName",
+                "fileSize",
+                "fileMime",
+                "groupId",
+                "createdAt",
+                "sourceSessionName",
+                "origin",
+            )) {
+                assertTrue(hasColumn(db, "favorites", column))
+            }
+            assertTrue(hasIndex(db, "favorites", "index_favorites_sourceSessionId_sourceMessageId", unique = true))
+            assertTrue(hasIndex(db, "favorites", "index_favorites_groupId", unique = false))
         } finally {
             roomDb.close()
         }
@@ -92,6 +141,18 @@ class FlikkyDatabaseMigrationTest {
         )
     }
 
+    private fun createV4Schema(db: SQLiteDatabase) {
+        createV3Schema(db)
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `session_groups` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`sortOrder` INTEGER NOT NULL, " +
+                "`createdAt` INTEGER NOT NULL)"
+        )
+        db.execSQL("ALTER TABLE sessions ADD COLUMN groupId INTEGER DEFAULT NULL")
+    }
+
     private fun hasTable(db: androidx.sqlite.db.SupportSQLiteDatabase, table: String): Boolean =
         db.query("SELECT name FROM sqlite_master WHERE type='table' AND name=?", arrayOf(table)).use {
             it.moveToFirst()
@@ -101,6 +162,21 @@ class FlikkyDatabaseMigrationTest {
         db.query("PRAGMA table_info(`$table`)").use { cursor ->
             while (cursor.moveToNext()) {
                 if (cursor.getString(cursor.getColumnIndexOrThrow("name")) == column) return true
+            }
+            false
+        }
+
+    private fun hasIndex(
+        db: androidx.sqlite.db.SupportSQLiteDatabase,
+        table: String,
+        name: String,
+        unique: Boolean,
+    ): Boolean =
+        db.query("PRAGMA index_list(`$table`)").use { cursor ->
+            while (cursor.moveToNext()) {
+                val indexName = cursor.getString(cursor.getColumnIndexOrThrow("name"))
+                val isUnique = cursor.getInt(cursor.getColumnIndexOrThrow("unique")) == 1
+                if (indexName == name && isUnique == unique) return true
             }
             false
         }
