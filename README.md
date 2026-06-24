@@ -17,6 +17,8 @@ The phone runs an embedded HTTP server. Any browser on the same Wi-Fi opens the 
 - **v1.5.1** — *released (2026-06-16)* — browser chat-page scroll fix (mdui's fixed top-app-bar injected `padding-top` on `<body>` and fought the `100vh` flex shell → scoped `body.chat-page` overrides + `100dvh`), plus cosmetic cleanup of leftover v1.5.0 minors.
 - **v1.6.0** — *released (2026-06-16)* — **conversation experience overhaul**: a context-adaptive top (connection card before pairing → spring-collapse to a slim peer header on connect), a floating message toolbar (tap to summon, long-press for text selection, tap empty to clear) with a settings toggle for a persistent per-bubble action bar, unified equal-corner bubbles (default 18dp) + a corner-radius slider, an avatar-grouping setting (first / last / each), a redesigned input row (text field + add-sheet with file/image cards + circular send) with a second stats row doubling as the snackbar zone, gradient backgrounds dropped in favor of theme-derived solids + a custom-hue slider, a waiting loading indicator, stop-service moved to the header, an "allow back during session" guard (back is intercepted by default; the Settings tab locks while a session runs), and correct edge-to-edge IME insets so the input row sits right above the keyboard. App `versionName`/`versionCode` are now tracked (previously frozen at 1.0/1).
 - **v1.7.0** — *released (2026-06-18)* — **home redesign**: the title bar is replaced by a large MD3 SearchBar that expands in place to true fullscreen and searches both session names and message content (FTS), grouped into 会话 / 消息 sections; import moves into an overflow menu. Long-press is the sole entry to multi-select, with a no-checkbox color tri-state selection (`primaryContainer` fill) + selection semantics for TalkBack; an adaptive bottom action bar (pin with smart toggle / rename when single / export / delete) replaces the bottom nav while selecting. The standalone search route is retired. System bars now align with the app (`isNavigationBarContrastEnforced=false` + `isAppearanceLightNavigationBars`).
+- **v1.8.0** — *released (2026-06-24)* — **design-system & layout pass**: a T-shirt Spacing/Sizes token scale (literals migrated across the UI), the full MD3 type scale plus semantic typography extensions (CJK paragraph line-break), inline shapes replaced by `MaterialTheme.shapes`, shared components extracted (OptionCard / ConfirmDialog / RenameDialog) and nav-bar icons unified to a single drawable source, the Settings screen regrouped into six logical sections with a large title bar + per-row leading icons + an M3 segmented list look, a smoothed in-place SearchBar expand animation flush to the screen edge, and a 600dp content-width cap that centers home / settings / history / serving / exporting on wide screens. *(Released together with v1.9.0; this milestone tag still carries versionName 1.7.0 — the bump landed at the v1.9.0 release.)*
+- **v1.9.0** — *released (2026-06-24)* — **session groups**: the home list gains folder-style filter chips (a fixed 「全部」 + custom groups, single-select) backed by a Room v4 migration (`session_groups` table + `sessions.groupId`); the active group is persisted in DataStore and a session is filed into whichever group was active when it started. Inside a group, sessions bucket by 置顶 → 今天 → 昨天 → 更早. Long-pressing a custom chip pops a unified manage dialog (rename / reorder up-down / delete-with-undo); 「全部」 is a virtual, non-deletable, non-movable chip. Multi-select switches to an MD3 floating toolbar (pill, icon-only: pin / rename / **move to group** / export / delete) replacing the full-width bar; **move to group** opens a bottom sheet (custom groups + 「全部」 to ungroup). Settings polish: whole-row radio taps, the bubble-corner Slider on its own full-width line, and duplicate trailing icons dropped from 主题 / 深色模式. Replaces v1.8.0's sort/group chips. App `versionName` / `versionCode` → 1.9.0 / 10900.
 
 Design docs are kept in a local-only `docs/others/` tree; the public repo carries only the source.
 
@@ -69,6 +71,12 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] Home top bar replaced by a large MD3 `SearchBar` (no title) that expands in place to true fullscreen; searches session names + message content (FTS), grouped into 会话 / 消息; import moved to an overflow menu *(v1.7.0)*
 - [x] Long-press is the sole entry to multi-select; no-checkbox color tri-state selection (`primaryContainer` fill) + `selected` / `stateDescription` semantics for TalkBack *(v1.7.0)*
 - [x] Adaptive multi-select action bar — pin (smart toggle) / rename (single only) / export / delete (batch); replaces the bottom nav while selecting; standalone search route retired *(v1.7.0)*
+- [x] Design-system tokens: a T-shirt Spacing scale + Sizes tokens, the full MD3 type scale + semantic typography extensions, inline shapes replaced by `MaterialTheme.shapes` *(v1.8.0)*
+- [x] Settings regrouped into six logical sections with a large MD3 title bar, per-row leading icons, and an M3 segmented list look *(v1.8.0)*
+- [x] 600dp content-width cap centering home / settings / history / serving / exporting on wide screens *(v1.8.0)*
+- [x] Session groups: folder-style filter chips (fixed 「全部」 + custom groups, single-select) backed by a Room v4 `session_groups` migration; the active group persists in DataStore and a session is filed into whichever group was active at start; in-group bucketing 置顶 / 今天 / 昨天 / 更早 *(v1.9.0)*
+- [x] Long-press a custom chip → unified manage dialog (rename / reorder up-down / delete-with-undo); 「全部」 is a virtual non-deletable / non-movable chip *(v1.9.0)*
+- [x] Multi-select floating toolbar (MD3 pill, icon-only) with a **move-to-group** action → bottom sheet (custom groups + 「全部」 to ungroup), batch-rebinding `groupId` in one update *(v1.9.0)*
 - [ ] HTTPS with self-signed cert *(v2)*
 - [ ] At-rest encryption of local archive *(v2)*
 
@@ -94,6 +102,10 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - [x] Search session-name and message groups are driven by one debounced query, so they update in lockstep and the "no match" hint never flashes mid-debounce *(v1.7.0)*
 - [x] True fullscreen search via per-destination padding (the home destination escapes the top status-bar inset; FAB + bottom nav hidden while expanded), so the SearchBar surface reaches under the status/navigation bars with no side gaps *(v1.7.0)*
 - [x] App `versionName` / `versionCode` 1.7.0 / 10700 *(v1.7.0)*
+- [x] Whole-row radio taps in settings dialogs (`selectable(role=RadioButton)` over the row inside a `selectableGroup`), instead of only the radio glyph being a hit target *(v1.9.0)*
+- [x] `SettingItem` gains an optional full-width content slot; the bubble-corner Slider moves there to span the row instead of a cramped 160dp; duplicate trailing icons dropped from 主题 / 深色模式 *(v1.9.0)*
+- [x] material3 1.4.0 stable keeps `HorizontalFloatingToolbar` behind an internal `ExperimentalMaterial3ExpressiveApi`, so the floating toolbar is built to the same MD3 spec with stable components (pill `Surface` + `IconButton`) *(v1.9.0)*
+- [x] App `versionName` / `versionCode` 1.9.0 / 10900 *(v1.9.0)*
 
 ### fix
 
@@ -152,7 +164,7 @@ Design docs are kept in a local-only `docs/others/` tree; the public repo carrie
 - HTTP plaintext (HTTPS self-signed lands in v2).
 - Wi-Fi switch (different IP) tears down the in-flight WS — the browser must reopen the new URL shown in the banner. Same-IP recoveries auto-reconnect within a few seconds. *(v1.2)*
 - Avatars are preset-only (icon + color); custom images are out of scope. Conversation background offers theme-derived solids + a custom hue (always clamped to a readable light tone); gradients were removed in v1.6.0. *(v1.6.0)*
-- The bubble corner-radius slider applies on the phone; the browser uses a static 18px until two-end theme sync lands. *(v1.8.0 planned)*
+- The bubble corner-radius slider applies on the phone; the browser uses a static 18px until two-end theme sync lands. *(still open after v1.9.0)*
 
 ## Tech stack
 

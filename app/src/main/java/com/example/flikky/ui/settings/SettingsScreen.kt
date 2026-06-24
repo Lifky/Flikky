@@ -359,7 +359,7 @@ fun SettingsScreen(
                     SettingItem(
                         title = "版本",
                         leadingIcon = painterResource(R.drawable.ic_info),
-                        subtitle = "v1.7.0",
+                        subtitle = "v1.9.0",
                         shape = groupedItemShape(0, sectionItems),
                     )
                     SettingItem(

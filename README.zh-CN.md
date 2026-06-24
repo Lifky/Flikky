@@ -17,6 +17,8 @@
 - **v1.5.1** — *已发布（2026-06-16）* — 浏览器对话页滚动修复（mdui 固定 top-app-bar 给 `<body>` 注入 `padding-top`，与 `100vh` flex 外壳冲突 → 作用域化的 `body.chat-page` 覆盖 + `100dvh`），并清理了 v1.5.0 遗留的若干 cosmetic 小问题。
 - **v1.6.0** — *已发布（2026-06-16）* — **会话体验重构**：顶部上下文自适应（配对前连接卡片 → 连上后 spring 塌缩为纤细对端头部）、悬浮消息工具栏（单击召唤 / 长按选词 / 单击空白清除）+ 设置开关切换为气泡旁常驻操作栏、两端统一四角等圆角气泡（默认 18dp）+ 圆角 slider、头像显示设置（组内首条 / 末条 / 每条）、输入区重做（输入框 + add 底部面板的文件/图片方卡 + 圆形发送）+ 第二行统计兼作 snackbar 落区、会话背景去渐变改为主题派生纯色 + 自定义色相 slider、等待连接加载指示、停止服务移至头部、「允许会话中返回」开关（默认拦截返回；会话运行期间锁定设置入口），以及修正的 edge-to-edge IME inset 让输入行紧贴键盘上方。应用 `versionName`/`versionCode` 现已纳入维护（此前一直冻结在 1.0/1）。
 - **v1.7.0** — *已发布（2026-06-18）* — **主页重构**：去掉标题栏，改为大号 MD3 `SearchBar` 原地展开为**真全屏**，同时搜索**会话名 + 消息内容**（FTS），结果分「会话」「消息」两组；导入入口收进 overflow 菜单。**长按是进多选的唯一入口**，选中态用**无 Checkbox 的纯色三态**（`primaryContainer` 填充）+ TalkBack 选中语义；多选时底部导航被**自适应操作栏**（置顶智能切换 / 单选重命名 / 导出 / 批量删除）顶替。退役独立搜索路由。系统栏现与 App 颜色对齐（`isNavigationBarContrastEnforced=false` + `isAppearanceLightNavigationBars`）。
+- **v1.8.0** — *已发布（2026-06-24）* — **设计系统与布局打底**：T 恤尺码 Spacing/Sizes token（全 UI 字面量迁移）、完整 MD3 type scale + 语义 typography 扩展（CJK 段落折行）、内联 shape 换成 `MaterialTheme.shapes`、抽出公共组件（OptionCard / ConfirmDialog / RenameDialog）+ 底栏图标统一到单一 drawable 源、设置页重组为六大逻辑区 + Large 标题栏 + 每行 leading icon + M3 segmented 列表观感、搜索框展开动画顺滑且贴齐屏幕边缘、宽屏内容区 600dp 上限并将主页/设置/历史/服务/导出居中。*(与 v1.9.0 同批发布；此里程碑 tag 内部 versionName 仍是 1.7.0——版本号 bump 落在 v1.9.0 发布时。)*
+- **v1.9.0** — *已发布（2026-06-24）* — **会话分组系统**：主页新增文件夹式 filter chip（固定「全部」+ 自定义分组，单选），底层走 Room v4 migration（`session_groups` 表 + `sessions.groupId`）；当前分组态持久化于 DataStore，会话归入「启动那一刻所在的分组」。组内按 置顶 → 今天 → 昨天 → 更早 分桶。长按自定义 chip 弹统一管理框（改名 / 上下移排序 / 删除带撤销）；「全部」是虚拟、不可删、不可移的 chip。多选改为 MD3 floating toolbar（胶囊、纯图标：置顶 / 重命名 / **移动到分组** / 导出 / 删除）顶替整宽底栏；**移动到分组**弹底部 sheet（自定义分组 + 「全部」移出分组）。设置 polish：Radio 整行可点、气泡圆角 Slider 独占整宽一行、去掉「主题 / 深色模式」与 leading icon 重复的右侧图标。整体取代 v1.8.0 的排序/分组 chip。应用 `versionName` / `versionCode` → 1.9.0 / 10900。
 
 设计文档与复盘/验收清单保存在本地的 `docs/others/`（已 gitignored），公开仓库仅含源码。
 
@@ -69,6 +71,12 @@
 - [x] 主页顶栏改大号 MD3 `SearchBar`（去标题）原地展开为真全屏；同时搜会话名 + 消息内容（FTS），分「会话」「消息」两组；导入迁入 overflow 菜单 *(v1.7.0)*
 - [x] 长按是进多选的唯一入口；无 Checkbox 的纯色三态选中（`primaryContainer` 填充）+ TalkBack 的 `selected` / `stateDescription` 语义 *(v1.7.0)*
 - [x] 自适应多选操作栏——置顶（智能切换）/ 重命名（仅单选）/ 导出 / 删除（批量）；多选时顶替底部导航；退役独立搜索路由 *(v1.7.0)*
+- [x] 设计系统 token：T 恤尺码 Spacing scale + Sizes token、完整 MD3 type scale + 语义 typography 扩展、内联 shape 换成 `MaterialTheme.shapes` *(v1.8.0)*
+- [x] 设置页重组为六大逻辑区 + Large MD3 标题栏 + 每行 leading icon + M3 segmented 列表观感 *(v1.8.0)*
+- [x] 宽屏内容区 600dp 上限，将主页 / 设置 / 历史 / 服务 / 导出居中不破版 *(v1.8.0)*
+- [x] 会话分组系统：文件夹式 filter chip（固定「全部」+ 自定义分组，单选），底层 Room v4 `session_groups` migration；当前分组态持久化于 DataStore，会话归入「启动那一刻所在的分组」；组内 置顶 / 今天 / 昨天 / 更早 分桶 *(v1.9.0)*
+- [x] 长按自定义 chip → 统一管理框（改名 / 上下移排序 / 删除带撤销）；「全部」为虚拟、不可删、不可移的 chip *(v1.9.0)*
+- [x] 多选 floating toolbar（MD3 胶囊、纯图标）+ **移动到分组**动作 → 底部 sheet（自定义分组 + 「全部」移出分组），一次 UPDATE 批量改 `groupId` *(v1.9.0)*
 - [ ] HTTPS 自签证书 *(v2)*
 - [ ] 本地归档 at-rest encryption *(v2)*
 
@@ -94,6 +102,10 @@
 - [x] 搜索的会话名组与消息组由同一 debounce 后的 query 驱动，两组锁步更新，无匹配提示不再在 debounce 中途闪烁 *(v1.7.0)*
 - [x] 真全屏搜索（逐目的地 padding：主页目的地 escape 顶部 status bar inset、展开时隐藏 FAB + 底栏），SearchBar 铺到状态栏/导航栏之下、无侧缝 *(v1.7.0)*
 - [x] 应用 `versionName` / `versionCode` 1.7.0 / 10700 *(v1.7.0)*
+- [x] 设置对话框 Radio 整行可点（整行套 `selectable(role=RadioButton)` 并置于 `selectableGroup` 内），不再只有圆点是命中区 *(v1.9.0)*
+- [x] `SettingItem` 新增可选整宽 content 槽；气泡圆角 Slider 移过去铺满整行（取代局促的 160dp）；去掉「主题 / 深色模式」与 leading icon 重复的右侧图标 *(v1.9.0)*
+- [x] material3 1.4.0 stable 把 `HorizontalFloatingToolbar` 关在 internal 的 `ExperimentalMaterial3ExpressiveApi` 后，floating toolbar 改用稳定组件按同一 MD3 规格手搓（胶囊 `Surface` + `IconButton`） *(v1.9.0)*
+- [x] 应用 `versionName` / `versionCode` 1.9.0 / 10900 *(v1.9.0)*
 
 ### fix
 
@@ -152,7 +164,7 @@
 - HTTP 明文传输（HTTPS 自签证书在 v2 里加）。
 - WiFi 切换（IP 变了）会断开在飞的 WS，浏览器需打开 banner 提示的新 URL；同 IP 恢复几秒内自动重连。 *(v1.2)*
 - 头像仅支持预设（图标 + 颜色）；自定义图片不在范围内。会话背景支持主题派生纯色 + 自定义色相（恒为可读极浅色）；渐变已在 v1.6.0 移除。 *(v1.6.0)*
-- 气泡圆角 slider 仅在手机端生效；浏览器端暂用静态 18px，待两端主题同步落地。 *(计划 v1.8.0)*
+- 气泡圆角 slider 仅在手机端生效；浏览器端暂用静态 18px，待两端主题同步落地。 *(v1.9.0 后仍开放)*
 
 ## 技术栈
 
