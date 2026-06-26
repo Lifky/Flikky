@@ -36,6 +36,14 @@ class SessionRepository(
     private val retainLimitProvider: suspend () -> Int = { 20 },
 ) {
     suspend fun beginSession(name: String, startedAt: Long, groupId: Long? = null): Long {
+        // Seed the message-id counter above all persisted ids BEFORE this session
+        // can mint any message id. messageCounter is process-volatile (restarts at
+        // 0 each launch); without this a cold restart re-mints 1,2,3… colliding
+        // with existing messages.id PRIMARY KEYs → inserts throw → session saved
+        // empty → rolled back on stop (silent history loss). Done here (not only at
+        // app start) to close the race where the service starts before the async
+        // finalizeOrphans() seed completes.
+        IdGen.seedMessageCounter(messageDao.maxId())
         return sessionDao.insert(SessionEntity(
             startedAt = startedAt,
             endedAt = null,
@@ -106,6 +114,8 @@ class SessionRepository(
      *  - delete filesystem session dirs not present in DB (stray dirs)
      */
     suspend fun finalizeOrphans() {
+        // Seed message-id counter above persisted max at app start (see beginSession).
+        IdGen.seedMessageCounter(messageDao.maxId())
         sessionDao.listUnfinished().forEach { row ->
             val messages = messageDao.listBySession(row.id)
             if (messages.isEmpty()) {

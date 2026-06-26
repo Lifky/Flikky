@@ -37,4 +37,22 @@ class IdGenTest {
         assertTrue(a < b)
         assertTrue(b < c)
     }
+
+    @Test
+    fun `seedMessageCounter makes next id exceed persisted max`() {
+        // Simulate a cold restart where the DB already holds messages up to id 500.
+        // Without seeding, the process-volatile counter restarts at 0 and the next
+        // newMessageId() would be 1 — colliding with an existing PRIMARY KEY.
+        IdGen.seedMessageCounter(500L)
+        assertTrue("next id must clear persisted max", IdGen.newMessageId() > 500L)
+    }
+
+    @Test
+    fun `seedMessageCounter never lowers the counter`() {
+        IdGen.seedMessageCounter(1_000L)
+        val afterHigh = IdGen.newMessageId() // > 1000
+        // A later, smaller seed (e.g. a stale read) must not rewind the counter.
+        IdGen.seedMessageCounter(10L)
+        assertTrue("counter must not regress", IdGen.newMessageId() > afterHigh)
+    }
 }
