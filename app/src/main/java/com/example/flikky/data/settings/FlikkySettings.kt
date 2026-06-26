@@ -32,6 +32,7 @@ data class FlikkySettings(
     val background: BackgroundSetting = BackgroundSetting.Default,
     val deviceName: String = "我的手机",
     val recallBetaEnabled: Boolean = false,
+    val favoriteBetaEnabled: Boolean = false,
     val historyRetainLimit: Int = 20,   // 0=不保存, -1=无限制
     val bubbleCornerRadius: Int = BUBBLE_CORNER_DEFAULT,   // dp，钳制 8..28
     val messageActionStyle: MessageActionStyle = MessageActionStyle.FLOATING,

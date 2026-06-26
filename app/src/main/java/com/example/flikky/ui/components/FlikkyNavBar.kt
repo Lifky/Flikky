@@ -12,6 +12,7 @@ import com.example.flikky.R
 fun FlikkyNavBar(
     currentRoute: String?,
     settingsEnabled: Boolean = true,
+    favoritesEnabled: Boolean = false,
     onNavigate: (String) -> Unit,
 ) {
     NavigationBar {
@@ -22,13 +23,15 @@ fun FlikkyNavBar(
             label = { Text("传输") },
             alwaysShowLabel = false,
         )
-        NavigationBarItem(
-            selected = currentRoute == "favorites",
-            onClick = { onNavigate("favorites") },
-            icon = { Icon(painterResource(R.drawable.ic_star), contentDescription = "收藏") },
-            label = { Text("收藏") },
-            alwaysShowLabel = false,
-        )
+        if (favoritesEnabled) {
+            NavigationBarItem(
+                selected = currentRoute == "favorites",
+                onClick = { onNavigate("favorites") },
+                icon = { Icon(painterResource(R.drawable.ic_star), contentDescription = "收藏") },
+                label = { Text("收藏") },
+                alwaysShowLabel = false,
+            )
+        }
         NavigationBarItem(
             selected = currentRoute == "settings",
             enabled = settingsEnabled,

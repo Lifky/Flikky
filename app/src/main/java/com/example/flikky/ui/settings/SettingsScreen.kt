@@ -272,7 +272,7 @@ fun SettingsScreen(
 
             // ─── 会话行为 ───────────────────────────────────────────────────────
             item {
-                val sectionItems = 3
+                val sectionItems = 4
                 SettingSection(title = "会话行为") {
                     val styleSubtitle = when (s.messageActionStyle) {
                         MessageActionStyle.FLOATING -> "悬浮工具栏"
@@ -298,6 +298,18 @@ fun SettingsScreen(
                         shape = groupedItemShape(1, sectionItems),
                     )
                     SettingItem(
+                        title = "收藏功能（Beta）",
+                        leadingIcon = painterResource(R.drawable.ic_star_border),
+                        subtitle = "开启后显示收藏入口，并允许收藏消息",
+                        trailing = {
+                            Switch(
+                                checked = s.favoriteBetaEnabled,
+                                onCheckedChange = { viewModel.setFavoriteBeta(it) },
+                            )
+                        },
+                        shape = groupedItemShape(2, sectionItems),
+                    )
+                    SettingItem(
                         title = "允许会话中返回",
                         leadingIcon = rememberVectorPainter(Icons.AutoMirrored.Filled.ArrowBack),
                         subtitle = "默认拦截返回键保护会话；开启后可返回主页查看历史（会话期间设置入口锁定）",
@@ -307,7 +319,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setAllowBackDuringSession(it) },
                             )
                         },
-                        shape = groupedItemShape(2, sectionItems),
+                        shape = groupedItemShape(3, sectionItems),
                     )
                 }
             }
@@ -503,9 +515,13 @@ fun SettingsScreen(
             if (!useDefault) {
                 OutlinedTextField(
                     value = customStr,
-                    onValueChange = { customStr = it },
+                    onValueChange = { value ->
+                        if (value.isEmpty() || value == "-" || value.toIntOrNull() != null) {
+                            customStr = value
+                        }
+                    },
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     label = { Text("0=不保存，-1=无限制") },
                     modifier = Modifier
                         .padding(horizontal = 24.dp)

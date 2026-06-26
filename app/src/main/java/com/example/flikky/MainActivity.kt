@@ -13,6 +13,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,7 +55,9 @@ class MainActivity : ComponentActivity() {
                     val nav = rememberNavController()
                     val backStackEntry by nav.currentBackStackEntryAsState()
                     val currentRoute = backStackEntry?.destination?.route
-                    val topLevel = currentRoute == "transfer" || currentRoute == "favorites" || currentRoute == "settings"
+                    val topLevel = currentRoute == "transfer" ||
+                        (settings.favoriteBetaEnabled && currentRoute == "favorites") ||
+                        currentRoute == "settings"
 
                     // 传输会话进行中（currentSessionId != null，与 HomeViewModel 同一信号）时锁定
                     // 底栏「设置」入口，避免会话期间误入设置改动配置。服务停止后自动解锁。
@@ -79,6 +82,7 @@ class MainActivity : ComponentActivity() {
                                 FlikkyNavBar(
                                     currentRoute = currentRoute,
                                     settingsEnabled = !servingActive,
+                                    favoritesEnabled = settings.favoriteBetaEnabled,
                                 ) { dest ->
                                     nav.navigate(dest) {
                                         launchSingleTop = true
@@ -123,10 +127,19 @@ class MainActivity : ComponentActivity() {
                             }
                             composable("favorites") {
                                 Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
-                                    FavoritesScreen(
-                                        onSelectingChange = { favoritesSelecting = it },
-                                        onSearchExpandedChange = { favoritesSearchExpanded = it },
-                                    )
+                                    if (settings.favoriteBetaEnabled) {
+                                        FavoritesScreen(
+                                            onSelectingChange = { favoritesSelecting = it },
+                                            onSearchExpandedChange = { favoritesSearchExpanded = it },
+                                        )
+                                    } else {
+                                        LaunchedEffect(Unit) {
+                                            nav.navigate("transfer") {
+                                                launchSingleTop = true
+                                                popUpTo("transfer") { inclusive = false }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                             composable("serving") {

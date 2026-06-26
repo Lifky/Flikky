@@ -43,6 +43,7 @@ class HomeViewModel @JvmOverloads constructor(
     val sessions: Flow<List<SessionEntity>> = repository.observeSessions()
     val groups: Flow<List<GroupEntity>> = repository.observeGroups()
     val activeGroupId: Flow<Long?> = settingsRepository.settings.map { it.activeGroupId }
+    val searchEnabled: Flow<Boolean> = settingsRepository.settings.map { it.historyRetainLimit != 0 }
 
     val homeItems: Flow<List<HomeListItem>> = combine(
         repository.observeSessions(),

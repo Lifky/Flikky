@@ -126,13 +126,23 @@ fun HistoryScreen(
     val deletePainter = painterResource(R.drawable.ic_delete)
     val starPainter = painterResource(R.drawable.ic_star)
     val starBorderPainter = painterResource(R.drawable.ic_star_border)
-    val favoriteGroups by ServiceLocator.favoritesRepository.observeGroups().collectAsState(initial = emptyList())
-    val favoritedIds by ServiceLocator.favoritesRepository.observeFavoritedIds(sessionId).collectAsState(initial = emptyList())
+    val favoriteGroups by if (settings.favoriteBetaEnabled) {
+        ServiceLocator.favoritesRepository.observeGroups().collectAsState(initial = emptyList())
+    } else {
+        remember { mutableStateOf(emptyList()) }
+    }
+    val favoritedIds by if (settings.favoriteBetaEnabled) {
+        ServiceLocator.favoritesRepository.observeFavoritedIds(sessionId).collectAsState(initial = emptyList())
+    } else {
+        remember { mutableStateOf(emptyList<Long>()) }
+    }
 
     // Single source of truth for a message's available actions (History has no
     // recall): 复制（text）/ 打开（completed file）/ 删除. Each onClick clears the target.
     fun buildActionsFor(msg: Message): List<MessageAction> = buildList {
-        if (msg is Message.Text || (msg is Message.File && msg.status == Message.File.Status.COMPLETED)) {
+        if (settings.favoriteBetaEnabled &&
+            (msg is Message.Text || (msg is Message.File && msg.status == Message.File.Status.COMPLETED))
+        ) {
             val faved = msg.id in favoritedIds
             add(MessageAction(
                 icon = if (faved) starPainter else starBorderPainter,
@@ -350,7 +360,7 @@ fun HistoryScreen(
             },
         )
     }
-    pendingFavoriteMsg?.let { msg ->
+    if (settings.favoriteBetaEnabled) pendingFavoriteMsg?.let { msg ->
         FavoriteGroupPickerSheet(
             groups = favoriteGroups,
             onSelect = { groupId ->

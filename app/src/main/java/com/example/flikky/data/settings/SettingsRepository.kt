@@ -16,6 +16,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val bgValue = stringPreferencesKey("bg_value")
         val deviceName = stringPreferencesKey("device_name")
         val recallBeta = booleanPreferencesKey("recall_beta")
+        val favoriteBeta = booleanPreferencesKey("favorite_beta")
         val retainLimit = intPreferencesKey("retain_limit")
         val bubbleCorner = intPreferencesKey("bubble_corner")
         val msgActionStyle = stringPreferencesKey("msg_action_style")
@@ -37,7 +38,8 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             background = decodeBackground(p[Keys.bgMode], p[Keys.bgValue]),
             deviceName = p[Keys.deviceName] ?: "我的手机",
             recallBetaEnabled = p[Keys.recallBeta] ?: false,
-            historyRetainLimit = p[Keys.retainLimit] ?: 20,
+            favoriteBetaEnabled = p[Keys.favoriteBeta] ?: false,
+            historyRetainLimit = (p[Keys.retainLimit] ?: 20).coerceAtLeast(-1),
             bubbleCornerRadius = (p[Keys.bubbleCorner] ?: BUBBLE_CORNER_DEFAULT)
                 .coerceIn(BUBBLE_CORNER_MIN, BUBBLE_CORNER_MAX),
             messageActionStyle = p[Keys.msgActionStyle]
@@ -65,7 +67,8 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setPhoneAvatar(v: Int) = ds.edit { it[Keys.phoneAvatar] = v }
     suspend fun setDeviceName(v: String) = ds.edit { it[Keys.deviceName] = v.trim().ifEmpty { "我的手机" }.take(20) }
     suspend fun setRecallBeta(v: Boolean) = ds.edit { it[Keys.recallBeta] = v }
-    suspend fun setHistoryRetainLimit(v: Int) = ds.edit { it[Keys.retainLimit] = v }
+    suspend fun setFavoriteBeta(v: Boolean) = ds.edit { it[Keys.favoriteBeta] = v }
+    suspend fun setHistoryRetainLimit(v: Int) = ds.edit { it[Keys.retainLimit] = v.coerceAtLeast(-1) }
     suspend fun setBubbleCornerRadius(v: Int) = ds.edit {
         it[Keys.bubbleCorner] = v.coerceIn(BUBBLE_CORNER_MIN, BUBBLE_CORNER_MAX)
     }

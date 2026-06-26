@@ -88,6 +88,24 @@ class HomeViewModelTest {
         assertEquals(listOf(1L), out.sessionIds())
     }
 
+    @Test fun search_visible_only_when_history_is_saved() = runTest {
+        val app = mockk<Application>(relaxed = true)
+        val repo = mockk<SessionRepository>()
+        val settingsFlow = MutableStateFlow(FlikkySettings(historyRetainLimit = 20))
+        val settings = mockk<SettingsRepository>()
+        every { repo.observeSessions() } returns MutableStateFlow(emptyList())
+        every { repo.observeGroups() } returns MutableStateFlow(emptyList())
+        every { settings.settings } returns settingsFlow
+
+        val vm = HomeViewModel(app, repo, stubSession(), settingsRepository = settings)
+
+        assertEquals(true, vm.searchEnabled.first())
+        settingsFlow.value = FlikkySettings(historyRetainLimit = 0)
+        assertEquals(false, vm.searchEnabled.first())
+        settingsFlow.value = FlikkySettings(historyRetainLimit = -1)
+        assertEquals(true, vm.searchEnabled.first())
+    }
+
     @Test fun groups_flow_is_forwarded_from_repository() = runTest {
         val app = mockk<Application>(relaxed = true)
         val repo = mockk<SessionRepository>()

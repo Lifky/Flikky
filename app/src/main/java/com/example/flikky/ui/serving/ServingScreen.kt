@@ -107,8 +107,12 @@ fun ServingScreen(
     val starPainter = painterResource(R.drawable.ic_star)
     val starBorderPainter = painterResource(R.drawable.ic_star_border)
     val currentSessionId = ServiceLocator.session.snapshot.collectAsState().value.currentSessionId
-    val favoriteGroups by ServiceLocator.favoritesRepository.observeGroups().collectAsState(initial = emptyList())
-    val favoritedIds by if (currentSessionId != null) {
+    val favoriteGroups by if (settings.favoriteBetaEnabled) {
+        ServiceLocator.favoritesRepository.observeGroups().collectAsState(initial = emptyList())
+    } else {
+        remember { mutableStateOf(emptyList()) }
+    }
+    val favoritedIds by if (settings.favoriteBetaEnabled && currentSessionId != null) {
         ServiceLocator.favoritesRepository.observeFavoritedIds(currentSessionId).collectAsState(initial = emptyList())
     } else {
         remember { mutableStateOf(emptyList<Long>()) }
@@ -118,7 +122,9 @@ fun ServingScreen(
     // legacy inline bar and the floating toolbar so the logic never diverges.
     fun buildActionsFor(msg: Message): List<MessageAction> = buildList {
         val isFailed = msg is Message.File && msg.status == Message.File.Status.FAILED
-        if (msg is Message.Text || (msg is Message.File && msg.status == Message.File.Status.COMPLETED)) {
+        if (settings.favoriteBetaEnabled &&
+            (msg is Message.Text || (msg is Message.File && msg.status == Message.File.Status.COMPLETED))
+        ) {
             val sid = currentSessionId
             val faved = msg.id in favoritedIds
             if (sid != null) {
@@ -433,7 +439,7 @@ fun ServingScreen(
         )
     }
 
-    pendingFavoriteMsg?.let { msg ->
+    if (settings.favoriteBetaEnabled) pendingFavoriteMsg?.let { msg ->
         FavoriteGroupPickerSheet(
             groups = favoriteGroups,
             onSelect = { groupId ->

@@ -34,17 +34,26 @@ class SettingsRepositoryTest {
         assertEquals(ThemeMode.DYNAMIC, s.themeMode)
         assertEquals(20, s.historyRetainLimit)
         assertEquals(false, s.recallBetaEnabled)
+        assertEquals(false, s.favoriteBetaEnabled)
     }
 
     @Test fun update_persists_and_emits() = runTest {
         val repo = makeRepo(this)
         repo.setRecallBeta(true)
+        repo.setFavoriteBeta(true)
         repo.setHistoryRetainLimit(-1)
         repo.setDarkMode(DarkMode.DARK)
         val s = repo.settings.first()
         assertTrue(s.recallBetaEnabled)
+        assertTrue(s.favoriteBetaEnabled)
         assertEquals(-1, s.historyRetainLimit)
         assertEquals(DarkMode.DARK, s.darkMode)
+    }
+
+    @Test fun history_retain_limit_clamps_below_unlimited_sentinel() = runTest {
+        val repo = makeRepo(this)
+        repo.setHistoryRetainLimit(-99)
+        assertEquals(-1, repo.settings.first().historyRetainLimit)
     }
 
     @Test fun legacy_gradient_decodes_to_default() = runTest {

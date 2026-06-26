@@ -104,6 +104,7 @@ fun HomeScreen(
     val homeItems by viewModel.homeItems.collectAsState(initial = emptyList())
     val groups by viewModel.groups.collectAsState(initial = emptyList())
     val activeGroupId by viewModel.activeGroupId.collectAsState(initial = null)
+    val searchEnabled by viewModel.searchEnabled.collectAsState(initial = true)
     val selection by viewModel.selection.collectAsState()
     val selecting by viewModel.selecting.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -111,6 +112,9 @@ fun HomeScreen(
 
     // SearchBar 展开态上提到这里：用于隐藏 FAB，并上报给 MainActivity 隐藏底栏 + 让主页铺满全屏。
     var searchExpanded by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(searchEnabled) {
+        if (!searchEnabled && searchExpanded) searchExpanded = false
+    }
     LaunchedEffect(searchExpanded) { onSearchExpandedChange(searchExpanded) }
 
     var showImportDialog by remember { mutableStateOf(false) }
@@ -191,7 +195,7 @@ fun HomeScreen(
                     onSelectAll = { viewModel.selectAll(validSessionIds) },
                     selectAllEnabled = validSessionIds.isNotEmpty(),
                 )
-            } else {
+            } else if (searchEnabled) {
                 HomeSearchBar(
                     sessions = sessions,
                     expanded = searchExpanded,
@@ -201,6 +205,8 @@ fun HomeScreen(
                     onOpenMessageHit = onOpenSearchHit,
                     onImport = { importLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed")) },
                 )
+            } else {
+                LaunchedEffect(Unit) { onSearchExpandedChange(false) }
             }
         },
         floatingActionButton = {
