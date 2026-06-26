@@ -9,8 +9,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,7 +20,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -80,6 +77,7 @@ import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.FlikkyFloatingToolbar
+import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.RenameDialog
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.theme.Spacing
@@ -233,121 +231,114 @@ fun HomeScreen(
                 )
             }
         },
-        bottomBar = {
-            AnimatedVisibility(
-                visible = selecting,
-                enter = slideInVertically { it },
-                exit = slideOutVertically { it },
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(bottom = Spacing.md),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    SelectingFloatingToolbar(
-                        selectedCount = selectedCount,
-                        allPinned = allSelectedPinned,
-                        onPinToggle = { scope.launch { viewModel.pinSelected(!allSelectedPinned) } },
-                        onRename = { showRenameDialog = true },
-                        onMove = { showMoveSheet = true },
-                        onExport = {
-                            scope.launch {
-                                when (viewModel.startExport()) {
-                                    HomeViewModel.ExportStartResult.Success -> onStartExport()
-                                    HomeViewModel.ExportStartResult.TransferRunning ->
-                                        snackbarHostState.showSnackbar("请先停止当前服务")
-                                    HomeViewModel.ExportStartResult.NoValidSessions ->
-                                        snackbarHostState.showSnackbar("所选会话无法导出（可能都在进行中）")
-                                    HomeViewModel.ExportStartResult.EmptySelection ->
-                                        snackbarHostState.showSnackbar("请先勾选会话")
-                                }
-                            }
-                        },
-                        onDelete = { if (selectedCount > 0) showBatchDeleteDialog = true },
-                    )
-                }
-            }
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
     ) { padding ->
-        if (activeGroupId == null && sessions.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize(),
-                contentAlignment = Alignment.TopCenter,
-            ) {
-                EmptyHero(modifier = Modifier.fillMaxSize().maxContentWidth())
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize(),
-                contentAlignment = Alignment.TopCenter,
-            ) {
-                Column(modifier = Modifier.fillMaxSize().maxContentWidth()) {
-                    // 淡出/收起而非硬切，配合搜索框展开动画，避免 chip 行同帧消失造成的「卡顿」观感。
-                    AnimatedVisibility(visible = !selecting && !searchExpanded) {
-                        GroupChips(
-                            groups = groups,
-                            activeGroupId = activeGroupId,
-                            onSelect = { viewModel.setActiveGroup(it) },
-                            onAdd = { showCreateGroupDialog = true },
-                            onManage = { managingGroup = it },
-                        )
-                    }
-                    if (homeItems.isEmpty() && activeGroupId != null) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(Spacing.screenEdge),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = "该分组还没有会话",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (activeGroupId == null && sessions.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .padding(padding)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    EmptyHero(modifier = Modifier.fillMaxSize().maxContentWidth())
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .padding(padding)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    Column(modifier = Modifier.fillMaxSize().maxContentWidth()) {
+                        // 淡出/收起而非硬切，配合搜索框展开动画，避免 chip 行同帧消失造成的「卡顿」观感。
+                        AnimatedVisibility(visible = !selecting && !searchExpanded) {
+                            GroupChips(
+                                groups = groups,
+                                activeGroupId = activeGroupId,
+                                onSelect = { viewModel.setActiveGroup(it) },
+                                onAdd = { showCreateGroupDialog = true },
+                                onManage = { managingGroup = it },
                             )
                         }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = Spacing.sm),
-                            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-                        ) {
-                            items(
-                                homeItems,
-                                key = { item ->
+                        if (homeItems.isEmpty() && activeGroupId != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(Spacing.screenEdge),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "该分组还没有会话",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(vertical = Spacing.sm),
+                                verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                            ) {
+                                items(
+                                    homeItems,
+                                    key = { item ->
+                                        when (item) {
+                                            is HomeListItem.Header -> "h:${item.label}"
+                                            is HomeListItem.SessionItem -> "s:${item.session.id}"
+                                        }
+                                    },
+                                ) { item ->
                                     when (item) {
-                                        is HomeListItem.Header -> "h:${item.label}"
-                                        is HomeListItem.SessionItem -> "s:${item.session.id}"
-                                    }
-                                },
-                            ) { item ->
-                                when (item) {
-                                    is HomeListItem.Header -> SectionHeader(item.label)
-                                    is HomeListItem.SessionItem -> {
-                                        val s = item.session
-                                        SessionRow(
-                                            s = s,
-                                            selecting = selecting,
-                                            checked = s.id in selectedIds,
-                                            onNormalClick = {
-                                                if (s.endedAt == null) resumeNavigate() else onOpenSession(s.id)
-                                            },
-                                            onEnterSelecting = { viewModel.toggleSelection(s.id) },
-                                            onToggleSelection = { viewModel.toggleSelection(s.id) },
-                                            onStopInProgress = { viewModel.stopService() },
-                                        )
+                                        is HomeListItem.Header -> SectionHeader(item.label)
+                                        is HomeListItem.SessionItem -> {
+                                            val s = item.session
+                                            SessionRow(
+                                                s = s,
+                                                selecting = selecting,
+                                                checked = s.id in selectedIds,
+                                                onNormalClick = {
+                                                    if (s.endedAt == null) resumeNavigate() else onOpenSession(s.id)
+                                                },
+                                                onEnterSelecting = { viewModel.toggleSelection(s.id) },
+                                                onToggleSelection = { viewModel.toggleSelection(s.id) },
+                                                onStopInProgress = { viewModel.stopService() },
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
+            }
+
+            // 多选悬浮操作栏：作为内容区 overlay 浮在列表之上（不占 bottomBar 槽位，避免预留空白挡内容）。
+            FlikkySelectingToolbarOverlay(
+                visible = selecting,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
+                SelectingFloatingToolbar(
+                    selectedCount = selectedCount,
+                    allPinned = allSelectedPinned,
+                    onPinToggle = { scope.launch { viewModel.pinSelected(!allSelectedPinned) } },
+                    onRename = { showRenameDialog = true },
+                    onMove = { showMoveSheet = true },
+                    onExport = {
+                        scope.launch {
+                            when (viewModel.startExport()) {
+                                HomeViewModel.ExportStartResult.Success -> onStartExport()
+                                HomeViewModel.ExportStartResult.TransferRunning ->
+                                    snackbarHostState.showSnackbar("请先停止当前服务")
+                                HomeViewModel.ExportStartResult.NoValidSessions ->
+                                    snackbarHostState.showSnackbar("所选会话无法导出（可能都在进行中）")
+                                HomeViewModel.ExportStartResult.EmptySelection ->
+                                    snackbarHostState.showSnackbar("请先勾选会话")
+                            }
+                        }
+                    },
+                    onDelete = { if (selectedCount > 0) showBatchDeleteDialog = true },
+                )
             }
         }
     }

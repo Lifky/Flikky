@@ -2,16 +2,12 @@ package com.example.flikky.ui.favorites
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -50,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.ui.components.ConfirmDialog
+import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.home.GroupChips
@@ -137,83 +134,76 @@ fun FavoritesScreen(
                 ) {}
             }
         },
-        bottomBar = {
-            AnimatedVisibility(
-                visible = selecting,
-                enter = slideInVertically { it },
-                exit = slideOutVertically { it },
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(bottom = Spacing.md),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    FavoritesSelectingToolbar(
-                        selectedCount = selectedIds.size,
-                        onMove = { showMoveSheet = true },
-                        onDelete = { if (selectedIds.isNotEmpty()) showDeleteConfirm = true },
-                    )
-                }
-            }
-        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize(),
-            contentAlignment = Alignment.TopCenter,
-        ) {
-            Column(Modifier.fillMaxSize().maxContentWidth()) {
-                // 搜索框已上移到 Scaffold topBar（与传输页同槽位、同组件）。
-                // 合集 chip 行：整库为空时不显示（与传输页一致——无内容不显示）；
-                // 选中某个合集或库里已有收藏时才显示。
-                if (!selecting && (activeGroupId != null || hasFavorites)) {
-                    GroupChips(
-                        groups = groups.toGroupEntities(),
-                        activeGroupId = activeGroupId,
-                        onSelect = { viewModel.setActiveGroup(it) },
-                        onAdd = { showCreateGroup = true },
-                        onManage = { group -> managingGroup = group.toFavoriteGroup(groups) },
-                    )
-                }
-                if (items.isEmpty()) {
-                    EmptyFavorites(
-                        text = when {
-                            query.isNotBlank() -> "没有匹配的收藏"
-                            activeGroupId != null -> "该合集还没有收藏"
-                            else -> "在消息或文件上点 ☆ 即可收藏到这里"
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(vertical = Spacing.sm),
-                        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
-                    ) {
-                        items(items, key = { it.id }) { favorite ->
-                            FavoriteRow(
-                                favorite = favorite,
-                                selecting = selecting,
-                                selected = favorite.id in selectedIds,
-                                onClick = {
-                                    if (selecting) {
-                                        viewModel.toggleSelection(favorite.id)
-                                    } else if (favorite.kind == "TEXT") {
-                                        clipboard.setText(AnnotatedString(favorite.textContent.orEmpty()))
-                                        Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        viewModel.openFavoriteFile(favorite)
-                                    }
-                                },
-                                onLongClick = { viewModel.toggleSelection(favorite.id) },
-                            )
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                Column(Modifier.fillMaxSize().maxContentWidth()) {
+                    // 搜索框已上移到 Scaffold topBar（与传输页同槽位、同组件）。
+                    // 合集 chip 行：整库为空时不显示（与传输页一致——无内容不显示）；
+                    // 选中某个合集或库里已有收藏时才显示。
+                    if (!selecting && (activeGroupId != null || hasFavorites)) {
+                        GroupChips(
+                            groups = groups.toGroupEntities(),
+                            activeGroupId = activeGroupId,
+                            onSelect = { viewModel.setActiveGroup(it) },
+                            onAdd = { showCreateGroup = true },
+                            onManage = { group -> managingGroup = group.toFavoriteGroup(groups) },
+                        )
+                    }
+                    if (items.isEmpty()) {
+                        EmptyFavorites(
+                            text = when {
+                                query.isNotBlank() -> "没有匹配的收藏"
+                                activeGroupId != null -> "该合集还没有收藏"
+                                else -> "在消息或文件上点 ☆ 即可收藏到这里"
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = Spacing.sm),
+                            verticalArrangement = Arrangement.spacedBy(Spacing.xs),
+                        ) {
+                            items(items, key = { it.id }) { favorite ->
+                                FavoriteRow(
+                                    favorite = favorite,
+                                    selecting = selecting,
+                                    selected = favorite.id in selectedIds,
+                                    onClick = {
+                                        if (selecting) {
+                                            viewModel.toggleSelection(favorite.id)
+                                        } else if (favorite.kind == "TEXT") {
+                                            clipboard.setText(AnnotatedString(favorite.textContent.orEmpty()))
+                                            Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            viewModel.openFavoriteFile(favorite)
+                                        }
+                                    },
+                                    onLongClick = { viewModel.toggleSelection(favorite.id) },
+                                )
+                            }
                         }
                     }
                 }
+            }
+
+            // 多选悬浮操作栏：作为内容区 overlay 浮在列表之上（不占 bottomBar 槽位，避免预留空白挡内容）。
+            FlikkySelectingToolbarOverlay(
+                visible = selecting,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
+                FavoritesSelectingToolbar(
+                    selectedCount = selectedIds.size,
+                    onMove = { showMoveSheet = true },
+                    onDelete = { if (selectedIds.isNotEmpty()) showDeleteConfirm = true },
+                )
             }
         }
     }
