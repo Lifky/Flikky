@@ -20,6 +20,7 @@
 - **v1.8.0** — *已发布（2026-06-24）* — **设计系统与布局打底**：T 恤尺码 Spacing/Sizes token（全 UI 字面量迁移）、完整 MD3 type scale + 语义 typography 扩展（CJK 段落折行）、内联 shape 换成 `MaterialTheme.shapes`、抽出公共组件（OptionCard / ConfirmDialog / RenameDialog）+ 底栏图标统一到单一 drawable 源、设置页重组为六大逻辑区 + Large 标题栏 + 每行 leading icon + M3 segmented 列表观感、搜索框展开动画顺滑且贴齐屏幕边缘、宽屏内容区 600dp 上限并将主页/设置/历史/服务/导出居中。*(与 v1.9.0 同批发布；此里程碑 tag 内部 versionName 仍是 1.7.0——版本号 bump 落在 v1.9.0 发布时。)*
 - **v1.9.0** — *已发布（2026-06-24）* — **会话分组系统**：主页新增文件夹式 filter chip（固定「全部」+ 自定义分组，单选），底层走 Room v4 migration（`session_groups` 表 + `sessions.groupId`）；当前分组态持久化于 DataStore，会话归入「启动那一刻所在的分组」。组内按 置顶 → 今天 → 昨天 → 更早 分桶。长按自定义 chip 弹统一管理框（改名 / 上下移排序 / 删除带撤销）；「全部」是虚拟、不可删、不可移的 chip。多选改为 MD3 floating toolbar（胶囊、纯图标：置顶 / 重命名 / **移动到分组** / 导出 / 删除）顶替整宽底栏；**移动到分组**弹底部 sheet（自定义分组 + 「全部」移出分组）。设置 polish：Radio 整行可点、气泡圆角 Slider 独占整宽一行、去掉「主题 / 深色模式」与 leading icon 重复的右侧图标。整体取代 v1.8.0 的排序/分组 chip。应用 `versionName` / `versionCode` → 1.9.0 / 10900。
 - **v1.9.1** — *已发布（2026-06-24）* — 设置对话框与列表 polish：单选对话框（深色模式 / 消息操作样式 / 头像显示 / 历史保存数量）重做为共用的 `ChoiceDialog`，选项行整宽、≥56dp 高、铺到对话框内边、整行一个统一 ripple（Radio 仅作视觉指示）——取代原先「行矮、内缩、只有圆点可点」的样式；并给设置项标题/副标题与右侧 `Switch` 之间加固定间隔，长文案不再顶到开关上。应用 `versionName` / `versionCode` → 1.9.1 / 10901。
+- **v1.10.0** — *已发布（2026-06-26）* — **收藏 / 弹药库**：底部导航新增**收藏** tab（传输 / 收藏 / 设置），底层走 Room v5 migration。给 TEXT 或已完成 FILE 气泡（进行中会话或 history 皆可）点收藏会留一份**独立快照副本**——不与源消息建外键，因此源消息被删、整个源会话被删、乃至 FIFO 淘汰后收藏副本仍在；文件复制进收藏专属目录、经 FileProvider 打开。星标可逆（实心 / 空心回显经 `(sourceSessionId, sourceMessageId)` 在 live + history 两端同步）；点收藏时弹底部 sheet 选合集（全部 + 已有 + 内联新建）。收藏拥有独立合集（chip 行、长按管理框、隔离的搜索 + 多选），与会话分组**完全独立**——删合集只把其下收藏 re-home 到「全部」，不级联删除。本版还把首页 / 收藏 / 消息三处 floating toolbar 统一到共用的 `FlikkyFloatingToolbar` 胶囊规格，并在启动时用持久化最大 id 给消息 id 计数器播种，重启后 id 不再相撞。应用 `versionName` / `versionCode` → 1.10.0 / 11000。
 
 设计文档与复盘/验收清单保存在本地的 `docs/others/`（已 gitignored），公开仓库仅含源码。
 
@@ -107,6 +108,12 @@
 - [x] `SettingItem` 新增可选整宽 content 槽；气泡圆角 Slider 移过去铺满整行（取代局促的 160dp）；去掉「主题 / 深色模式」与 leading icon 重复的右侧图标 *(v1.9.0)*
 - [x] material3 1.4.0 stable 把 `HorizontalFloatingToolbar` 关在 internal 的 `ExperimentalMaterial3ExpressiveApi` 后，floating toolbar 改用稳定组件按同一 MD3 规格手搓（胶囊 `Surface` + `IconButton`） *(v1.9.0)*
 - [x] 应用 `versionName` / `versionCode` 1.9.0 / 10900 *(v1.9.0)*
+- [x] 收藏 / 弹药库：底部导航新增「收藏」tab，底层走 Room v5 migration；给 TEXT 或已完成 FILE 气泡点收藏会留一份**独立快照副本**（不与源建外键、文件复制进收藏专属目录、经 FileProvider 打开），源消息 / 源会话被删及 FIFO 淘汰后副本仍在 *(v1.10.0)*
+- [x] 星标可逆，经 `(sourceSessionId, sourceMessageId)` 在进行中会话 + history 两端同步；点收藏弹底部 sheet 选合集（全部 + 已有 + 内联新建） *(v1.10.0)*
+- [x] 收藏合集（chip 行、长按管理框、隔离的搜索 + 多选）与会话分组完全独立；删合集只把其下收藏 re-home 到「全部」，不级联删除 *(v1.10.0)*
+- [x] 共用 `FlikkyFloatingToolbar` 胶囊把首页 / 收藏 / 消息三处 floating toolbar 统一到同一 MD3 规格 *(v1.10.0)*
+- [x] 启动时用持久化最大 id 给消息 id 计数器播种，重启后 id 不再相撞 *(v1.10.0)*
+- [x] 应用 `versionName` / `versionCode` 1.10.0 / 11000 *(v1.10.0)*
 
 ### fix
 
