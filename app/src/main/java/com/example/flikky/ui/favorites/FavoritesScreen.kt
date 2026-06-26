@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -21,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SnackbarHost
@@ -85,6 +88,10 @@ fun FavoritesScreen(
     BackHandler(enabled = selecting) { viewModel.exitSelecting() }
 
     Scaffold(
+        // 同 HomeScreen：底部 inset 由 MainActivity 外层统一管，内层 Scaffold 不再消费底部
+        // window inset，避免删 bottomBar 后与外层叠成双重 inset（NavBar 上方多一截空白条）。
+        contentWindowInsets = ScaffoldDefaults.contentWindowInsets
+            .only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
         topBar = {
             if (selecting) {
                 TopAppBar(

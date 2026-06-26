@@ -17,9 +17,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,6 +42,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -184,6 +187,11 @@ fun HomeScreen(
     LaunchedEffect(selecting) { onSelectingChange(selecting) }
 
     Scaffold(
+        // 底部导航由 MainActivity 外层 Box(padding(bottom = NavBar inset)) 统一管，这里的内层
+        // Scaffold 不能再消费底部 window inset——否则删掉 bottomBar 后 body 会自补一份系统手势条
+        // inset，与外层叠成双重 inset，在 NavBar 上方多出一截空白条。只保留 top + horizontal。
+        contentWindowInsets = ScaffoldDefaults.contentWindowInsets
+            .only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
         topBar = {
             if (selecting) {
                 SelectingTopBar(
