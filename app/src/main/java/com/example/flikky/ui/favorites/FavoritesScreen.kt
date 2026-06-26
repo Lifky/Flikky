@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -21,8 +24,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -42,9 +46,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.ui.components.ConfirmDialog
+import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.home.GroupChips
 import com.example.flikky.ui.home.GroupManageDialog
@@ -62,6 +68,7 @@ fun FavoritesScreen(
     val items by viewModel.items.collectAsState(initial = emptyList())
     val groups by viewModel.groups.collectAsState(initial = emptyList())
     val activeGroupId by viewModel.activeGroupId.collectAsState(initial = null)
+    val hasFavorites by viewModel.hasFavorites.collectAsState(initial = false)
     val selection by viewModel.selection.collectAsState()
     val selecting by viewModel.selecting.collectAsState()
     val query by viewModel.searchQuery.collectAsState()
@@ -98,7 +105,36 @@ fun FavoritesScreen(
                     },
                 )
             } else {
-                TopAppBar(title = { Text("收藏") })
+                // 与传输页视觉完全一致：同一个 M3 SearchBar 组件、同样放在 topBar 槽位、
+                // 同样的 16dp 侧边距与限宽居中。仅逻辑不同（这里就地过滤收藏，不展开全屏）。
+                SearchBar(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentWidth(Alignment.CenterHorizontally)
+                        .widthIn(max = MAX_CONTENT_WIDTH_DP.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.screenEdge),
+                    expanded = false,
+                    onExpandedChange = {},
+                    inputField = {
+                        SearchBarDefaults.InputField(
+                            query = query,
+                            onQueryChange = viewModel::setQuery,
+                            onSearch = {},
+                            expanded = false,
+                            onExpandedChange = {},
+                            placeholder = { Text("搜索收藏") },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "搜索") },
+                            trailingIcon = {
+                                if (query.isNotBlank()) {
+                                    IconButton(onClick = viewModel::clearQuery) {
+                                        Icon(Icons.Default.Close, contentDescription = "清空搜索")
+                                    }
+                                }
+                            },
+                        )
+                    },
+                ) {}
             }
         },
         bottomBar = {
@@ -131,24 +167,10 @@ fun FavoritesScreen(
             contentAlignment = Alignment.TopCenter,
         ) {
             Column(Modifier.fillMaxSize().maxContentWidth()) {
-                if (!selecting) {
-                    OutlinedTextField(
-                        value = query,
-                        onValueChange = viewModel::setQuery,
-                        singleLine = true,
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        trailingIcon = {
-                            if (query.isNotBlank()) {
-                                IconButton(onClick = viewModel::clearQuery) {
-                                    Icon(Icons.Default.Close, contentDescription = "清空搜索")
-                                }
-                            }
-                        },
-                        label = { Text("搜索收藏") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
-                    )
+                // 搜索框已上移到 Scaffold topBar（与传输页同槽位、同组件）。
+                // 合集 chip 行：整库为空时不显示（与传输页一致——无内容不显示）；
+                // 选中某个合集或库里已有收藏时才显示。
+                if (!selecting && (activeGroupId != null || hasFavorites)) {
                     GroupChips(
                         groups = groups.toGroupEntities(),
                         activeGroupId = activeGroupId,
@@ -159,13 +181,18 @@ fun FavoritesScreen(
                 }
                 if (items.isEmpty()) {
                     EmptyFavorites(
-                        text = if (query.isBlank() && activeGroupId == null) "弹药库还没有内容" else "没有匹配的收藏",
+                        text = when {
+                            query.isNotBlank() -> "没有匹配的收藏"
+                            activeGroupId != null -> "该合集还没有收藏"
+                            else -> "在消息或文件上点 ☆ 即可收藏到这里"
+                        },
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(vertical = Spacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                     ) {
                         items(items, key = { it.id }) { favorite ->
                             FavoriteRow(
@@ -280,7 +307,7 @@ fun FavoritesScreen(
 private fun EmptyFavorites(text: String, modifier: Modifier = Modifier) {
     Box(modifier = modifier.padding(Spacing.screenEdge), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("弹药库", style = MaterialTheme.typography.headlineMedium)
+            Text("收藏", style = MaterialTheme.typography.headlineMedium)
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyMedium,

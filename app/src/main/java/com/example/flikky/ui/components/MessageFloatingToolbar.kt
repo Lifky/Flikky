@@ -1,48 +1,32 @@
 package com.example.flikky.ui.components
 
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import com.example.flikky.ui.theme.Spacing
 
 /**
- * 悬浮消息操作工具栏：一行 icon button，对选中消息的可用操作。复用 MessageAction。
+ * 悬浮消息操作工具栏：一行 icon button，对选中消息的可用操作。复用 [MessageAction]。
  *
- * 实现选型：material3 的 HorizontalFloatingToolbar（Expressive）此版本仍是实验 API，
- * 其签名以 expanded/floatingActionButton 为中心，套一排纯 IconButton 并不顺手；
- * 改用 Surface 版本，视觉等价（28dp 圆角 + surfaceContainerHigh），且无实验 API 风险。
- *
- * 去阴影（shadowElevation = 0）：scale-in 动画期间阴影会随缩放抖动，观感廉价；
- * 改用 surfaceContainerHigh 的色阶差自然「浮」于会话之上，无投影 jank。
+ * 容器统一走 [FlikkyFloatingToolbar]（MD3 floating toolbar 规格：surfaceContainer +
+ * 50% 圆角 + 抬升），与主页/收藏页的多选浮动栏样式完全一致——此前这里单独用
+ * surfaceContainerHigh + extraLarge 圆角导致 history/serving 的工具栏与主页不一样。
  */
 @Composable
 fun MessageFloatingToolbar(
     actions: List<MessageAction>,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
-    ) {
-        Row(modifier = Modifier.padding(horizontal = Spacing.xs)) {
-            actions.forEach { a ->
-                IconButton(onClick = a.onClick) {
-                    Icon(
-                        painter = a.icon,
-                        contentDescription = a.label,
-                        tint = if (a.danger) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+    FlikkyFloatingToolbar(modifier = modifier) {
+        actions.forEach { a ->
+            IconButton(onClick = a.onClick) {
+                Icon(
+                    painter = a.icon,
+                    contentDescription = a.label,
+                    tint = if (a.danger) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

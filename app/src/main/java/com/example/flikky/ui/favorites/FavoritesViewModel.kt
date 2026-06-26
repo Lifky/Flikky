@@ -33,6 +33,9 @@ class FavoritesViewModel @JvmOverloads constructor(
     val groups: Flow<List<FavoriteGroupEntity>> = repository.observeGroups()
     val activeGroupId: Flow<Long?> = settingsRepository.settings.map { it.activeFavoriteGroupId }
 
+    /** 弹药库是否有任何收藏（不分组、不过滤）。用于决定是否显示合集 chip 行——与主页一致：整库为空时不显示。 */
+    val hasFavorites: Flow<Boolean> = repository.observeFavorites().map { it.isNotEmpty() }
+
     private val query = MutableStateFlow("")
     val searchQuery: StateFlow<String> = query.asStateFlow()
 

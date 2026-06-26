@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -48,7 +47,6 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -81,6 +79,7 @@ import com.example.flikky.R
 import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.ui.components.ConfirmDialog
+import com.example.flikky.ui.components.FlikkyFloatingToolbar
 import com.example.flikky.ui.components.RenameDialog
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.theme.Spacing
@@ -513,39 +512,30 @@ private fun SelectingFloatingToolbar(
     onDelete: () -> Unit,
 ) {
     val enabled = selectedCount > 0
-    Surface(
-        shape = RoundedCornerShape(percent = 50),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        shadowElevation = 3.dp,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = Spacing.xs),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onPinToggle, enabled = enabled) {
-                Icon(
-                    painterResource(R.drawable.ic_push_pin),
-                    contentDescription = if (allPinned) "取消置顶" else "置顶",
-                )
+    FlikkyFloatingToolbar {
+        IconButton(onClick = onPinToggle, enabled = enabled) {
+            Icon(
+                painterResource(R.drawable.ic_push_pin),
+                contentDescription = if (allPinned) "取消置顶" else "置顶",
+            )
+        }
+        if (selectedCount == 1) {
+            IconButton(onClick = onRename) {
+                Icon(painterResource(R.drawable.ic_edit), contentDescription = "重命名")
             }
-            if (selectedCount == 1) {
-                IconButton(onClick = onRename) {
-                    Icon(painterResource(R.drawable.ic_edit), contentDescription = "重命名")
-                }
-            }
-            IconButton(onClick = onMove, enabled = enabled) {
-                Icon(painterResource(R.drawable.ic_drive_file_move), contentDescription = "移动到分组")
-            }
-            IconButton(onClick = onExport, enabled = enabled) {
-                Icon(painterResource(R.drawable.ic_upload), contentDescription = "导出")
-            }
-            IconButton(onClick = onDelete, enabled = enabled) {
-                Icon(
-                    painterResource(R.drawable.ic_delete),
-                    contentDescription = "删除",
-                    tint = if (enabled) MaterialTheme.colorScheme.error else LocalContentColor.current,
-                )
-            }
+        }
+        IconButton(onClick = onMove, enabled = enabled) {
+            Icon(painterResource(R.drawable.ic_drive_file_move), contentDescription = "移动到分组")
+        }
+        IconButton(onClick = onExport, enabled = enabled) {
+            Icon(painterResource(R.drawable.ic_upload), contentDescription = "导出")
+        }
+        IconButton(onClick = onDelete, enabled = enabled) {
+            Icon(
+                painterResource(R.drawable.ic_delete),
+                contentDescription = "删除",
+                tint = if (enabled) MaterialTheme.colorScheme.error else LocalContentColor.current,
+            )
         }
     }
 }
@@ -648,6 +638,9 @@ private fun SessionRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.screenEdge)
+            // 先 clip 圆角再挂 clickable：否则 ripple 的 indication 画在未裁剪层上，
+            // 按压波纹会漫出卡片圆角（v1.0 起的老 bug）。
+            .clip(CardDefaults.shape)
             .then(cardModifier)
             .then(if (dimmed) Modifier.alpha(0.5f) else Modifier)
             .then(

@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,6 +53,8 @@ fun FavoriteRow(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.screenEdge)
+            // 先 clip 圆角再挂 clickable，按压 ripple 不漫出卡片圆角（与 SessionRow 一致）。
+            .clip(CardDefaults.shape)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         colors = CardDefaults.cardColors(containerColor = containerColor),
     ) {
