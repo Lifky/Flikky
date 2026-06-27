@@ -2,14 +2,18 @@ package com.example.flikky.ui.theme
 
 import android.app.Activity
 import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import com.example.flikky.data.settings.DarkMode
@@ -18,6 +22,7 @@ import com.example.flikky.data.settings.ThemeMode
 
 val LocalFlikkySettings = compositionLocalOf { FlikkySettings() }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FlikkyTheme(settings: FlikkySettings, content: @Composable () -> Unit) {
     val systemDark = isSystemInDarkTheme()
@@ -49,9 +54,21 @@ fun FlikkyTheme(settings: FlikkySettings, content: @Composable () -> Unit) {
         }
     }
 
-    CompositionLocalProvider(LocalFlikkySettings provides settings) {
-        MaterialTheme(
+    // 全局动画速度倍率 = 用户设置（阶段 2.1 接入，暂默认 1.0）× 系统 animatorDurationScale。
+    // 系统把动画关掉时 animatorDurationScale==0 → 倍率 0 → Motion 退化 snap，自动尊重 reduce-motion。
+    val context = LocalContext.current
+    val systemAnimScale = remember(context) {
+        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+    }
+    val motionScale = systemAnimScale.coerceIn(0f, 5f)
+
+    CompositionLocalProvider(
+        LocalFlikkySettings provides settings,
+        LocalMotionScale provides motionScale,
+    ) {
+        MaterialExpressiveTheme(
             colorScheme = scheme,
+            motionScheme = MotionScheme.expressive(),
             typography = Typography,
             shapes = FlikkyShapes,
             content = content,
