@@ -22,6 +22,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.io.InputStream
 import java.util.UUID
 
 /**
@@ -62,7 +63,6 @@ class TransferController(
     }
 
     suspend fun offerFile(uri: Uri, resolver: ContentResolver) {
-        val sid = session.snapshot.value.currentSessionId ?: return
         var name = "unnamed"; var size = -1L
         resolver.query(uri, null, null, null, null)?.use { c ->
             if (c.moveToFirst()) {
@@ -73,6 +73,31 @@ class TransferController(
             }
         }
         val mime = resolver.getType(uri) ?: "application/octet-stream"
+        offerFilePayload(
+            name = name,
+            size = size,
+            mime = mime,
+            input = { resolver.openInputStream(uri) ?: error("cannot open uri") },
+        )
+    }
+
+    suspend fun offerStoredFile(source: File, name: String, size: Long, mime: String): Boolean {
+        if (!source.exists() || !source.isFile) return false
+        return offerFilePayload(
+            name = name.ifBlank { source.name.ifBlank { "unnamed" } },
+            size = if (size > 0) size else source.length(),
+            mime = mime.ifBlank { "application/octet-stream" },
+            input = { source.inputStream() },
+        )
+    }
+
+    private suspend fun offerFilePayload(
+        name: String,
+        size: Long,
+        mime: String,
+        input: () -> InputStream,
+    ): Boolean {
+        val sid = session.snapshot.value.currentSessionId ?: return false
         val fileId = UUID.randomUUID().toString()
         val knownSize = if (size > 0) size else 0L
 
@@ -99,13 +124,12 @@ class TransferController(
 
         scope.launch(Dispatchers.IO) {
             try {
-                val input = resolver.openInputStream(uri) ?: error("cannot open uri")
                 val target = File(fileStore.fileDir(sid), fileId)
                 var totalCopied = 0L
                 val totalSize = knownSize
                 var lastReportedPct = -1
 
-                input.use { ins ->
+                input().use { ins ->
                     target.outputStream().use { out ->
                         val buf = ByteArray(64 * 1024)
                         while (true) {
@@ -154,6 +178,7 @@ class TransferController(
                 }
             }
         }
+        return true
     }
 
     /**

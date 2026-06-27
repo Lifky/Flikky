@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
@@ -126,6 +127,25 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     fun offerFile(uri: Uri) {
         val resolver = getApplication<Application>().contentResolver
         viewModelScope.launch { controller?.offerFile(uri, resolver) }
+    }
+
+    fun sendFavorite(favorite: FavoriteEntity) {
+        when (favorite.kind) {
+            "TEXT" -> sendText(favorite.textContent.orEmpty())
+            "FILE" -> sendFavoriteFile(favorite)
+        }
+    }
+
+    private fun sendFavoriteFile(favorite: FavoriteEntity) {
+        val depotId = favorite.fileId ?: return
+        val source = ServiceLocator.favoriteFileStore.resolve(depotId)
+        val name = favorite.fileName ?: "unnamed"
+        val size = favorite.fileSize ?: source.length()
+        val mime = favorite.fileMime ?: "application/octet-stream"
+        viewModelScope.launch {
+            val sent = controller?.offerStoredFile(source, name, size, mime) == true
+            if (!sent) _events.trySend("收藏文件不存在")
+        }
     }
 
     /**

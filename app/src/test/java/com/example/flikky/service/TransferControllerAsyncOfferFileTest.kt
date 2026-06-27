@@ -162,4 +162,30 @@ class TransferControllerAsyncOfferFileTest {
         coVerify(timeout = 2_000) { repository.deleteMessageAndFile(created.id, sid, any()) }
         assertTrue(session.fileTransferProgress.value[created.id] == null)
     }
+
+    @Test fun offerStoredFile_uses_existing_file_as_phone_file_message() = runBlocking {
+        val source = tmp.newFile("favorite.txt").apply { writeText("stored favorite") }
+
+        val accepted = controller().offerStoredFile(
+            source = source,
+            name = "favorite.txt",
+            size = source.length(),
+            mime = "text/plain",
+        )
+
+        assertTrue(accepted)
+        val created = session.snapshot.value.messages
+            .filterIsInstance<Message.File>().single()
+        assertEquals(Message.File.Status.IN_PROGRESS, created.status)
+        assertEquals("favorite.txt", created.name)
+        coVerify(timeout = 2_000) { hub.broadcast("file_added", any()) }
+
+        awaitFileStatus(created.id, Message.File.Status.COMPLETED)
+        val done = session.snapshot.value.messages
+            .filterIsInstance<Message.File>().single()
+        val onDisk = File(fileStore.fileDir(sid), done.fileId)
+        assertTrue(onDisk.exists())
+        assertEquals(source.readText(), onDisk.readText())
+        coVerify(timeout = 2_000) { hub.broadcast("file_ready", any()) }
+    }
 }

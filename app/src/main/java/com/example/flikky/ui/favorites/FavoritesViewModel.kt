@@ -13,6 +13,7 @@ import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.data.settings.SettingsRepository
 import com.example.flikky.di.ServiceLocator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class FavoritesViewModel @JvmOverloads constructor(
     app: Application,
@@ -134,6 +136,31 @@ class FavoritesViewModel @JvmOverloads constructor(
 
     fun deleteFavorite(id: Long): Job =
         viewModelScope.launch { repository.deleteFavorite(id) }
+
+    suspend fun sendFavorite(favorite: FavoriteEntity): Boolean {
+        val controller = ServiceLocator.currentController ?: return false
+        return when (favorite.kind) {
+            "TEXT" -> {
+                val text = favorite.textContent.orEmpty()
+                if (text.isBlank()) return false
+                controller.sendText(text)
+                true
+            }
+            "FILE" -> {
+                val depotId = favorite.fileId ?: return false
+                val file = favoriteFileStore().resolve(depotId)
+                withContext(Dispatchers.IO) {
+                    controller.offerStoredFile(
+                        source = file,
+                        name = favorite.fileName ?: "unnamed",
+                        size = favorite.fileSize ?: file.length(),
+                        mime = favorite.fileMime ?: "application/octet-stream",
+                    )
+                }
+            }
+            else -> false
+        }
+    }
 
     fun openFavoriteFile(favorite: FavoriteEntity) {
         val depotId = favorite.fileId ?: return

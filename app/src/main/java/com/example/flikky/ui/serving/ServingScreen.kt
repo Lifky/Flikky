@@ -89,6 +89,7 @@ fun ServingScreen(
     var actionTarget by remember { mutableStateOf<Long?>(null) }
     var pendingFavoriteMsg by remember { mutableStateOf<Message?>(null) }
     var showAttachSheet by remember { mutableStateOf(false) }
+    var showFavoriteQuickSheet by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val pickFile = rememberLauncherForActivityResult(
@@ -109,6 +110,11 @@ fun ServingScreen(
     val currentSessionId = ServiceLocator.session.snapshot.collectAsState().value.currentSessionId
     val favoriteGroups by if (settings.favoriteBetaEnabled) {
         ServiceLocator.favoritesRepository.observeGroups().collectAsState(initial = emptyList())
+    } else {
+        remember { mutableStateOf(emptyList()) }
+    }
+    val favorites by if (settings.favoriteBetaEnabled) {
+        ServiceLocator.favoritesRepository.observeFavorites().collectAsState(initial = emptyList())
     } else {
         remember { mutableStateOf(emptyList()) }
     }
@@ -391,6 +397,19 @@ fun ServingScreen(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "添加")
                 }
+                if (settings.favoriteBetaEnabled) {
+                    IconButton(
+                        onClick = { showFavoriteQuickSheet = true },
+                        enabled = ui.clientConnected,
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                if (showFavoriteQuickSheet) R.drawable.ic_star else R.drawable.ic_star_border
+                            ),
+                            contentDescription = "收藏",
+                        )
+                    }
+                }
                 // 圆形填充发送按钮（上箭头），与左侧 add 的线性按钮区分度更高。
                 FilledIconButton(
                     onClick = { viewModel.sendText(draft); draft = "" },
@@ -436,6 +455,18 @@ fun ServingScreen(
             onPickFile = { showAttachSheet = false; pickFile.launch("*/*") },
             onPickImage = { showAttachSheet = false; pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onDismiss = { showAttachSheet = false },
+        )
+    }
+
+    if (settings.favoriteBetaEnabled && showFavoriteQuickSheet) {
+        FavoriteQuickSheet(
+            favorites = favorites,
+            groups = favoriteGroups,
+            onSend = { favorite ->
+                viewModel.sendFavorite(favorite)
+                scope.launch { snackbarHostState.showSnackbar("已发送收藏") }
+            },
+            onDismiss = { showFavoriteQuickSheet = false },
         )
     }
 

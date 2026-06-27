@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,8 +36,10 @@ fun FavoriteRow(
     favorite: FavoriteEntity,
     selecting: Boolean,
     selected: Boolean,
+    sending: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onSend: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val containerColor = when {
@@ -95,6 +98,20 @@ fun FavoriteRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            }
+            IconButton(
+                onClick = onSend,
+                enabled = !selecting,
+            ) {
+                Icon(
+                    painter = painterResource(if (sending) R.drawable.ic_send else R.drawable.ic_send_outline),
+                    contentDescription = "发送收藏",
+                    tint = if (selecting) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                )
             }
         }
     }
