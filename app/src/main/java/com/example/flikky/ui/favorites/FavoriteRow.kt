@@ -37,6 +37,7 @@ fun FavoriteRow(
     selecting: Boolean,
     selected: Boolean,
     sending: Boolean,
+    sendEnabled: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onSend: () -> Unit,
@@ -101,12 +102,12 @@ fun FavoriteRow(
             }
             IconButton(
                 onClick = onSend,
-                enabled = !selecting,
+                enabled = !selecting && sendEnabled,
             ) {
                 Icon(
                     painter = painterResource(if (sending) R.drawable.ic_send else R.drawable.ic_send_outline),
                     contentDescription = "发送收藏",
-                    tint = if (selecting) {
+                    tint = if (selecting || !sendEnabled) {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     } else {
                         MaterialTheme.colorScheme.primary
@@ -121,7 +122,7 @@ private fun FavoriteEntity.primaryText(): String =
     if (kind == "FILE") fileName ?: "未命名文件" else textContent?.ifBlank { null } ?: "空文本"
 
 private fun FavoriteEntity.subtitle(): String =
-    listOfNotNull(sourceSessionName, formatTime(createdAt)).joinToString(" · ").ifBlank { formatTime(createdAt) }
+    formatTime(createdAt)
 
 private val dateFormatter = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
 private fun formatTime(ms: Long): String = dateFormatter.format(Date(ms))

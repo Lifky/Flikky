@@ -310,13 +310,16 @@ private fun FavoriteQuickRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                text = favorite.secondaryLabel(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            val secondary = favorite.secondaryLabel()
+            if (secondary.isNotBlank()) {
+                Text(
+                    text = secondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         IconButton(onClick = onSend) {
             Icon(
@@ -339,8 +342,8 @@ private fun FavoriteEntity.compactLabel(): String {
 private fun FavoriteEntity.secondaryLabel(): String =
     when (kind) {
         "FILE" -> listOfNotNull(fileMime, fileSize?.let(::formatBytes)).joinToString(" · ")
-        else -> sourceSessionName.orEmpty()
-    }.ifBlank { "收藏项" }
+        else -> ""
+    }
 
 private fun searchFavorites(all: List<FavoriteEntity>, query: String): List<FavoriteEntity> {
     val trimmed = query.trim()

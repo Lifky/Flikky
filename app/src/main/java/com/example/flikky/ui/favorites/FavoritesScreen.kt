@@ -48,6 +48,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
+import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
@@ -73,7 +74,9 @@ fun FavoritesScreen(
     val selection by viewModel.selection.collectAsState()
     val selecting by viewModel.selecting.collectAsState()
     val query by viewModel.searchQuery.collectAsState()
+    val sessionSnap by ServiceLocator.session.snapshot.collectAsState()
     val selectedIds = selection ?: emptySet()
+    val canSendFavorites = sessionSnap.currentSessionId != null
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
@@ -192,6 +195,7 @@ fun FavoritesScreen(
                                     selecting = selecting,
                                     selected = favorite.id in selectedIds,
                                     sending = sendingFavoriteId == favorite.id,
+                                    sendEnabled = canSendFavorites,
                                     onClick = {
                                         if (selecting) {
                                             viewModel.toggleSelection(favorite.id)
