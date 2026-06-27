@@ -69,6 +69,7 @@ import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
 import com.example.flikky.ui.components.NetworkStatusBanner
+import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.theme.Spacing
@@ -321,7 +322,7 @@ fun ServingScreen(
                             val floating = settings.messageActionStyle ==
                                 com.example.flikky.data.settings.MessageActionStyle.FLOATING
 
-                            Column {
+                            Column(modifier = flikkyItemAnimation()) {
                                 MessageBubble(
                                     msg = msg,
                                     onTap = {

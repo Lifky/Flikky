@@ -82,6 +82,7 @@ import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.FlikkyFloatingToolbar
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.RenameDialog
+import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.launch
@@ -298,7 +299,8 @@ fun HomeScreen(
                                     },
                                 ) { item ->
                                     when (item) {
-                                        is HomeListItem.Header -> SectionHeader(item.label)
+                                        is HomeListItem.Header ->
+                                            SectionHeader(item.label, modifier = flikkyItemAnimation())
                                         is HomeListItem.SessionItem -> {
                                             val s = item.session
                                             SessionRow(
@@ -311,6 +313,7 @@ fun HomeScreen(
                                                 onEnterSelecting = { viewModel.toggleSelection(s.id) },
                                                 onToggleSelection = { viewModel.toggleSelection(s.id) },
                                                 onStopInProgress = { viewModel.stopService() },
+                                                modifier = flikkyItemAnimation(),
                                             )
                                         }
                                     }
@@ -463,12 +466,12 @@ fun HomeScreen(
 }
 
 @Composable
-private fun SectionHeader(label: String) {
+private fun SectionHeader(label: String, modifier: Modifier = Modifier) {
     Text(
         text = label,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier
+        modifier = modifier
             .padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm)
             .semantics { heading() },
     )
@@ -601,6 +604,7 @@ private fun SessionRow(
     onEnterSelecting: () -> Unit,
     onToggleSelection: () -> Unit,
     onStopInProgress: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val inProgress = s.endedAt == null
     val dimmed = selecting && inProgress
@@ -634,7 +638,7 @@ private fun SessionRow(
     }
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = Spacing.screenEdge)
             // 先 clip 圆角再挂 clickable：否则 ripple 的 indication 画在未裁剪层上，

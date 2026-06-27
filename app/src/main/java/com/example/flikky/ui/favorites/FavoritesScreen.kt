@@ -52,6 +52,7 @@ import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
+import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.home.GroupChips
 import com.example.flikky.ui.home.GroupManageDialog
@@ -187,6 +188,7 @@ fun FavoritesScreen(
                                     selecting = selecting,
                                     selected = favorite.id in selectedIds,
                                     sendEnabled = canSendFavorites,
+                                    modifier = flikkyItemAnimation(),
                                     onClick = {
                                         if (selecting) {
                                             viewModel.toggleSelection(favorite.id)

@@ -64,6 +64,7 @@ import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
+import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.theme.Spacing
@@ -267,7 +268,7 @@ fun HistoryScreen(
                     com.example.flikky.data.settings.MessageActionStyle.FLOATING
 
                 Box(
-                    modifier = Modifier
+                    modifier = flikkyItemAnimation()
                         .fillMaxWidth()
                         .background(highlightColor),
                 ) {
