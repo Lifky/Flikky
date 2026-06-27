@@ -28,6 +28,7 @@ import androidx.navigation.navArgument
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.FlikkyNavBar
+import com.example.flikky.ui.components.flikkyNavTransitions
 import com.example.flikky.ui.exporting.ExportingScreen
 import com.example.flikky.ui.favorites.FavoritesScreen
 import com.example.flikky.ui.history.HistoryScreen
@@ -97,9 +98,14 @@ class MainActivity : ComponentActivity() {
                         // - 主页：交给 SearchBar 自己处理顶部 inset（折叠时落在状态栏下、展开时铺到状态栏下方）；
                         //   只补底部 inset；搜索展开时连底部也不留 → 真全屏铺满。
                         // - 其余页面：拿到与之前完全一致的 innerPadding（零回归）。
+                        val navTransitions = flikkyNavTransitions()
                         NavHost(
                             navController = nav,
                             startDestination = "transfer",
+                            enterTransition = navTransitions.enter,
+                            exitTransition = navTransitions.exit,
+                            popEnterTransition = navTransitions.popEnter,
+                            popExitTransition = navTransitions.popExit,
                         ) {
                             composable("transfer") {
                                 val homePadding = if (homeSearchExpanded) PaddingValues(0.dp)
