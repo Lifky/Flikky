@@ -28,4 +28,20 @@ class NavRouteTest {
     fun `null route is not top level`() {
         assertFalse(isTopLevelRoute(null))
     }
+
+    @Test
+    fun `history is the hero container-transform route`() {
+        assertTrue(isHeroRoute("history/{id}?highlight={messageId}"))
+        assertTrue(isHeroRoute("history/5"))
+    }
+
+    @Test
+    fun `non-history destinations are not hero routes`() {
+        assertFalse(isHeroRoute("transfer"))
+        assertFalse(isHeroRoute("favorites"))
+        assertFalse(isHeroRoute("settings"))
+        assertFalse(isHeroRoute("serving"))
+        assertFalse(isHeroRoute("exporting"))
+        assertFalse(isHeroRoute(null))
+    }
 }

@@ -64,6 +64,7 @@ import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
+import com.example.flikky.ui.components.flikkyContainerTransform
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
@@ -202,6 +203,7 @@ fun HistoryScreen(
     }
 
     Scaffold(
+        modifier = Modifier.flikkyContainerTransform("session-$sessionId"),
         snackbarHost = { SnackbarHost(snackbarHostState) { Snackbar(it) } },
         topBar = {
             TopAppBar(

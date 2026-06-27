@@ -21,6 +21,13 @@ internal val TOP_LEVEL_ROUTES = setOf("transfer", "favorites", "settings")
 /** 纯逻辑：判断一个 route 是否为底栏同级目的地。单测见 `NavRouteTest`。 */
 internal fun isTopLevelRoute(route: String?): Boolean = route in TOP_LEVEL_ROUTES
 
+/**
+ * hero 容器转场路径（会话卡 → History 详情）。History 参与的转场退化为纯淡入淡出，让 sharedBounds
+ * 的目标 bounds 静止、容器 morph 读得清（滑动会让目标 bounds 移动，morph 抖动）。serving/exporting
+ * 等其余父子详情仍走 shared-axis。单测见 `NavRouteTest`。
+ */
+internal fun isHeroRoute(route: String?): Boolean = route?.startsWith("history") == true
+
 /** NavHost 的四个转场 lambda（enter/exit/popEnter/popExit），按 route 关系选 fade-through 或 shared-axis。 */
 class FlikkyNavTransitions(
     val enter: AnimatedContentTransitionScope<NavBackStackEntry>.() -> EnterTransition,
@@ -34,6 +41,7 @@ class FlikkyNavTransitions(
  * 非 @Composable，故先取后闭包捕获），自动叠加全局动画速度档（速度=0 时退化为瞬切）。
  *
  * - **同级**（底栏三页互切）：fade-through —— 出场淡出、进场淡入 + 轻微 0.92→1 放大。
+ * - **hero**（会话卡 ↔ History 详情）：纯淡入淡出 —— 让 container transform 的 sharedBounds 独唱。
  * - **父子**（进/出详情页）：shared-axis X —— 前进时新页自右滑入旧页向左滑出，后退方向相反，均带淡入淡出。
  */
 @Composable
@@ -49,22 +57,37 @@ fun flikkyNavTransitions(): FlikkyNavTransitions {
     fun AnimatedContentTransitionScope<NavBackStackEntry>.bothTopLevel(): Boolean =
         isTopLevelRoute(initialState.destination.route) && isTopLevelRoute(targetState.destination.route)
 
+    fun AnimatedContentTransitionScope<NavBackStackEntry>.involvesHero(): Boolean =
+        isHeroRoute(initialState.destination.route) || isHeroRoute(targetState.destination.route)
+
     return FlikkyNavTransitions(
         enter = {
-            if (bothTopLevel()) fadeThroughEnter
-            else slideInHorizontally(offsetSpec) { slide } + fadeIn(fadeSpec)
+            when {
+                involvesHero() -> fadeIn(fadeSpec)
+                bothTopLevel() -> fadeThroughEnter
+                else -> slideInHorizontally(offsetSpec) { slide } + fadeIn(fadeSpec)
+            }
         },
         exit = {
-            if (bothTopLevel()) fadeThroughExit
-            else slideOutHorizontally(offsetSpec) { -slide } + fadeOut(fadeSpec)
+            when {
+                involvesHero() -> fadeOut(fadeSpec)
+                bothTopLevel() -> fadeThroughExit
+                else -> slideOutHorizontally(offsetSpec) { -slide } + fadeOut(fadeSpec)
+            }
         },
         popEnter = {
-            if (bothTopLevel()) fadeThroughEnter
-            else slideInHorizontally(offsetSpec) { -slide } + fadeIn(fadeSpec)
+            when {
+                involvesHero() -> fadeIn(fadeSpec)
+                bothTopLevel() -> fadeThroughEnter
+                else -> slideInHorizontally(offsetSpec) { -slide } + fadeIn(fadeSpec)
+            }
         },
         popExit = {
-            if (bothTopLevel()) fadeThroughExit
-            else slideOutHorizontally(offsetSpec) { slide } + fadeOut(fadeSpec)
+            when {
+                involvesHero() -> fadeOut(fadeSpec)
+                bothTopLevel() -> fadeThroughExit
+                else -> slideOutHorizontally(offsetSpec) { slide } + fadeOut(fadeSpec)
+            }
         },
     )
 }
