@@ -227,14 +227,16 @@ private fun RecentFavoriteChip(
                 overflow = TextOverflow.Ellipsis,
             )
         },
-        leadingIcon = {
-            Icon(
-                painter = painterResource(
-                    if (favorite.kind == "FILE") R.drawable.ic_description else R.drawable.ic_content_copy
-                ),
-                contentDescription = null,
-                modifier = Modifier.size(AssistChipDefaults.IconSize),
-            )
+        leadingIcon = if (favorite.kind == "FILE") {
+            {
+                Icon(
+                    painter = painterResource(R.drawable.ic_description),
+                    contentDescription = null,
+                    modifier = Modifier.size(AssistChipDefaults.IconSize),
+                )
+            }
+        } else {
+            null
         },
         trailingIcon = {
             Icon(
@@ -293,14 +295,14 @@ private fun FavoriteQuickRow(
             .padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            painter = painterResource(
-                if (favorite.kind == "FILE") R.drawable.ic_description else R.drawable.ic_content_copy
-            ),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(Modifier.width(Spacing.lg))
+        if (favorite.kind == "FILE") {
+            Icon(
+                painter = painterResource(R.drawable.ic_description),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.width(Spacing.lg))
+        }
         Column(Modifier.weight(1f)) {
             Text(
                 text = favorite.primaryLabel(),

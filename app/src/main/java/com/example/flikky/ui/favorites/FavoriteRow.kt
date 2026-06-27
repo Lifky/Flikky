@@ -65,15 +65,15 @@ fun FavoriteRow(
             modifier = Modifier.padding(Spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                painter = painterResource(
-                    if (favorite.kind == "FILE") R.drawable.ic_description else R.drawable.ic_content_copy
-                ),
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = if (selecting && selected) contentColor else MaterialTheme.colorScheme.primary,
-            )
-            Spacer(Modifier.width(Spacing.lg))
+            if (favorite.kind == "FILE") {
+                Icon(
+                    painter = painterResource(R.drawable.ic_description),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = if (selecting && selected) contentColor else MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.width(Spacing.lg))
+            }
             Column(Modifier.weight(1f)) {
                 Text(
                     text = favorite.primaryText(),
