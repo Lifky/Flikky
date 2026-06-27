@@ -26,6 +26,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val groupMode = stringPreferencesKey("group_mode")
         val activeGroupId = longPreferencesKey("active_group_id")
         val activeFavoriteGroupId = longPreferencesKey("active_favorite_group_id")
+        val recentFavoriteIds = stringPreferencesKey("recent_favorite_ids")
     }
 
     val settings: Flow<FlikkySettings> = ds.data.map { p ->
@@ -57,6 +58,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
                 ?: GroupMode.NONE,
             activeGroupId = p[Keys.activeGroupId]?.takeIf { it > 0L },
             activeFavoriteGroupId = p[Keys.activeFavoriteGroupId]?.takeIf { it > 0L },
+            recentFavoriteIds = decodeRecentFavoriteIds(p[Keys.recentFavoriteIds]),
         )
     }
 
@@ -85,6 +87,13 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val valid = id?.takeIf { it > 0L }
         if (valid != null) prefs[Keys.activeFavoriteGroupId] = valid else prefs.remove(Keys.activeFavoriteGroupId)
     }
+    suspend fun recordRecentFavorite(id: Long) = ds.edit { prefs ->
+        val valid = id.takeIf { it > 0L } ?: return@edit
+        val updated = (listOf(valid) + decodeRecentFavoriteIds(prefs[Keys.recentFavoriteIds]))
+            .distinct()
+            .take(RECENT_FAVORITE_LIMIT)
+        prefs[Keys.recentFavoriteIds] = updated.joinToString(",")
+    }
     suspend fun setBackground(v: BackgroundSetting) = ds.edit {
         when (v) {
             BackgroundSetting.Default -> { it[Keys.bgMode] = "DEFAULT"; it.remove(Keys.bgValue) }
@@ -98,5 +107,16 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         "SOLID" -> value?.toLongOrNull()?.let { BackgroundSetting.Solid(it) } ?: BackgroundSetting.Default
         // "GRADIENT"（v1.5.x 历史值）→ 回退 Default，不崩
         else -> BackgroundSetting.Default
+    }
+
+    private fun decodeRecentFavoriteIds(raw: String?): List<Long> =
+        raw.orEmpty()
+            .split(',')
+            .mapNotNull { it.trim().toLongOrNull()?.takeIf { id -> id > 0L } }
+            .distinct()
+            .take(RECENT_FAVORITE_LIMIT)
+
+    private companion object {
+        const val RECENT_FAVORITE_LIMIT = 5
     }
 }

@@ -142,4 +142,15 @@ class SettingsRepositoryTest {
         repo.setActiveFavoriteGroup(-1L)
         assertEquals(null, repo.settings.first().activeFavoriteGroupId)
     }
+
+    @Test fun recent_favorite_ids_keep_latest_unique_five() = runTest {
+        val repo = makeRepo(this)
+        assertEquals(emptyList<Long>(), repo.settings.first().recentFavoriteIds)
+
+        listOf(1L, 2L, 3L, 4L, 5L, 6L, 3L, -1L, 0L).forEach {
+            repo.recordRecentFavorite(it)
+        }
+
+        assertEquals(listOf(3L, 6L, 5L, 4L, 2L), repo.settings.first().recentFavoriteIds)
+    }
 }

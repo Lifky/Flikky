@@ -136,6 +136,10 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun recordRecentFavorite(favoriteId: Long) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.recordRecentFavorite(favoriteId) }
+    }
+
     private fun sendFavoriteFile(favorite: FavoriteEntity) {
         val depotId = favorite.fileId ?: return
         val source = ServiceLocator.favoriteFileStore.resolve(depotId)

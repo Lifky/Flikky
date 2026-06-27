@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -56,6 +58,7 @@ import kotlinx.coroutines.delay
 fun FavoriteQuickSheet(
     favorites: List<FavoriteEntity>,
     groups: List<FavoriteGroupEntity>,
+    recentFavoriteIds: List<Long>,
     onSend: (FavoriteEntity) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -69,6 +72,10 @@ fun FavoriteQuickSheet(
     }
     val orderedGroups = remember(groups) {
         groups.sortedWith(compareBy<FavoriteGroupEntity> { it.sortOrder }.thenBy { it.createdAt }.thenBy { it.id })
+    }
+    val recentFavorites = remember(favorites, recentFavoriteIds) {
+        val byId = favorites.associateBy { it.id }
+        recentFavoriteIds.mapNotNull(byId::get).take(5)
     }
 
     LaunchedEffect(pressedId) {
@@ -95,6 +102,32 @@ fun FavoriteQuickSheet(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
             )
+            if (recentFavorites.isNotEmpty()) {
+                Text(
+                    text = "最近使用",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = Spacing.screenEdge, vertical = Spacing.xs),
+                )
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.screenEdge)
+                        .padding(bottom = Spacing.sm),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                ) {
+                    items(recentFavorites, key = { it.id }) { favorite ->
+                        RecentFavoriteChip(
+                            favorite = favorite,
+                            sending = pressedId == favorite.id,
+                            onSend = {
+                                pressedId = favorite.id
+                                onSend(favorite)
+                            },
+                        )
+                    }
+                }
+            }
             TextField(
                 value = query,
                 onValueChange = { query = it },
@@ -179,6 +212,42 @@ fun FavoriteQuickSheet(
 }
 
 @Composable
+private fun RecentFavoriteChip(
+    favorite: FavoriteEntity,
+    sending: Boolean,
+    onSend: () -> Unit,
+) {
+    AssistChip(
+        onClick = onSend,
+        label = {
+            Text(
+                text = favorite.compactLabel(),
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        leadingIcon = {
+            Icon(
+                painter = painterResource(
+                    if (favorite.kind == "FILE") R.drawable.ic_description else R.drawable.ic_content_copy
+                ),
+                contentDescription = null,
+                modifier = Modifier.size(AssistChipDefaults.IconSize),
+            )
+        },
+        trailingIcon = {
+            Icon(
+                painter = painterResource(if (sending) R.drawable.ic_send else R.drawable.ic_send_outline),
+                contentDescription = null,
+                modifier = Modifier.size(AssistChipDefaults.IconSize),
+            )
+        },
+        shape = MaterialTheme.shapes.small,
+    )
+}
+
+@Composable
 private fun FavoriteGroupChip(
     label: String,
     selected: Boolean,
@@ -259,6 +328,11 @@ private fun FavoriteQuickRow(
 
 private fun FavoriteEntity.primaryLabel(): String =
     if (kind == "FILE") fileName ?: "未命名文件" else textContent?.ifBlank { null } ?: "空文本"
+
+private fun FavoriteEntity.compactLabel(): String {
+    val raw = primaryLabel().replace('\n', ' ').trim()
+    return if (raw.length <= 12) raw else raw.take(12).trimEnd() + "…"
+}
 
 private fun FavoriteEntity.secondaryLabel(): String =
     when (kind) {

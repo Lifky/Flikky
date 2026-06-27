@@ -462,8 +462,10 @@ fun ServingScreen(
         FavoriteQuickSheet(
             favorites = favorites,
             groups = favoriteGroups,
+            recentFavoriteIds = settings.recentFavoriteIds,
             onSend = { favorite ->
                 viewModel.sendFavorite(favorite)
+                viewModel.recordRecentFavorite(favorite.id)
                 scope.launch { snackbarHostState.showSnackbar("已发送收藏") }
             },
             onDismiss = { showFavoriteQuickSheet = false },

@@ -43,4 +43,5 @@ data class FlikkySettings(
     val groupMode: GroupMode = GroupMode.NONE,
     val activeGroupId: Long? = null,
     val activeFavoriteGroupId: Long? = null,
+    val recentFavoriteIds: List<Long> = emptyList(),
 )
