@@ -1,5 +1,8 @@
+<!-- Material Symbols: upload, opsz24 wght400 GRAD0, FILL@0. Verbatim official path (viewBox 0 -960 960 960). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp"
-    android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#000000" android:pathData="M9,16h6v-6h4l-7,-7 -7,7h4zM5,18h14v2H5z"/>
+    android:viewportWidth="960" android:viewportHeight="960">
+    <group android:translateY="960">
+        <path android:fillColor="#000000" android:pathData="M440-320v-326L336-542l-56-58 200-200 200 200-56 58-104-104v326h-80ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/>
+    </group>
 </vector>

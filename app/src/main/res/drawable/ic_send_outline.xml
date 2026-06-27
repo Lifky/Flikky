@@ -1,5 +1,9 @@
+<!-- Material Symbols: send, opsz24 wght400 GRAD0, FILL@0 (outline). Verbatim official path. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp"
-    android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#000000" android:pathData="m4.01 6.03 7.51 3.22 -7.52 -1 0.01 -2.22m7.5 8.72L4 17.97v-2.22l7.51 -1M2.01 3 2 10l15 2 -15 2 0.01 7L23 12 2.01 3z"/>
+    android:viewportWidth="960" android:viewportHeight="960">
+    <group android:translateY="960">
+        <path android:fillColor="#000000"
+            android:pathData="M120-160v-640l760 320-760 320Zm80-120 474-200-474-200v140l240 60-240 60v140Zm0 0v-400 400Z"/>
+    </group>
 </vector>
