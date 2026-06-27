@@ -1,5 +1,6 @@
 package com.example.flikky.ui.serving
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -240,10 +241,17 @@ private fun RecentFavoriteChip(
         },
         trailingIcon = {
             Icon(
-                painter = painterResource(if (sending) R.drawable.ic_send else R.drawable.ic_send_outline),
+                painter = painterResource(R.drawable.ic_arrow_upward),
                 contentDescription = null,
                 modifier = Modifier.size(AssistChipDefaults.IconSize),
             )
+        },
+        colors = if (sending) {
+            AssistChipDefaults.assistChipColors(
+                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+            )
+        } else {
+            AssistChipDefaults.assistChipColors()
         },
         shape = MaterialTheme.shapes.small,
     )
@@ -290,6 +298,10 @@ private fun FavoriteQuickRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(
+                if (sending) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                else androidx.compose.ui.graphics.Color.Transparent
+            )
             .clickable(onClick = onSend)
             .heightIn(min = Sizes.rowMinH)
             .padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
@@ -323,7 +335,7 @@ private fun FavoriteQuickRow(
         }
         IconButton(onClick = onSend) {
             Icon(
-                painter = painterResource(if (sending) R.drawable.ic_send else R.drawable.ic_send_outline),
+                painter = painterResource(R.drawable.ic_arrow_upward),
                 contentDescription = "发送收藏",
                 tint = MaterialTheme.colorScheme.primary,
             )

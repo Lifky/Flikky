@@ -36,7 +36,6 @@ fun FavoriteRow(
     favorite: FavoriteEntity,
     selecting: Boolean,
     selected: Boolean,
-    sending: Boolean,
     sendEnabled: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -105,7 +104,7 @@ fun FavoriteRow(
                 enabled = !selecting && sendEnabled,
             ) {
                 Icon(
-                    painter = painterResource(if (sending) R.drawable.ic_send else R.drawable.ic_send_outline),
+                    painter = painterResource(R.drawable.ic_arrow_upward),
                     contentDescription = "发送收藏",
                     tint = if (selecting || !sendEnabled) {
                         MaterialTheme.colorScheme.onSurfaceVariant

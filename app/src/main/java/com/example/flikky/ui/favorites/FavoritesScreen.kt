@@ -58,7 +58,6 @@ import com.example.flikky.ui.home.GroupManageDialog
 import com.example.flikky.ui.home.MoveToGroupSheet
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,7 +75,7 @@ fun FavoritesScreen(
     val query by viewModel.searchQuery.collectAsState()
     val sessionSnap by ServiceLocator.session.snapshot.collectAsState()
     val selectedIds = selection ?: emptySet()
-    val canSendFavorites = sessionSnap.currentSessionId != null
+    val canSendFavorites = sessionSnap.clientConnected
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
@@ -86,16 +85,9 @@ fun FavoritesScreen(
     var managingGroup by remember { mutableStateOf<FavoriteGroupEntity?>(null) }
     var showMoveSheet by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
-    var sendingFavoriteId by remember { mutableStateOf<Long?>(null) }
 
     LaunchedEffect(selecting) { onSelectingChange(selecting) }
     LaunchedEffect(query) { onSearchExpandedChange(query.isNotBlank()) }
-    LaunchedEffect(sendingFavoriteId) {
-        if (sendingFavoriteId != null) {
-            delay(420)
-            sendingFavoriteId = null
-        }
-    }
     BackHandler(enabled = selecting) { viewModel.exitSelecting() }
 
     Scaffold(
@@ -194,7 +186,6 @@ fun FavoritesScreen(
                                     favorite = favorite,
                                     selecting = selecting,
                                     selected = favorite.id in selectedIds,
-                                    sending = sendingFavoriteId == favorite.id,
                                     sendEnabled = canSendFavorites,
                                     onClick = {
                                         if (selecting) {
@@ -208,11 +199,10 @@ fun FavoritesScreen(
                                     },
                                     onLongClick = { viewModel.toggleSelection(favorite.id) },
                                     onSend = {
-                                        sendingFavoriteId = favorite.id
                                         scope.launch {
                                             val sent = viewModel.sendFavorite(favorite)
                                             snackbarHostState.showSnackbar(
-                                                if (sent) "已发送收藏" else "请先开始会话"
+                                                if (sent) "已发送收藏" else "请先连接浏览器"
                                             )
                                         }
                                     },
