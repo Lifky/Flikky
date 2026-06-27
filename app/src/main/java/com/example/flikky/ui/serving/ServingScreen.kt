@@ -50,11 +50,12 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.togetherWith
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.di.ServiceLocator
@@ -72,6 +73,7 @@ import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
+import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.launch
 
@@ -249,10 +251,20 @@ fun ServingScreen(
                 status = ui.networkStatus,
                 onAcknowledge = { viewModel.acknowledgeNetworkSwitch() },
             )
+            // 真·高度 morph 的 spec 在 composable 体内先取（AnimatedContent.transitionSpec 非 @Composable，
+            // 与 NavTransitions 同套路：先取后闭包捕获）：容器高度走 spatial 弹簧（轻微回弹、受全局速度档统辖），
+            // 内容仅快速淡入淡出换装。下方对话区随容器高度平滑顶起，不再因高度突变而跳动。
+            val headerSizeSpec = Motion.spatial<IntSize>()
+            val headerEnterFade = Motion.effects<Float>()
+            val headerExitFade = Motion.effectsFast<Float>()
             AnimatedContent(
                 targetState = ui.clientConnected,
                 transitionSpec = {
-                    (fadeIn() + scaleIn(initialScale = 0.92f)) togetherWith fadeOut()
+                    ContentTransform(
+                        targetContentEnter = fadeIn(headerEnterFade),
+                        initialContentExit = fadeOut(headerExitFade),
+                        sizeTransform = SizeTransform { _, _ -> headerSizeSpec },
+                    )
                 },
                 label = "ConnHeader",
             ) { connected ->
