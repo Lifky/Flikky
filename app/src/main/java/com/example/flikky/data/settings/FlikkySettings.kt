@@ -6,6 +6,17 @@ enum class DarkMode { SYSTEM, LIGHT, DARK }
 enum class SortMode { TIME, NAME }
 enum class GroupMode { NONE, STATUS, DATE }
 
+/**
+ * 全局动画速度档。[multiplier] 是 duration 倍率：`>1` 更慢、`<1` 更快、`0` 关闭（reduce-motion）。
+ * 与系统 animatorDurationScale 合成见 [com.example.flikky.ui.theme.effectiveMotionScale]。
+ */
+enum class AnimationSpeed(val multiplier: Float) {
+    OFF(0f),
+    SLOW(1.5f),
+    STANDARD(1.0f),
+    FAST(0.7f),
+}
+
 /** 消息操作交互样式：FLOATING=长按弹底部悬浮工具栏；INLINE=气泡旁常驻按钮（旧行为）。 */
 enum class MessageActionStyle { FLOATING, INLINE }
 
@@ -41,6 +52,7 @@ data class FlikkySettings(
     val allowBackDuringSession: Boolean = false,
     val sortMode: SortMode = SortMode.TIME,
     val groupMode: GroupMode = GroupMode.NONE,
+    val animationSpeed: AnimationSpeed = AnimationSpeed.STANDARD,
     val activeGroupId: Long? = null,
     val activeFavoriteGroupId: Long? = null,
     val recentFavoriteIds: List<Long> = emptyList(),

@@ -50,6 +50,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.DarkMode
+import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.MessageActionStyle
 import com.example.flikky.data.settings.PresetTheme
@@ -92,6 +93,7 @@ fun SettingsScreen(
     var showHistoryLimitDialog by remember { mutableStateOf(false) }
     var showActionStyleDialog by remember { mutableStateOf(false) }
     var showAvatarGroupingDialog by remember { mutableStateOf(false) }
+    var showAnimSpeedDialog by remember { mutableStateOf(false) }
     var showImportProgress by remember { mutableStateOf(false) }
 
     // Import launcher
@@ -153,7 +155,7 @@ fun SettingsScreen(
         ) {
             // ─── 主题与色彩 ─────────────────────────────────────────────────────
             item {
-                val sectionItems = 3
+                val sectionItems = 4
                 SettingSection(title = "主题与色彩") {
                     val themeSubtitle = if (s.themeMode == ThemeMode.DYNAMIC) "跟随壁纸"
                     else when (s.presetTheme) {
@@ -192,6 +194,19 @@ fun SettingsScreen(
                             )
                         },
                         shape = groupedItemShape(2, sectionItems),
+                    )
+                    val animSpeedSubtitle = when (s.animationSpeed) {
+                        AnimationSpeed.OFF      -> "关闭"
+                        AnimationSpeed.SLOW     -> "慢"
+                        AnimationSpeed.STANDARD -> "标准"
+                        AnimationSpeed.FAST     -> "快"
+                    }
+                    SettingItem(
+                        title = "动画速度",
+                        leadingIcon = painterResource(R.drawable.ic_animation),
+                        subtitle = animSpeedSubtitle,
+                        onClick = { showAnimSpeedDialog = true },
+                        shape = groupedItemShape(3, sectionItems),
                     )
                 }
             }
@@ -459,6 +474,27 @@ fun SettingsScreen(
                     onClick = {
                         viewModel.setAvatarGrouping(mode)
                         showAvatarGroupingDialog = false
+                    },
+                )
+            }
+        }
+    }
+
+    // ─── Animation speed dialog ───────────────────────────────────────────────
+    if (showAnimSpeedDialog) {
+        ChoiceDialog(title = "动画速度", onDismiss = { showAnimSpeedDialog = false }) {
+            listOf(
+                AnimationSpeed.OFF      to "关闭",
+                AnimationSpeed.SLOW     to "慢",
+                AnimationSpeed.STANDARD to "标准",
+                AnimationSpeed.FAST     to "快",
+            ).forEach { (speed, label) ->
+                ChoiceRow(
+                    label = label,
+                    selected = s.animationSpeed == speed,
+                    onClick = {
+                        viewModel.setAnimationSpeed(speed)
+                        showAnimSpeedDialog = false
                     },
                 )
             }

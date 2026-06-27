@@ -60,7 +60,7 @@ fun FlikkyTheme(settings: FlikkySettings, content: @Composable () -> Unit) {
     val systemAnimScale = remember(context) {
         Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
     }
-    val motionScale = systemAnimScale.coerceIn(0f, 5f)
+    val motionScale = effectiveMotionScale(settings.animationSpeed, systemAnimScale)
 
     CompositionLocalProvider(
         LocalFlikkySettings provides settings,

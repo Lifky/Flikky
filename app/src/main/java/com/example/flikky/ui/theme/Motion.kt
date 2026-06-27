@@ -13,6 +13,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.example.flikky.data.settings.AnimationSpeed
+
+/** 全局速度倍率的安全上限（避免系统/用户叠加出过低刚度导致动画拖沓）。 */
+const val MAX_MOTION_SCALE = 5f
+
+/**
+ * 把「用户动画速度档 [speed]」与「系统 animatorDurationScale [systemScale]」合成为全局速度倍率
+ * （纯逻辑，单测见 `AnimationSpeedScaleTest`）。
+ *
+ * 相乘语义：系统把动画关掉（`systemScale<=0`）→ 结果 0（强制 reduce-motion，守住无障碍）；
+ * 系统正常时叠加用户档（标准 1.0 / 慢 1.5 / 快 0.7 / 关 0）。钳到 `[0, MAX_MOTION_SCALE]`。
+ */
+fun effectiveMotionScale(speed: AnimationSpeed, systemScale: Float): Float =
+    (speed.multiplier * systemScale).coerceIn(0f, MAX_MOTION_SCALE)
 
 /**
  * 全局动画速度倍率（duration 语义：`1f`=标准，`>1` 更慢，`<1` 更快，`0f`=关闭 / reduce-motion）。

@@ -24,6 +24,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val allowBackDuringSession = booleanPreferencesKey("allow_back_during_session")
         val sortMode = stringPreferencesKey("sort_mode")
         val groupMode = stringPreferencesKey("group_mode")
+        val animationSpeed = stringPreferencesKey("animation_speed")
         val activeGroupId = longPreferencesKey("active_group_id")
         val activeFavoriteGroupId = longPreferencesKey("active_favorite_group_id")
         val recentFavoriteIds = stringPreferencesKey("recent_favorite_ids")
@@ -56,6 +57,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             groupMode = p[Keys.groupMode]
                 ?.let { runCatching { GroupMode.valueOf(it) }.getOrNull() }
                 ?: GroupMode.NONE,
+            animationSpeed = p[Keys.animationSpeed]
+                ?.let { runCatching { AnimationSpeed.valueOf(it) }.getOrNull() }
+                ?: AnimationSpeed.STANDARD,
             activeGroupId = p[Keys.activeGroupId]?.takeIf { it > 0L },
             activeFavoriteGroupId = p[Keys.activeFavoriteGroupId]?.takeIf { it > 0L },
             recentFavoriteIds = decodeRecentFavoriteIds(p[Keys.recentFavoriteIds]),
@@ -79,6 +83,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setAllowBackDuringSession(v: Boolean) = ds.edit { it[Keys.allowBackDuringSession] = v }
     suspend fun setSortMode(v: SortMode) = ds.edit { it[Keys.sortMode] = v.name }
     suspend fun setGroupMode(v: GroupMode) = ds.edit { it[Keys.groupMode] = v.name }
+    suspend fun setAnimationSpeed(v: AnimationSpeed) = ds.edit { it[Keys.animationSpeed] = v.name }
     suspend fun setActiveGroup(id: Long?) = ds.edit { prefs ->
         val valid = id?.takeIf { it > 0L }
         if (valid != null) prefs[Keys.activeGroupId] = valid else prefs.remove(Keys.activeGroupId)
