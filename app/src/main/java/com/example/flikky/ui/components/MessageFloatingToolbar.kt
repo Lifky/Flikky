@@ -36,6 +36,10 @@ fun MessageFloatingToolbar(
 /**
  * 共享的悬浮工具栏 overlay：Serving 与 History 共用，消除两端重复。
  *
+ * 进出动效与首页/收藏页多选浮动栏 [FlikkySelectingToolbarOverlay] 完全对齐：**从下往上滑入 /
+ * 向下滑出**（slide 走 spatial 弹簧）。此前用 scaleIn 原地放大，与多选浮动栏的滑入不一致；现统一为
+ * 「从底部浮现」，全 App 浮动工具栏一个手感。
+ *
  * 顶层 wrapper 让 AnimatedVisibility 解析到非 scoped 重载——调用方常把此 overlay
  * 放在 Box（嵌于 Column）内，BoxScope/ColumnScope 同时作为隐式 receiver 会让裸
  * AnimatedVisibility 调用产生歧义；提到这里消除歧义。
@@ -49,9 +53,8 @@ fun MessageFloatingToolbarOverlay(
     androidx.compose.animation.AnimatedVisibility(
         visible = visible,
         modifier = modifier,
-        enter = androidx.compose.animation.scaleIn(Motion.spatial()) +
-            androidx.compose.animation.fadeIn(Motion.effects()),
-        exit = androidx.compose.animation.fadeOut(Motion.effectsFast()),
+        enter = androidx.compose.animation.slideInVertically(Motion.spatial()) { it },
+        exit = androidx.compose.animation.slideOutVertically(Motion.spatialFast()) { it },
     ) {
         MessageFloatingToolbar(actions = actions)
     }
