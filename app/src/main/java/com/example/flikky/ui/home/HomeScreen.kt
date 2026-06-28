@@ -509,10 +509,8 @@ private fun SelectingTopBar(
 }
 
 /**
- * 多选态的悬浮操作栏（MD3 Floating toolbar 规格：胶囊形 surfaceContainer 容器 + 阴影，内含纯图标按钮）。
- *
- * material3 1.4.0 stable 仍把 Expressive 的 `HorizontalFloatingToolbar` 关在 internal 注解后，
- * 不能直接用；这里用稳定组件按同一规格手搓，视觉/行为一致，避免为单个组件升到 pre-release。
+ * 多选态的悬浮操作栏：容器走 [FlikkyFloatingToolbar]（已迁官方 `HorizontalFloatingToolbar`），
+ * 内含纯图标按钮。
  */
 @Composable
 private fun SelectingFloatingToolbar(
