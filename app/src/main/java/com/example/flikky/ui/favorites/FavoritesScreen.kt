@@ -2,6 +2,7 @@ package com.example.flikky.ui.favorites
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -157,8 +158,9 @@ fun FavoritesScreen(
                 Column(Modifier.fillMaxSize().maxContentWidth()) {
                     // 搜索框已上移到 Scaffold topBar（与传输页同槽位、同组件）。
                     // 合集 chip 行：整库为空时不显示（与传输页一致——无内容不显示）；
-                    // 选中某个合集或库里已有收藏时才显示。
-                    if (!selecting && (activeGroupId != null || hasFavorites)) {
+                    // 选中某个合集或库里已有收藏时才显示。包进 AnimatedVisibility（默认 expand/shrink+fade），
+                    // 与传输页一致——长按进入多选时合集行向上平滑收起，而非闪现消失。
+                    AnimatedVisibility(visible = !selecting && (activeGroupId != null || hasFavorites)) {
                         GroupChips(
                             groups = groups.toGroupEntities(),
                             activeGroupId = activeGroupId,
