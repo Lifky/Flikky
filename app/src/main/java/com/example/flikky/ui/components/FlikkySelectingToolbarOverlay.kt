@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 
 /**
@@ -36,8 +37,8 @@ fun FlikkySelectingToolbarOverlay(
     AnimatedVisibility(
         visible = visible,
         modifier = modifier,
-        enter = slideInVertically { it },
-        exit = slideOutVertically { it },
+        enter = slideInVertically(Motion.spatial()) { it },
+        exit = slideOutVertically(Motion.spatialFast()) { it },
     ) {
         Box(
             modifier = Modifier
