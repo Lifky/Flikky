@@ -46,9 +46,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.animation.AnimatedContent
@@ -72,6 +71,7 @@ import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
 import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
@@ -93,7 +93,7 @@ fun ServingScreen(
     var pendingFavoriteMsg by remember { mutableStateOf<Message?>(null) }
     var showAttachSheet by remember { mutableStateOf(false) }
     var showFavoriteQuickSheet by remember { mutableStateOf(false) }
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val pickFile = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
@@ -157,7 +157,7 @@ fun ServingScreen(
                 icon = copyPainter,
                 label = "复制",
                 onClick = {
-                    clipboardManager.setText(AnnotatedString(msg.content))
+                    scope.launch { clipboard.setPlainText(msg.content) }
                     actionTarget = null
                 },
             ))

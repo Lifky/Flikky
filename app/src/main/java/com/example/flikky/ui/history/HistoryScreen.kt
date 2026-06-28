@@ -47,10 +47,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -65,6 +64,7 @@ import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
@@ -96,7 +96,7 @@ fun HistoryScreen(
     val inProgress = session?.endedAt == null && session != null
     var actionTarget by remember { mutableStateOf<Long?>(null) }
     var pendingFavoriteMsg by remember { mutableStateOf<Message?>(null) }
-    val clipboardManager = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -163,7 +163,7 @@ fun HistoryScreen(
                 icon = copyPainter,
                 label = "复制",
                 onClick = {
-                    clipboardManager.setText(AnnotatedString(msg.content))
+                    scope.launch { clipboard.setPlainText(msg.content) }
                     actionTarget = null
                 },
             ))

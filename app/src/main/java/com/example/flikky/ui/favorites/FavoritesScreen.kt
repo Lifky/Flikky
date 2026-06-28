@@ -42,9 +42,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
@@ -54,6 +53,7 @@ import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.home.GroupChips
 import com.example.flikky.ui.home.GroupManageDialog
 import com.example.flikky.ui.home.MoveToGroupSheet
@@ -79,7 +79,7 @@ fun FavoritesScreen(
     val canSendFavorites = sessionSnap.clientConnected
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
     val context = LocalContext.current
 
     var showCreateGroup by remember { mutableStateOf(false) }
@@ -193,7 +193,7 @@ fun FavoritesScreen(
                                         if (selecting) {
                                             viewModel.toggleSelection(favorite.id)
                                         } else if (favorite.kind == "TEXT") {
-                                            clipboard.setText(AnnotatedString(favorite.textContent.orEmpty()))
+                                            scope.launch { clipboard.setPlainText(favorite.textContent.orEmpty()) }
                                             Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
                                         } else {
                                             viewModel.openFavoriteFile(favorite)

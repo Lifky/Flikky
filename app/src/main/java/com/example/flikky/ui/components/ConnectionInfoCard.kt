@@ -15,17 +15,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.ui.theme.Spacing
+import kotlinx.coroutines.launch
 
 /**
  * 连接信息卡片：在电脑浏览器打开 URL + 输入 PIN。
@@ -37,7 +38,8 @@ fun ConnectionInfoCard(
     pin: String,
     modifier: Modifier = Modifier,
 ) {
-    val clipboard = LocalClipboardManager.current
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
@@ -60,7 +62,7 @@ fun ConnectionInfoCard(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
-            TextButton(onClick = { clipboard.setText(AnnotatedString(url)) }) {
+            TextButton(onClick = { scope.launch { clipboard.setPlainText(url) } }) {
                 Icon(
                     painter = painterResource(R.drawable.ic_content_copy),
                     contentDescription = null,
