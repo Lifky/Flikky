@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -271,8 +272,12 @@ fun HomeScreen(
                     contentAlignment = Alignment.TopCenter,
                 ) {
                     Column(modifier = Modifier.fillMaxSize().maxContentWidth()) {
-                        // 淡出/收起而非硬切，配合搜索框展开动画，避免 chip 行同帧消失造成的「卡顿」观感。
-                        AnimatedVisibility(visible = !selecting && !searchExpanded) {
+                        // chip 行入场也播动画（与收藏页一致）：用 MutableTransitionState 从 false 起步，
+                        // 首次组合即 false→true 播 expand 入场（往下展开），而非默认「首帧即可见、不动画」。
+                        // selecting / 搜索展开切换时照常 expand/shrink 收放。
+                        val chipVisible = remember { MutableTransitionState(false) }
+                        chipVisible.targetState = !selecting && !searchExpanded
+                        AnimatedVisibility(visibleState = chipVisible) {
                             GroupChips(
                                 groups = groups,
                                 activeGroupId = activeGroupId,
