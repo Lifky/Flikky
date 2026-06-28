@@ -82,7 +82,6 @@ import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.FlikkyFloatingToolbar
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.RenameDialog
-import com.example.flikky.ui.components.flikkyContainerTransform
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.theme.Spacing
@@ -314,8 +313,7 @@ fun HomeScreen(
                                                 onEnterSelecting = { viewModel.toggleSelection(s.id) },
                                                 onToggleSelection = { viewModel.toggleSelection(s.id) },
                                                 onStopInProgress = { viewModel.stopService() },
-                                                modifier = flikkyItemAnimation()
-                                                    .flikkyContainerTransform("session-${s.id}"),
+                                                modifier = flikkyItemAnimation(),
                                             )
                                         }
                                     }

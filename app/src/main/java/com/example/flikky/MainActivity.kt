@@ -4,8 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,7 +12,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -31,8 +28,6 @@ import androidx.navigation.navArgument
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.FlikkyNavBar
-import com.example.flikky.ui.components.LocalNavAnimatedVisibilityScope
-import com.example.flikky.ui.components.LocalSharedTransitionScope
 import com.example.flikky.ui.components.flikkyNavTransitions
 import com.example.flikky.ui.exporting.ExportingScreen
 import com.example.flikky.ui.favorites.FavoritesScreen
@@ -43,7 +38,6 @@ import com.example.flikky.ui.settings.SettingsScreen
 import com.example.flikky.ui.theme.FlikkyTheme
 
 class MainActivity : ComponentActivity() {
-    @OptIn(ExperimentalSharedTransitionApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -105,10 +99,6 @@ class MainActivity : ComponentActivity() {
                         //   只补底部 inset；搜索展开时连底部也不留 → 真全屏铺满。
                         // - 其余页面：拿到与之前完全一致的 innerPadding（零回归）。
                         val navTransitions = flikkyNavTransitions()
-                        // SharedTransitionLayout 包住整个 NavHost：hero 容器转场（会话卡 ↔ History 详情）
-                        // 的两端分处不同目的地子树，需共享同一 SharedTransitionScope（经 CompositionLocal 下传）。
-                        SharedTransitionLayout {
-                        CompositionLocalProvider(LocalSharedTransitionScope provides this) {
                         NavHost(
                             navController = nav,
                             startDestination = "transfer",
@@ -120,19 +110,17 @@ class MainActivity : ComponentActivity() {
                             composable("transfer") {
                                 val homePadding = if (homeSearchExpanded) PaddingValues(0.dp)
                                     else PaddingValues(bottom = innerPadding.calculateBottomPadding())
-                                CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
-                                    Box(Modifier.padding(homePadding)) {
-                                        HomeScreen(
-                                            onOpenSession = { id -> nav.navigate("history/$id") },
-                                            onStartService = { nav.navigate("serving") },
-                                            onStartExport = { nav.navigate("exporting") },
-                                            onSelectingChange = { homeSelecting = it },
-                                            onSearchExpandedChange = { homeSearchExpanded = it },
-                                            onOpenSearchHit = { sessionId, messageId ->
-                                                nav.navigate("history/$sessionId?highlight=$messageId")
-                                            },
-                                        )
-                                    }
+                                Box(Modifier.padding(homePadding)) {
+                                    HomeScreen(
+                                        onOpenSession = { id -> nav.navigate("history/$id") },
+                                        onStartService = { nav.navigate("serving") },
+                                        onStartExport = { nav.navigate("exporting") },
+                                        onSelectingChange = { homeSelecting = it },
+                                        onSearchExpandedChange = { homeSearchExpanded = it },
+                                        onOpenSearchHit = { sessionId, messageId ->
+                                            nav.navigate("history/$sessionId?highlight=$messageId")
+                                        },
+                                    )
                                 }
                             }
                             composable("settings") {
@@ -184,18 +172,14 @@ class MainActivity : ComponentActivity() {
                             ) { backStack ->
                                 val id = backStack.arguments!!.getLong("id")
                                 val highlight = backStack.arguments!!.getLong("messageId").takeIf { it > 0L }
-                                CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
-                                    Box(Modifier.padding(innerPadding)) {
-                                        HistoryScreen(
-                                            sessionId = id,
-                                            highlightMessageId = highlight,
-                                            onBack = { nav.popBackStack() },
-                                        )
-                                    }
+                                Box(Modifier.padding(innerPadding)) {
+                                    HistoryScreen(
+                                        sessionId = id,
+                                        highlightMessageId = highlight,
+                                        onBack = { nav.popBackStack() },
+                                    )
                                 }
                             }
-                        }
-                        }
                         }
                     }
                 }
