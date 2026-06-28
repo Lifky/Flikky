@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -99,18 +99,16 @@ fun FavoriteRow(
                     )
                 }
             }
-            IconButton(
+            // 即时发送按钮：复用服务页发送按钮（FilledIconButton + ic_arrow_upward + 默认配色）。
+            // 用 MD3 disabled 态自动变暗——未连接浏览器（sendEnabled=false）时按钮明确置灰、不可点，
+            // 而非仅换 tint 让用户误以为还能点。
+            FilledIconButton(
                 onClick = onSend,
                 enabled = !selecting && sendEnabled,
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_arrow_upward),
                     contentDescription = "发送收藏",
-                    tint = if (selecting || !sendEnabled) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    },
                 )
             }
         }
