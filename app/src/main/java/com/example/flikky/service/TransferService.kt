@@ -15,7 +15,9 @@ import android.provider.Settings
 import android.util.Log
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.settings.BackgroundSetting
+import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.FlikkySettings
+import com.example.flikky.data.settings.ThemeMode
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.export.ExportMode
 import com.example.flikky.network.LinkInfo
@@ -71,6 +73,11 @@ class TransferService : Service() {
     private val rebinder = NetworkRebinder()
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var currentHostIp: String? = null
+
+    /** 当前系统是否处于深色模式（用于 DarkMode.SYSTEM 解析后推给浏览器端做双端深浅对齐）。 */
+    private fun isSystemDark(): Boolean =
+        (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
 
     /**
      * M9: latest settings snapshot for peerInfoProvider. Updated by a coroutine
@@ -389,7 +396,7 @@ class TransferService : Service() {
         // M9: lambda reads the @Volatile field (not a closure-captured local) so
         // each KtorServer rebuild on rebind picks up the latest settings without
         // holding a stale reference to a previous KtorServer instance.
-        peerInfoProvider = { latestSettings.toPeerInfoDto() },
+        peerInfoProvider = { latestSettings.toPeerInfoDto(isSystemDark()) },
     )
 
     /**
@@ -573,18 +580,28 @@ class TransferService : Service() {
          * M9: maps FlikkySettings.background → (backgroundMode, backgroundValue)
          * using the same string encoding as SettingsRepository (DEFAULT/BLANK/SOLID/GRADIENT).
          */
-        internal fun FlikkySettings.toPeerInfoDto(): PeerInfoDto {
+        internal fun FlikkySettings.toPeerInfoDto(systemDark: Boolean): PeerInfoDto {
             val (mode, value) = when (val bg = background) {
                 is BackgroundSetting.Default -> "DEFAULT" to null
                 is BackgroundSetting.Blank -> "BLANK" to null
                 is BackgroundSetting.Solid -> "SOLID" to bg.argb.toString()
                 // BackgroundSetting.Gradient removed in v1.6.0 — handled by else in SettingsRepository.decodeBackground
             }
+            // 双端主题对齐：浏览器跟随手机当前深浅 + 主题色相。动态色（Material You）由壁纸提取，
+            // 浏览器拿不到，故只对预设主题推 seed；动态时 seed=null，浏览器回落 mdui 默认配色但仍跟深浅。
+            val resolvedDark = when (darkMode) {
+                DarkMode.SYSTEM -> systemDark
+                DarkMode.LIGHT -> false
+                DarkMode.DARK -> true
+            }
+            val seed = if (themeMode == ThemeMode.PRESET) presetTheme.seedHex else null
             return PeerInfoDto(
                 deviceName = deviceName,
                 phoneAvatarId = phoneAvatarId,
                 backgroundMode = mode,
                 backgroundValue = value,
+                themeSeed = seed,
+                themeDark = resolvedDark,
             )
         }
 

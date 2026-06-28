@@ -172,6 +172,29 @@
         if (wm) wm.remove();
     }
 
+    // Phase 3 双端对齐：跟随手机当前主题——深浅 + 主题色相（seed）。
+    // mdui 与手机端 MDC 同用 Material Color Utilities，同一 seed 产同一色相，双端观感对齐；
+    // seed 为空（手机用动态色/Material You，浏览器拿不到壁纸）时清回 mdui 默认配色，仅跟深浅。
+    let lastThemeKey = null;
+    function applyTheme(seed, dark) {
+        const key = (dark ? 'd' : 'l') + '|' + (seed || '');
+        if (key === lastThemeKey) return;   // peer-info 可能多次拉取，避免反复重建调色板
+        lastThemeKey = key;
+        if (!window.mdui) return;
+        try {
+            if (typeof mdui.setTheme === 'function') mdui.setTheme(dark ? 'dark' : 'light');
+            if (typeof mdui.setColorScheme === 'function') {
+                if (typeof seed === 'string' && /^#[0-9a-fA-F]{6}$/.test(seed)) {
+                    mdui.setColorScheme(seed);
+                } else if (typeof mdui.removeColorScheme === 'function') {
+                    mdui.removeColorScheme();
+                }
+            }
+        } catch (_) {
+            // mdui 缺失或 API 漂移时主题不致命，静默——不阻断传输。
+        }
+    }
+
     // Fetch peer info and apply.
     async function fetchPeerInfo() {
         try {
@@ -182,6 +205,7 @@
             phoneAvatarId = Math.max(0, Math.min(11, Number(data.phoneAvatarId) ?? 0));
             renderPeerHeader(name, phoneAvatarId);
             applyBackground(data.backgroundMode || 'DEFAULT', data.backgroundValue || '', name);
+            applyTheme(typeof data.themeSeed === 'string' ? data.themeSeed : null, !!data.themeDark);
         } catch (_) {
             // Fail silently — do not block transfers.
         }

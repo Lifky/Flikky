@@ -133,6 +133,9 @@ data class StatusDto(
 
 /**
  * M9: GET /api/peer-info response. Phone's appearance settings sent to the browser.
+ *
+ * v1.7（Phase 3 双端对齐）新增 [themeSeed]/[themeDark]：浏览器据此调 `mdui.setColorScheme` +
+ * `mdui.setTheme`，跟随手机当前主题色相与深浅。[themeSeed] 为 null 时浏览器清回 mdui 默认配色。
  */
 @Serializable
 data class PeerInfoDto(
@@ -140,6 +143,8 @@ data class PeerInfoDto(
     val phoneAvatarId: Int,
     val backgroundMode: String,
     val backgroundValue: String? = null,
+    val themeSeed: String? = null,
+    val themeDark: Boolean = false,
 )
 
 /**

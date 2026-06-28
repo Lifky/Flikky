@@ -5,16 +5,18 @@ enum class ThemeMode { DYNAMIC, PRESET }
 /**
  * 8 个命名预设主题。色值来自用户自定义的 Material Theme Builder 导出
  * （ui/theme/scheme 包下的 Scheme 对象，逐字未改）。枚举常量名用英文，[label] 是中文展示名。
+ * [seedHex] 是该主题的身份种子色（取 light/标准 的 primary），推给浏览器端 `mdui.setColorScheme`
+ * 让双端配色对齐——MDC 与 mdui 同用 Material Color Utilities，同一 seed 出同一色相。
  */
-enum class PresetTheme(val label: String) {
-    DANSHU_RED("淡曙红"),
-    DANZI_RED("丹紫红"),
-    CHENGPI_YELLOW("橙皮黄"),
-    QIUKUI_YELLOW("秋葵黄"),
-    ANAN_BLUE("安安蓝"),
-    ZHUMU_GRAY("珠母灰"),
-    YINGWU_GREEN("鹦鹉绿"),
-    JIEHUA_PURPLE("芥花紫"),
+enum class PresetTheme(val label: String, val seedHex: String) {
+    DANSHU_RED("淡曙红", "#8F4A4C"),
+    DANZI_RED("丹紫红", "#8B4A63"),
+    CHENGPI_YELLOW("橙皮黄", "#825513"),
+    QIUKUI_YELLOW("秋葵黄", "#6D5E0E"),
+    ANAN_BLUE("安安蓝", "#33618D"),
+    ZHUMU_GRAY("珠母灰", "#8E4D31"),
+    YINGWU_GREEN("鹦鹉绿", "#466730"),
+    JIEHUA_PURPLE("芥花紫", "#844C72"),
 }
 
 /**
