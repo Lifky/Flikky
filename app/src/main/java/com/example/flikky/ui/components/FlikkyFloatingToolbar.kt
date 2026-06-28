@@ -36,7 +36,7 @@ fun FlikkyFloatingToolbar(
     content: @Composable RowScope.() -> Unit,
 ) {
     Surface(
-        modifier = modifier.height(TOOLBAR_HEIGHT),
+        modifier = modifier.height(FlikkyFloatingToolbarHeight),
         shape = RoundedCornerShape(percent = 50),
         color = MaterialTheme.colorScheme.surfaceContainer,
         shadowElevation = SHADOW_ELEVATION,
@@ -50,5 +50,9 @@ fun FlikkyFloatingToolbar(
     }
 }
 
-private val TOOLBAR_HEIGHT = 64.dp
+/**
+ * 浮动工具栏胶囊高度（64dp）。对外暴露：History/Serving 用它把 snackbar 抬到浮动栏上方，
+ * 避免底部中央的 snackbar 与同样底部中央的浮动操作栏相互遮挡。
+ */
+val FlikkyFloatingToolbarHeight = 64.dp
 private val SHADOW_ELEVATION = 3.dp
