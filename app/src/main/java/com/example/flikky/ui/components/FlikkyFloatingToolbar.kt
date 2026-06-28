@@ -19,14 +19,13 @@ import com.example.flikky.ui.theme.Spacing
  *
  * material3 1.4.0 stable 把 Expressive 的 `HorizontalFloatingToolbar` 关在 internal
  * 注解后用不了（见 traps T17），所以按 MD3 floating toolbar 规格用稳定组件手搓：
- * - 容器高度固定 [TOOLBAR_HEIGHT]（64dp），让胶囊「饱满」而不是紧贴 48dp 图标按钮显得又瘦又挤；
+ * - 容器高度固定 [FlikkyFloatingToolbarHeight]（64dp），让胶囊「饱满」而不是紧贴 48dp 图标按钮显得又瘦又挤；
  * - 全圆角胶囊（`percent = 50`）、`surfaceContainer` 容器色（MD3 standard floating
  *   toolbar 规格容器色，比 `surfaceContainerHighest` 浅一档，更轻盈）；
  * - 内部横向留 [Spacing.sm] padding、元素间 [Spacing.xs] 间距，纵向居中。
  *
- * 用 [SHADOW_ELEVATION]（3dp）海拔阴影让胶囊「浮」于内容之上：容器色调浅到规格值后，
- * 与页面背景的色阶差不足以单独撑起悬浮感，改由阴影承担——这也是 MD3 floating toolbar
- * 的标准做法（floats above the body content）。
+ * **不加海拔阴影**（按设计要求去掉）：胶囊靠 `surfaceContainer` 与页面背景的色阶差与页面内容拉开层次，
+ * 保持扁平。
  *
  * 调用方只传 [content]（一串 IconButton），首页多选栏 / 收藏页多选栏 / 消息操作栏共用同一规格。
  */
@@ -39,7 +38,6 @@ fun FlikkyFloatingToolbar(
         modifier = modifier.height(FlikkyFloatingToolbarHeight),
         shape = RoundedCornerShape(percent = 50),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        shadowElevation = SHADOW_ELEVATION,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = Spacing.sm),
@@ -55,4 +53,3 @@ fun FlikkyFloatingToolbar(
  * 避免底部中央的 snackbar 与同样底部中央的浮动操作栏相互遮挡。
  */
 val FlikkyFloatingToolbarHeight = 64.dp
-private val SHADOW_ELEVATION = 3.dp
