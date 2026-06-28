@@ -53,7 +53,6 @@ import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.MessageActionStyle
-import com.example.flikky.data.settings.PresetTheme
 import com.example.flikky.data.settings.ThemeMode
 import com.example.flikky.ui.components.Avatar
 import com.example.flikky.ui.components.ChoiceDialog
@@ -158,12 +157,7 @@ fun SettingsScreen(
                 val sectionItems = 4
                 SettingSection(title = "主题与色彩") {
                     val themeSubtitle = if (s.themeMode == ThemeMode.DYNAMIC) "跟随壁纸"
-                    else when (s.presetTheme) {
-                        PresetTheme.CORAL    -> "珊瑚"
-                        PresetTheme.MUSHROOM -> "蘑菇"
-                        PresetTheme.TEAL     -> "青黛"
-                        PresetTheme.MIST     -> "雾霭"
-                    }
+                    else s.presetTheme.label
                     SettingItem(
                         title = "主题",
                         leadingIcon = painterResource(R.drawable.ic_palette),
@@ -405,6 +399,7 @@ fun SettingsScreen(
             current = s,
             onSelectMode = { viewModel.setThemeMode(it) },
             onSelectPreset = { viewModel.setPreset(it) },
+            onSelectContrast = { viewModel.setContrast(it) },
             onDismiss = { activeSheet = null },
         )
         ActiveSheet.Avatar -> AvatarPickerSheet(

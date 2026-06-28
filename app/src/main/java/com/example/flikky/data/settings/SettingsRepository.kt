@@ -9,6 +9,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     private object Keys {
         val themeMode = stringPreferencesKey("theme_mode")
         val preset = stringPreferencesKey("preset_theme")
+        val contrast = stringPreferencesKey("contrast_level")
         val darkMode = stringPreferencesKey("dark_mode")
         val amoled = booleanPreferencesKey("amoled")
         val phoneAvatar = intPreferencesKey("phone_avatar")
@@ -33,7 +34,14 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     val settings: Flow<FlikkySettings> = ds.data.map { p ->
         FlikkySettings(
             themeMode = p[Keys.themeMode]?.let { ThemeMode.valueOf(it) } ?: ThemeMode.DYNAMIC,
-            presetTheme = p[Keys.preset]?.let { PresetTheme.valueOf(it) } ?: PresetTheme.CORAL,
+            // 旧版本可能存了已移除的预设名（CORAL/MUSHROOM/TEAL/MIST）——valueOf 会抛，
+            // runCatching 兜底回落到默认主题 DANSHU_RED（淡曙红，与旧 CORAL 同为暖红色系）。
+            presetTheme = p[Keys.preset]
+                ?.let { runCatching { PresetTheme.valueOf(it) }.getOrNull() }
+                ?: PresetTheme.DANSHU_RED,
+            contrastLevel = p[Keys.contrast]
+                ?.let { runCatching { ContrastLevel.valueOf(it) }.getOrNull() }
+                ?: ContrastLevel.SYSTEM,
             darkMode = p[Keys.darkMode]?.let { DarkMode.valueOf(it) } ?: DarkMode.SYSTEM,
             amoled = p[Keys.amoled] ?: false,
             phoneAvatarId = p[Keys.phoneAvatar] ?: 0,
@@ -68,6 +76,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
 
     suspend fun setThemeMode(v: ThemeMode) = ds.edit { it[Keys.themeMode] = v.name }
     suspend fun setPresetTheme(v: PresetTheme) = ds.edit { it[Keys.preset] = v.name }
+    suspend fun setContrastLevel(v: ContrastLevel) = ds.edit { it[Keys.contrast] = v.name }
     suspend fun setDarkMode(v: DarkMode) = ds.edit { it[Keys.darkMode] = v.name }
     suspend fun setAmoled(v: Boolean) = ds.edit { it[Keys.amoled] = v }
     suspend fun setPhoneAvatar(v: Int) = ds.edit { it[Keys.phoneAvatar] = v }

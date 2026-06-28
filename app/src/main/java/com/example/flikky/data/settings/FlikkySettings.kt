@@ -1,7 +1,33 @@
 package com.example.flikky.data.settings
 
 enum class ThemeMode { DYNAMIC, PRESET }
-enum class PresetTheme { CORAL, MUSHROOM, TEAL, MIST }
+
+/**
+ * 8 个命名预设主题。色值来自用户自定义的 Material Theme Builder 导出
+ * （ui/theme/scheme 包下的 Scheme 对象，逐字未改）。枚举常量名用英文，[label] 是中文展示名。
+ */
+enum class PresetTheme(val label: String) {
+    DANSHU_RED("淡曙红"),
+    DANZI_RED("丹紫红"),
+    CHENGPI_YELLOW("橙皮黄"),
+    QIUKUI_YELLOW("秋葵黄"),
+    ANAN_BLUE("安安蓝"),
+    ZHUMU_GRAY("珠母灰"),
+    YINGWU_GREEN("鹦鹉绿"),
+    JIEHUA_PURPLE("芥花紫"),
+}
+
+/**
+ * 对比度档。[SYSTEM] 跟随系统无障碍对比度（API34+ `UiModeManager.getContrast()`，低版本回落
+ * [STANDARD]）；其余为手动锁定。每个 [PresetTheme] 都备有标准/中/高三套 MD3 role。
+ */
+enum class ContrastLevel(val label: String) {
+    SYSTEM("跟随系统"),
+    STANDARD("标准"),
+    MEDIUM("中"),
+    HIGH("高"),
+}
+
 enum class DarkMode { SYSTEM, LIGHT, DARK }
 enum class SortMode { TIME, NAME }
 enum class GroupMode { NONE, STATUS, DATE }
@@ -36,7 +62,8 @@ const val BUBBLE_CORNER_DEFAULT = 18
 
 data class FlikkySettings(
     val themeMode: ThemeMode = ThemeMode.DYNAMIC,
-    val presetTheme: PresetTheme = PresetTheme.CORAL,
+    val presetTheme: PresetTheme = PresetTheme.DANSHU_RED,
+    val contrastLevel: ContrastLevel = ContrastLevel.SYSTEM,
     val darkMode: DarkMode = DarkMode.SYSTEM,
     val amoled: Boolean = false,
     val phoneAvatarId: Int = 0,

@@ -1,6 +1,8 @@
 package com.example.flikky.ui.theme
 
 import android.app.Activity
+import android.app.UiModeManager
+import android.content.Context
 import android.os.Build
 import android.provider.Settings
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -16,11 +18,32 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import com.example.flikky.data.settings.ContrastLevel
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.data.settings.ThemeMode
 
 val LocalFlikkySettings = compositionLocalOf { FlikkySettings() }
+
+/**
+ * 把用户对比度档解析成实际三档：[ContrastLevel.SYSTEM] 跟随系统无障碍对比度
+ * （API34+ `UiModeManager.getContrast()` 返回 0..1，按阈值分档；低版本回落标准），其余手动锁定。
+ */
+private fun resolveContrast(level: ContrastLevel, context: Context): ResolvedContrast = when (level) {
+    ContrastLevel.STANDARD -> ResolvedContrast.STANDARD
+    ContrastLevel.MEDIUM -> ResolvedContrast.MEDIUM
+    ContrastLevel.HIGH -> ResolvedContrast.HIGH
+    ContrastLevel.SYSTEM -> {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val c = context.getSystemService(UiModeManager::class.java)?.contrast ?: 0f
+            when {
+                c >= 0.67f -> ResolvedContrast.HIGH
+                c >= 0.34f -> ResolvedContrast.MEDIUM
+                else -> ResolvedContrast.STANDARD
+            }
+        } else ResolvedContrast.STANDARD
+    }
+}
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -36,7 +59,14 @@ fun FlikkyTheme(settings: FlikkySettings, content: @Composable () -> Unit) {
             val ctx = LocalContext.current
             if (useDark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
         }
-        else -> presetScheme(settings.presetTheme, useDark)
+        else -> {
+            // 预设主题才走对比度档；动态色由系统调色板自带（含系统对比度），不二次套。
+            val ctx = LocalContext.current
+            val contrast = remember(settings.contrastLevel, ctx) {
+                resolveContrast(settings.contrastLevel, ctx)
+            }
+            presetScheme(settings.presetTheme, useDark, contrast)
+        }
     }
     val scheme = if (settings.amoled && useDark) amoledOverride(base) else base
 

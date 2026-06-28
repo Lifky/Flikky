@@ -10,6 +10,7 @@ import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.AnimationSpeed
+import com.example.flikky.data.settings.ContrastLevel
 import com.example.flikky.data.settings.MessageActionStyle
 import com.example.flikky.data.settings.PresetTheme
 import com.example.flikky.data.settings.ThemeMode
@@ -30,6 +31,7 @@ class SettingsViewModel @JvmOverloads constructor(
 
     fun setThemeMode(v: ThemeMode) = viewModelScope.launch { repo.setThemeMode(v) }
     fun setPreset(v: PresetTheme) = viewModelScope.launch { repo.setPresetTheme(v) }
+    fun setContrast(v: ContrastLevel) = viewModelScope.launch { repo.setContrastLevel(v) }
     fun setDarkMode(v: DarkMode) = viewModelScope.launch { repo.setDarkMode(v) }
     fun setAmoled(v: Boolean) = viewModelScope.launch { repo.setAmoled(v) }
     fun setPhoneAvatar(v: Int) = viewModelScope.launch { repo.setPhoneAvatar(v) }
