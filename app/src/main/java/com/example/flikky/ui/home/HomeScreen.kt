@@ -9,6 +9,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -217,7 +221,13 @@ fun HomeScreen(
             }
         },
         floatingActionButton = {
-            if (!selecting && !searchExpanded) {
+            // FAB 显隐用 scale+fade 而非硬切。scale 走 spatial（弹簧 pop）：缩放过冲是短暂放大，
+            // 不像底栏滑动那样会露缝，安全且更贴 MD3 FAB 入场。
+            AnimatedVisibility(
+                visible = !selecting && !searchExpanded,
+                enter = scaleIn(Motion.spatial()) + fadeIn(Motion.effects()),
+                exit = scaleOut(Motion.spatialFast()) + fadeOut(Motion.effectsFast()),
+            ) {
                 ExtendedFloatingActionButton(
                     onClick = {
                         if (hasInProgress) {

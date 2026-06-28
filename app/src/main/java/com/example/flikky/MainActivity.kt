@@ -4,6 +4,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,6 +41,7 @@ import com.example.flikky.ui.home.HomeScreen
 import com.example.flikky.ui.serving.ServingScreen
 import com.example.flikky.ui.settings.SettingsScreen
 import com.example.flikky.ui.theme.FlikkyTheme
+import com.example.flikky.ui.theme.Motion
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,12 +79,16 @@ class MainActivity : ComponentActivity() {
 
                     Scaffold(
                         bottomBar = {
-                            if (
-                                topLevel &&
-                                !homeSelecting &&
-                                !homeSearchExpanded &&
-                                !favoritesSelecting &&
-                                !favoritesSearchExpanded
+                            // 底栏显隐用滑动+淡入而非硬切。slide 走 effects（无过冲）：底栏锚在屏幕底缘，
+                            // 带回弹的 spatial 会过冲令底栏短暂上抬、露出底缝。
+                            AnimatedVisibility(
+                                visible = topLevel &&
+                                    !homeSelecting &&
+                                    !homeSearchExpanded &&
+                                    !favoritesSelecting &&
+                                    !favoritesSearchExpanded,
+                                enter = slideInVertically(Motion.effects()) { it } + fadeIn(Motion.effects()),
+                                exit = slideOutVertically(Motion.effectsFast()) { it } + fadeOut(Motion.effectsFast()),
                             ) {
                                 FlikkyNavBar(
                                     currentRoute = currentRoute,
