@@ -157,17 +157,21 @@ fun FavoritesScreen(
             ) {
                 Column(Modifier.fillMaxSize().maxContentWidth()) {
                     // 搜索框已上移到 Scaffold topBar（与传输页同槽位、同组件）。
-                    // 合集 chip 行：整库为空时不显示（与传输页一致——无内容不显示）；
-                    // 选中某个合集或库里已有收藏时才显示。包进 AnimatedVisibility（默认 expand/shrink+fade），
-                    // 与传输页一致——长按进入多选时合集行向上平滑收起，而非闪现消失。
-                    AnimatedVisibility(visible = !selecting && (activeGroupId != null || hasFavorites)) {
-                        GroupChips(
-                            groups = groups.toGroupEntities(),
-                            activeGroupId = activeGroupId,
-                            onSelect = { viewModel.setActiveGroup(it) },
-                            onAdd = { showCreateGroup = true },
-                            onManage = { group -> managingGroup = group.toFavoriteGroup(groups) },
-                        )
+                    // 合集 chip 行：整库为空时不显示（与传输页一致——无内容不显示）。
+                    // 关键：数据存在性用外层 if 控制「是否在场」，AnimatedVisibility 只负责 selecting 的
+                    // 收起/展开。否则首次导航进页时 hasFavorites 由 false 异步变 true，会触发 enter 动画
+                    // 让 chip 行连带列表「往下滑入」——传输页 chip 可见态不依赖异步数据、首帧即 true，没有
+                    // 此动画。改成 if 门控后，数据到位时 AnimatedVisibility 以 visible=true 入组合、不播 enter。
+                    if (activeGroupId != null || hasFavorites) {
+                        AnimatedVisibility(visible = !selecting) {
+                            GroupChips(
+                                groups = groups.toGroupEntities(),
+                                activeGroupId = activeGroupId,
+                                onSelect = { viewModel.setActiveGroup(it) },
+                                onAdd = { showCreateGroup = true },
+                                onManage = { group -> managingGroup = group.toFavoriteGroup(groups) },
+                            )
+                        }
                     }
                     if (items.isEmpty()) {
                         EmptyFavorites(
