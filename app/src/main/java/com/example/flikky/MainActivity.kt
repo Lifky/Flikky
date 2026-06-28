@@ -5,10 +5,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -79,16 +79,20 @@ class MainActivity : ComponentActivity() {
 
                     Scaffold(
                         bottomBar = {
-                            // 底栏显隐用滑动+淡入而非硬切。slide 走 effects（无过冲）：底栏锚在屏幕底缘，
-                            // 带回弹的 spatial 会过冲令底栏短暂上抬、露出底缝。
+                            // 底栏显隐用 expand/shrink（高度动画）+ 淡入，而非 slide。关键：底栏占
+                            // Scaffold bottomBar 槽位；slide 时槽位仍预留等高空间、动画结束才骤缩为 0，
+                            // 会让上方内容区底缘（多选浮动栏的锚点）在结束瞬间「啪」下跳——正是「浮动栏
+                            // 先现于 NavBar 上方、再闪到底部」的根因。expand/shrink 让槽位高度随动画平滑
+                            // 收放，锚点同步平滑下移，浮动栏滑入与底栏退出顺滑交接。effects（无过冲）避免
+                            // 底栏在屏幕底缘过冲露缝。
                             AnimatedVisibility(
                                 visible = topLevel &&
                                     !homeSelecting &&
                                     !homeSearchExpanded &&
                                     !favoritesSelecting &&
                                     !favoritesSearchExpanded,
-                                enter = slideInVertically(Motion.effects()) { it } + fadeIn(Motion.effects()),
-                                exit = slideOutVertically(Motion.effectsFast()) { it } + fadeOut(Motion.effectsFast()),
+                                enter = expandVertically(Motion.effects()) + fadeIn(Motion.effects()),
+                                exit = shrinkVertically(Motion.effectsFast()) + fadeOut(Motion.effectsFast()),
                             ) {
                                 FlikkyNavBar(
                                     currentRoute = currentRoute,
