@@ -94,9 +94,11 @@ fun HomeSearchBar(
 
     // 折叠态：补 16dp 屏幕边距、宽屏限宽 600dp 居中；展开成全屏时边距动画归零、解除限宽。
     // 关键：边距用 animateDpAsState 平滑收拢，否则点击瞬间会先「闪成贴边」再播放展开动画。
+    // spec 用 effects（临界阻尼、无过冲）而非 spatial：padding 不能为负，带回弹的 spatial 弹簧
+    // 在 16dp→0dp 时会过冲到负值，使下方 .padding() 抛「Padding must be non-negative」闪退。
     val sidePadding by animateDpAsState(
         targetValue = if (expanded) 0.dp else Spacing.screenEdge,
-        animationSpec = Motion.spatial(),
+        animationSpec = Motion.effects(),
         label = "searchBarSidePadding",
     )
     SearchBar(
@@ -105,7 +107,8 @@ fun HomeSearchBar(
             .wrapContentWidth(Alignment.CenterHorizontally)
             .widthIn(max = if (expanded) Dp.Unspecified else MAX_CONTENT_WIDTH_DP.dp)
             .fillMaxWidth()
-            .padding(horizontal = sidePadding),
+            // coerceAtLeast(0.dp)：兜底，确保任何动画过冲都不会让 padding 变负而崩溃。
+            .padding(horizontal = sidePadding.coerceAtLeast(0.dp)),
         expanded = expanded,
         onExpandedChange = onExpandedChange,
         inputField = {
