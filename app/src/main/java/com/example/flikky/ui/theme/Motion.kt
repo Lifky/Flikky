@@ -70,6 +70,12 @@ object Motion {
     const val ExtraLong3 = 900
     const val ExtraLong4 = 1000
 
+    /**
+     * 成组入场的逐项错峰步进（ms）：主元素先动、次元素每项延后一步（MD3 stagger）。
+     * 调用方乘以 [LocalMotionScale] 再用于 delay → 受全局速度档统辖（关闭=0 → 无错峰、整组同时出现）。
+     */
+    const val StaggerStepMillis = 40
+
     // ---- Easing（官方 cubic-bezier）----
     val Emphasized: Easing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
     val EmphasizedAccelerate: Easing = CubicBezierEasing(0.3f, 0.0f, 0.8f, 0.15f)

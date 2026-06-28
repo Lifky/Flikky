@@ -1,9 +1,7 @@
 package com.example.flikky.ui.home
 
 import android.app.Application
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +51,7 @@ import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
 import com.example.flikky.ui.search.SearchViewModel
+import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -97,7 +96,7 @@ fun HomeSearchBar(
     // 关键：边距用 animateDpAsState 平滑收拢，否则点击瞬间会先「闪成贴边」再播放展开动画。
     val sidePadding by animateDpAsState(
         targetValue = if (expanded) 0.dp else Spacing.screenEdge,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        animationSpec = Motion.spatial(),
         label = "searchBarSidePadding",
     )
     SearchBar(

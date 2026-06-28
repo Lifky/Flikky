@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,6 +66,7 @@ import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
+import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlinx.coroutines.delay
@@ -260,7 +260,7 @@ fun HistoryScreen(
                     } else {
                         Color.Transparent
                     },
-                    animationSpec = tween(durationMillis = 600),
+                    animationSpec = Motion.durationSpec(durationMillis = Motion.Long4),
                     label = "search-highlight",
                 )
                 val isActionTarget = actionTarget == msg.id

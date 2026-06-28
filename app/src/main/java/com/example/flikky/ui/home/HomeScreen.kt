@@ -84,6 +84,7 @@ import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.RenameDialog
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -617,7 +618,7 @@ private fun SessionRow(
         s.pinned                            -> MaterialTheme.colorScheme.secondaryContainer
         else                                -> MaterialTheme.colorScheme.surfaceContainerLow
     }
-    val containerColor by animateColorAsState(targetColor, label = "rowSelColor")
+    val containerColor by animateColorAsState(targetColor, animationSpec = Motion.effects(), label = "rowSelColor")
     val selectedNow = selecting && checked && !inProgress
     val onContent = if (selectedNow) MaterialTheme.colorScheme.onPrimaryContainer
                     else MaterialTheme.colorScheme.onSurface

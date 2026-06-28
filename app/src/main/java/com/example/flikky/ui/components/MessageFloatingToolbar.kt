@@ -5,6 +5,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.example.flikky.ui.theme.Motion
 
 /**
  * 悬浮消息操作工具栏：一行 icon button，对选中消息的可用操作。复用 [MessageAction]。
@@ -48,10 +49,9 @@ fun MessageFloatingToolbarOverlay(
     androidx.compose.animation.AnimatedVisibility(
         visible = visible,
         modifier = modifier,
-        enter = androidx.compose.animation.scaleIn(
-            androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 500f)
-        ) + androidx.compose.animation.fadeIn(),
-        exit = androidx.compose.animation.fadeOut(),
+        enter = androidx.compose.animation.scaleIn(Motion.spatial()) +
+            androidx.compose.animation.fadeIn(Motion.effects()),
+        exit = androidx.compose.animation.fadeOut(Motion.effectsFast()),
     ) {
         MessageFloatingToolbar(actions = actions)
     }
