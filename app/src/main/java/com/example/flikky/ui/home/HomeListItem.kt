@@ -20,6 +20,31 @@ object HomeListBuilder {
     const val BUCKET_YESTERDAY = "昨天"
     const val BUCKET_EARLIER = "更早"
 
+    /**
+     * For each entry in [items], its position within the contiguous run of [HomeListItem.SessionItem]s
+     * it belongs to (a [HomeListItem.Header] breaks the run), as `(indexInRun, runSize)`. Headers map
+     * to `(0, 0)`.
+     *
+     * Drives the per-position corners of the official `SegmentedListItem`: first item in a run gets the
+     * large top corners, last gets the large bottom corners, middles stay small — so each date/status
+     * section reads as one connected segmented group.
+     */
+    fun segmentPositions(items: List<HomeListItem>): List<Pair<Int, Int>> {
+        val result = MutableList(items.size) { 0 to 0 }
+        var i = 0
+        while (i < items.size) {
+            if (items[i] is HomeListItem.SessionItem) {
+                var j = i
+                while (j < items.size && items[j] is HomeListItem.SessionItem) j++
+                for (k in i until j) result[k] = (k - i) to (j - i)
+                i = j
+            } else {
+                i++
+            }
+        }
+        return result
+    }
+
     fun filterByGroup(sessions: List<SessionEntity>, activeGroupId: Long?): List<SessionEntity> =
         if (activeGroupId == null) {
             sessions

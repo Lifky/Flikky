@@ -168,6 +168,53 @@ class HomeListBuilderTest {
         assertEquals(emptyList<Long>(), out.map { it.id })
     }
 
+    @Test
+    fun segmentPositions_singleSection_runsFirstMiddleLast() {
+        val items = listOf(
+            HomeListItem.Header("今天"),
+            HomeListItem.SessionItem(session(1, "A", ms(TODAY))),
+            HomeListItem.SessionItem(session(2, "B", ms(TODAY))),
+            HomeListItem.SessionItem(session(3, "C", ms(TODAY))),
+        )
+
+        // Header -> (0,0); the three SessionItems form one run of size 3.
+        assertEquals(
+            listOf(0 to 0, 0 to 3, 1 to 3, 2 to 3),
+            HomeListBuilder.segmentPositions(items),
+        )
+    }
+
+    @Test
+    fun segmentPositions_noHeaders_oneContinuousRun() {
+        val items = listOf(
+            HomeListItem.SessionItem(session(1, "A", ms(TODAY))),
+            HomeListItem.SessionItem(session(2, "B", ms(TODAY))),
+        )
+
+        assertEquals(listOf(0 to 2, 1 to 2), HomeListBuilder.segmentPositions(items))
+    }
+
+    @Test
+    fun segmentPositions_headerResetsRun() {
+        val items = listOf(
+            HomeListItem.Header("置顶"),
+            HomeListItem.SessionItem(session(1, "A", ms(TODAY))),
+            HomeListItem.SessionItem(session(2, "B", ms(TODAY))),
+            HomeListItem.Header("今天"),
+            HomeListItem.SessionItem(session(3, "C", ms(TODAY))),
+        )
+
+        assertEquals(
+            listOf(0 to 0, 0 to 2, 1 to 2, 0 to 0, 0 to 1),
+            HomeListBuilder.segmentPositions(items),
+        )
+    }
+
+    @Test
+    fun segmentPositions_empty_isEmpty() {
+        assertEquals(emptyList<Pair<Int, Int>>(), HomeListBuilder.segmentPositions(emptyList()))
+    }
+
     private fun List<HomeListItem>.headers() =
         filterIsInstance<HomeListItem.Header>().map { it.label }
 

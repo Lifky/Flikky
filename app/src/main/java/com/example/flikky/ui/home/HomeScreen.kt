@@ -8,14 +8,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,23 +28,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -68,7 +66,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -300,29 +297,37 @@ fun HomeScreen(
                                 )
                             }
                         } else {
+                            // Per-position (indexInRun, runSize) for the segmented corner shapes:
+                            // each date/status section is one connected segmented group.
+                            val segPositions = remember(homeItems) {
+                                HomeListBuilder.segmentPositions(homeItems)
+                            }
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(vertical = Spacing.sm),
                                 verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                             ) {
-                                items(
+                                itemsIndexed(
                                     homeItems,
-                                    key = { item ->
+                                    key = { _, item ->
                                         when (item) {
                                             is HomeListItem.Header -> "h:${item.label}"
                                             is HomeListItem.SessionItem -> "s:${item.session.id}"
                                         }
                                     },
-                                ) { item ->
+                                ) { index, item ->
                                     when (item) {
                                         is HomeListItem.Header ->
                                             SectionHeader(item.label, modifier = flikkyItemAnimation())
                                         is HomeListItem.SessionItem -> {
                                             val s = item.session
+                                            val (posInRun, runSize) = segPositions[index]
                                             SessionRow(
                                                 s = s,
                                                 selecting = selecting,
                                                 checked = s.id in selectedIds,
+                                                positionInRun = posInRun,
+                                                runSize = runSize,
                                                 onNormalClick = {
                                                     if (s.endedAt == null) resumeNavigate() else onOpenSession(s.id)
                                                 },
@@ -608,12 +613,14 @@ private fun GroupNameDialog(
     )
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SessionRow(
     s: SessionEntity,
     selecting: Boolean,
     checked: Boolean,
+    positionInRun: Int,
+    runSize: Int,
     onNormalClick: () -> Unit,
     onEnterSelecting: () -> Unit,
     onToggleSelection: () -> Unit,
@@ -621,96 +628,122 @@ private fun SessionRow(
     modifier: Modifier = Modifier,
 ) {
     val inProgress = s.endedAt == null
+    val selectable = selecting && !inProgress
     val dimmed = selecting && inProgress
+    val selectedNow = selectable && checked
     val haptic = LocalHapticFeedback.current
 
-    // Scheme A 纯色三态：选中 primaryContainer / 多选未选 surfaceContainer / 普通 surfaceContainerLow（置顶 secondaryContainer）。
-    val targetColor = when {
-        selecting && checked && !inProgress -> MaterialTheme.colorScheme.primaryContainer
-        selecting && !inProgress            -> MaterialTheme.colorScheme.surfaceContainer
-        s.pinned                            -> MaterialTheme.colorScheme.secondaryContainer
-        else                                -> MaterialTheme.colorScheme.surfaceContainerLow
-    }
-    val containerColor by animateColorAsState(targetColor, animationSpec = Motion.effects(), label = "rowSelColor")
-    val selectedNow = selecting && checked && !inProgress
+    // Content color matches the resolved container: onPrimaryContainer when selected, else onSurface.
     val onContent = if (selectedNow) MaterialTheme.colorScheme.onPrimaryContainer
                     else MaterialTheme.colorScheme.onSurface
 
-    val cardModifier = if (selecting) {
-        if (inProgress) Modifier // 进行中不可选
-        else Modifier.combinedClickable(onClick = onToggleSelection)
+    val shapes = ListItemDefaults.segmentedShapes(index = positionInRun, count = runSize)
+    // Three-state container, animated by the official InteractiveListItem selection spring:
+    // selected -> primaryContainer, pinned (outside multi-select) -> secondaryContainer, else surfaceContainer.
+    val colors = ListItemDefaults.segmentedColors(
+        containerColor = if (!selecting && s.pinned) MaterialTheme.colorScheme.secondaryContainer
+                         else MaterialTheme.colorScheme.surfaceContainer,
+        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        selectedSupportingContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    )
+
+    val rowModifier = modifier
+        .fillMaxWidth()
+        .padding(horizontal = Spacing.screenEdge)
+        .then(if (dimmed) Modifier.alpha(0.5f) else Modifier)
+        .then(
+            if (selectable) Modifier.semantics {
+                selected = checked
+                stateDescription = if (checked) "已选中" else "未选中"
+            } else Modifier
+        )
+
+    val headline: @Composable () -> Unit = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (s.pinned) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_push_pin),
+                    contentDescription = "已置顶",
+                    modifier = Modifier.size(16.dp),
+                    tint = if (selectedNow) onContent else MaterialTheme.colorScheme.primary,
+                )
+                Spacer(Modifier.width(Spacing.xs))
+            }
+            Text(text = s.name, style = MaterialTheme.typography.titleMedium, color = onContent)
+        }
+    }
+    val supporting: @Composable () -> Unit = {
+        Column {
+            Text(
+                text = when {
+                    selecting && inProgress -> "结束服务后可选择"
+                    else -> s.previewText ?: "${s.messageCount} 条消息 · ${s.fileCount} 文件"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = if (selectedNow) onContent.copy(alpha = 0.8f)
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+            Text(
+                text = if (inProgress) "进行中" else formatRelative(s.startedAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = when {
+                    selectedNow -> onContent.copy(alpha = 0.8f)
+                    inProgress  -> MaterialTheme.colorScheme.primary
+                    else        -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.padding(top = Spacing.xs),
+            )
+        }
+    }
+    val trailing: (@Composable () -> Unit)? = if (inProgress && !selecting) {
+        {
+            TextButton(onClick = onStopInProgress) {
+                Text("停止", color = MaterialTheme.colorScheme.error)
+            }
+        }
+    } else null
+
+    if (selectable) {
+        // Multi-select: the `selected` overload gives the built-in selection spring (shape + color morph).
+        SegmentedListItem(
+            selected = checked,
+            onClick = onToggleSelection,
+            shapes = shapes,
+            modifier = rowModifier,
+            colors = colors,
+            supportingContent = supporting,
+            trailingContent = trailing,
+            content = headline,
+        )
     } else {
-        Modifier.combinedClickable(
-            onClick = onNormalClick,
-            onLongClick = {
+        // Normal / in-progress: clickable overload. Long-press (on an ended session) enters multi-select.
+        val clickAction: () -> Unit = if (selecting) {
+            {}
+        } else {
+            onNormalClick
+        }
+        val longPress: (() -> Unit)? = if (selecting) null else {
+            {
                 if (!inProgress) {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onEnterSelecting()
                 }
-            },
-        )
-    }
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = Spacing.screenEdge)
-            // 先 clip 圆角再挂 clickable：否则 ripple 的 indication 画在未裁剪层上，
-            // 按压波纹会漫出卡片圆角（v1.0 起的老 bug）。
-            .clip(CardDefaults.shape)
-            .then(cardModifier)
-            .then(if (dimmed) Modifier.alpha(0.5f) else Modifier)
-            .then(
-                if (selecting && !inProgress) Modifier.semantics {
-                    selected = checked
-                    stateDescription = if (checked) "已选中" else "未选中"
-                } else Modifier
-            ),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-    ) {
-        Row(
-            modifier = Modifier.padding(Spacing.lg),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (s.pinned) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_push_pin),
-                            contentDescription = "已置顶",
-                            modifier = Modifier.size(16.dp),
-                            tint = if (selectedNow) onContent else MaterialTheme.colorScheme.primary,
-                        )
-                        Spacer(Modifier.width(Spacing.xs))
-                    }
-                    Text(text = s.name, style = MaterialTheme.typography.titleMedium, color = onContent)
-                }
-                Text(
-                    text = when {
-                        selecting && inProgress -> "结束服务后可选择"
-                        else -> s.previewText ?: "${s.messageCount} 条消息 · ${s.fileCount} 文件"
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (selectedNow) onContent.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                )
-                Text(
-                    text = if (inProgress) "进行中" else formatRelative(s.startedAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = when {
-                        selectedNow -> onContent.copy(alpha = 0.8f)
-                        inProgress  -> MaterialTheme.colorScheme.primary
-                        else        -> MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    modifier = Modifier.padding(top = Spacing.xs),
-                )
-            }
-            if (inProgress && !selecting) {
-                TextButton(onClick = onStopInProgress) {
-                    Text("停止", color = MaterialTheme.colorScheme.error)
-                }
             }
         }
+        SegmentedListItem(
+            onClick = clickAction,
+            shapes = shapes,
+            modifier = rowModifier,
+            colors = colors,
+            onLongClick = longPress,
+            supportingContent = supporting,
+            trailingContent = trailing,
+            content = headline,
+        )
     }
 }
 
