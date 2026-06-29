@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
@@ -185,12 +185,14 @@ fun FavoritesScreen(
                             contentPadding = PaddingValues(vertical = Spacing.sm),
                             verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                         ) {
-                            items(items, key = { it.id }) { favorite ->
+                            itemsIndexed(items, key = { _, it -> it.id }) { index, favorite ->
                                 FavoriteRow(
                                     favorite = favorite,
                                     selecting = selecting,
                                     selected = favorite.id in selectedIds,
                                     sendEnabled = canSendFavorites,
+                                    positionInRun = index,
+                                    runSize = items.size,
                                     modifier = flikkyItemAnimation(),
                                     onClick = {
                                         if (selecting) {
