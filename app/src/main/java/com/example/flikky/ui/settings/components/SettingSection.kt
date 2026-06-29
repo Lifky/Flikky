@@ -4,38 +4,34 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.example.flikky.ui.theme.Spacing
 import com.example.flikky.ui.theme.sectionLabel
-
-/** Gap between segmented list items within a section (M3 Expressive segmented look). */
-private val SEGMENT_GAP = 2.dp
 
 /**
  * A labeled group of settings items displayed in the M3 Expressive *segmented* list style.
  *
- * Renders a section title above the [content] composable. The title is styled
- * with the sectionLabel semantic style in the primary color. Items are laid out in a [Column]
- * with a small [SEGMENT_GAP] between them, so each item reads as a distinct rounded segment
- * (paired with the per-position corners from [groupedItemShape]).
+ * Renders a section title above the [content] composable. Items are laid out in a [Column]
+ * with the official [ListItemDefaults.SegmentedGap] between them, so each [SettingItem] reads
+ * as a distinct rounded segment (the per-position corners come from
+ * [ListItemDefaults.segmentedShapes], driven by the `index`/`total` passed to each item).
  *
  * Typical usage:
  * ```kotlin
  * SettingSection(title = "外观") {
  *     val items = listOf("主题", "深色模式", "AMOLED")
  *     items.forEachIndexed { i, label ->
- *         SettingItem(
- *             title = label,
- *             shape = groupedItemShape(i, items.size),
- *         )
+ *         SettingItem(title = label, index = i, total = items.size)
  *     }
  * }
  * ```
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingSection(
     title: String,
@@ -51,7 +47,7 @@ fun SettingSection(
         )
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(SEGMENT_GAP),
+            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
         ) {
             content()
         }

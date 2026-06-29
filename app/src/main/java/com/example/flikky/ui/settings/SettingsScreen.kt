@@ -60,7 +60,6 @@ import com.example.flikky.ui.components.ChoiceRow
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.settings.components.SettingItem
 import com.example.flikky.ui.settings.components.SettingSection
-import com.example.flikky.ui.settings.components.groupedItemShape
 import com.example.flikky.ui.settings.sheets.AvatarPickerSheet
 import com.example.flikky.ui.settings.sheets.BackgroundPickerSheet
 import com.example.flikky.ui.settings.sheets.ThemePickerSheet
@@ -163,7 +162,7 @@ fun SettingsScreen(
                         leadingIcon = painterResource(R.drawable.ic_palette),
                         subtitle = themeSubtitle,
                         onClick = { activeSheet = ActiveSheet.Theme },
-                        shape = groupedItemShape(0, sectionItems),
+                        index = 0, total = sectionItems,
                     )
                     val darkSubtitle = when (s.darkMode) {
                         DarkMode.SYSTEM -> "跟随系统"
@@ -175,7 +174,7 @@ fun SettingsScreen(
                         leadingIcon = painterResource(R.drawable.ic_dark_mode),
                         subtitle = darkSubtitle,
                         onClick = { showDarkModeDialog = true },
-                        shape = groupedItemShape(1, sectionItems),
+                        index = 1, total = sectionItems,
                     )
                     SettingItem(
                         title = "AMOLED 纯黑",
@@ -187,7 +186,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setAmoled(it) },
                             )
                         },
-                        shape = groupedItemShape(2, sectionItems),
+                        index = 2, total = sectionItems,
                     )
                     val animSpeedSubtitle = when (s.animationSpeed) {
                         AnimationSpeed.OFF      -> "关闭"
@@ -200,7 +199,7 @@ fun SettingsScreen(
                         leadingIcon = painterResource(R.drawable.ic_animation),
                         subtitle = animSpeedSubtitle,
                         onClick = { showAnimSpeedDialog = true },
-                        shape = groupedItemShape(3, sectionItems),
+                        index = 3, total = sectionItems,
                     )
                 }
             }
@@ -214,14 +213,14 @@ fun SettingsScreen(
                         leadingIcon = painterResource(R.drawable.ic_smartphone),
                         subtitle = s.deviceName,
                         onClick = { showDeviceNameDialog = true },
-                        shape = groupedItemShape(0, sectionItems),
+                        index = 0, total = sectionItems,
                     )
                     SettingItem(
                         title = "APP 端头像",
                         leadingIcon = painterResource(R.drawable.ic_account_circle),
                         trailing = { Avatar(avatarId = s.phoneAvatarId, size = Sizes.avatar) },
                         onClick = { activeSheet = ActiveSheet.Avatar },
-                        shape = groupedItemShape(1, sectionItems),
+                        index = 1, total = sectionItems,
                     )
                 }
             }
@@ -249,7 +248,7 @@ fun SettingsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         },
-                        shape = groupedItemShape(0, sectionItems),
+                        index = 0, total = sectionItems,
                     )
                     val groupingSubtitle = when (s.avatarGrouping) {
                         AvatarGroupingMode.FIRST -> "组内首条显示"
@@ -261,7 +260,7 @@ fun SettingsScreen(
                         leadingIcon = painterResource(R.drawable.ic_face),
                         subtitle = groupingSubtitle,
                         onClick = { showAvatarGroupingDialog = true },
-                        shape = groupedItemShape(1, sectionItems),
+                        index = 1, total = sectionItems,
                     )
                     val bgSubtitle = when (val bg = s.background) {
                         is BackgroundSetting.Default  -> "默认"
@@ -274,7 +273,7 @@ fun SettingsScreen(
                         leadingIcon = painterResource(R.drawable.ic_image),
                         subtitle = bgSubtitle,
                         onClick = { activeSheet = ActiveSheet.Background },
-                        shape = groupedItemShape(2, sectionItems),
+                        index = 2, total = sectionItems,
                     )
                 }
             }
@@ -292,7 +291,7 @@ fun SettingsScreen(
                         leadingIcon = painterResource(R.drawable.ic_touch_app),
                         subtitle = styleSubtitle,
                         onClick = { showActionStyleDialog = true },
-                        shape = groupedItemShape(0, sectionItems),
+                        index = 0, total = sectionItems,
                     )
                     SettingItem(
                         title = "消息撤回（Beta）",
@@ -304,7 +303,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setRecallBeta(it) },
                             )
                         },
-                        shape = groupedItemShape(1, sectionItems),
+                        index = 1, total = sectionItems,
                     )
                     SettingItem(
                         title = "收藏功能（Beta）",
@@ -316,7 +315,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setFavoriteBeta(it) },
                             )
                         },
-                        shape = groupedItemShape(2, sectionItems),
+                        index = 2, total = sectionItems,
                     )
                     SettingItem(
                         title = "允许会话中返回",
@@ -328,7 +327,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setAllowBackDuringSession(it) },
                             )
                         },
-                        shape = groupedItemShape(3, sectionItems),
+                        index = 3, total = sectionItems,
                     )
                 }
             }
@@ -348,7 +347,7 @@ fun SettingsScreen(
                         leadingIcon = painterResource(R.drawable.ic_history),
                         subtitle = historySubtitle,
                         onClick = { showHistoryLimitDialog = true },
-                        shape = groupedItemShape(0, sectionItems),
+                        index = 0, total = sectionItems,
                     )
                     SettingItem(
                         title = "导入",
@@ -359,14 +358,14 @@ fun SettingsScreen(
                                 arrayOf("application/zip", "application/x-zip-compressed")
                             )
                         },
-                        shape = groupedItemShape(1, sectionItems),
+                        index = 1, total = sectionItems,
                     )
                     SettingItem(
                         title = "导出",
                         leadingIcon = painterResource(R.drawable.ic_upload),
                         subtitle = "将会话导出为 zip 文件",
                         onClick = onExport,
-                        shape = groupedItemShape(2, sectionItems),
+                        index = 2, total = sectionItems,
                     )
                 }
             }
@@ -379,13 +378,13 @@ fun SettingsScreen(
                         title = "版本",
                         leadingIcon = painterResource(R.drawable.ic_info),
                         subtitle = "v1.9.1",
-                        shape = groupedItemShape(0, sectionItems),
+                        index = 0, total = sectionItems,
                     )
                     SettingItem(
                         title = "开源",
                         leadingIcon = painterResource(R.drawable.ic_code),
                         subtitle = "Ktor · mdui · Apache/MIT",
-                        shape = groupedItemShape(1, sectionItems),
+                        index = 1, total = sectionItems,
                     )
                 }
             }
