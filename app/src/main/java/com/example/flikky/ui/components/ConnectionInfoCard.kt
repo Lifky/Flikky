@@ -10,10 +10,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -62,7 +62,7 @@ fun ConnectionInfoCard(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
-            TextButton(onClick = { scope.launch { clipboard.setPlainText(url) } }) {
+            FilledTonalButton(onClick = { scope.launch { clipboard.setPlainText(url) } }) {
                 Icon(
                     painter = painterResource(R.drawable.ic_content_copy),
                     contentDescription = null,

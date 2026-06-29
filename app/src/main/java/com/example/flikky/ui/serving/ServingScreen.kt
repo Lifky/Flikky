@@ -24,8 +24,11 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -273,11 +276,16 @@ fun ServingScreen(
                         peerAvatarId = peerAvatarId,
                         peerName = "",
                         trailing = {
-                            IconButton(onClick = { viewModel.stopService(); onStopped() }) {
+                            FilledTonalIconButton(
+                                onClick = { viewModel.stopService(); onStopped() },
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                ),
+                            ) {
                                 Icon(
                                     painter = painterResource(R.drawable.ic_power),
                                     contentDescription = "停止服务",
-                                    tint = MaterialTheme.colorScheme.error,
                                 )
                             }
                         },
@@ -298,9 +306,12 @@ fun ServingScreen(
                             )
                         }
                         Spacer(Modifier.height(Spacing.sm))
-                        TextButton(
+                        FilledTonalButton(
                             onClick = { viewModel.stopService(); onStopped() },
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            ),
                             modifier = Modifier.align(Alignment.CenterHorizontally),
                         ) { Text("停止服务") }
                     }
