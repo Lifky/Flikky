@@ -22,6 +22,7 @@
 - **v1.9.1** — *已发布（2026-06-24）* — 设置对话框与列表 polish：单选对话框（深色模式 / 消息操作样式 / 头像显示 / 历史保存数量）重做为共用的 `ChoiceDialog`，选项行整宽、≥56dp 高、铺到对话框内边、整行一个统一 ripple（Radio 仅作视觉指示）——取代原先「行矮、内缩、只有圆点可点」的样式；并给设置项标题/副标题与右侧 `Switch` 之间加固定间隔，长文案不再顶到开关上。应用 `versionName` / `versionCode` → 1.9.1 / 10901。
 - **v1.10.0** — *已发布（2026-06-26）* — **收藏 / 弹药库**：底部导航新增**收藏** tab（传输 / 收藏 / 设置），底层走 Room v5 migration。给 TEXT 或已完成 FILE 气泡（进行中会话或 history 皆可）点收藏会留一份**独立快照副本**——不与源消息建外键，因此源消息被删、整个源会话被删、乃至 FIFO 淘汰后收藏副本仍在；文件复制进收藏专属目录、经 FileProvider 打开。星标可逆（实心 / 空心回显经 `(sourceSessionId, sourceMessageId)` 在 live + history 两端同步）；点收藏时弹底部 sheet 选合集（全部 + 已有 + 内联新建）。收藏拥有独立合集（chip 行、长按管理框、隔离的搜索 + 多选），与会话分组**完全独立**——删合集只把其下收藏 re-home 到「全部」，不级联删除。本版还把首页 / 收藏 / 消息三处 floating toolbar 统一到共用的 `FlikkyFloatingToolbar` 胶囊规格，并在启动时用持久化最大 id 给消息 id 计数器播种，重启后 id 不再相撞。应用 `versionName` / `versionCode` → 1.10.0 / 11000。
 - **v1.10.1** — *已发布（2026-06-27）* — **收藏快速发送 & 图标全量焕新**：每条收藏新增一键发送，把快照推进进行中会话——收藏页行内、以及会话页输入行 `★` 拉起的全新**弹药箱** `ModalBottomSheet` 皆可——文本走 `sendText`、文件走新增的 `offerStoredFile` 重载流式拷贝收藏副本，门槛与会话发送键一致同为 `clientConnected`，并带一行「最近使用」快捷发送（仅持久化 id 到 DataStore）。发送图标复用会话发送键的 `ic_arrow_upward`（不是纸飞机）。另外，全部 32 个 vector drawable 迁移到**官方 Material Symbols**（opsz24 / wght400、经 `translateY(960)` group 逐字保留官方 path）——取代旧版 Material Icons 与一个与官方对不上的手搓 `ic_send_outline`——且首页 / 收藏多选工具栏改为内容区悬浮（更轻的胶囊、内层 Scaffold 不再双算底部 inset）。应用 `versionName` / `versionCode` → 1.10.1 / 11001。
+- **v1.11.0** — *已发布（2026-06-30）* — **Motion 与视觉系统大改**：App 根改用 `MaterialExpressiveTheme`（**material3 1.5.0-alpha22**）+ `MotionScheme.expressive()`，新增 `ui/theme/Motion.kt` token 层把官方物理弹簧（spatial / effects × 默认 / 快 / 慢）包在**全局动画速度**之下（设置 → 动画速度：关闭 / 慢 / 标准 / 快，持久化于 DataStore；「关闭」即 reduce-motion，且始终尊重系统 animator-duration-scale）。在此地基上：MD3 导航转场（tab fade-through + push/pop shared-axis）、**predictive-back** 手势、列表增删/重排动画（`animateItem`）、服务页连接头部的 spatial-spring 高度形变、floating toolbar 迁到官方 `HorizontalFloatingToolbar`、内联 tween/spring 字面量全部 token 化。**Color**：4 套暖调预设替换为 **8 套自定义 MTB 主题**（淡曙红 / 丹紫红 / 橙皮黄 / 秋葵黄 / 安安蓝 / 珠母灰 / 鹦鹉绿 / 芥花紫），每套含完整 light/dark × 标准/中/高对比度 role 映射，新增**对比度档**设置（跟随系统 / 标准 / 中 / 高，系统对比度经 `UiModeManager` 读取），并实现**双端配色对齐**——手机当前主题的 seed + 深浅推给浏览器，浏览器重算出同色相的 mdui 调色板（同一 Material Color Utilities seed → 同色相）。**Lists**：设置 / 传输 / 收藏列表迁到官方 M3 Expressive `SegmentedListItem`（`segmentedShapes` 角形 + `SegmentedGap`），多选带官方内建的选中弹簧，容器色统一 `surfaceContainer`，终于让设置列表在亮色下有层次。待连接的三个动作（复制地址 + 两个停止服务）改为 filled-tonal 底色。应用 `versionName` / `versionCode` → 1.11.0 / 11100。
 
 设计文档与复盘/验收清单保存在本地的 `docs/others/`（已 gitignored），公开仓库仅含源码。
 
@@ -80,6 +81,12 @@
 - [x] 会话分组系统：文件夹式 filter chip（固定「全部」+ 自定义分组，单选），底层 Room v4 `session_groups` migration；当前分组态持久化于 DataStore，会话归入「启动那一刻所在的分组」；组内 置顶 / 今天 / 昨天 / 更早 分桶 *(v1.9.0)*
 - [x] 长按自定义 chip → 统一管理框（改名 / 上下移排序 / 删除带撤销）；「全部」为虚拟、不可删、不可移的 chip *(v1.9.0)*
 - [x] 多选 floating toolbar（MD3 胶囊、纯图标）+ **移动到分组**动作 → 底部 sheet（自定义分组 + 「全部」移出分组），一次 UPDATE 批量改 `groupId` *(v1.9.0)*
+- [x] 全局动画速度（关闭 / 慢 / 标准 / 快）设置，持久化于 DataStore 并经 `Motion` token 层接到 `MotionScheme.expressive()`；「关闭」即 reduce-motion，且始终尊重系统 animator-duration-scale *(v1.11.0)*
+- [x] MD3 导航转场：tab 切换 fade-through，路由 push/pop 走 shared-axis（前进 / 后退方向相反）；predictive-back 手势接路由 pop + sheet / 多选 dismiss *(v1.11.0)*
+- [x] 列表增删 / 重排动画走官方 `animateItem`（位移 spatial 弹簧、淡入淡出 effects 弹簧），覆盖 home / serving / favorites / history *(v1.11.0)*
+- [x] 8 套自定义 MTB 主题（淡曙红 / 丹紫红 / 橙皮黄 / 秋葵黄 / 安安蓝 / 珠母灰 / 鹦鹉绿 / 芥花紫）替换 4 套暖调预设，每套含完整 light/dark × 标准/中/高对比度 role 映射；新增对比度档设置（跟随系统 / 标准 / 中 / 高，系统对比度经 `UiModeManager` 读取） *(v1.11.0)*
+- [x] 双端配色对齐：手机当前主题 seed + 深浅经 `peer-info` 推给浏览器，浏览器重算出同色相 mdui 调色板（同一 Material Color Utilities seed → 同色相） *(v1.11.0)*
+- [x] 设置 / 传输 / 收藏列表迁到官方 M3 Expressive `SegmentedListItem`（`segmentedShapes` + `SegmentedGap`），多选带官方内建选中弹簧，容器统一 `surfaceContainer` 让亮色有层次 *(v1.11.0)*
 - [ ] HTTPS 自签证书 *(v2)*
 - [ ] 本地归档 at-rest encryption *(v2)*
 
@@ -118,6 +125,10 @@
 - [x] 收藏快速发送：每条收藏（收藏页行内 + 会话页 `★` 拉起的弹药箱底部 sheet）一键把快照推进进行中会话（文本 → `sendText`、文件 → 新增 `offerStoredFile` 重载），门槛 `clientConnected`；带一行「最近使用」持久化 id 到 DataStore *(v1.10.1)*
 - [x] 全部 32 个 vector drawable 迁移到官方 Material Symbols（opsz24 / wght400，经 `translateY(960)` group 逐字保留官方 path）——取代旧版 Material Icons + 手搓的 `ic_send_outline` *(v1.10.1)*
 - [x] 应用 `versionName` / `versionCode` 1.10.1 / 11001 *(v1.10.1)*
+- [x] `ui/theme/Motion.kt` 是官方 `MaterialTheme.motionScheme`（spatial / effects × 默认 / 快 / 慢）的薄适配层，经 `LocalMotionScale` = min(用户速度, 系统 animator-duration-scale) 缩放；内联 tween/spring 字面量 token 化；`LocalClipboardManager` → `LocalClipboard` *(v1.11.0)*
+- [x] floating toolbar 从手搓 `Surface` + `Row` 迁到官方 `HorizontalFloatingToolbar`（material3 1.5.0-alpha22，`ExperimentalMaterial3ExpressiveApi`）；服务页连接头部高度走 spatial 弹簧形变 *(v1.11.0)*
+- [x] 待连接的三个动作（复制地址 + 两个停止服务）改 filled-tonal 底色；停止服务用 errorContainer tonal 配色保留危险语义 *(v1.11.0)*
+- [x] 应用 `versionName` / `versionCode` 1.11.0 / 11100 *(v1.11.0)*
 
 ### fix
 
@@ -178,7 +189,8 @@
 - HTTP 明文传输（HTTPS 自签证书在 v2 里加）。
 - WiFi 切换（IP 变了）会断开在飞的 WS，浏览器需打开 banner 提示的新 URL；同 IP 恢复几秒内自动重连。 *(v1.2)*
 - 头像仅支持预设（图标 + 颜色）；自定义图片不在范围内。会话背景支持主题派生纯色 + 自定义色相（恒为可读极浅色）；渐变已在 v1.6.0 移除。 *(v1.6.0)*
-- 气泡圆角 slider 仅在手机端生效；浏览器端暂用静态 18px，待两端主题同步落地。 *(v1.9.0 后仍开放)*
+- 气泡圆角 slider 仅在手机端生效；浏览器端暂用静态 18px。双端**配色**对齐（seed + 深浅）已在 v1.11.0 落地，但圆角尚未同步。 *(v1.11.0 后仍开放)*
+- 双端配色对齐仅覆盖色相 + 深浅：浏览器拿不到对比度档，且 Material You 动态色下（无壁纸访问权）回落 mdui 默认调色板、仅跟随深浅；导出快照页未接主题。 *(v1.11.0)*
 
 ## 技术栈
 
@@ -186,7 +198,7 @@
 | --------- | ------------------------------------------------------------- |
 | 语言      | Kotlin 2.2                                                    |
 | 构建      | AGP 9 + KSP2（`2.2.10-2.0.2`）                                |
-| 手机 UI   | Jetpack Compose + Material 3                                  |
+| 手机 UI   | Jetpack Compose + Material 3 Expressive（material3 1.5.0-alpha22，`MaterialExpressiveTheme` + `MotionScheme`） |
 | HTTP 服务 | Ktor 3（CIO engine），内嵌于前台服务                          |
 | WebSocket | Ktor WebSockets（`pingPeriodMillis = 15_000`）                |
 | 持久化    | Room 2.7（+ KSP2 代码生成）                                   |

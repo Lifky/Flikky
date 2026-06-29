@@ -377,7 +377,7 @@ fun SettingsScreen(
                     SettingItem(
                         title = "版本",
                         leadingIcon = painterResource(R.drawable.ic_info),
-                        subtitle = "v1.9.1",
+                        subtitle = "v1.11.0",
                         index = 0, total = sectionItems,
                     )
                     SettingItem(
