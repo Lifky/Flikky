@@ -77,5 +77,20 @@ class PeerInfoRoutesTest {
         assertEquals(3, body["phoneAvatarId"]!!.jsonPrimitive.int)
         assertEquals("GRADIENT", body["backgroundMode"]!!.jsonPrimitive.content)
         assertEquals("sunset", body["backgroundValue"]!!.jsonPrimitive.content)
+        // bubbleCornerRadius defaults to 18 and is serialized so the browser can mirror it.
+        assertEquals(18, body["bubbleCornerRadius"]!!.jsonPrimitive.int)
+    }
+
+    @Test
+    fun `peer-info carries an explicit bubbleCornerRadius`() = testApplication {
+        application(setupApp { testPeerInfo.copy(bubbleCornerRadius = 24) })
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        val resp: HttpResponse = http.get("/api/peer-info")
+        assertEquals(HttpStatusCode.OK, resp.status)
+
+        val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
+        assertEquals(24, body["bubbleCornerRadius"]!!.jsonPrimitive.int)
     }
 }

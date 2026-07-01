@@ -145,6 +145,9 @@ data class PeerInfoDto(
     val backgroundValue: String? = null,
     val themeSeed: String? = null,
     val themeDark: Boolean = false,
+    // 气泡圆角（dp，8..28）——推给浏览器让两端气泡圆角一致；手机设置里拖 slider 即两端同步。
+    // 默认 18 与 data.settings.BUBBLE_CORNER_DEFAULT 对齐；DTO 不依赖 data 层，故此处内联。
+    val bubbleCornerRadius: Int = 18,
 )
 
 /**

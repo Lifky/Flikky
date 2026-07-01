@@ -602,6 +602,7 @@ class TransferService : Service() {
                 backgroundValue = value,
                 themeSeed = seed,
                 themeDark = resolvedDark,
+                bubbleCornerRadius = bubbleCornerRadius,
             )
         }
 
