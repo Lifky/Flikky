@@ -365,32 +365,11 @@ mdui-snackbar#snackbar {
     bottom: 80px;
 }
 
-/* v1.3 B4 长按撤回菜单。fixed 定位到 pointer 坐标；单按钮的最小菜单 */
+/* v1.3 B4 长按撤回菜单。手写外层只负责 fixed 定位到 pointer 坐标（mdui-dropdown
+ * 的 anchor 模型不支持任意坐标）；容器面板 / 圆角 / 海拔 / 菜单项样式全部交给内部的
+ * 官方 mdui-menu / mdui-menu-item。 */
 .recall-menu {
     position: fixed;
     z-index: 9999;
-    background: rgb(var(--mdui-color-surface-container-high));
-    color: rgb(var(--mdui-color-on-surface));
-    border-radius: var(--flikky-shape-xs);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-    padding: var(--flikky-space-xs);
     min-width: 96px;
-}
-.recall-menu button {
-    display: block;
-    width: 100%;
-    border: none;
-    background: transparent;
-    color: inherit;
-    padding: 10px var(--flikky-space-lg);
-    border-radius: 6px;
-    font-size: var(--flikky-font-body-medium);
-    text-align: left;
-    cursor: pointer;
-    font-family: inherit;
-}
-.recall-menu button:hover,
-.recall-menu button:focus-visible {
-    background: rgb(var(--mdui-color-surface-container-highest));
-    outline: none;
 }

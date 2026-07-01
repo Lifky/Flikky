@@ -407,21 +407,26 @@
 
     function showRecallMenu(messageId, x, y) {
         closeRecallMenu();
+        // 外层仍是 fixed 定位到指针坐标的手写容器——mdui-dropdown 的 anchor 模型不支持
+        // 任意屏幕坐标 + 动态气泡长按触发，硬换会倒退。内部换成官方 mdui-menu / menu-item，
+        // 带与 App 撤回同款的 undo 图标，拿到视觉一致又保留稳定的坐标/长按逻辑。
         const menu = document.createElement('div');
         menu.className = 'recall-menu';
         menu.id = 'recall-menu';
         // 避免菜单溢出屏幕右/下边缘——简单偏移即可。
         menu.style.left = Math.min(x, window.innerWidth - 120) + 'px';
         menu.style.top = Math.min(y, window.innerHeight - 60) + 'px';
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.textContent = '撤回';
-        btn.addEventListener('click', (e) => {
+        const mduiMenu = document.createElement('mdui-menu');
+        const item = document.createElement('mdui-menu-item');
+        item.appendChild(svgIcon('undo', 'icon'));
+        item.appendChild(document.createTextNode('撤回'));
+        item.addEventListener('click', (e) => {
             e.stopPropagation();
             closeRecallMenu();
             confirmRecallMessage(messageId);
         });
-        menu.appendChild(btn);
+        mduiMenu.appendChild(item);
+        menu.appendChild(mduiMenu);
         document.body.appendChild(menu);
         // 下一帧再装外部点击关闭，避免本次 pointerdown / click 立刻关掉自己。
         setTimeout(() => {
