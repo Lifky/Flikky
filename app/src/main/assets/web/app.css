@@ -75,6 +75,10 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     color: rgb(var(--mdui-color-on-primary));
     align-self: flex-end;
 }
+/* File icon (Material Symbols description) leads the file bubble, matching the App. */
+.file-bubble > mdui-icon {
+    flex-shrink: 0;
+}
 .file-bubble a {
     color: inherit;
     text-decoration: none;

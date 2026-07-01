@@ -9,6 +9,26 @@
     const countEl = document.getElementById('count');
     const rateEl = document.getElementById('rate');
 
+    // ── Icons: Material Symbols, paths copied verbatim from the App's ic_*.xml
+    // (viewBox 0 -960 960 960) so both ends render the exact same glyph. Inlined as
+    // SVG (not the CDN font) to stay offline and within CSP default-src 'self'. ──
+    const ICON_PATHS = {
+        description: 'M320-240h320v-80H320v80Zm0-160h320v-80H320v80ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z',
+        undo: 'M280-200v-80h284q63 0 109.5-40T720-420q0-60-46.5-100T564-560H312l104 104-56 56-200-200 200-200 56 56-104 104h252q97 0 166.5 63T800-420q0 94-69.5 157T564-200H280Z',
+    };
+    // Returns an <mdui-icon> element wrapping the inline SVG for the given name.
+    function svgIcon(name, slot) {
+        const icon = document.createElement('mdui-icon');
+        if (slot) icon.setAttribute('slot', slot);
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 -960 960 960');
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', ICON_PATHS[name] || '');
+        svg.appendChild(path);
+        icon.appendChild(svg);
+        return icon;
+    }
+
     // ── M9b: Avatar constants ─────────────────────────────────────────────
     // Order matches PRESET_AVATARS in Avatar.kt (indices 0-11).
     const AVATAR_BG = [
@@ -353,6 +373,8 @@
         const size = document.createElement('span');
         size.className = 'size';
         size.textContent = formatSize(msg.sizeBytes);
+        // 文件图标（与 App 文件气泡同款 Material Symbols description）。
+        div.appendChild(svgIcon('description'));
         div.appendChild(a);
         div.appendChild(size);
         appendBubbleRow(div, mine ? 'BROWSER' : 'PHONE');
