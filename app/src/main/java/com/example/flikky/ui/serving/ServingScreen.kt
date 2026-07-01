@@ -96,6 +96,7 @@ fun ServingScreen(
     var pendingFavoriteMsg by remember { mutableStateOf<Message?>(null) }
     var showAttachSheet by remember { mutableStateOf(false) }
     var showFavoriteQuickSheet by remember { mutableStateOf(false) }
+    var showQuickSettings by remember { mutableStateOf(false) }
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val pickFile = rememberLauncherForActivityResult(
@@ -276,17 +277,29 @@ fun ServingScreen(
                         peerAvatarId = peerAvatarId,
                         peerName = "",
                         trailing = {
-                            FilledTonalIconButton(
-                                onClick = { viewModel.stopService(); onStopped() },
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                ),
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_power),
-                                    contentDescription = "停止服务",
-                                )
+                                // 快捷设置：会话期间「设置」tab 被锁，这里就近调气泡圆角 / 深色模式。
+                                FilledTonalIconButton(onClick = { showQuickSettings = true }) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_settings),
+                                        contentDescription = "快捷设置",
+                                    )
+                                }
+                                FilledTonalIconButton(
+                                    onClick = { viewModel.stopService(); onStopped() },
+                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                    ),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_power),
+                                        contentDescription = "停止服务",
+                                    )
+                                }
                             }
                         },
                     )
@@ -479,6 +492,16 @@ fun ServingScreen(
             onPickFile = { showAttachSheet = false; pickFile.launch("*/*") },
             onPickImage = { showAttachSheet = false; pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onDismiss = { showAttachSheet = false },
+        )
+    }
+
+    if (showQuickSettings) {
+        QuickSettingsSheet(
+            bubbleCornerRadius = settings.bubbleCornerRadius,
+            darkMode = settings.darkMode,
+            onSetBubbleCorner = { viewModel.setBubbleCornerRadius(it) },
+            onSetDarkMode = { viewModel.setDarkMode(it) },
+            onDismiss = { showQuickSettings = false },
         )
     }
 
