@@ -241,9 +241,13 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     justify-content: center;
     font-size: 18px;
     line-height: 1;
-    color: #fff;
+    background: rgb(var(--mdui-color-secondary-container));
+    color: rgb(var(--mdui-color-on-secondary-container));
     flex-shrink: 0;
     user-select: none;
+}
+.avatar-circle mdui-icon {
+    font-size: 22px;
 }
 
 /* Header: peer info (left side of top-app-bar) */
@@ -270,7 +274,8 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     border: none;
     padding: 0;
     cursor: pointer;
-    background: transparent;
+    background: rgb(var(--mdui-color-secondary-container));
+    color: rgb(var(--mdui-color-on-secondary-container));
     outline-offset: 2px;
 }
 .avatar-btn:focus-visible {
@@ -307,6 +312,18 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
 .avatar-picker-grid .avatar-circle[aria-selected="true"] {
     outline: 3px solid rgb(var(--mdui-color-primary));
     outline-offset: 2px;
+}
+.avatar-char-cell {
+    width: 48px;
+    height: 48px;
+    border: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    font: inherit;
+    font-size: 22px;
+    font-weight: 600;
+    background: rgb(var(--mdui-color-secondary-container));
+    color: rgb(var(--mdui-color-on-secondary-container));
 }
 
 /* Bubble row: wraps avatar + bubble */
@@ -363,6 +380,45 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
  * CSS has higher specificity than shadow :host and overrides it without !important. */
 mdui-snackbar#snackbar {
     bottom: 80px;
+}
+
+@media (max-width: 600px) {
+    body.chat-page .chat > mdui-top-app-bar {
+        min-height: 64px;
+        height: auto;
+        flex-wrap: wrap;
+        row-gap: 4px;
+        padding-block: 6px;
+    }
+    .header-peer {
+        margin-left: var(--flikky-space-sm);
+        flex: 1 1 auto;
+        min-width: 120px;
+    }
+    .header-peer-name {
+        max-width: 72px;
+    }
+    .chat-meta {
+        order: 3;
+        flex: 1 0 100%;
+        justify-content: center;
+        margin: 0;
+        font-size: 12px;
+    }
+    .header-my-avatar-wrap {
+        margin-right: var(--flikky-space-sm) !important;
+    }
+    .bubble,
+    .file-bubble {
+        max-width: calc(100vw - 96px);
+    }
+    .chat-input-row {
+        gap: var(--flikky-space-xs);
+        padding: var(--flikky-space-sm);
+    }
+    .chat-input-row mdui-button {
+        min-width: 48px;
+    }
 }
 
 /* v1.3 B4 长按撤回菜单。手写外层只负责 fixed 定位到 pointer 坐标（mdui-dropdown

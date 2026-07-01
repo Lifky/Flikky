@@ -13,6 +13,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val darkMode = stringPreferencesKey("dark_mode")
         val amoled = booleanPreferencesKey("amoled")
         val phoneAvatar = intPreferencesKey("phone_avatar")
+        val phoneAvatarKey = stringPreferencesKey("phone_avatar_key")
         val bgMode = stringPreferencesKey("bg_mode")
         val bgValue = stringPreferencesKey("bg_value")
         val deviceName = stringPreferencesKey("device_name")
@@ -45,6 +46,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             darkMode = p[Keys.darkMode]?.let { DarkMode.valueOf(it) } ?: DarkMode.SYSTEM,
             amoled = p[Keys.amoled] ?: false,
             phoneAvatarId = p[Keys.phoneAvatar] ?: 0,
+            phoneAvatarKey = p[Keys.phoneAvatarKey] ?: "icon:smartphone",
             background = decodeBackground(p[Keys.bgMode], p[Keys.bgValue]),
             deviceName = p[Keys.deviceName] ?: "我的手机",
             recallBetaEnabled = p[Keys.recallBeta] ?: false,
@@ -80,6 +82,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setDarkMode(v: DarkMode) = ds.edit { it[Keys.darkMode] = v.name }
     suspend fun setAmoled(v: Boolean) = ds.edit { it[Keys.amoled] = v }
     suspend fun setPhoneAvatar(v: Int) = ds.edit { it[Keys.phoneAvatar] = v }
+    suspend fun setPhoneAvatarKey(v: String) = ds.edit { it[Keys.phoneAvatarKey] = v }
     suspend fun setDeviceName(v: String) = ds.edit { it[Keys.deviceName] = v.trim().ifEmpty { "我的手机" }.take(20) }
     suspend fun setRecallBeta(v: Boolean) = ds.edit { it[Keys.recallBeta] = v }
     suspend fun setFavoriteBeta(v: Boolean) = ds.edit { it[Keys.favoriteBeta] = v }

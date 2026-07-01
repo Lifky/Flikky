@@ -145,6 +145,7 @@ class SessionState(private val nowMs: () -> Long) {
         )
         _fileTransferProgress.value = emptyMap()
         _peerAvatarId.value = 0
+        _peerAvatarKey.value = "icon:desktop_windows"
     }
 
     /**
@@ -169,6 +170,11 @@ class SessionState(private val nowMs: () -> Long) {
     val peerAvatarId: StateFlow<Int> = _peerAvatarId.asStateFlow()
 
     fun setPeerAvatar(id: Int) { _peerAvatarId.value = id }
+
+    private val _peerAvatarKey = MutableStateFlow("icon:desktop_windows")
+    val peerAvatarKey: StateFlow<String> = _peerAvatarKey.asStateFlow()
+
+    fun setPeerAvatarKey(key: String) { _peerAvatarKey.value = key }
 
     private val _exportMode = MutableStateFlow<ExportMode>(ExportMode.Idle)
     val exportMode: StateFlow<ExportMode> = _exportMode

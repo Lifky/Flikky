@@ -89,6 +89,7 @@ fun ServingScreen(
     val progressMap by viewModel.fileTransferProgress.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val peerAvatarId by viewModel.peerAvatarId.collectAsState()
+    val peerAvatarKey by viewModel.peerAvatarKey.collectAsState()
     var draft by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
     var recallTarget by remember { mutableStateOf<Long?>(null) }
@@ -275,6 +276,7 @@ fun ServingScreen(
                 if (connected) {
                     ConversationHeader(
                         peerAvatarId = peerAvatarId,
+                        peerAvatarKey = peerAvatarKey,
                         peerName = "",
                         trailing = {
                             Row(
@@ -375,6 +377,8 @@ fun ServingScreen(
                                     showAvatar = showAvatar,
                                     avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
                                                else peerAvatarId,
+                                    avatarKey = if (msg.origin == Origin.PHONE) settings.phoneAvatarKey
+                                                else peerAvatarKey,
                                     cornerRadius = settings.bubbleCornerRadius.dp,
                                     selected = floating && isActionTarget,
                                 )

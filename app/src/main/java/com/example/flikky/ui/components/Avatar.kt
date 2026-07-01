@@ -1,67 +1,134 @@
 package com.example.flikky.ui.components
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.sp
+import com.example.flikky.R
 
-data class AvatarSpec(val icon: ImageVector, val bg: Color)
+sealed interface AvatarContent {
+    data class Icon(val name: String) : AvatarContent
+    data class Char(val value: String) : AvatarContent
+}
 
-/**
- * 12 preset avatars. All icons from material-icons-core (filled style).
- * Warm-leaning background palette — uses deep/saturated colors for contrast with white icons.
- */
-val PRESET_AVATARS: List<AvatarSpec> = listOf(
-    AvatarSpec(Icons.Default.Person,       Color(0xFFFF7043)), // deep orange
-    AvatarSpec(Icons.Default.Star,         Color(0xFFF4B400)), // amber
-    AvatarSpec(Icons.Default.Favorite,     Color(0xFFE91E63)), // pink
-    AvatarSpec(Icons.Default.Home,         Color(0xFF43A047)), // green
-    AvatarSpec(Icons.Default.Email,        Color(0xFF1E88E5)), // blue
-    AvatarSpec(Icons.Default.Call,         Color(0xFF00ACC1)), // cyan
-    AvatarSpec(Icons.Default.Phone,        Color(0xFF7E57C2)), // purple
-    AvatarSpec(Icons.Default.ShoppingCart, Color(0xFFEF6C00)), // orange
-    AvatarSpec(Icons.Default.ThumbUp,      Color(0xFF039BE5)), // light blue
-    AvatarSpec(Icons.Default.Place,        Color(0xFFD81B60)), // raspberry
-    AvatarSpec(Icons.Default.Notifications,Color(0xFF6D4C41)), // brown
-    AvatarSpec(Icons.Default.Settings,     Color(0xFF546E7A)), // blue-grey
+data class AvatarPreset(val key: String, val label: String)
+
+object AvatarKey {
+    const val DEFAULT_PHONE = "icon:smartphone"
+    const val DEFAULT_PEER = "icon:desktop_windows"
+
+    fun parse(raw: String?, fallback: String = DEFAULT_PHONE): AvatarContent {
+        val key = raw?.trim().orEmpty()
+        return when {
+            key.startsWith("icon:") -> {
+                val name = key.removePrefix("icon:").trim()
+                if (name.isNotEmpty()) AvatarContent.Icon(name) else parse(fallback, DEFAULT_PHONE)
+            }
+            key.startsWith("char:") -> {
+                val value = key.removePrefix("char:").trim()
+                val first = value.firstOrNull()?.toString()
+                if (first != null) AvatarContent.Char(first) else parse(fallback, DEFAULT_PHONE)
+            }
+            else -> parse(fallback.takeIf { it != key }, DEFAULT_PHONE)
+        }
+    }
+
+    fun normalize(raw: String?, fallback: String = DEFAULT_PHONE): String = when (val content = parse(raw, fallback)) {
+        is AvatarContent.Icon -> icon(content.name)
+        is AvatarContent.Char -> char(content.value)
+    }
+
+    fun icon(name: String): String = "icon:${name.trim()}"
+
+    fun char(text: String): String {
+        val first = text.trim().firstOrNull()?.toString()
+        return first?.let { "char:$it" } ?: DEFAULT_PHONE
+    }
+
+    fun fromLegacyIndex(index: Int): String = LEGACY_KEYS.getOrElse(index) { LEGACY_KEYS[0] }
+
+    private val LEGACY_KEYS = listOf(
+        icon("person"),
+        icon("star"),
+        icon("favorite"),
+        icon("home"),
+        icon("email"),
+        icon("call"),
+        icon("phone"),
+        icon("shopping_cart"),
+        icon("thumb_up"),
+        icon("place"),
+        icon("notifications"),
+        icon("settings"),
+    )
+}
+
+val PRESET_AVATARS: List<AvatarPreset> = listOf(
+    AvatarPreset(AvatarKey.DEFAULT_PHONE, "Phone"),
+    AvatarPreset(AvatarKey.DEFAULT_PEER, "Desktop"),
+    AvatarPreset(AvatarKey.icon("person"), "Person"),
+    AvatarPreset(AvatarKey.icon("star"), "Star"),
+    AvatarPreset(AvatarKey.icon("face"), "Face"),
+    AvatarPreset(AvatarKey.icon("palette"), "Palette"),
+    AvatarPreset(AvatarKey.icon("image"), "Image"),
+    AvatarPreset(AvatarKey.icon("settings"), "Settings"),
 )
 
 @Composable
 fun Avatar(avatarId: Int, size: Dp, modifier: Modifier = Modifier) {
-    val spec = PRESET_AVATARS.getOrElse(avatarId) { PRESET_AVATARS[0] }
+    Avatar(avatarKey = AvatarKey.fromLegacyIndex(avatarId), size = size, modifier = modifier)
+}
+
+@Composable
+fun Avatar(avatarKey: String?, size: Dp, modifier: Modifier = Modifier) {
+    val content = AvatarKey.parse(avatarKey, AvatarKey.DEFAULT_PHONE)
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(spec.bg),
+            .background(MaterialTheme.colorScheme.secondaryContainer),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = spec.icon,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(size * 0.6f),
-        )
+        when (content) {
+            is AvatarContent.Icon -> Icon(
+                painter = painterResource(iconDrawable(content.name)),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(size * 0.6f),
+            )
+            is AvatarContent.Char -> Text(
+                text = content.value,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = (size.value * 0.46f).sp,
+                lineHeight = (size.value * 0.46f).sp,
+            )
+        }
     }
+}
+
+@DrawableRes
+private fun iconDrawable(name: String): Int = when (name) {
+    "smartphone" -> R.drawable.ic_smartphone
+    "desktop_windows" -> R.drawable.ic_desktop_windows
+    "person" -> R.drawable.ic_account_circle
+    "settings" -> R.drawable.ic_settings
+    "star" -> R.drawable.ic_star
+    "face" -> R.drawable.ic_face
+    "palette" -> R.drawable.ic_palette
+    "image" -> R.drawable.ic_image
+    "description" -> R.drawable.ic_description
+    else -> R.drawable.ic_account_circle
 }

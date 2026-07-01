@@ -141,6 +141,7 @@ data class StatusDto(
 data class PeerInfoDto(
     val deviceName: String,
     val phoneAvatarId: Int,
+    val phoneAvatarKey: String = "icon:smartphone",
     val backgroundMode: String,
     val backgroundValue: String? = null,
     val themeSeed: String? = null,
@@ -154,4 +155,8 @@ data class PeerInfoDto(
  * M9: client_hello WS frame from browser, carrying the browser's chosen avatar ID.
  */
 @Serializable
-data class ClientHelloDto(val type: String, val avatarId: Int)
+data class ClientHelloDto(
+    val type: String,
+    val avatarId: Int = 0,
+    val avatarKey: String? = null,
+)

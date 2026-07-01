@@ -598,6 +598,7 @@ class TransferService : Service() {
             return PeerInfoDto(
                 deviceName = deviceName,
                 phoneAvatarId = phoneAvatarId,
+                phoneAvatarKey = phoneAvatarKey,
                 backgroundMode = mode,
                 backgroundValue = value,
                 themeSeed = seed,

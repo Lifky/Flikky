@@ -306,6 +306,7 @@ fun HistoryScreen(
                             showAvatar = showAvatar,
                             avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
                                        else (session?.peerAvatarId ?: 0),
+                            avatarKey = if (msg.origin == Origin.PHONE) settings.phoneAvatarKey else null,
                             cornerRadius = settings.bubbleCornerRadius.dp,
                             selected = floating && isActionTarget,
                         )

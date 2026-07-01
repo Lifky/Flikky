@@ -69,6 +69,7 @@ data class FlikkySettings(
     val darkMode: DarkMode = DarkMode.SYSTEM,
     val amoled: Boolean = false,
     val phoneAvatarId: Int = 0,
+    val phoneAvatarKey: String = "icon:smartphone",
     val background: BackgroundSetting = BackgroundSetting.Default,
     val deviceName: String = "我的手机",
     val recallBetaEnabled: Boolean = false,

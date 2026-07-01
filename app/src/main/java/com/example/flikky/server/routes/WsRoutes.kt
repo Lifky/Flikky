@@ -70,6 +70,7 @@ private val pingPattern = Regex("""\{\s*"type"\s*:\s*"ping"\s*,\s*"id"\s*:\s*(\d
 // M9: matches {"type":"client_hello","avatarId":N} — type must precede avatarId (browser always
 // serializes JSON.stringify keys in insertion order, so this is guaranteed by the send path).
 private val clientHelloPattern = Regex(""""type"\s*:\s*"client_hello".*?"avatarId"\s*:\s*(\d+)""")
+private val clientHelloKeyPattern = Regex(""""type"\s*:\s*"client_hello".*?"avatarKey"\s*:\s*"([^"]{1,48})"""")
 
 fun Route.wsRoutes(
     pinAuth: PinAuth,
@@ -103,6 +104,10 @@ fun Route.wsRoutes(
                 if (helloMatch != null) {
                     val avatarId = helloMatch.groupValues[1].toIntOrNull() ?: 0
                     session.setPeerAvatar(avatarId)
+                }
+                val helloKeyMatch = clientHelloKeyPattern.find(text)
+                if (helloKeyMatch != null) {
+                    session.setPeerAvatarKey(helloKeyMatch.groupValues[1])
                 }
             }
         } finally {

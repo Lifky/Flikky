@@ -64,6 +64,7 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     /** M9: avatar chosen by the browser peer, set via client_hello WS frame. */
     val peerAvatarId: StateFlow<Int> = ServiceLocator.session.peerAvatarId
+    val peerAvatarKey: StateFlow<String> = ServiceLocator.session.peerAvatarKey
 
     val settings: StateFlow<FlikkySettings> =
         ServiceLocator.settingsRepository.settings

@@ -24,6 +24,7 @@ import com.example.flikky.ui.theme.connected
 @Composable
 fun ConversationHeader(
     peerAvatarId: Int,
+    peerAvatarKey: String? = null,
     peerName: String,
     modifier: Modifier = Modifier,
     trailing: @Composable () -> Unit = {},
@@ -33,7 +34,11 @@ fun ConversationHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        Avatar(avatarId = peerAvatarId, size = Sizes.avatar)
+        if (peerAvatarKey != null) {
+            Avatar(avatarKey = peerAvatarKey, size = Sizes.avatar)
+        } else {
+            Avatar(avatarId = peerAvatarId, size = Sizes.avatar)
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = peerName.ifBlank { "对端设备" },

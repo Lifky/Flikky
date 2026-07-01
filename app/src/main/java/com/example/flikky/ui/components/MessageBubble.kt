@@ -50,6 +50,7 @@ fun MessageBubble(
     transferProgress: Float? = null,
     showAvatar: Boolean = true,
     avatarId: Int? = null,
+    avatarKey: String? = null,
     cornerRadius: Dp = 18.dp,
     selected: Boolean = false,
 ) {
@@ -64,7 +65,9 @@ fun MessageBubble(
     val interaction = remember { MutableInteractionSource() }
 
     val avatarSlot: @Composable () -> Unit = {
-        if (showAvatar && avatarId != null) {
+        if (showAvatar && avatarKey != null) {
+            Avatar(avatarKey = avatarKey, size = 36.dp)
+        } else if (showAvatar && avatarId != null) {
             Avatar(avatarId = avatarId, size = 36.dp)
         } else {
             Spacer(Modifier.width(36.dp))

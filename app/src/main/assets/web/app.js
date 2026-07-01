@@ -14,6 +14,14 @@
     // SVG (not the CDN font) to stay offline and within CSP default-src 'self'. ──
     const ICON_PATHS = {
         description: 'M320-240h320v-80H320v80Zm0-160h320v-80H320v80ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z',
+        desktop_windows: 'M320-120v-80h80v-80H160q-33 0-56.5-23.5T80-360v-400q0-33 23.5-56.5T160-840h640q33 0 56.5 23.5T880-760v400q0 33-23.5 56.5T800-280H560v80h80v80H320ZM160-360h640v-400H160v400Zm0 0v-400 400Z',
+        smartphone: 'M280-40q-33 0-56.5-23.5T200-120v-720q0-33 23.5-56.5T280-920h400q33 0 56.5 23.5T760-840v124q18 7 29 22t11 34v80q0 19-11 34t-29 22v404q0 33-23.5 56.5T680-40H280Zm0-80h400v-720H280v720Zm0 0v-720 720Zm228.5-611.5Q520-743 520-760t-11.5-28.5Q497-800 480-800t-28.5 11.5Q440-777 440-760t11.5 28.5Q463-720 480-720t28.5-11.5Z',
+        person: 'M234-276q51-39 114-61.5T480-360q69 0 132 22.5T726-276q35-41 54.5-93T800-480q0-133-93.5-226.5T480-800q-133 0-226.5 93.5T160-480q0 59 19.5 111t54.5 93Zm146.5-204.5Q340-521 340-580t40.5-99.5Q421-720 480-720t99.5 40.5Q620-639 620-580t-40.5 99.5Q539-440 480-440t-99.5-40.5ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm100-95.5q47-15.5 86-44.5-39-29-86-44.5T480-280q-53 0-100 15.5T294-220q39 29 86 44.5T480-160q53 0 100-15.5ZM523-537q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm-43-43Zm0 360Z',
+        settings: 'm370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24 12L590-80H370Zm112-260q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Z',
+        star: 'm233-120 65-281L80-590l288-25 112-265 112 265 288 25-218 189 65 281-247-149-247 149Z',
+        face: 'M324.5-404.5Q310-419 310-440t14.5-35.5Q339-490 360-490t35.5 14.5Q410-461 410-440t-14.5 35.5Q381-390 360-390t-35.5-14.5Zm240 0Q550-419 550-440t14.5-35.5Q579-490 600-490t35.5 14.5Q650-461 650-440t-14.5 35.5Q621-390 600-390t-35.5-14.5ZM480-160q134 0 227-93t93-227q0-24-3-46.5T786-570q-21 5-42 7.5t-44 2.5q-91 0-172-39T390-708q-32 78-91.5 135.5T160-486v6q0 134 93 227t227 93Zm0 80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm-54-715q42 70 114 112.5T700-640q14 0 27-1.5t27-3.5q-42-70-114-112.5T480-800q-14 0-27 1.5t-27 3.5ZM177-581q51-29 89-75t57-103q-51 29-89 75t-57 103Zm249-214Zm-103 36Z',
+        palette: 'M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-177 23q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm120-160q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm200 0q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm120 160q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z',
+        image: 'M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm40-80h480L570-480 450-320l-90-120-120 160Zm-40 80v-560 560Z',
         undo: 'M280-200v-80h284q63 0 109.5-40T720-420q0-60-46.5-100T564-560H312l104 104-56 56-200-200 200-200 56 56-104 104h252q97 0 166.5 63T800-420q0 94-69.5 157T564-200H280Z',
     };
     // Returns an <mdui-icon> element wrapping the inline SVG for the given name.
@@ -30,6 +38,7 @@
     }
 
     // ── M9b: Avatar constants ─────────────────────────────────────────────
+    /*
     // Order matches PRESET_AVATARS in Avatar.kt (indices 0-11).
     const AVATAR_BG = [
         '#FF7043', // 0 Person      deep orange
@@ -75,6 +84,86 @@
         return el;
     }
 
+    */
+    const AVATAR_DEFAULT_BROWSER = 'icon:desktop_windows';
+    const AVATAR_DEFAULT_PHONE = 'icon:smartphone';
+    const AVATAR_LEGACY_KEYS = [
+        'icon:person',
+        'icon:star',
+        'icon:person',
+        'icon:person',
+        'icon:person',
+        'icon:person',
+        'icon:smartphone',
+        'icon:person',
+        'icon:person',
+        'icon:person',
+        'icon:person',
+        'icon:settings',
+    ];
+    const AVATAR_PRESETS = [
+        AVATAR_DEFAULT_BROWSER,
+        AVATAR_DEFAULT_PHONE,
+        'icon:person',
+        'icon:star',
+        'icon:face',
+        'icon:palette',
+        'icon:image',
+        'icon:settings',
+    ];
+
+    function legacyAvatarKey(id, fallback) {
+        const idx = Number(id);
+        return Number.isInteger(idx) && idx >= 0 && idx < AVATAR_LEGACY_KEYS.length
+            ? AVATAR_LEGACY_KEYS[idx]
+            : fallback;
+    }
+
+    function normalizeAvatarKey(raw, fallback) {
+        const key = (typeof raw === 'string' ? raw.trim() : '');
+        if (key.startsWith('icon:') && key.slice(5).trim()) return 'icon:' + key.slice(5).trim();
+        if (key.startsWith('char:') && key.slice(5).trim()) return 'char:' + Array.from(key.slice(5).trim())[0];
+        return fallback;
+    }
+
+    function clearAvatar(el) {
+        while (el.firstChild) el.removeChild(el.firstChild);
+        el.removeAttribute('icon');
+        el.textContent = '';
+    }
+
+    function renderAvatar(el, key) {
+        if (!el) return;
+        const normalized = normalizeAvatarKey(key, AVATAR_DEFAULT_BROWSER);
+        clearAvatar(el);
+        el.classList.add('avatar-circle');
+        if (normalized.startsWith('char:')) {
+            el.textContent = normalized.slice(5);
+            return;
+        }
+        const name = normalized.slice(5);
+        if (ICON_PATHS[name]) {
+            el.appendChild(svgIcon(name));
+        } else {
+            el.setAttribute('icon', name);
+        }
+    }
+
+    function makeAvatarEl(avatarKey) {
+        const el = document.createElement('mdui-avatar');
+        renderAvatar(el, avatarKey);
+        return el;
+    }
+
+    function readMyAvatarKey() {
+        const stored = localStorage.getItem('flikky_avatar_key');
+        if (stored) return normalizeAvatarKey(stored, AVATAR_DEFAULT_BROWSER);
+        return legacyAvatarKey(Number(localStorage.getItem('flikky_avatar')), AVATAR_DEFAULT_BROWSER);
+    }
+
+    let myAvatarKey = readMyAvatarKey();
+    let phoneAvatarKey = AVATAR_DEFAULT_PHONE;
+
     // Track last rendered origin for consecutive same-origin suppression.
     // 'PHONE' | 'BROWSER' | null
     let lastBubbleOrigin = null;
@@ -96,7 +185,7 @@
             spacer.className = 'avatar-spacer';
             row.appendChild(spacer);
         } else {
-            const avatarEl = makeAvatarEl(mine ? myAvatarId : phoneAvatarId);
+            const avatarEl = makeAvatarEl(mine ? myAvatarKey : phoneAvatarKey);
             row.appendChild(avatarEl);
         }
         row.appendChild(bubbleEl);
@@ -107,14 +196,10 @@
     }
 
     // Update the header avatar and name for the peer.
-    function renderPeerHeader(deviceName, avatarId) {
+    function renderPeerHeader(deviceName, avatarKey) {
         const peerAvatarEl = document.getElementById('peer-avatar');
         const peerNameEl = document.getElementById('peer-name');
-        if (peerAvatarEl) {
-            const idx = Math.max(0, Math.min(11, avatarId));
-            peerAvatarEl.style.backgroundColor = AVATAR_BG[idx];
-            peerAvatarEl.textContent = AVATAR_EMOJI[idx];
-        }
+        renderAvatar(peerAvatarEl, avatarKey);
         if (peerNameEl) {
             peerNameEl.textContent = '来自 ' + deviceName;
         }
@@ -124,8 +209,7 @@
     function renderMyAvatarBtn() {
         const btn = document.getElementById('my-avatar-btn');
         if (!btn) return;
-        btn.style.backgroundColor = AVATAR_BG[myAvatarId];
-        btn.textContent = AVATAR_EMOJI[myAvatarId];
+        renderAvatar(btn, myAvatarKey);
     }
 
     // Convert an ARGB Long string (e.g. "4294944066") to a CSS color string.
@@ -234,8 +318,11 @@
             if (!r.ok) return;
             const data = await r.json();
             const name = (data.deviceName && typeof data.deviceName === 'string') ? data.deviceName : '手机';
-            phoneAvatarId = Math.max(0, Math.min(11, Number(data.phoneAvatarId) ?? 0));
-            renderPeerHeader(name, phoneAvatarId);
+            phoneAvatarKey = normalizeAvatarKey(
+                data.phoneAvatarKey,
+                legacyAvatarKey(Number(data.phoneAvatarId), AVATAR_DEFAULT_PHONE),
+            );
+            renderPeerHeader(name, phoneAvatarKey);
             applyBackground(data.backgroundMode || 'DEFAULT', data.backgroundValue || '', name);
             applyTheme(typeof data.themeSeed === 'string' ? data.themeSeed : null, !!data.themeDark);
             applyBubbleRadius(data.bubbleCornerRadius);
@@ -248,20 +335,28 @@
     function buildAvatarPickerGrid() {
         const grid = document.getElementById('avatar-picker-grid');
         if (!grid || grid.childElementCount > 0) return; // build once
-        for (let i = 0; i < 12; i++) {
-            const cell = document.createElement('div');
-            cell.className = 'avatar-circle';
-            cell.style.backgroundColor = AVATAR_BG[i];
-            cell.textContent = AVATAR_EMOJI[i];
+        for (const key of AVATAR_PRESETS) {
+            const cell = document.createElement('mdui-avatar');
+            renderAvatar(cell, key);
             cell.setAttribute('role', 'button');
             cell.setAttribute('tabindex', '0');
-            cell.dataset.avatarIndex = String(i);
-            cell.addEventListener('click', () => selectAvatar(i));
+            cell.dataset.avatarKey = key;
+            cell.addEventListener('click', () => selectAvatar(key));
             cell.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectAvatar(i); }
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectAvatar(key); }
             });
             grid.appendChild(cell);
         }
+        const charCell = document.createElement('button');
+        charCell.className = 'avatar-char-cell';
+        charCell.type = 'button';
+        charCell.textContent = 'A';
+        charCell.addEventListener('click', () => {
+            const value = window.prompt('Avatar character', 'A') || '';
+            const first = Array.from(value.trim())[0];
+            if (first) selectAvatar('char:' + first);
+        });
+        grid.appendChild(charCell);
     }
 
     function openAvatarPicker() {
@@ -280,14 +375,15 @@
         const grid = document.getElementById('avatar-picker-grid');
         if (!grid) return;
         for (const cell of grid.children) {
-            const selected = Number(cell.dataset.avatarIndex) === myAvatarId;
+            const selected = cell.dataset.avatarKey === myAvatarKey;
             cell.setAttribute('aria-selected', selected ? 'true' : 'false');
         }
     }
 
-    function selectAvatar(idx) {
-        myAvatarId = idx;
-        localStorage.setItem('flikky_avatar', String(idx));
+    function selectAvatar(key) {
+        myAvatarKey = normalizeAvatarKey(key, AVATAR_DEFAULT_BROWSER);
+        localStorage.setItem('flikky_avatar_key', myAvatarKey);
+        localStorage.removeItem('flikky_avatar');
         renderMyAvatarBtn();
         updatePickerSelection();
         closeAvatarPicker();
@@ -299,7 +395,7 @@
     function sendClientHello() {
         if (currentWs && currentWs.readyState === 1) {
             try {
-                currentWs.send(JSON.stringify({ type: 'client_hello', avatarId: myAvatarId }));
+                currentWs.send(JSON.stringify({ type: 'client_hello', avatarKey: myAvatarKey }));
             } catch (_) {}
         }
     }

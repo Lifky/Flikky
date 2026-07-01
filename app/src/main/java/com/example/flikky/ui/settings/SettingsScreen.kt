@@ -218,7 +218,7 @@ fun SettingsScreen(
                     SettingItem(
                         title = "APP 端头像",
                         leadingIcon = painterResource(R.drawable.ic_account_circle),
-                        trailing = { Avatar(avatarId = s.phoneAvatarId, size = Sizes.avatar) },
+                        trailing = { Avatar(avatarKey = s.phoneAvatarKey, size = Sizes.avatar) },
                         onClick = { activeSheet = ActiveSheet.Avatar },
                         index = 1, total = sectionItems,
                     )
@@ -402,8 +402,8 @@ fun SettingsScreen(
             onDismiss = { activeSheet = null },
         )
         ActiveSheet.Avatar -> AvatarPickerSheet(
-            currentId = s.phoneAvatarId,
-            onSelect = { viewModel.setPhoneAvatar(it); activeSheet = null },
+            currentKey = s.phoneAvatarKey,
+            onSelect = { viewModel.setPhoneAvatarKey(it); activeSheet = null },
             onDismiss = { activeSheet = null },
         )
         ActiveSheet.Background -> BackgroundPickerSheet(
