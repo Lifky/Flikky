@@ -28,14 +28,10 @@
             </div>
         </mdui-top-app-bar>
 
-        <!-- Avatar picker overlay (12 presets) -->
-        <div id="avatar-picker" class="avatar-picker" hidden role="dialog" aria-modal="true" aria-label="选择头像">
-            <div class="avatar-picker-backdrop"></div>
-            <div class="avatar-picker-panel">
-                <p class="avatar-picker-title">选择头像</p>
-                <div class="avatar-picker-grid" id="avatar-picker-grid"></div>
-            </div>
-        </div>
+        <!-- Avatar picker (12 presets) — official mdui-dialog -->
+        <mdui-dialog id="avatar-picker" close-on-overlay-click close-on-esc headline="选择头像">
+            <div class="avatar-picker-grid" id="avatar-picker-grid"></div>
+        </mdui-dialog>
 
         <div id="conn-banner" class="conn-banner" hidden></div>
         <div id="list" class="chat-list"></div>

@@ -268,12 +268,12 @@
         buildAvatarPickerGrid();
         updatePickerSelection();
         const picker = document.getElementById('avatar-picker');
-        if (picker) picker.hidden = false;
+        if (picker) picker.open = true;   // mdui-dialog: overlay + Esc close are built in.
     }
 
     function closeAvatarPicker() {
         const picker = document.getElementById('avatar-picker');
-        if (picker) picker.hidden = true;
+        if (picker) picker.open = false;
     }
 
     function updatePickerSelection() {
@@ -312,15 +312,8 @@
     if (myAvatarBtnEl) {
         myAvatarBtnEl.addEventListener('click', openAvatarPicker);
     }
-    const pickerEl = document.getElementById('avatar-picker');
-    if (pickerEl) {
-        const backdrop = pickerEl.querySelector('.avatar-picker-backdrop');
-        if (backdrop) backdrop.addEventListener('click', closeAvatarPicker);
-    }
-    // Close picker on Escape.
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeAvatarPicker();
-    });
+    // mdui-dialog handles overlay-click and Escape dismissal itself (close-on-overlay-click
+    // / close-on-esc), so no manual backdrop or keydown listeners are needed.
 
     const seen = new Set();
 
