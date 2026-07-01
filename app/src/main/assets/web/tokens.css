@@ -1,0 +1,51 @@
+/* Flikky 跨端共享 design token —— Web 侧单一事实源（SSOT）。
+ *
+ * 这些 --flikky-* 变量的值来自 App 端的 token 常量（Kotlin），两端应保持一致：
+ *   Shape   ← ui/theme/Shape.kt   (extraSmall..extraLarge)
+ *   Spacing ← ui/theme/Spacing.kt (xs..xxxl + 语义别名)
+ *   Type    ← 直接复用 MDUI 自带 --mdui-typescale-*（已与 App 的 MD3 type scale 逐值相等）
+ *
+ * 颜色不在此层：app.css 已全用 rgb(var(--mdui-color-*))，且手机通过 peer-info 推 seed，
+ * MDUI 用 Material Color Utilities 从同一 seed 重算调色板 → 双端同色相。
+ *
+ * 改设计决策的正确姿势：改 App 的 Shape.kt/Spacing.kt 常量 → 同步改这里（或重跑
+ * scripts/gen_web_tokens.mjs）→ 两端一致。app.css 只引用变量，不写字面量。
+ */
+
+:root {
+  /* ── Shape（对齐 Shape.kt：extraSmall 8 / small 12 / medium 16 / large 20 / extraLarge 28）──
+   * 用自有 --flikky-shape-* 而非直接 --mdui-shape-corner-*：App 用了 +1 档圆
+   * （App small=12dp vs MDUI shape-corner-small=8px），精确对齐需自己的档位。 */
+  --flikky-shape-xs: 8px;
+  --flikky-shape-sm: 12px;
+  --flikky-shape-md: 16px;
+  --flikky-shape-lg: 20px;
+  --flikky-shape-xl: 28px;
+
+  /* ── Spacing（对齐 Spacing.kt 的 T 恤尺码 + 语义别名）── */
+  --flikky-space-xs: 4px;
+  --flikky-space-sm: 8px;
+  --flikky-space-md: 12px;
+  --flikky-space-lg: 16px;
+  --flikky-space-xl: 20px;
+  --flikky-space-xxl: 24px;
+  --flikky-space-xxxl: 32px;
+  /* 语义别名（对齐 Spacing.kt 的 screenEdge / listGap / sectionGap） */
+  --flikky-space-screen-edge: var(--flikky-space-lg);   /* 16px */
+  --flikky-space-list-gap: var(--flikky-space-sm);      /* 8px  */
+  --flikky-space-section-gap: var(--flikky-space-xxl);  /* 24px */
+
+  /* ── Typography（映射到 MDUI 自带 typescale，与 App MD3 scale 逐值相等）──
+   * app.css 自定义元素引用这些别名，替代散落的 13px/14px/18px 等硬编码。 */
+  --flikky-font-body-small: var(--mdui-typescale-body-small-size);       /* 12px / 0.75rem */
+  --flikky-font-body-medium: var(--mdui-typescale-body-medium-size);     /* 14px / 0.875rem */
+  --flikky-font-body-large: var(--mdui-typescale-body-large-size);       /* 16px / 1rem */
+  --flikky-font-label-large: var(--mdui-typescale-label-large-size);     /* 14px */
+  --flikky-font-title-medium: var(--mdui-typescale-title-medium-size);   /* 16px / 1rem */
+  --flikky-font-title-large: var(--mdui-typescale-title-large-size);     /* 22px / 1.375rem */
+
+  /* ── 气泡圆角（默认值；运行时由 app.js 从 peer-info 的 bubbleCornerRadius 覆写）──
+   * 这是「一个设计决策一处改动两端生效」的活样例：手机设置里拖 slider，
+   * 手机通过 /api/peer-info 推 bubbleCornerRadius，浏览器覆写此变量。 */
+  --flikky-bubble-radius: 18px;
+}
