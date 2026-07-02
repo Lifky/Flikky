@@ -3,6 +3,7 @@ package com.example.flikky.server.routes
 import com.example.flikky.server.PinAuth
 import com.example.flikky.server.dto.AuthRequest
 import com.example.flikky.server.dto.AuthResponse
+import com.example.flikky.server.dto.WebThemeDto
 import io.ktor.http.ContentType
 import io.ktor.http.Cookie
 import io.ktor.http.CookieEncoding
@@ -24,6 +25,8 @@ fun Route.authRoutes(
     readAsset: (String) -> ByteArray,
     /** Where the browser should land after a successful PIN — depends on ServiceMode. */
     redirectAfterLogin: () -> String = { "/app" },
+    /** Public, non-sensitive theme snapshot used by the pre-auth PIN page. */
+    publicThemeProvider: () -> WebThemeDto = { WebThemeDto() },
 ) {
     get("/") {
         val bytes = readAsset("web/login.html")
@@ -51,6 +54,10 @@ fun Route.authRoutes(
             PinAuth.Result.PinAlreadyUsed -> call.respond(HttpStatusCode.Gone, AuthResponse(false, "pin_consumed"))
             PinAuth.Result.Terminated -> call.respond(HttpStatusCode.Forbidden, AuthResponse(false, "terminated"))
         }
+    }
+
+    get("/api/web-theme") {
+        call.respond(publicThemeProvider())
     }
 
     get("/app") {

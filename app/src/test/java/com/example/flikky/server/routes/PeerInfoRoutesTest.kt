@@ -2,6 +2,7 @@ package com.example.flikky.server.routes
 
 import com.example.flikky.server.PinAuth
 import com.example.flikky.server.dto.PeerInfoDto
+import com.example.flikky.server.dto.WebThemeDto
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -17,6 +18,7 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.int
@@ -43,7 +45,11 @@ class PeerInfoRoutesTest {
         install(ContentNegotiation) { json() }
         routing {
             val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
-            authRoutes(pin, readAsset = { byteArrayOf() })
+            authRoutes(
+                pin,
+                readAsset = { byteArrayOf() },
+                publicThemeProvider = { WebThemeDto(themeSeed = "#6750A4", themeDark = true) },
+            )
             peerInfoRoutes(pinAuth = pin, provider = provider)
         }
     }
@@ -93,5 +99,18 @@ class PeerInfoRoutesTest {
 
         val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
         assertEquals(24, body["bubbleCornerRadius"]!!.jsonPrimitive.int)
+    }
+
+    @Test
+    fun `web-theme is public and only returns theme fields`() = testApplication {
+        application(setupApp { testPeerInfo })
+
+        val resp: HttpResponse = client.get("/api/web-theme")
+        assertEquals(HttpStatusCode.OK, resp.status)
+
+        val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
+        assertEquals("#6750A4", body["themeSeed"]!!.jsonPrimitive.content)
+        assertEquals(true, body["themeDark"]!!.jsonPrimitive.boolean)
+        assertEquals(setOf("themeSeed", "themeDark"), body.keys)
     }
 }

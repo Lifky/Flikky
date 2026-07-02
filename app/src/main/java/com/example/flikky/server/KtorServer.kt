@@ -4,6 +4,7 @@ import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.PeerInfoDto
+import com.example.flikky.server.dto.WebThemeDto
 import com.example.flikky.server.routes.FileStore
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.server.routes.authRoutes
@@ -102,6 +103,10 @@ class KtorServer(
                                     ServiceMode.Transfer -> "/app"
                                     ServiceMode.Export -> "/export"
                                 }
+                            },
+                            publicThemeProvider = {
+                                val info = peerInfoProvider()
+                                WebThemeDto(themeSeed = info.themeSeed, themeDark = info.themeDark)
                             },
                         )
                         when (mode) {

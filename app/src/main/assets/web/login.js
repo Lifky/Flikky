@@ -3,6 +3,34 @@
     const pinField = document.getElementById('pin-input');
     const btn = document.getElementById('submit-btn');
 
+    function applyTheme(seed, dark) {
+        const mduiApi = window.mdui;
+        if (!mduiApi) return;
+        try {
+            if (typeof mduiApi.setTheme === 'function') mduiApi.setTheme(dark ? 'dark' : 'light');
+            if (typeof seed === 'string' && /^#[0-9a-fA-F]{6}$/.test(seed)) {
+                if (typeof mduiApi.setColorScheme === 'function') mduiApi.setColorScheme(seed);
+            } else if (typeof mduiApi.removeColorScheme === 'function') {
+                mduiApi.removeColorScheme();
+            }
+        } catch (_) {
+            // Theme sync is best-effort and must not block PIN auth.
+        }
+    }
+
+    async function fetchPublicTheme() {
+        try {
+            const resp = await fetch('/api/web-theme');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            applyTheme(data.themeSeed, !!data.themeDark);
+        } catch (_) {
+            // Keep the PIN page usable even if the theme endpoint is unavailable.
+        }
+    }
+
+    fetchPublicTheme();
+
     function showError(msg) {
         pinField.error = true;
         pinField.helper = msg;

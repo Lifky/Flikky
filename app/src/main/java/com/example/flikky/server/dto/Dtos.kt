@@ -152,6 +152,12 @@ data class PeerInfoDto(
     val avatarGrouping: String = "FIRST",
 )
 
+@Serializable
+data class WebThemeDto(
+    val themeSeed: String? = null,
+    val themeDark: Boolean = false,
+)
+
 /**
  * M9: client_hello WS frame from browser, carrying the browser's chosen avatar ID.
  */
