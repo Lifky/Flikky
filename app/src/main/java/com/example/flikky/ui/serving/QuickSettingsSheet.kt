@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.flikky.data.settings.BUBBLE_CORNER_MAX
 import com.example.flikky.data.settings.BUBBLE_CORNER_MIN
+import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.ui.theme.Spacing
 
@@ -40,8 +41,10 @@ import com.example.flikky.ui.theme.Spacing
 @Composable
 fun QuickSettingsSheet(
     bubbleCornerRadius: Int,
+    avatarGrouping: AvatarGroupingMode,
     darkMode: DarkMode,
     onSetBubbleCorner: (Int) -> Unit,
+    onSetAvatarGrouping: (AvatarGroupingMode) -> Unit,
     onSetDarkMode: (DarkMode) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -81,6 +84,29 @@ fun QuickSettingsSheet(
                 onValueChangeFinished = { onSetBubbleCorner(radiusDraft.toInt()) },
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            Text(
+                "头像显示",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = Spacing.md, bottom = Spacing.sm),
+            )
+            val avatarModes = listOf(
+                AvatarGroupingMode.FIRST to "首条",
+                AvatarGroupingMode.LAST to "末条",
+                AvatarGroupingMode.EACH to "每条",
+            )
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                avatarModes.forEachIndexed { index, (mode, label) ->
+                    SegmentedButton(
+                        selected = avatarGrouping == mode,
+                        onClick = { onSetAvatarGrouping(mode) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = avatarModes.size),
+                    ) {
+                        Text(label)
+                    }
+                }
+            }
 
             // ── 深色模式 ──
             Text(

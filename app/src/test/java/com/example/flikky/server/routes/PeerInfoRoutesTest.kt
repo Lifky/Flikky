@@ -79,6 +79,7 @@ class PeerInfoRoutesTest {
         assertEquals("sunset", body["backgroundValue"]!!.jsonPrimitive.content)
         // bubbleCornerRadius defaults to 18 and is serialized so the browser can mirror it.
         assertEquals(18, body["bubbleCornerRadius"]!!.jsonPrimitive.int)
+        assertEquals("FIRST", body["avatarGrouping"]!!.jsonPrimitive.content)
     }
 
     @Test

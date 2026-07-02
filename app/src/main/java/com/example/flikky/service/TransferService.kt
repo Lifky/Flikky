@@ -159,7 +159,13 @@ class TransferService : Service() {
         // the service scope, not a KtorServer instance.
         if (settingsCollectorJob == null) {
             settingsCollectorJob = scope.launch {
-                ServiceLocator.settingsRepository.settings.collect { latestSettings = it }
+                ServiceLocator.settingsRepository.settings.collect {
+                    latestSettings = it
+                    if (currentMode == ServiceMode.Transfer) {
+                        val payload = Json.encodeToString(PeerInfoDto.serializer(), it.toPeerInfoDto(isSystemDark()))
+                        ktor?.wsHub?.broadcast("settings_changed", payload)
+                    }
+                }
             }
         }
 
@@ -605,6 +611,7 @@ class TransferService : Service() {
                 themeSeed = seed,
                 themeDark = resolvedDark,
                 bubbleCornerRadius = bubbleCornerRadius,
+                avatarGrouping = avatarGrouping.name,
             )
         }
 

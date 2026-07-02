@@ -174,6 +174,7 @@
     let myAvatarKey = readMyAvatarKey();
     let phoneAvatarKey = AVATAR_DEFAULT_PHONE;
     let avatarPickerFilled = avatarIconSpec(normalizeAvatarKey(myAvatarKey, AVATAR_DEFAULT_BROWSER)).filled;
+    let avatarGrouping = 'FIRST';
 
     // Track last rendered origin for consecutive same-origin suppression.
     // 'PHONE' | 'BROWSER' | null
@@ -202,11 +203,13 @@
         row.appendChild(bubbleEl);
 
         list.appendChild(row);
+        reflowMessageAvatars();
         list.scrollTop = list.scrollHeight;
         return row;
     }
 
     function rowOrigin(row) {
+        if (!row) return null;
         if (row.classList.contains('me')) return 'BROWSER';
         if (row.classList.contains('them')) return 'PHONE';
         return null;
@@ -231,12 +234,30 @@
         }
     }
 
+    function normalizeAvatarGrouping(value) {
+        return value === 'LAST' || value === 'EACH' ? value : 'FIRST';
+    }
+
+    function shouldShowAvatarForRow(origin, previousOrigin, nextOrigin) {
+        switch (avatarGrouping) {
+            case 'LAST':
+                return origin !== nextOrigin;
+            case 'EACH':
+                return true;
+            case 'FIRST':
+            default:
+                return origin !== previousOrigin;
+        }
+    }
+
     function reflowMessageAvatars() {
+        const rows = Array.from(list.querySelectorAll('.bubble-row'));
         let previousOrigin = null;
-        list.querySelectorAll('.bubble-row').forEach((row) => {
+        rows.forEach((row, index) => {
             const origin = rowOrigin(row);
             if (!origin) return;
-            setRowAvatarMarker(row, origin, origin !== previousOrigin);
+            const nextOrigin = rowOrigin(rows[index + 1]);
+            setRowAvatarMarker(row, origin, shouldShowAvatarForRow(origin, previousOrigin, nextOrigin));
             previousOrigin = origin;
         });
         lastBubbleOrigin = previousOrigin;
@@ -364,21 +385,27 @@
         document.documentElement.style.setProperty('--flikky-bubble-radius', clamped + 'px');
     }
 
+    function applyPeerAppearance(data, fallbackName) {
+        const name = (data.deviceName && typeof data.deviceName === 'string') ? data.deviceName : fallbackName;
+        phoneAvatarKey = normalizeAvatarKey(
+            data.phoneAvatarKey,
+            legacyAvatarKey(Number(data.phoneAvatarId), AVATAR_DEFAULT_PHONE),
+        );
+        avatarGrouping = normalizeAvatarGrouping(data.avatarGrouping);
+        renderPeerHeader(name, phoneAvatarKey);
+        applyBackground(data.backgroundMode || 'DEFAULT', data.backgroundValue || '', name);
+        applyTheme(typeof data.themeSeed === 'string' ? data.themeSeed : null, !!data.themeDark);
+        applyBubbleRadius(data.bubbleCornerRadius);
+        reflowMessageAvatars();
+    }
+
     // Fetch peer info and apply.
     async function fetchPeerInfo() {
         try {
             const r = await fetch('/api/peer-info');
             if (!r.ok) return;
             const data = await r.json();
-            const name = (data.deviceName && typeof data.deviceName === 'string') ? data.deviceName : '手机';
-            phoneAvatarKey = normalizeAvatarKey(
-                data.phoneAvatarKey,
-                legacyAvatarKey(Number(data.phoneAvatarId), AVATAR_DEFAULT_PHONE),
-            );
-            renderPeerHeader(name, phoneAvatarKey);
-            applyBackground(data.backgroundMode || 'DEFAULT', data.backgroundValue || '', name);
-            applyTheme(typeof data.themeSeed === 'string' ? data.themeSeed : null, !!data.themeDark);
-            applyBubbleRadius(data.bubbleCornerRadius);
+            applyPeerAppearance(data, '手机');
         } catch (_) {
             // Fail silently — do not block transfers.
         }
@@ -947,6 +974,8 @@
                 refreshBrowserMessageAvatars();
                 updatePickerSelection();
             }
+        } else if (ev.type === 'settings_changed') {
+            applyPeerAppearance(ev.payload || {}, '手机');
         }
     }
 

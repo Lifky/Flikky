@@ -40,7 +40,11 @@ class Element {
     this.childNodes = this.children;
     this.parentNode = null;
     this.dataset = {};
-    this.style = {};
+    this.style = {
+      setProperty(name, value) {
+        this[name] = value;
+      },
+    };
     this.attributes = {};
     this.className = '';
     this.textContent = '';
@@ -56,6 +60,10 @@ class Element {
     child.parentNode = this;
     this.children.push(child);
     return child;
+  }
+
+  get firstChild() {
+    return this.children[0] || null;
   }
 
   insertBefore(child, before) {
@@ -155,6 +163,7 @@ function createDocument() {
   const ids = new Map();
   const document = {
     body: new Element('body'),
+    documentElement: new Element('html'),
     createElement: (tag) => new Element(tag),
     getElementById: (id) => ids.get(id) || null,
     addEventListener() {},
@@ -186,7 +195,7 @@ function loadAppForTest() {
   const source = fs.readFileSync(appPath, 'utf8');
   const patched = source.replace(
     /(\s*)setSendEnabled\(false\);\s*loadHistory\(\)\.then\(openWs\);\s*\}\)\(\);/,
-    '$1setSendEnabled(false);\n$1window.__flikkyWebTest = { renderText, removeMessageNode, list };\n})();',
+    '$1setSendEnabled(false);\n$1window.__flikkyWebTest = { renderText, removeMessageNode, onWsEvent, list };\n})();',
   );
 
   if (patched === source) {
@@ -223,8 +232,9 @@ function loadAppForTest() {
 }
 
 function avatarMarkers(list) {
-  return list.children.map((row) => {
+  return list.children.filter((row) => row.classList.contains('bubble-row')).map((row) => {
     const marker = row.children[0];
+    if (!marker) return 'empty';
     if (marker.classList.contains('avatar-circle')) return 'avatar';
     if (marker.classList.contains('avatar-spacer')) return 'spacer';
     return marker.className || marker.tagName;
@@ -256,5 +266,18 @@ function runFirstRowPromotionTest(mine) {
 
 runFirstRowPromotionTest(true);
 runFirstRowPromotionTest(false);
+
+function runGroupingModeTest(mode, expected) {
+  const app = loadAppForTest();
+  app.onWsEvent({ type: 'settings_changed', payload: { avatarGrouping: mode } });
+  app.renderText({ id: 1, content: 'first' }, true);
+  app.renderText({ id: 2, content: 'second' }, true);
+  app.renderText({ id: 3, content: 'third' }, true);
+  assertDeepEqual(avatarMarkers(app.list), expected, `${mode} avatar grouping`);
+}
+
+runGroupingModeTest('FIRST', ['avatar', 'spacer', 'spacer']);
+runGroupingModeTest('LAST', ['spacer', 'spacer', 'avatar']);
+runGroupingModeTest('EACH', ['avatar', 'avatar', 'avatar']);
 
 console.log('web avatar reflow test passed');

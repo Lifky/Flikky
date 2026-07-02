@@ -14,6 +14,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.SessionRepository
+import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
@@ -146,6 +147,10 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     // 写的是与设置页同一份 settings —— 一处改动，App 气泡 + 已连浏览器气泡 + 设置页全同步。
     fun setBubbleCornerRadius(dp: Int) {
         viewModelScope.launch { ServiceLocator.settingsRepository.setBubbleCornerRadius(dp) }
+    }
+
+    fun setAvatarGrouping(mode: AvatarGroupingMode) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setAvatarGrouping(mode) }
     }
 
     fun setDarkMode(mode: DarkMode) {

@@ -506,8 +506,10 @@ fun ServingScreen(
     if (showQuickSettings) {
         QuickSettingsSheet(
             bubbleCornerRadius = settings.bubbleCornerRadius,
+            avatarGrouping = settings.avatarGrouping,
             darkMode = settings.darkMode,
             onSetBubbleCorner = { viewModel.setBubbleCornerRadius(it) },
+            onSetAvatarGrouping = { viewModel.setAvatarGrouping(it) },
             onSetDarkMode = { viewModel.setDarkMode(it) },
             onDismiss = { showQuickSettings = false },
         )
