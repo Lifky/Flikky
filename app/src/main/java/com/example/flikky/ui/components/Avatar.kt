@@ -1,18 +1,18 @@
 package com.example.flikky.ui.components
 
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +31,17 @@ data class AvatarPreset(val key: String, val label: String)
 object AvatarKey {
     const val DEFAULT_PHONE = "icon:smartphone"
     const val DEFAULT_PEER = "icon:desktop_windows"
+
+    private val SUPPORTED_ICONS = setOf(
+        "smartphone",
+        "desktop_windows",
+        "person",
+        "star",
+        "face",
+        "palette",
+        "image",
+        "settings",
+    )
 
     fun parse(raw: String?, fallback: String = DEFAULT_PHONE): AvatarContent {
         val key = raw?.trim().orEmpty()
@@ -77,6 +88,8 @@ object AvatarKey {
 
     fun fromLegacyIndex(index: Int): String = LEGACY_KEYS.getOrElse(index) { LEGACY_KEYS[0] }
 
+    fun isSupportedIcon(name: String): Boolean = name.trim() in SUPPORTED_ICONS
+
     private val LEGACY_KEYS = listOf(
         icon("person"),
         icon("star"),
@@ -97,6 +110,20 @@ object AvatarKey {
         else -> false
     }
 }
+
+@Composable
+private fun materialSymbolsFontFamily(filled: Boolean): FontFamily =
+    FontFamily(
+        Font(
+            resId = R.font.material_symbols_outlined,
+            variationSettings = FontVariation.Settings(
+                FontVariation.Setting("FILL", if (filled) 1f else 0f),
+                FontVariation.Setting("wght", 400f),
+                FontVariation.Setting("GRAD", 0f),
+                FontVariation.Setting("opsz", 24f),
+            ),
+        )
+    )
 
 val PRESET_AVATARS: List<AvatarPreset> = listOf(
     AvatarPreset(AvatarKey.DEFAULT_PHONE, "Phone"),
@@ -125,11 +152,12 @@ fun Avatar(avatarKey: String?, size: Dp, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         when (content) {
-            is AvatarContent.Icon -> Icon(
-                painter = painterResource(avatarIconDrawable(content.name, content.filled)),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.size(size * 0.6f),
+            is AvatarContent.Icon -> Text(
+                text = materialSymbolName(content.name),
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                fontFamily = materialSymbolsFontFamily(content.filled),
+                fontSize = (size.value * 0.58f).sp,
+                lineHeight = (size.value * 0.58f).sp,
             )
             is AvatarContent.Char -> Text(
                 text = content.value,
@@ -142,16 +170,7 @@ fun Avatar(avatarKey: String?, size: Dp, modifier: Modifier = Modifier) {
     }
 }
 
-@DrawableRes
-internal fun avatarIconDrawable(name: String, filled: Boolean): Int = when (name) {
-    "smartphone" -> if (filled) R.drawable.ic_smartphone_filled else R.drawable.ic_smartphone
-    "desktop_windows" -> if (filled) R.drawable.ic_desktop_windows_filled else R.drawable.ic_desktop_windows
-    "person" -> if (filled) R.drawable.ic_account_circle_filled else R.drawable.ic_account_circle
-    "settings" -> if (filled) R.drawable.ic_settings else R.drawable.ic_settings_outline
-    "star" -> if (filled) R.drawable.ic_star else R.drawable.ic_star_border
-    "face" -> if (filled) R.drawable.ic_face_filled else R.drawable.ic_face
-    "palette" -> if (filled) R.drawable.ic_palette_filled else R.drawable.ic_palette
-    "image" -> if (filled) R.drawable.ic_image_filled else R.drawable.ic_image
-    "description" -> R.drawable.ic_description
-    else -> R.drawable.ic_account_circle
+private fun materialSymbolName(name: String): String = when (name) {
+    "person" -> "account_circle"
+    else -> name
 }

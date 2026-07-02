@@ -76,7 +76,7 @@ class AvatarKeyTest {
         assertEquals("icon:settings:filled", AvatarKey.icon("settings", filled = true))
     }
 
-    @Test fun every_preset_icon_has_distinct_filled_and_outline_drawables() {
+    @Test fun every_preset_icon_uses_supported_material_symbol_name() {
         val iconNames = PRESET_AVATARS
             .map { AvatarKey.parse(it.key, AvatarKey.DEFAULT_PHONE) }
             .filterIsInstance<AvatarContent.Icon>()
@@ -84,10 +84,9 @@ class AvatarKeyTest {
             .distinct()
 
         iconNames.forEach { name ->
-            org.junit.Assert.assertNotEquals(
-                "$name should visibly change when fill is toggled",
-                avatarIconDrawable(name, filled = false),
-                avatarIconDrawable(name, filled = true),
+            org.junit.Assert.assertTrue(
+                "$name should be rendered by the bundled Material Symbols font",
+                AvatarKey.isSupportedIcon(name),
             )
         }
     }
