@@ -1,7 +1,10 @@
 package com.example.flikky.ui.components
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
+import java.nio.charset.StandardCharsets
 
 class AvatarKeyTest {
     @Test fun parse_icon() {
@@ -89,5 +92,56 @@ class AvatarKeyTest {
                 AvatarKey.isSupportedIcon(name),
             )
         }
+    }
+
+    @Test fun bundled_material_symbols_font_exposes_official_variable_axes() {
+        val axes = readFontVariationAxes(materialSymbolsFontFile())
+
+        val officialAxes = setOf("FILL", "wght", "GRAD", "opsz")
+        assertTrue(
+            "Material Symbols font must expose official variable axes; actual axes=$axes",
+            axes.containsAll(officialAxes),
+        )
+    }
+
+    private fun materialSymbolsFontFile(): File {
+        val candidates = listOf(
+            File("src/main/res/font/material_symbols_outlined.ttf"),
+            File("app/src/main/res/font/material_symbols_outlined.ttf"),
+        )
+        return candidates.firstOrNull { it.isFile }
+            ?: error("material_symbols_outlined.ttf not found from ${File(".").absolutePath}")
+    }
+
+    private fun readFontVariationAxes(file: File): Set<String> {
+        val bytes = file.readBytes()
+        fun u16(offset: Int): Int =
+            ((bytes[offset].toInt() and 0xff) shl 8) or
+                (bytes[offset + 1].toInt() and 0xff)
+
+        fun u32(offset: Int): Int =
+            ((bytes[offset].toInt() and 0xff) shl 24) or
+                ((bytes[offset + 1].toInt() and 0xff) shl 16) or
+                ((bytes[offset + 2].toInt() and 0xff) shl 8) or
+                (bytes[offset + 3].toInt() and 0xff)
+
+        val tableCount = u16(4)
+        val fvarOffset = (0 until tableCount)
+            .firstNotNullOfOrNull { index ->
+                val offset = 12 + index * 16
+                val tag = String(bytes, offset, 4, StandardCharsets.US_ASCII)
+                u32(offset + 8).takeIf { tag == "fvar" }
+            }
+            ?: return emptySet()
+
+        val axesArrayOffset = u16(fvarOffset + 4)
+        val axisCount = u16(fvarOffset + 8)
+        val axisSize = u16(fvarOffset + 10)
+        return (0 until axisCount)
+            .map { index ->
+                val offset = fvarOffset + axesArrayOffset + index * axisSize
+                String(bytes, offset, 4, StandardCharsets.US_ASCII)
+            }
+            .toSet()
     }
 }
