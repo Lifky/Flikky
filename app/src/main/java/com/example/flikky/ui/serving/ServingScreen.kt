@@ -218,6 +218,23 @@ fun ServingScreen(
     }
 
     val listState = rememberLazyListState()
+    var previousAutoScrollMessageCount by remember { mutableStateOf(0) }
+    var previousAutoScrollLastMessageId by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(ui.messages.size, ui.messages.lastOrNull()?.id) {
+        val currentMessageCount = ui.messages.size
+        val currentLastMessageId = ui.messages.lastOrNull()?.id
+        val shouldScroll = shouldAutoScrollToLatestMessage(
+            previousMessageCount = previousAutoScrollMessageCount,
+            currentMessageCount = currentMessageCount,
+            previousLastMessageId = previousAutoScrollLastMessageId,
+            currentLastMessageId = currentLastMessageId,
+        )
+        previousAutoScrollMessageCount = currentMessageCount
+        previousAutoScrollLastMessageId = currentLastMessageId
+        if (shouldScroll) {
+            listState.animateScrollToItem(currentMessageCount - 1)
+        }
+    }
     // Dismiss the floating/inline action target whenever the list starts scrolling.
     LaunchedEffect(listState.isScrollInProgress) {
         if (listState.isScrollInProgress) actionTarget = null
