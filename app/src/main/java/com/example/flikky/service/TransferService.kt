@@ -336,6 +336,7 @@ class TransferService : Service() {
                             sid,
                             endedAt = System.currentTimeMillis(),
                             peerAvatarId = ServiceLocator.session.peerAvatarId.value,
+                            peerAvatarKey = ServiceLocator.session.peerAvatarKey.value,
                         )
                         ServiceLocator.repository.fifoSweep()
                     }

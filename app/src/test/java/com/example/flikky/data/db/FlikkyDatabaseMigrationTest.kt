@@ -42,6 +42,7 @@ class FlikkyDatabaseMigrationTest {
                 FlikkyDatabase.MIGRATION_2_3,
                 FlikkyDatabase.MIGRATION_3_4,
                 FlikkyDatabase.MIGRATION_4_5,
+                FlikkyDatabase.MIGRATION_5_6,
             )
             .allowMainThreadQueries()
             .build()
@@ -71,6 +72,7 @@ class FlikkyDatabaseMigrationTest {
                 FlikkyDatabase.MIGRATION_2_3,
                 FlikkyDatabase.MIGRATION_3_4,
                 FlikkyDatabase.MIGRATION_4_5,
+                FlikkyDatabase.MIGRATION_5_6,
             )
             .allowMainThreadQueries()
             .build()
@@ -97,6 +99,39 @@ class FlikkyDatabaseMigrationTest {
             }
             assertTrue(hasIndex(db, "favorites", "index_favorites_sourceSessionId_sourceMessageId", unique = true))
             assertTrue(hasIndex(db, "favorites", "index_favorites_groupId", unique = false))
+        } finally {
+            roomDb.close()
+        }
+    }
+
+    @Test
+    fun migration5To6AddsPeerAvatarKeyWithDesktopDefault() {
+        SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(TEST_DB), null).use { db ->
+            createV5Schema(db)
+            db.execSQL(
+                "INSERT INTO sessions (id, startedAt, endedAt, name, pinned, messageCount, fileCount, totalBytes, previewText, peerAvatarId, groupId) " +
+                    "VALUES (1, 100, 200, 'old', 0, 0, 0, 0, NULL, 0, NULL)"
+            )
+            db.version = 5
+        }
+
+        val roomDb = Room.databaseBuilder(context, FlikkyDatabase::class.java, TEST_DB)
+            .addMigrations(
+                FlikkyDatabase.MIGRATION_1_2,
+                FlikkyDatabase.MIGRATION_2_3,
+                FlikkyDatabase.MIGRATION_3_4,
+                FlikkyDatabase.MIGRATION_4_5,
+                FlikkyDatabase.MIGRATION_5_6,
+            )
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val db = roomDb.openHelper.writableDatabase
+            assertTrue(hasColumn(db, "sessions", "peerAvatarKey"))
+            db.query("SELECT peerAvatarKey FROM sessions WHERE id = 1").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertTrue(cursor.getString(0) == "icon:desktop_windows")
+            }
         } finally {
             roomDb.close()
         }
@@ -151,6 +186,38 @@ class FlikkyDatabaseMigrationTest {
                 "`createdAt` INTEGER NOT NULL)"
         )
         db.execSQL("ALTER TABLE sessions ADD COLUMN groupId INTEGER DEFAULT NULL")
+    }
+
+    private fun createV5Schema(db: SQLiteDatabase) {
+        createV4Schema(db)
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `favorite_groups` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`name` TEXT NOT NULL, " +
+                "`sortOrder` INTEGER NOT NULL, " +
+                "`createdAt` INTEGER NOT NULL)"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `favorites` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`sourceSessionId` INTEGER NOT NULL, " +
+                "`sourceMessageId` INTEGER NOT NULL, " +
+                "`kind` TEXT NOT NULL, " +
+                "`textContent` TEXT, " +
+                "`fileId` TEXT, " +
+                "`fileName` TEXT, " +
+                "`fileSize` INTEGER, " +
+                "`fileMime` TEXT, " +
+                "`groupId` INTEGER, " +
+                "`createdAt` INTEGER NOT NULL, " +
+                "`sourceSessionName` TEXT, " +
+                "`origin` TEXT)"
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_favorites_sourceSessionId_sourceMessageId` " +
+                "ON `favorites` (`sourceSessionId`, `sourceMessageId`)"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_favorites_groupId` ON `favorites` (`groupId`)")
     }
 
     private fun hasTable(db: androidx.sqlite.db.SupportSQLiteDatabase, table: String): Boolean =

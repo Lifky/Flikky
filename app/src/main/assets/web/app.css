@@ -293,6 +293,8 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     grid-template-columns: repeat(4, 1fr);
     gap: var(--flikky-space-md);
     justify-items: center;
+    overflow: visible;
+    padding: 6px;
 }
 .avatar-picker-grid .avatar-circle {
     width: 48px;
@@ -301,6 +303,7 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     font-size: 22px;
     cursor: pointer;
     transition: transform 0.1s, outline 0.1s;
+    box-sizing: border-box;
 }
 .avatar-picker-grid .avatar-circle:hover {
     transform: scale(1.12);
@@ -311,7 +314,7 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
 }
 .avatar-picker-grid .avatar-circle[aria-selected="true"] {
     outline: 3px solid rgb(var(--mdui-color-primary));
-    outline-offset: 2px;
+    outline-offset: 3px;
 }
 .avatar-char-cell {
     width: 48px;
@@ -392,11 +395,13 @@ mdui-snackbar#snackbar {
     }
     .header-peer {
         margin-left: var(--flikky-space-sm);
-        flex: 1 1 auto;
-        min-width: 120px;
+        flex: 1 1 0;
+        min-width: 0;
     }
     .header-peer-name {
-        max-width: 72px;
+        flex: 1 1 auto;
+        max-width: none;
+        min-width: 0;
     }
     .chat-meta {
         order: 3;

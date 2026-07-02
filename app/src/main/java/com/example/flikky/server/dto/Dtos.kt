@@ -160,3 +160,8 @@ data class ClientHelloDto(
     val avatarId: Int = 0,
     val avatarKey: String? = null,
 )
+
+@Serializable
+data class PeerAvatarChangedDto(
+    val avatarKey: String,
+)

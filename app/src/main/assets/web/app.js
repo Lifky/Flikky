@@ -18,7 +18,9 @@
         smartphone: 'M280-40q-33 0-56.5-23.5T200-120v-720q0-33 23.5-56.5T280-920h400q33 0 56.5 23.5T760-840v124q18 7 29 22t11 34v80q0 19-11 34t-29 22v404q0 33-23.5 56.5T680-40H280Zm0-80h400v-720H280v720Zm0 0v-720 720Zm228.5-611.5Q520-743 520-760t-11.5-28.5Q497-800 480-800t-28.5 11.5Q440-777 440-760t11.5 28.5Q463-720 480-720t28.5-11.5Z',
         person: 'M234-276q51-39 114-61.5T480-360q69 0 132 22.5T726-276q35-41 54.5-93T800-480q0-133-93.5-226.5T480-800q-133 0-226.5 93.5T160-480q0 59 19.5 111t54.5 93Zm146.5-204.5Q340-521 340-580t40.5-99.5Q421-720 480-720t99.5 40.5Q620-639 620-580t-40.5 99.5Q539-440 480-440t-99.5-40.5ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm100-95.5q47-15.5 86-44.5-39-29-86-44.5T480-280q-53 0-100 15.5T294-220q39 29 86 44.5T480-160q53 0 100-15.5ZM523-537q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm-43-43Zm0 360Z',
         settings: 'm370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24 12L590-80H370Zm112-260q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Z',
+        settings_outline: 'm370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24 12L590-80H370Zm70-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31 8-57.5 23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-86 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm42-180q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Zm-2-140Z',
         star: 'm233-120 65-281L80-590l288-25 112-265 112 265 288 25-218 189 65 281-247-149-247 149Z',
+        star_outline: 'm354-287 126-76 126 77-33-144 111-96-146-13-58-136-58 135-146 13 111 97-33 143ZM233-120l65-281L80-590l288-25 112-265 112 265 288 25-218 189 65 281-247-149-247 149Zm247-350Z',
         face: 'M324.5-404.5Q310-419 310-440t14.5-35.5Q339-490 360-490t35.5 14.5Q410-461 410-440t-14.5 35.5Q381-390 360-390t-35.5-14.5Zm240 0Q550-419 550-440t14.5-35.5Q579-490 600-490t35.5 14.5Q650-461 650-440t-14.5 35.5Q621-390 600-390t-35.5-14.5ZM480-160q134 0 227-93t93-227q0-24-3-46.5T786-570q-21 5-42 7.5t-44 2.5q-91 0-172-39T390-708q-32 78-91.5 135.5T160-486v6q0 134 93 227t227 93Zm0 80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm-54-715q42 70 114 112.5T700-640q14 0 27-1.5t27-3.5q-42-70-114-112.5T480-800q-14 0-27 1.5t-27 3.5ZM177-581q51-29 89-75t57-103q-51 29-89 75t-57 103Zm249-214Zm-103 36Z',
         palette: 'M480-80q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 32.5-156t88-127Q256-817 330-848.5T488-880q80 0 151 27.5t124.5 76q53.5 48.5 85 115T880-518q0 115-70 176.5T640-280h-74q-9 0-12.5 5t-3.5 11q0 12 15 34.5t15 51.5q0 50-27.5 74T480-80Zm0-400Zm-177 23q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm120-160q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm200 0q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17Zm120 160q17-17 17-43t-17-43q-17-17-43-17t-43 17q-17 17-17 43t17 43q17 17 43 17t43-17ZM480-160q9 0 14.5-5t5.5-13q0-14-15-33t-15-57q0-42 29-67t71-25h70q66 0 113-38.5T800-518q0-121-92.5-201.5T488-800q-136 0-232 93t-96 227q0 133 93.5 226.5T480-160Z',
         image: 'M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm0-80h560v-560H200v560Zm40-80h480L570-480 450-320l-90-120-120 160Zm-40 80v-560 560Z',
@@ -105,11 +107,11 @@
         AVATAR_DEFAULT_BROWSER,
         AVATAR_DEFAULT_PHONE,
         'icon:person',
-        'icon:star',
+        'icon:star:outline',
         'icon:face',
         'icon:palette',
-        'icon:image',
-        'icon:settings',
+        'icon:image:outline',
+        'icon:settings:outline',
     ];
 
     function legacyAvatarKey(id, fallback) {
@@ -121,9 +123,28 @@
 
     function normalizeAvatarKey(raw, fallback) {
         const key = (typeof raw === 'string' ? raw.trim() : '');
-        if (key.startsWith('icon:') && key.slice(5).trim()) return 'icon:' + key.slice(5).trim();
+        if (key.startsWith('icon:') && key.slice(5).trim()) {
+            const parts = key.slice(5).split(':');
+            const name = (parts[0] || '').trim();
+            const style = (parts[1] || '').trim();
+            if (!name) return fallback;
+            if (style === 'filled' || style === 'outline') return 'icon:' + name + ':' + style;
+            return 'icon:' + name;
+        }
         if (key.startsWith('char:') && key.slice(5).trim()) return 'char:' + Array.from(key.slice(5).trim())[0];
         return fallback;
+    }
+
+    function defaultIconFilled(name) {
+        return name === 'star' || name === 'settings';
+    }
+
+    function avatarIconSpec(normalized) {
+        const parts = normalized.slice(5).split(':');
+        const name = (parts[0] || '').trim();
+        const style = (parts[1] || '').trim();
+        const filled = style === 'filled' ? true : style === 'outline' ? false : defaultIconFilled(name);
+        return { name, filled };
     }
 
     function clearAvatar(el) {
@@ -141,11 +162,12 @@
             el.textContent = normalized.slice(5);
             return;
         }
-        const name = normalized.slice(5);
-        if (ICON_PATHS[name]) {
-            el.appendChild(svgIcon(name));
+        const spec = avatarIconSpec(normalized);
+        const pathName = spec.filled ? spec.name : (ICON_PATHS[spec.name + '_outline'] ? spec.name + '_outline' : spec.name);
+        if (ICON_PATHS[pathName]) {
+            el.appendChild(svgIcon(pathName));
         } else {
-            el.setAttribute('icon', name);
+            el.setAttribute('icon', spec.name);
         }
     }
 
@@ -842,6 +864,14 @@
             uptimeEl.textContent = formatUptime(ev.payload.uptime || 0);
             countEl.textContent = ev.payload.fileCount;
             rateEl.textContent = formatRate(ev.payload.bytesPerSecond);
+        } else if (ev.type === 'peer_avatar_changed') {
+            if (ev.payload && typeof ev.payload.avatarKey === 'string') {
+                myAvatarKey = normalizeAvatarKey(ev.payload.avatarKey, AVATAR_DEFAULT_BROWSER);
+                localStorage.setItem('flikky_avatar_key', myAvatarKey);
+                localStorage.removeItem('flikky_avatar');
+                renderMyAvatarBtn();
+                updatePickerSelection();
+            }
         }
     }
 

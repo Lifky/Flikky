@@ -67,6 +67,7 @@ import com.example.flikky.ui.components.ConnectionInfoCard
 import com.example.flikky.ui.components.ConversationBackground
 import com.example.flikky.ui.components.ConversationHeader
 import com.example.flikky.ui.components.ConversationStatusRow
+import com.example.flikky.ui.components.AvatarKey
 import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
@@ -76,6 +77,7 @@ import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
+import com.example.flikky.ui.settings.sheets.AvatarPickerSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.launch
@@ -98,6 +100,7 @@ fun ServingScreen(
     var showAttachSheet by remember { mutableStateOf(false) }
     var showFavoriteQuickSheet by remember { mutableStateOf(false) }
     var showQuickSettings by remember { mutableStateOf(false) }
+    var showPeerAvatarPicker by remember { mutableStateOf(false) }
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val pickFile = rememberLauncherForActivityResult(
@@ -278,6 +281,7 @@ fun ServingScreen(
                         peerAvatarId = peerAvatarId,
                         peerAvatarKey = peerAvatarKey,
                         peerName = "",
+                        onAvatarClick = { showPeerAvatarPicker = true },
                         trailing = {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -506,6 +510,16 @@ fun ServingScreen(
             onSetBubbleCorner = { viewModel.setBubbleCornerRadius(it) },
             onSetDarkMode = { viewModel.setDarkMode(it) },
             onDismiss = { showQuickSettings = false },
+        )
+    }
+
+    if (showPeerAvatarPicker) {
+        AvatarPickerSheet(
+            title = "选择浏览器头像",
+            currentKey = peerAvatarKey,
+            fallbackKey = AvatarKey.DEFAULT_PEER,
+            onSelect = { viewModel.setPeerAvatarKey(it); showPeerAvatarPicker = false },
+            onDismiss = { showPeerAvatarPicker = false },
         )
     }
 

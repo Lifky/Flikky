@@ -22,7 +22,7 @@ import com.example.flikky.data.db.entities.SessionEntity
         FavoriteEntity::class,
         FavoriteGroupEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = false,
 )
 abstract class FlikkyDatabase : RoomDatabase() {
@@ -189,13 +189,21 @@ abstract class FlikkyDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE sessions ADD COLUMN peerAvatarKey TEXT NOT NULL DEFAULT 'icon:desktop_windows'"
+                )
+            }
+        }
+
         fun build(context: Context): FlikkyDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 FlikkyDatabase::class.java,
                 "flikky.db",
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .addCallback(onCreateCallback)
                 .build()
     }

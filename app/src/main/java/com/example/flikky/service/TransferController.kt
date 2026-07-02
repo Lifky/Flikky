@@ -10,6 +10,7 @@ import com.example.flikky.server.dto.FileMessageDto
 import com.example.flikky.server.dto.FileProgressDto
 import com.example.flikky.server.dto.FileReadyDto
 import com.example.flikky.server.dto.FileRemovedDto
+import com.example.flikky.server.dto.PeerAvatarChangedDto
 import com.example.flikky.server.dto.TextMessageDto
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.session.Message
@@ -200,5 +201,11 @@ class TransferController(
             wsHub()?.broadcastRecall(outcome.sessionId, outcome.messageId)
         }
         return outcome
+    }
+
+    suspend fun setPeerAvatarKey(key: String) {
+        session.setPeerAvatarKey(key)
+        val dto = PeerAvatarChangedDto(key)
+        wsHub()?.broadcast("peer_avatar_changed", Json.encodeToString(PeerAvatarChangedDto.serializer(), dto))
     }
 }

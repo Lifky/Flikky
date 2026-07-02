@@ -19,7 +19,10 @@ import androidx.compose.ui.unit.sp
 import com.example.flikky.R
 
 sealed interface AvatarContent {
-    data class Icon(val name: String) : AvatarContent
+    data class Icon(
+        val name: String,
+        val filled: Boolean = false,
+    ) : AvatarContent
     data class Char(val value: String) : AvatarContent
 }
 
@@ -33,8 +36,15 @@ object AvatarKey {
         val key = raw?.trim().orEmpty()
         return when {
             key.startsWith("icon:") -> {
-                val name = key.removePrefix("icon:").trim()
-                if (name.isNotEmpty()) AvatarContent.Icon(name) else parse(fallback, DEFAULT_PHONE)
+                val parts = key.removePrefix("icon:").split(":")
+                val name = parts.getOrNull(0)?.trim().orEmpty()
+                val style = parts.getOrNull(1)?.trim()
+                val filled = when (style) {
+                    "filled" -> true
+                    "outline" -> false
+                    else -> defaultFilled(name)
+                }
+                if (name.isNotEmpty()) AvatarContent.Icon(name, filled) else parse(fallback, DEFAULT_PHONE)
             }
             key.startsWith("char:") -> {
                 val value = key.removePrefix("char:").trim()
@@ -46,11 +56,19 @@ object AvatarKey {
     }
 
     fun normalize(raw: String?, fallback: String = DEFAULT_PHONE): String = when (val content = parse(raw, fallback)) {
-        is AvatarContent.Icon -> icon(content.name)
+        is AvatarContent.Icon -> icon(content.name, content.filled)
         is AvatarContent.Char -> char(content.value)
     }
 
     fun icon(name: String): String = "icon:${name.trim()}"
+
+    fun icon(name: String, filled: Boolean): String =
+        "icon:${name.trim()}:${if (filled) "filled" else "outline"}"
+
+    fun withFilled(raw: String, filled: Boolean): String = when (val content = parse(raw, DEFAULT_PHONE)) {
+        is AvatarContent.Icon -> icon(content.name, filled)
+        is AvatarContent.Char -> char(content.value)
+    }
 
     fun char(text: String): String {
         val first = text.trim().firstOrNull()?.toString()
@@ -73,6 +91,11 @@ object AvatarKey {
         icon("notifications"),
         icon("settings"),
     )
+
+    fun defaultFilled(name: String): Boolean = when (name) {
+        "star", "settings" -> true
+        else -> false
+    }
 }
 
 val PRESET_AVATARS: List<AvatarPreset> = listOf(
@@ -103,7 +126,7 @@ fun Avatar(avatarKey: String?, size: Dp, modifier: Modifier = Modifier) {
     ) {
         when (content) {
             is AvatarContent.Icon -> Icon(
-                painter = painterResource(iconDrawable(content.name)),
+                painter = painterResource(iconDrawable(content.name, content.filled)),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.size(size * 0.6f),
@@ -120,12 +143,12 @@ fun Avatar(avatarKey: String?, size: Dp, modifier: Modifier = Modifier) {
 }
 
 @DrawableRes
-private fun iconDrawable(name: String): Int = when (name) {
+private fun iconDrawable(name: String, filled: Boolean): Int = when (name) {
     "smartphone" -> R.drawable.ic_smartphone
     "desktop_windows" -> R.drawable.ic_desktop_windows
     "person" -> R.drawable.ic_account_circle
-    "settings" -> R.drawable.ic_settings
-    "star" -> R.drawable.ic_star
+    "settings" -> if (filled) R.drawable.ic_settings else R.drawable.ic_settings_outline
+    "star" -> if (filled) R.drawable.ic_star else R.drawable.ic_star_border
     "face" -> R.drawable.ic_face
     "palette" -> R.drawable.ic_palette
     "image" -> R.drawable.ic_image

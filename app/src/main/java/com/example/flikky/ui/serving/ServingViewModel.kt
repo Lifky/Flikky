@@ -152,6 +152,17 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { ServiceLocator.settingsRepository.setDarkMode(mode) }
     }
 
+    fun setPeerAvatarKey(key: String) {
+        viewModelScope.launch {
+            val ctrl = controller
+            if (ctrl != null) {
+                ctrl.setPeerAvatarKey(key)
+            } else {
+                ServiceLocator.session.setPeerAvatarKey(key)
+            }
+        }
+    }
+
     private fun sendFavoriteFile(favorite: FavoriteEntity) {
         val depotId = favorite.fileId ?: return
         val source = ServiceLocator.favoriteFileStore.resolve(depotId)

@@ -330,4 +330,23 @@ class SessionRepositoryTest {
             0, row.peerAvatarId,
         )
     }
+
+    @Test fun endSession_persists_peerAvatarKey_and_getById_returns_it() = runTest {
+        val sid = repo.beginSession("avatar-key-test", startedAt = 1_000L)
+        repo.appendMessage(sid, Message.Text(
+            id = 22, origin = Origin.BROWSER, timestamp = 1_100L, content = "hi",
+        ))
+        repo.endSession(
+            sessionId = sid,
+            endedAt = 2_000L,
+            peerAvatarId = 0,
+            peerAvatarKey = "char:K",
+        )
+
+        val row = db.sessionDao().getById(sid)!!
+        org.junit.Assert.assertEquals(
+            "peerAvatarKey should be persisted through endSession",
+            "char:K", row.peerAvatarKey,
+        )
+    }
 }

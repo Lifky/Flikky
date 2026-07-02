@@ -56,7 +56,12 @@ class SessionRepository(
         messageDao.insert(msg.toEntity(sessionId))
     }
 
-    suspend fun endSession(sessionId: Long, endedAt: Long, peerAvatarId: Int = 0) {
+    suspend fun endSession(
+        sessionId: Long,
+        endedAt: Long,
+        peerAvatarId: Int = 0,
+        peerAvatarKey: String = "icon:desktop_windows",
+    ) {
         val row = sessionDao.getById(sessionId) ?: return
         val messages = messageDao.listBySession(sessionId)
         if (messages.isEmpty()) {
@@ -72,6 +77,7 @@ class SessionRepository(
             totalBytes = files.sumOf { it.fileSize ?: 0L },
             previewText = messageDao.firstTextContent(sessionId)?.take(40),
             peerAvatarId = peerAvatarId,
+            peerAvatarKey = peerAvatarKey,
         )
         sessionDao.update(updated)
     }

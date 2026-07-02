@@ -16,5 +16,7 @@ data class SessionEntity(
     val previewText: String? = null,
     /** Browser-side avatar index chosen by the PC user; persisted so History can restore it. */
     val peerAvatarId: Int = 0,
+    /** Browser-side rich avatar key, including icon/character and optional fill state. */
+    val peerAvatarKey: String = "icon:desktop_windows",
     val groupId: Long? = null,
 )

@@ -18,6 +18,17 @@ class AvatarKeyTest {
         )
     }
 
+    @Test fun parse_icon_fill_state() {
+        assertEquals(
+            AvatarContent.Icon("settings", filled = false),
+            AvatarKey.parse("icon:settings:outline", AvatarKey.DEFAULT_PHONE),
+        )
+        assertEquals(
+            AvatarContent.Icon("settings", filled = true),
+            AvatarKey.parse("icon:settings:filled", AvatarKey.DEFAULT_PHONE),
+        )
+    }
+
     @Test fun parse_char_takes_first_character() {
         assertEquals(
             AvatarContent.Char("A"),
@@ -58,5 +69,10 @@ class AvatarKeyTest {
 
     @Test fun char_helper_falls_back_for_blank() {
         assertEquals(AvatarKey.DEFAULT_PHONE, AvatarKey.char(" "))
+    }
+
+    @Test fun icon_helper_encodes_fill_state() {
+        assertEquals("icon:settings:outline", AvatarKey.icon("settings", filled = false))
+        assertEquals("icon:settings:filled", AvatarKey.icon("settings", filled = true))
     }
 }

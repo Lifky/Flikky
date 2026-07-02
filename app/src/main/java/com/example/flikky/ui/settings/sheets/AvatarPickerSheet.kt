@@ -2,8 +2,10 @@ package com.example.flikky.ui.settings.sheets
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -13,12 +15,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.example.flikky.ui.components.Avatar
+import com.example.flikky.ui.components.AvatarContent
 import com.example.flikky.ui.components.AvatarKey
 import com.example.flikky.ui.components.PRESET_AVATARS
 import com.example.flikky.ui.theme.Sizes
@@ -38,16 +42,31 @@ import com.example.flikky.ui.theme.Spacing
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AvatarPickerSheet(
+    title: String = "选择头像",
     currentKey: String,
+    fallbackKey: String = AvatarKey.DEFAULT_PHONE,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val selectedKey = AvatarKey.normalize(currentKey, AvatarKey.DEFAULT_PHONE)
+    val selectedKey = AvatarKey.normalize(currentKey, fallbackKey)
     var charDraft by remember(selectedKey) {
         mutableStateOf(
             selectedKey.takeIf { it.startsWith("char:") }?.removePrefix("char:").orEmpty()
         )
+    }
+    var iconFilled by remember(selectedKey) {
+        mutableStateOf((AvatarKey.parse(selectedKey, fallbackKey) as? AvatarContent.Icon)?.filled ?: false)
+    }
+
+    fun sameVisual(left: String, right: String): Boolean {
+        val a = AvatarKey.parse(left, fallbackKey)
+        val b = AvatarKey.parse(right, fallbackKey)
+        return when {
+            a is AvatarContent.Icon && b is AvatarContent.Icon -> a.name == b.name && a.filled == b.filled
+            a is AvatarContent.Char && b is AvatarContent.Char -> a.value == b.value
+            else -> false
+        }
     }
 
     ModalBottomSheet(
@@ -63,10 +82,28 @@ fun AvatarPickerSheet(
                 .padding(bottom = Spacing.xxxl),
         ) {
             Text(
-                text = "选择头像",
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = Spacing.lg),
             )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = Spacing.md),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = "填充图标",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Switch(
+                    checked = iconFilled,
+                    onCheckedChange = { iconFilled = it },
+                )
+            }
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
@@ -74,7 +111,8 @@ fun AvatarPickerSheet(
             ) {
                 items(PRESET_AVATARS.size) { id ->
                     val preset = PRESET_AVATARS[id]
-                    val isSelected = preset.key == selectedKey
+                    val displayKey = AvatarKey.withFilled(preset.key, iconFilled)
+                    val isSelected = sameVisual(displayKey, selectedKey)
                     Box(
                         modifier = Modifier
                             .padding(Spacing.sm)
@@ -89,10 +127,10 @@ fun AvatarPickerSheet(
                                 else Modifier
                             )
                             .clip(CircleShape)
-                            .clickable { onSelect(preset.key) },
+                            .clickable { onSelect(displayKey) },
                         contentAlignment = Alignment.Center,
                     ) {
-                        Avatar(avatarKey = preset.key, size = Sizes.rowMinH)
+                        Avatar(avatarKey = displayKey, size = Sizes.rowMinH)
                         if (isSelected) {
                             Icon(
                                 imageVector = Icons.Default.Check,
@@ -105,20 +143,31 @@ fun AvatarPickerSheet(
                 }
             }
 
-            OutlinedTextField(
-                value = charDraft,
-                onValueChange = { charDraft = it.take(1) },
-                singleLine = true,
-                label = { Text("字符头像") },
-                trailingIcon = {
-                    TextButton(onClick = { onSelect(AvatarKey.char(charDraft)) }) {
-                        Text("使用")
-                    }
-                },
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = Spacing.lg),
-            )
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+            ) {
+                Avatar(
+                    avatarKey = if (charDraft.isBlank()) "char:A" else AvatarKey.char(charDraft),
+                    size = Sizes.rowMinH,
+                )
+                OutlinedTextField(
+                    value = charDraft,
+                    onValueChange = { charDraft = it.take(1) },
+                    singleLine = true,
+                    placeholder = { Text("单个字符") },
+                    modifier = Modifier.weight(1f),
+                )
+                FilledTonalButton(
+                    onClick = { onSelect(AvatarKey.char(charDraft)) },
+                    enabled = charDraft.isNotBlank(),
+                ) {
+                    Text("确定")
+                }
+            }
         }
     }
 }

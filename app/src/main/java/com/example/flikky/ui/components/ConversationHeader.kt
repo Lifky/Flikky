@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +28,7 @@ fun ConversationHeader(
     peerAvatarKey: String? = null,
     peerName: String,
     modifier: Modifier = Modifier,
+    onAvatarClick: (() -> Unit)? = null,
     trailing: @Composable () -> Unit = {},
 ) {
     Row(
@@ -34,10 +36,19 @@ fun ConversationHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
-        if (peerAvatarKey != null) {
-            Avatar(avatarKey = peerAvatarKey, size = Sizes.avatar)
+        val avatar: @Composable () -> Unit = {
+            if (peerAvatarKey != null) {
+                Avatar(avatarKey = peerAvatarKey, size = Sizes.avatar)
+            } else {
+                Avatar(avatarId = peerAvatarId, size = Sizes.avatar)
+            }
+        }
+        if (onAvatarClick != null) {
+            IconButton(onClick = onAvatarClick) {
+                avatar()
+            }
         } else {
-            Avatar(avatarId = peerAvatarId, size = Sizes.avatar)
+            avatar()
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
