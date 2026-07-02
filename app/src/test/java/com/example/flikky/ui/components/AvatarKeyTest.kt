@@ -75,4 +75,20 @@ class AvatarKeyTest {
         assertEquals("icon:settings:outline", AvatarKey.icon("settings", filled = false))
         assertEquals("icon:settings:filled", AvatarKey.icon("settings", filled = true))
     }
+
+    @Test fun every_preset_icon_has_distinct_filled_and_outline_drawables() {
+        val iconNames = PRESET_AVATARS
+            .map { AvatarKey.parse(it.key, AvatarKey.DEFAULT_PHONE) }
+            .filterIsInstance<AvatarContent.Icon>()
+            .map { it.name }
+            .distinct()
+
+        iconNames.forEach { name ->
+            org.junit.Assert.assertNotEquals(
+                "$name should visibly change when fill is toggled",
+                avatarIconDrawable(name, filled = false),
+                avatarIconDrawable(name, filled = true),
+            )
+        }
+    }
 }

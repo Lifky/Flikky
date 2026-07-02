@@ -296,6 +296,15 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     overflow: visible;
     padding: 6px;
 }
+.avatar-fill-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--flikky-space-md);
+    margin: 0 6px var(--flikky-space-md);
+    font-size: var(--flikky-font-body-medium);
+    color: rgb(var(--mdui-color-on-surface));
+}
 .avatar-picker-grid .avatar-circle {
     width: 48px;
     height: 48px;

@@ -126,7 +126,7 @@ fun Avatar(avatarKey: String?, size: Dp, modifier: Modifier = Modifier) {
     ) {
         when (content) {
             is AvatarContent.Icon -> Icon(
-                painter = painterResource(iconDrawable(content.name, content.filled)),
+                painter = painterResource(avatarIconDrawable(content.name, content.filled)),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.size(size * 0.6f),
@@ -143,15 +143,15 @@ fun Avatar(avatarKey: String?, size: Dp, modifier: Modifier = Modifier) {
 }
 
 @DrawableRes
-private fun iconDrawable(name: String, filled: Boolean): Int = when (name) {
-    "smartphone" -> R.drawable.ic_smartphone
-    "desktop_windows" -> R.drawable.ic_desktop_windows
-    "person" -> R.drawable.ic_account_circle
+internal fun avatarIconDrawable(name: String, filled: Boolean): Int = when (name) {
+    "smartphone" -> if (filled) R.drawable.ic_smartphone_filled else R.drawable.ic_smartphone
+    "desktop_windows" -> if (filled) R.drawable.ic_desktop_windows_filled else R.drawable.ic_desktop_windows
+    "person" -> if (filled) R.drawable.ic_account_circle_filled else R.drawable.ic_account_circle
     "settings" -> if (filled) R.drawable.ic_settings else R.drawable.ic_settings_outline
     "star" -> if (filled) R.drawable.ic_star else R.drawable.ic_star_border
-    "face" -> R.drawable.ic_face
-    "palette" -> R.drawable.ic_palette
-    "image" -> R.drawable.ic_image
+    "face" -> if (filled) R.drawable.ic_face_filled else R.drawable.ic_face
+    "palette" -> if (filled) R.drawable.ic_palette_filled else R.drawable.ic_palette
+    "image" -> if (filled) R.drawable.ic_image_filled else R.drawable.ic_image
     "description" -> R.drawable.ic_description
     else -> R.drawable.ic_account_circle
 }
