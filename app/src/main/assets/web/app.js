@@ -300,9 +300,32 @@
         return 'rgba(' + r + ',' + g + ',' + b + ',' + a.toFixed(3) + ')';
     }
 
+    let currentBackgroundMode = 'DEFAULT';
+    let currentDeviceName = '手机';
+    let connectionWatermarkState = 'connected';
+
+    function defaultWatermarkText() {
+        const status = connectionWatermarkState === 'disconnected' ? '已断开' : '已连接';
+        return status + ' · ' + currentDeviceName;
+    }
+
+    function refreshDefaultWatermark() {
+        if (currentBackgroundMode === 'DEFAULT') {
+            setWatermark(defaultWatermarkText());
+        }
+    }
+
+    function setConnectionWatermarkState(state) {
+        connectionWatermarkState = state;
+        refreshDefaultWatermark();
+    }
+
     // Apply conversation background to the list element based on peer-info.
     function applyBackground(mode, value, deviceName) {
-        switch (mode) {
+        const normalizedMode = ['BLANK', 'SOLID', 'GRADIENT', 'DEFAULT'].includes(mode) ? mode : 'DEFAULT';
+        currentBackgroundMode = normalizedMode;
+        currentDeviceName = (typeof deviceName === 'string' && deviceName.length > 0) ? deviceName : currentDeviceName;
+        switch (normalizedMode) {
             case 'BLANK':
                 list.style.background = '';
                 removeWatermark();
@@ -322,7 +345,7 @@
             case 'DEFAULT':
             default:
                 list.style.background = '';
-                setWatermark('已连接 · ' + deviceName);
+                setWatermark(defaultWatermarkText());
                 break;
         }
     }
@@ -906,6 +929,7 @@
         // 服务端主动停止 — 抢在 ws.onclose 之前标记，让重连流程跳过这个 WS。
         if (ev.type === 'server_stopped') {
             serverStopped = true;
+            setConnectionWatermarkState('disconnected');
             showBanner('terminated', '服务已停止，连接已断开');
             setSendEnabled(false);
             return;
@@ -1099,6 +1123,7 @@
      */
     function enterDisconnected() {
         wsConnected = false;
+        setConnectionWatermarkState('disconnected');
         setSendEnabled(false);
         setConn('已断开');
         if (hadConnected) showBanner('disconnected', '连接已断开，正在尝试重连…');
@@ -1167,6 +1192,8 @@
         currentWs = ws;
         ws.onopen = () => {
             wsConnected = true;
+            serverStopped = false;
+            setConnectionWatermarkState('connected');
             setConn('已连接');
             setSendEnabled(true);
             lastFrameAt = Date.now();
@@ -1192,6 +1219,7 @@
             if (currentWs !== ws) return;
             currentWs = null;
             wsConnected = false;
+            setConnectionWatermarkState('disconnected');
             setConn('已断开');
             setSendEnabled(false);
             stopHeartbeat();

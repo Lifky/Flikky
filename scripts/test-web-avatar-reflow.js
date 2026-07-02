@@ -161,11 +161,20 @@ function matches(el, selector) {
 
 function createDocument() {
   const ids = new Map();
+  function findById(root, id) {
+    if (!root) return null;
+    if (root.id === id) return root;
+    for (const child of root.children) {
+      const found = findById(child, id);
+      if (found) return found;
+    }
+    return null;
+  }
   const document = {
     body: new Element('body'),
     documentElement: new Element('html'),
     createElement: (tag) => new Element(tag),
-    getElementById: (id) => ids.get(id) || null,
+    getElementById: (id) => ids.get(id) || Array.from(ids.values()).map((el) => findById(el, id)).find(Boolean) || null,
     addEventListener() {},
     removeEventListener() {},
   };
@@ -247,6 +256,11 @@ function avatarSymbolText(el) {
   return symbol ? symbol.textContent : el.textContent;
 }
 
+function watermarkText(list) {
+  const watermark = list.children.find((child) => child.id === 'chat-watermark');
+  return watermark ? watermark.textContent : null;
+}
+
 function assertDeepEqual(actual, expected, message) {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(`${message}\nexpected: ${JSON.stringify(expected)}\nactual:   ${JSON.stringify(actual)}`);
@@ -300,5 +314,19 @@ function runPartialSettingsDoesNotResetPhoneAvatarTest() {
 }
 
 runPartialSettingsDoesNotResetPhoneAvatarTest();
+
+function runServerStoppedUpdatesDefaultWatermarkTest() {
+  const app = loadAppForTest();
+  app.onWsEvent({
+    type: 'settings_changed',
+    payload: { deviceName: '我的手机', backgroundMode: 'DEFAULT' },
+  });
+  assertDeepEqual(watermarkText(app.list), '已连接 · 我的手机', 'initial connected watermark');
+
+  app.onWsEvent({ type: 'server_stopped', payload: {} });
+  assertDeepEqual(watermarkText(app.list), '已断开 · 我的手机', 'server stopped watermark');
+}
+
+runServerStoppedUpdatesDefaultWatermarkTest();
 
 console.log('web avatar reflow test passed');
