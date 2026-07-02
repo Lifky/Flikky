@@ -9,6 +9,11 @@
     const countEl = document.getElementById('count');
     const rateEl = document.getElementById('rate');
 
+    const ua = navigator.userAgent || '';
+    if (/Android|iPhone|iPad|iPod/i.test(ua)) {
+        document.body.classList.add('mobile-ua');
+    }
+
     // Material Symbols are self-hosted; FILL uses the official variable-font axis.
     function symbolName(name) {
         return name === 'person' ? 'account_circle' : name;
