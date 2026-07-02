@@ -206,6 +206,42 @@
         return row;
     }
 
+    function rowOrigin(row) {
+        if (row.classList.contains('me')) return 'BROWSER';
+        if (row.classList.contains('them')) return 'PHONE';
+        return null;
+    }
+
+    function makeAvatarSpacer() {
+        const spacer = document.createElement('div');
+        spacer.className = 'avatar-spacer';
+        return spacer;
+    }
+
+    function setRowAvatarMarker(row, origin, showAvatar) {
+        const marker = showAvatar
+            ? makeAvatarEl(origin === 'BROWSER' ? myAvatarKey : phoneAvatarKey)
+            : makeAvatarSpacer();
+        const current = row.children[0];
+        if (current && (current.classList.contains('avatar-circle') || current.classList.contains('avatar-spacer'))) {
+            row.insertBefore(marker, current);
+            current.remove();
+        } else {
+            row.insertBefore(marker, row.firstChild);
+        }
+    }
+
+    function reflowMessageAvatars() {
+        let previousOrigin = null;
+        list.querySelectorAll('.bubble-row').forEach((row) => {
+            const origin = rowOrigin(row);
+            if (!origin) return;
+            setRowAvatarMarker(row, origin, origin !== previousOrigin);
+            previousOrigin = origin;
+        });
+        lastBubbleOrigin = previousOrigin;
+    }
+
     // Update the header avatar and name for the peer.
     function renderPeerHeader(deviceName, avatarKey) {
         const peerAvatarEl = document.getElementById('peer-avatar');
@@ -662,6 +698,7 @@
         } else {
             node.remove();
         }
+        reflowMessageAvatars();
     }
 
     function renderTransferringBubble(msg) {
@@ -796,6 +833,7 @@
             } else {
                 bubble.remove();
             }
+            reflowMessageAvatars();
             sendFile(file);
         });
 
