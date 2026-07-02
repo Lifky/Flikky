@@ -181,6 +181,7 @@ function createDocument() {
     'count',
     'rate',
     'my-avatar-btn',
+    'peer-avatar',
   ].forEach((id) => {
     ids.set(id, new Element(id === 'text-input' ? 'mdui-text-field' : 'div'));
   });
@@ -195,7 +196,7 @@ function loadAppForTest() {
   const source = fs.readFileSync(appPath, 'utf8');
   const patched = source.replace(
     /(\s*)setSendEnabled\(false\);\s*loadHistory\(\)\.then\(openWs\);\s*\}\)\(\);/,
-    '$1setSendEnabled(false);\n$1window.__flikkyWebTest = { renderText, removeMessageNode, onWsEvent, list };\n})();',
+    "$1setSendEnabled(false);\n$1window.__flikkyWebTest = { renderText, removeMessageNode, onWsEvent, list, peerAvatar: document.getElementById('peer-avatar') };\n})();",
   );
 
   if (patched === source) {
@@ -241,6 +242,11 @@ function avatarMarkers(list) {
   });
 }
 
+function avatarSymbolText(el) {
+  const symbol = el.querySelector('.avatar-symbol');
+  return symbol ? symbol.textContent : el.textContent;
+}
+
 function assertDeepEqual(actual, expected, message) {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(`${message}\nexpected: ${JSON.stringify(expected)}\nactual:   ${JSON.stringify(actual)}`);
@@ -279,5 +285,20 @@ function runGroupingModeTest(mode, expected) {
 runGroupingModeTest('FIRST', ['avatar', 'spacer', 'spacer']);
 runGroupingModeTest('LAST', ['spacer', 'spacer', 'avatar']);
 runGroupingModeTest('EACH', ['avatar', 'avatar', 'avatar']);
+
+function runPartialSettingsDoesNotResetPhoneAvatarTest() {
+  const app = loadAppForTest();
+  app.onWsEvent({ type: 'settings_changed', payload: { phoneAvatarKey: 'icon:palette' } });
+  assertDeepEqual(avatarSymbolText(app.peerAvatar), 'palette', 'initial phone avatar from settings');
+
+  app.onWsEvent({ type: 'settings_changed', payload: { avatarGrouping: 'LAST' } });
+  assertDeepEqual(
+    avatarSymbolText(app.peerAvatar),
+    'palette',
+    'partial avatarGrouping update must not reset phone avatar',
+  );
+}
+
+runPartialSettingsDoesNotResetPhoneAvatarTest();
 
 console.log('web avatar reflow test passed');

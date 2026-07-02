@@ -385,12 +385,22 @@
         document.documentElement.style.setProperty('--flikky-bubble-radius', clamped + 'px');
     }
 
+    function resolvePhoneAvatarKey(data) {
+        if (Object.prototype.hasOwnProperty.call(data, 'phoneAvatarKey')) {
+            return normalizeAvatarKey(data.phoneAvatarKey, phoneAvatarKey);
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'phoneAvatarId')) {
+            const legacyId = Number(data.phoneAvatarId);
+            return Number.isInteger(legacyId) && legacyId !== 0
+                ? legacyAvatarKey(legacyId, phoneAvatarKey)
+                : phoneAvatarKey;
+        }
+        return phoneAvatarKey;
+    }
+
     function applyPeerAppearance(data, fallbackName) {
         const name = (data.deviceName && typeof data.deviceName === 'string') ? data.deviceName : fallbackName;
-        phoneAvatarKey = normalizeAvatarKey(
-            data.phoneAvatarKey,
-            legacyAvatarKey(Number(data.phoneAvatarId), AVATAR_DEFAULT_PHONE),
-        );
+        phoneAvatarKey = resolvePhoneAvatarKey(data);
         avatarGrouping = normalizeAvatarGrouping(data.avatarGrouping);
         renderPeerHeader(name, phoneAvatarKey);
         applyBackground(data.backgroundMode || 'DEFAULT', data.backgroundValue || '', name);
