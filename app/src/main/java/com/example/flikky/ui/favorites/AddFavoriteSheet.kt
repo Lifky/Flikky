@@ -57,9 +57,9 @@ fun AddFavoriteSheet(
                 value = draft,
                 onValueChange = { draft = it },
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 2,
+                minLines = 1,
                 maxLines = 5,
-                placeholder = { Text("文本消息") },
+                label = { Text("文本消息") },
                 leadingIcon = {
                     Icon(
                         painter = painterResource(R.drawable.ic_edit),
@@ -72,14 +72,7 @@ fun AddFavoriteSheet(
                 enabled = draft.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_star),
-                    contentDescription = null,
-                )
-                Text(
-                    text = "添加文本",
-                    modifier = Modifier.padding(start = Spacing.sm),
-                )
+                Text("添加文本")
             }
             FilledTonalButton(
                 onClick = onPickFile,
