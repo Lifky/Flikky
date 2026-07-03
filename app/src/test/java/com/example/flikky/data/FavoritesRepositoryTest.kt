@@ -50,6 +50,7 @@ class FavoritesRepositoryTest {
             favoriteFileStore = favoriteFileStore,
             now = { clock },
             depotIdFactory = { "depot-$clock" },
+            localSourceMessageIdFactory = { -clock },
         )
     }
 
@@ -146,6 +147,45 @@ class FavoritesRepositoryTest {
 
         assertTrue(result.isFailure)
         assertTrue(repo.observeFavorites().first().isEmpty())
+    }
+
+    @Test fun addLocalText_persists_standalone_text_snapshot() = runTest {
+        clock = 60L
+
+        val favoriteId = repo.addLocalText("  local note  ", groupId = 4L)
+
+        val row = db.favoriteDao().getById(favoriteId)!!
+        assertEquals("TEXT", row.kind)
+        assertEquals("local note", row.textContent)
+        assertEquals(FavoritesRepository.LOCAL_SOURCE_SESSION_ID, row.sourceSessionId)
+        assertEquals(-60L, row.sourceMessageId)
+        assertEquals(4L, row.groupId)
+        assertEquals(60L, row.createdAt)
+        assertEquals("本地添加", row.sourceSessionName)
+        assertEquals("PHONE", row.origin)
+    }
+
+    @Test fun addLocalFile_copies_stream_to_independent_depot_file() = runTest {
+        clock = 70L
+
+        val favoriteId = repo.addLocalFile(
+            name = "local.txt",
+            sizeBytes = null,
+            mime = "text/plain",
+            groupId = null,
+            source = "payload".byteInputStream(),
+        )
+
+        val row = db.favoriteDao().getById(favoriteId)!!
+        assertEquals("FILE", row.kind)
+        assertEquals(FavoritesRepository.LOCAL_SOURCE_SESSION_ID, row.sourceSessionId)
+        assertEquals(-70L, row.sourceMessageId)
+        assertEquals("depot-70", row.fileId)
+        assertEquals("local.txt", row.fileName)
+        assertEquals(7L, row.fileSize)
+        assertEquals("text/plain", row.fileMime)
+        assertEquals("本地添加", row.sourceSessionName)
+        assertArrayEquals("payload".toByteArray(), favoriteFileStore.resolve("depot-70").readBytes())
     }
 
     @Test fun unfavoriteBySource_deletes_row_and_depot_file_idempotently() = runTest {

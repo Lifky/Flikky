@@ -5,7 +5,9 @@ import com.example.flikky.data.db.FavoriteGroupDao
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.session.Message
+import com.example.flikky.util.IdGen
 import java.io.File
+import java.io.InputStream
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 
@@ -16,6 +18,7 @@ class FavoritesRepository(
     private val favoriteFileStore: FavoriteFileStore,
     private val now: () -> Long,
     private val depotIdFactory: () -> String = { UUID.randomUUID().toString() },
+    private val localSourceMessageIdFactory: () -> Long = { IdGen.newMessageId() },
 ) {
     fun observeFavorites(): Flow<List<FavoriteEntity>> = favoriteDao.observeAll()
 
@@ -70,6 +73,54 @@ class FavoritesRepository(
                 origin = msg.origin.name,
             )
         )
+    }
+
+    suspend fun addLocalText(text: String, groupId: Long?): Long {
+        val normalized = text.trim()
+        require(normalized.isNotBlank()) { "Local favorite text must not be blank" }
+        return favoriteDao.insert(
+            FavoriteEntity(
+                sourceSessionId = LOCAL_SOURCE_SESSION_ID,
+                sourceMessageId = localSourceMessageIdFactory(),
+                kind = "TEXT",
+                textContent = normalized,
+                groupId = groupId,
+                createdAt = now(),
+                sourceSessionName = LOCAL_SOURCE_NAME,
+                origin = LOCAL_ORIGIN,
+            )
+        )
+    }
+
+    suspend fun addLocalFile(
+        name: String,
+        sizeBytes: Long?,
+        mime: String,
+        groupId: Long?,
+        source: InputStream,
+    ): Long {
+        val depotFileId = depotIdFactory()
+        val target = favoriteFileStore.copyIn(depotFileId, source)
+        return try {
+            favoriteDao.insert(
+                FavoriteEntity(
+                    sourceSessionId = LOCAL_SOURCE_SESSION_ID,
+                    sourceMessageId = localSourceMessageIdFactory(),
+                    kind = "FILE",
+                    fileId = depotFileId,
+                    fileName = name.ifBlank { "unnamed" },
+                    fileSize = sizeBytes?.takeIf { it >= 0L } ?: target.length(),
+                    fileMime = mime.ifBlank { "application/octet-stream" },
+                    groupId = groupId,
+                    createdAt = now(),
+                    sourceSessionName = LOCAL_SOURCE_NAME,
+                    origin = LOCAL_ORIGIN,
+                )
+            )
+        } catch (t: Throwable) {
+            favoriteFileStore.delete(depotFileId)
+            throw t
+        }
     }
 
     suspend fun unfavoriteBySource(sid: Long, mid: Long) {
@@ -132,5 +183,11 @@ class FavoritesRepository(
             favorite.textContent?.contains(trimmed, ignoreCase = true) == true ||
                 favorite.fileName?.contains(trimmed, ignoreCase = true) == true
         }
+    }
+
+    companion object {
+        const val LOCAL_SOURCE_SESSION_ID = 0L
+        private const val LOCAL_SOURCE_NAME = "本地添加"
+        private const val LOCAL_ORIGIN = "PHONE"
     }
 }

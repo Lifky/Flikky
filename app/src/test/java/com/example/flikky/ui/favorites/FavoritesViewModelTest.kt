@@ -70,6 +70,30 @@ class FavoritesViewModelTest {
         coVerify { settings.setActiveFavoriteGroup(9L) }
     }
 
+    @Test fun addLocalText_trims_and_uses_active_favorite_group() = runTest {
+        val app = mockk<Application>(relaxed = true)
+        val repo = stubRepo()
+        val settings = mockk<SettingsRepository>()
+        every { settings.settings } returns MutableStateFlow(FlikkySettings(activeFavoriteGroupId = 7L))
+        coEvery { repo.addLocalText(any(), any()) } returns 11L
+
+        val vm = FavoritesViewModel(app, repo, settings)
+        val added = vm.addLocalText("  hello  ")
+
+        assertTrue(added)
+        coVerify { repo.addLocalText("hello", 7L) }
+    }
+
+    @Test fun addLocalText_rejects_blank_without_insert() = runTest {
+        val repo = stubRepo()
+        val vm = FavoritesViewModel(mockk(relaxed = true), repo, stubSettings())
+
+        val added = vm.addLocalText("   ")
+
+        assertFalse(added)
+        coVerify(exactly = 0) { repo.addLocalText(any(), any()) }
+    }
+
     @Test fun deleteGroupWithUndo_clears_active_only_for_deleted_group() = runTest {
         val app = mockk<Application>(relaxed = true)
         val repo = stubRepo()

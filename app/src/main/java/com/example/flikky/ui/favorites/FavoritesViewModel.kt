@@ -3,6 +3,8 @@ package com.example.flikky.ui.favorites
 import android.app.Application
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.net.Uri
+import android.provider.OpenableColumns
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
@@ -137,6 +139,29 @@ class FavoritesViewModel @JvmOverloads constructor(
     fun deleteFavorite(id: Long): Job =
         viewModelScope.launch { repository.deleteFavorite(id) }
 
+    suspend fun addLocalText(text: String): Boolean {
+        val normalized = text.trim()
+        if (normalized.isBlank()) return false
+        repository.addLocalText(normalized, currentActiveGroupId())
+        return true
+    }
+
+    suspend fun addLocalFile(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        val ctx = getApplication<Application>()
+        val resolver = ctx.contentResolver
+        val info = readLocalFileInfo(uri)
+        val input = resolver.openInputStream(uri) ?: return@withContext false
+        runCatching {
+            repository.addLocalFile(
+                name = info.name,
+                sizeBytes = info.sizeBytes,
+                mime = info.mime,
+                groupId = currentActiveGroupId(),
+                source = input,
+            )
+        }.isSuccess
+    }
+
     suspend fun sendFavorite(favorite: FavoriteEntity): Boolean {
         val controller = ServiceLocator.currentController ?: return false
         return when (favorite.kind) {
@@ -160,6 +185,42 @@ class FavoritesViewModel @JvmOverloads constructor(
             }
             else -> false
         }
+    }
+
+    private suspend fun currentActiveGroupId(): Long? =
+        settingsRepository.settings.first().activeFavoriteGroupId
+
+    private data class LocalFileInfo(
+        val name: String,
+        val sizeBytes: Long?,
+        val mime: String,
+    )
+
+    private fun readLocalFileInfo(uri: Uri): LocalFileInfo {
+        val ctx = getApplication<Application>()
+        val resolver = ctx.contentResolver
+        var name: String? = null
+        var size: Long? = null
+        resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)
+            ?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex >= 0 && !cursor.isNull(nameIndex)) {
+                        name = cursor.getString(nameIndex)
+                    }
+                    val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    if (sizeIndex >= 0 && !cursor.isNull(sizeIndex)) {
+                        size = cursor.getLong(sizeIndex).takeIf { it >= 0L }
+                    }
+                }
+            }
+        return LocalFileInfo(
+            name = name?.takeIf { it.isNotBlank() }
+                ?: uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+                ?: "unnamed",
+            sizeBytes = size,
+            mime = resolver.getType(uri) ?: "application/octet-stream",
+        )
     }
 
     fun openFavoriteFile(favorite: FavoriteEntity) {

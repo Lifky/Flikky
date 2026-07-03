@@ -1,6 +1,7 @@
 package com.example.flikky.data
 
 import java.io.File
+import java.io.InputStream
 
 class FavoriteFileStore(
     private val filesDir: File,
@@ -11,6 +12,14 @@ class FavoriteFileStore(
         require(source.exists() && source.isFile) { "Favorite source file does not exist: ${source.absolutePath}" }
         val target = resolve(depotFileId)
         source.inputStream().use { input ->
+            target.outputStream().use { output -> input.copyTo(output) }
+        }
+        return target
+    }
+
+    fun copyIn(depotFileId: String, source: InputStream): File {
+        val target = resolve(depotFileId)
+        source.use { input ->
             target.outputStream().use { output -> input.copyTo(output) }
         }
         return target

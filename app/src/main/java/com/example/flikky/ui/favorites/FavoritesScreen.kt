@@ -1,6 +1,8 @@
 package com.example.flikky.ui.favorites
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
@@ -18,9 +20,11 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -88,6 +92,17 @@ fun FavoritesScreen(
     var managingGroup by remember { mutableStateOf<FavoriteGroupEntity?>(null) }
     var showMoveSheet by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showAddFavoriteSheet by remember { mutableStateOf(false) }
+    val pickFavoriteFile = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                val added = viewModel.addLocalFile(uri)
+                snackbarHostState.showSnackbar(if (added) "已添加文件收藏" else "文件添加失败")
+            }
+        }
+    }
 
     LaunchedEffect(selecting) { onSelectingChange(selecting) }
     LaunchedEffect(query) { onSearchExpandedChange(query.isNotBlank()) }
@@ -148,6 +163,13 @@ fun FavoritesScreen(
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            if (!selecting) {
+                FloatingActionButton(onClick = { showAddFavoriteSheet = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "添加收藏")
+                }
+            }
+        },
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
@@ -175,7 +197,7 @@ fun FavoritesScreen(
                             text = when {
                                 query.isNotBlank() -> "没有匹配的收藏"
                                 activeGroupId != null -> "该合集还没有收藏"
-                                else -> "在消息或文件上点 ☆ 即可收藏到这里"
+                                else -> "点 + 添加本地文本或文件，也可以在消息或文件上点 ☆ 收藏"
                             },
                             modifier = Modifier.fillMaxSize(),
                         )
@@ -315,6 +337,25 @@ fun FavoritesScreen(
                 scope.launch { viewModel.deleteSelected() }
             },
             onDismiss = { showDeleteConfirm = false },
+        )
+    }
+
+    if (showAddFavoriteSheet) {
+        AddFavoriteSheet(
+            onAddText = { text ->
+                scope.launch {
+                    val added = viewModel.addLocalText(text)
+                    if (added) {
+                        showAddFavoriteSheet = false
+                        snackbarHostState.showSnackbar("已添加文本收藏")
+                    }
+                }
+            },
+            onPickFile = {
+                showAddFavoriteSheet = false
+                pickFavoriteFile.launch("*/*")
+            },
+            onDismiss = { showAddFavoriteSheet = false },
         )
     }
 }
