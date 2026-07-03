@@ -37,6 +37,7 @@ fun ConnectionInfoCard(
     url: String,
     pin: String,
     modifier: Modifier = Modifier,
+    requirePin: Boolean = true,
 ) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -72,19 +73,32 @@ fun ConnectionInfoCard(
                 Text("复制地址")
             }
             Spacer(Modifier.height(Spacing.xs))
-            Text(
-                text = "PIN",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = pin,
-                style = MaterialTheme.typography.displayMedium.copy(
-                    fontFamily = FontFamily.Monospace,
-                    // PIN is intentionally bold so users can read and transcribe it quickly.
-                    fontWeight = FontWeight.Bold,
-                ),
-            )
+            if (requirePin) {
+                Text(
+                    text = "PIN",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = pin,
+                    style = MaterialTheme.typography.displayMedium.copy(
+                        fontFamily = FontFamily.Monospace,
+                        // PIN is intentionally bold so users can read and transcribe it quickly.
+                        fontWeight = FontWeight.Bold,
+                    ),
+                )
+            } else {
+                Text(
+                    text = "连接方式",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "免 PIN 连接",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
     }
 }

@@ -219,10 +219,12 @@ class HomeViewModel @JvmOverloads constructor(
         val snapshot = repository.exportSnapshot(sel.toList())
         if (snapshot.sessions.isEmpty()) return ExportStartResult.NoValidSessions
 
+        val settings = settingsRepository.settings.first()
         val exportSession = ExportSession(
             sessionIds = snapshot.sessions.map { it.id },
             pin = pinGenerator(),
             createdAt = now(),
+            requirePin = settings.requirePin,
         )
         // 上一轮导出若停在 Done（用户回主页前没 acknowledge）会让 armExport 抛
         // IllegalStateException——兜底先清干净，再 arm。

@@ -40,6 +40,7 @@ class SettingsViewModel @JvmOverloads constructor(
     fun setDeviceName(v: String) = viewModelScope.launch { repo.setDeviceName(v) }
     fun setRecallBeta(v: Boolean) = viewModelScope.launch { repo.setRecallBeta(v) }
     fun setFavoriteBeta(v: Boolean) = viewModelScope.launch { repo.setFavoriteBeta(v) }
+    fun setRequirePin(v: Boolean) = viewModelScope.launch { repo.setRequirePin(v) }
     fun setMessageActionStyle(v: MessageActionStyle) = viewModelScope.launch { repo.setMessageActionStyle(v) }
     fun setAvatarGrouping(v: AvatarGroupingMode) = viewModelScope.launch { repo.setAvatarGrouping(v) }
     fun setAnimationSpeed(v: AnimationSpeed) = viewModelScope.launch { repo.setAnimationSpeed(v) }

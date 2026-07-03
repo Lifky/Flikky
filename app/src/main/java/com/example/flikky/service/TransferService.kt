@@ -52,7 +52,13 @@ import java.util.Locale
 
 class TransferService : Service() {
 
-    data class Running(val ip: String, val port: Int, val pin: String, val sessionId: Long)
+    data class Running(
+        val ip: String,
+        val port: Int,
+        val pin: String,
+        val sessionId: Long,
+        val requirePin: Boolean,
+    )
 
     inner class Binding : Binder() {
         val running: StateFlow<Running?> get() = _running
@@ -68,6 +74,7 @@ class TransferService : Service() {
     private var controller: TransferController? = null
     private var currentSessionId: Long = -1L
     private var currentMode: ServiceMode? = null
+    private var currentRequirePin: Boolean = true
     private var statusBroadcastJob: Job? = null
 
     private val rebinder = NetworkRebinder()
@@ -138,9 +145,12 @@ class TransferService : Service() {
 
         val now = System.currentTimeMillis()
         val name = defaultSessionName(now)
+        val startSettings = runBlocking { ServiceLocator.settingsRepository.settings.first() }
+        latestSettings = startSettings
+        currentRequirePin = startSettings.requirePin
         val sid = runBlocking {
             runCatching {
-                val groupId = ServiceLocator.settingsRepository.settings.first().activeGroupId
+                val groupId = startSettings.activeGroupId
                 val id = ServiceLocator.repository.beginSession(name, startedAt = now, groupId = groupId)
                 ServiceLocator.repository.fifoSweep()
                 id
@@ -200,7 +210,7 @@ class TransferService : Service() {
         ServiceLocator.currentController = controller
 
         val pin = auth.currentPin() ?: "------"
-        _running.value = Running(ip, port, pin, sid)
+        _running.value = Running(ip, port, pin, sid, currentRequirePin)
 
         statusBroadcastJob = scope.launch {
             while (isActive) {
@@ -226,7 +236,7 @@ class TransferService : Service() {
         val notif = NotificationHelper.build(
             context = this,
             title = "Flikky 服务运行中",
-            text = "URL  http://$ip:$port\nPIN  打开 APP 查看",
+            text = transferNotificationText(ip, port),
         )
         startForeground(
             NotificationHelper.NOTIFICATION_ID,
@@ -254,6 +264,7 @@ class TransferService : Service() {
             stopSelf()
             return
         }
+        currentRequirePin = armed.session.requirePin
 
         val ip = ServiceLocator.networkInfo.currentWifiIpv4()
             ?: run {
@@ -364,6 +375,7 @@ class TransferService : Service() {
         currentMode = null
         pinAuth = null
         currentHostIp = null
+        currentRequirePin = true
         _running.value = null
     }
 
@@ -400,6 +412,7 @@ class TransferService : Service() {
             }
         },
         mode = ServiceMode.Transfer,
+        requirePin = currentRequirePin,
         // M9: lambda reads the @Volatile field (not a closure-captured local) so
         // each KtorServer rebuild on rebind picks up the latest settings without
         // holding a stale reference to a previous KtorServer instance.
@@ -423,6 +436,7 @@ class TransferService : Service() {
         // 读代码的人立刻看到这点，不必去 KtorServer 翻默认值。
         onRecallMessage = { _, _ -> ServerRecallOutcome.NotFound },
         mode = ServiceMode.Export,
+        requirePin = currentRequirePin,
         onZipSent = { handleZipSent() },
     )
 
@@ -531,7 +545,7 @@ class TransferService : Service() {
             ServiceMode.Transfer -> NotificationHelper.build(
                 context = this,
                 title = "Flikky 服务运行中",
-                text = "URL  http://$newIp:$port\nPIN  打开 APP 查看",
+                text = transferNotificationText(newIp, port),
             )
             ServiceMode.Export -> {
                 val armed = ServiceLocator.session.exportMode.value as? ExportMode.Armed
@@ -577,6 +591,13 @@ class TransferService : Service() {
         }.getOrNull()
         return "phone-${androidId ?: "unknown"}"
     }
+
+    private fun transferNotificationText(ip: String, port: Int): String =
+        if (currentRequirePin) {
+            "URL  http://$ip:$port\nPIN  打开 APP 查看"
+        } else {
+            "URL  http://$ip:$port\n免 PIN 连接"
+        }
 
     companion object {
         const val ACTION_START = "com.example.flikky.START"

@@ -45,12 +45,13 @@ class PeerInfoRoutesTest {
         install(ContentNegotiation) { json() }
         routing {
             val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
+            val authGate = AuthGate(required = true, pinAuth = pin)
             authRoutes(
-                pin,
+                authGate,
                 readAsset = { byteArrayOf() },
                 publicThemeProvider = { WebThemeDto(themeSeed = "#6750A4", themeDark = true) },
             )
-            peerInfoRoutes(pinAuth = pin, provider = provider)
+            peerInfoRoutes(authGate = authGate, provider = provider)
         }
     }
 

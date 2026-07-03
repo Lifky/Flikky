@@ -47,6 +47,7 @@ data class ServingUiState(
     val clientConnected: Boolean = false,
     val messages: List<Message> = emptyList(),
     val networkStatus: NetworkStatus = NetworkStatus.Ok,
+    val requirePin: Boolean = true,
 )
 
 class ServingViewModel(app: Application) : AndroidViewModel(app) {
@@ -83,6 +84,7 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
                 _ui.value = _ui.value.copy(
                     url = r?.let { "http://${it.ip}:${it.port}" } ?: "",
                     pin = r?.pin ?: "",
+                    requirePin = r?.requirePin ?: true,
                 )
             }.launchIn(viewModelScope)
         }
@@ -117,6 +119,7 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
                 clientConnected = snap.clientConnected,
                 messages = snap.messages,
                 networkStatus = snap.networkStatus,
+                requirePin = _ui.value.requirePin,
             )
         }.onEach { _ui.value = it }.launchIn(viewModelScope)
     }

@@ -35,6 +35,7 @@ class SettingsRepositoryTest {
         assertEquals(20, s.historyRetainLimit)
         assertEquals(false, s.recallBetaEnabled)
         assertEquals(false, s.favoriteBetaEnabled)
+        assertEquals(true, s.requirePin)
     }
 
     @Test fun update_persists_and_emits() = runTest {
@@ -110,6 +111,15 @@ class SettingsRepositoryTest {
         assertTrue(repo.settings.first().allowBackDuringSession)
         repo.setAllowBackDuringSession(false)
         assertEquals(false, repo.settings.first().allowBackDuringSession)
+    }
+
+    @Test fun require_pin_roundtrips() = runTest {
+        val repo = makeRepo(this)
+        assertEquals(true, repo.settings.first().requirePin)
+        repo.setRequirePin(false)
+        assertEquals(false, repo.settings.first().requirePin)
+        repo.setRequirePin(true)
+        assertEquals(true, repo.settings.first().requirePin)
     }
 
     @Test fun active_group_id_roundtrips_and_null_clears() = runTest {

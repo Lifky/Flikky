@@ -1,6 +1,5 @@
 package com.example.flikky.server.routes
 
-import com.example.flikky.server.PinAuth
 import com.example.flikky.session.SessionState
 import io.ktor.server.routing.Route
 import io.ktor.server.websocket.WebSocketServerSession
@@ -73,13 +72,13 @@ private val clientHelloPattern = Regex(""""type"\s*:\s*"client_hello".*?"avatarI
 private val clientHelloKeyPattern = Regex(""""type"\s*:\s*"client_hello".*?"avatarKey"\s*:\s*"([^"]{1,48})"""")
 
 fun Route.wsRoutes(
-    pinAuth: PinAuth,
+    authGate: AuthGate,
     session: SessionState,
     hub: WsHub,
 ) {
     webSocket("/ws") {
         val token = call.request.cookies[AUTH_COOKIE]
-        if (token == null || !pinAuth.validateToken(token)) {
+        if (!authGate.isAuthorized(token)) {
             close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "unauthorized"))
             return@webSocket
         }

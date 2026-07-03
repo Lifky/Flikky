@@ -6,6 +6,7 @@ import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.dto.WebThemeDto
 import com.example.flikky.server.routes.FileStore
+import com.example.flikky.server.routes.AuthGate
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.server.routes.authRoutes
 import com.example.flikky.server.routes.exportRoutes
@@ -52,6 +53,7 @@ class KtorServer(
         { _, _ -> ServerRecallOutcome.NotFound },
     private val nowMs: () -> Long = System::currentTimeMillis,
     private val mode: ServiceMode = ServiceMode.Transfer,
+    private val requirePin: Boolean = true,
     private val onZipSent: suspend () -> Unit = {},
     /**
      * M9: provides the phone's current appearance for GET /api/peer-info.
@@ -67,6 +69,7 @@ class KtorServer(
         private set
 
     internal val wsHub = WsHub()
+    private val authGate = AuthGate(required = requirePin, pinAuth = pinAuth)
 
     fun start(): Int {
         var lastError: Throwable? = null
@@ -96,7 +99,7 @@ class KtorServer(
                     }
                     routing {
                         authRoutes(
-                            pinAuth = pinAuth,
+                            authGate = authGate,
                             readAsset = assetLoader,
                             redirectAfterLogin = {
                                 when (mode) {
@@ -110,8 +113,8 @@ class KtorServer(
                             },
                         )
                         when (mode) {
-                            ServiceMode.Transfer -> installTransferRoutes()
-                            ServiceMode.Export -> installExportRoutes()
+                            ServiceMode.Transfer -> installTransferRoutes(authGate)
+                            ServiceMode.Export -> installExportRoutes(authGate)
                         }
                     }
                 }
@@ -126,10 +129,10 @@ class KtorServer(
         throw IllegalStateException("No port available in $startPort..$endPort", lastError)
     }
 
-    private fun Route.installTransferRoutes() {
+    private fun Route.installTransferRoutes(authGate: AuthGate) {
         messageRoutes(
             session = session,
-            pinAuth = pinAuth,
+            authGate = authGate,
             onPersist = onPersistMessage,
             broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
             nowMs = nowMs,
@@ -137,7 +140,7 @@ class KtorServer(
         )
         fileRoutes(
             session = session,
-            pinAuth = pinAuth,
+            authGate = authGate,
             store = fileStore,
             stats = stats,
             currentSessionId = currentSessionId,
@@ -145,14 +148,14 @@ class KtorServer(
             broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
             nowMs = nowMs,
         )
-        peerInfoRoutes(pinAuth, peerInfoProvider)
-        wsRoutes(pinAuth, session, wsHub)
+        peerInfoRoutes(authGate, peerInfoProvider)
+        wsRoutes(authGate, session, wsHub)
     }
 
-    private fun Route.installExportRoutes() {
+    private fun Route.installExportRoutes(authGate: AuthGate) {
         exportRoutes(
             sessionState = session,
-            pinAuth = pinAuth,
+            authGate = authGate,
             readAsset = assetLoader,
             exportedBy = { _ ->
                 (session.exportMode.value as? ExportMode.Armed)?.snapshot
@@ -166,7 +169,7 @@ class KtorServer(
         )
         // v1.3 test2 修订：export 页也挂 WS，让浏览器通过 WS onclose 立即
         // 感知断网（不再依赖 fetch 探测的 3 秒延迟）。WS 复用同一 cookie 鉴权。
-        wsRoutes(pinAuth, session, wsHub)
+        wsRoutes(authGate, session, wsHub)
     }
 
     fun stop() {

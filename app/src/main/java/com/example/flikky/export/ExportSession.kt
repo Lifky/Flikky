@@ -5,4 +5,5 @@ data class ExportSession(
     val pin: String,
     val createdAt: Long,
     val consumed: Boolean = false,
+    val requirePin: Boolean = true,
 )

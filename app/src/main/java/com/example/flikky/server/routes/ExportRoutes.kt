@@ -3,7 +3,6 @@ package com.example.flikky.server.routes
 import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.export.ZipExporter
-import com.example.flikky.server.PinAuth
 import com.example.flikky.session.SessionState
 import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
@@ -42,7 +41,7 @@ import kotlinx.serialization.Serializable
  */
 fun Route.exportRoutes(
     sessionState: SessionState,
-    pinAuth: PinAuth,
+    authGate: AuthGate,
     readAsset: (String) -> ByteArray,
     exportedBy: (sessionIds: List<Long>) -> ExportSnapshot,
     fileResolver: (sessionId: Long, fileId: String) -> java.io.File?,
@@ -51,7 +50,7 @@ fun Route.exportRoutes(
 ) {
     fun authed(call: ApplicationCall): Boolean {
         val token = call.request.cookies[AUTH_COOKIE]
-        return token != null && pinAuth.validateToken(token)
+        return authGate.isAuthorized(token)
     }
 
     get("/export") {

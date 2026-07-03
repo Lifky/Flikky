@@ -36,6 +36,7 @@ data class ExportingUiState(
     val bytesSent: Long = 0L,
     val sessionIds: List<Long> = emptyList(),
     val networkStatus: NetworkStatus = NetworkStatus.Ok,
+    val requirePin: Boolean = true,
 ) {
     enum class Phase { Armed, Sending, Done, Gone }
 }
@@ -114,6 +115,7 @@ class ExportingViewModel @JvmOverloads constructor(
                 totalBytes = aggregateBytes(mode.snapshot),
                 bytesSent = 0L,
                 sessionIds = mode.session.sessionIds,
+                requirePin = mode.session.requirePin,
             )
             is ExportMode.Sending -> ExportingUiState(
                 phase = ExportingUiState.Phase.Sending,
@@ -123,6 +125,7 @@ class ExportingViewModel @JvmOverloads constructor(
                 totalBytes = mode.totalBytes,
                 bytesSent = mode.bytesSent,
                 sessionIds = mode.session.sessionIds,
+                requirePin = mode.session.requirePin,
             )
             is ExportMode.Done -> ExportingUiState(
                 phase = ExportingUiState.Phase.Done,
@@ -132,6 +135,7 @@ class ExportingViewModel @JvmOverloads constructor(
                 totalBytes = 0L,
                 bytesSent = 0L,
                 sessionIds = mode.session.sessionIds,
+                requirePin = mode.session.requirePin,
             )
         }
     }

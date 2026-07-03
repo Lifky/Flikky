@@ -328,7 +328,7 @@ fun ServingScreen(
                     )
                 } else {
                     Column(Modifier.padding(Spacing.sectionGap)) {
-                        ConnectionInfoCard(url = ui.url, pin = ui.pin)
+                        ConnectionInfoCard(url = ui.url, pin = ui.pin, requirePin = ui.requirePin)
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),

@@ -21,7 +21,7 @@ import java.io.FileNotFoundException
 const val AUTH_COOKIE = "flikky_token"
 
 fun Route.authRoutes(
-    pinAuth: PinAuth,
+    authGate: AuthGate,
     readAsset: (String) -> ByteArray,
     /** Where the browser should land after a successful PIN — depends on ServiceMode. */
     redirectAfterLogin: () -> String = { "/app" },
@@ -29,13 +29,21 @@ fun Route.authRoutes(
     publicThemeProvider: () -> WebThemeDto = { WebThemeDto() },
 ) {
     get("/") {
+        if (!authGate.required) {
+            call.respondRedirect(redirectAfterLogin())
+            return@get
+        }
         val bytes = readAsset("web/login.html")
         call.respondBytes(bytes, ContentType.Text.Html)
     }
 
     post("/api/auth") {
+        if (!authGate.required) {
+            call.respond(AuthResponse(ok = true, redirectTo = redirectAfterLogin()))
+            return@post
+        }
         val req = call.receive<AuthRequest>()
-        when (val r = pinAuth.tryConsume(req.pin)) {
+        when (val r = authGate.authenticate(req.pin)) {
             is PinAuth.Result.Ok -> {
                 call.response.cookies.append(
                     Cookie(
@@ -62,7 +70,7 @@ fun Route.authRoutes(
 
     get("/app") {
         val token = call.request.cookies[AUTH_COOKIE]
-        if (token == null || !pinAuth.validateToken(token)) {
+        if (!authGate.isAuthorized(token)) {
             call.respondRedirect("/")
             return@get
         }

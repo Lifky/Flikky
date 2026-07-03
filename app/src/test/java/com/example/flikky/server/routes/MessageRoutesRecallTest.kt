@@ -51,10 +51,11 @@ class MessageRoutesRecallTest {
         routing {
             val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
             val session = SessionState(nowMs = { 0L })
-            authRoutes(pin, readAsset = { byteArrayOf() })
+            val authGate = AuthGate(required = true, pinAuth = pin)
+            authRoutes(authGate, readAsset = { byteArrayOf() })
             messageRoutes(
                 session = session,
-                pinAuth = pin,
+                authGate = authGate,
                 onPersist = { _ -> },
                 broadcastEvent = { type, payload -> captureBroadcast?.invoke(type, payload) },
                 nowMs = { 0L },

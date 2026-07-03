@@ -1,6 +1,7 @@
 package com.example.flikky.server
 
 import com.example.flikky.server.routes.FileStore
+import com.example.flikky.server.routes.AuthGate
 import com.example.flikky.server.routes.authRoutes
 import com.example.flikky.server.routes.messageRoutes
 import com.example.flikky.session.SessionState
@@ -52,10 +53,11 @@ class KtorServerJvmTest {
             install(ContentNegotiation) { json() }
             install(WebSockets) {}
             routing {
-                authRoutes(pin, readAsset = { byteArrayOf() })
+                val authGate = AuthGate(required = true, pinAuth = pin)
+                authRoutes(authGate, readAsset = { byteArrayOf() })
                 messageRoutes(
                     session = session,
-                    pinAuth = pin,
+                    authGate = authGate,
                     onPersist = { _ -> },
                     broadcastEvent = { _, _ -> },
                     nowMs = { 0L },
@@ -93,5 +95,47 @@ class KtorServerJvmTest {
         val historyJson = Json.parseToJsonElement(historyResp.bodyAsText()).jsonObject
         val texts = historyJson["texts"]!!
         assertTrue(texts.toString().contains("hello"))
+    }
+
+    @Test
+    fun `pin disabled allows app and messages without auth cookie`() = testApplication {
+        val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
+        val session = SessionState(nowMs = { 0L })
+        val authGate = AuthGate(required = false, pinAuth = pin)
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                authRoutes(authGate, readAsset = { path ->
+                    when (path) {
+                        "web/login.html" -> "login".toByteArray()
+                        "web/app.html" -> "app".toByteArray()
+                        else -> byteArrayOf()
+                    }
+                })
+                messageRoutes(
+                    session = session,
+                    authGate = authGate,
+                    onPersist = { _ -> },
+                    broadcastEvent = { _, _ -> },
+                    nowMs = { 0L },
+                    recallHandler = { _, _ -> com.example.flikky.server.dto.ServerRecallOutcome.NotFound },
+                )
+            }
+        }
+
+        val appResp: HttpResponse = client.get("/app")
+        assertEquals(HttpStatusCode.OK, appResp.status)
+        assertEquals("app", appResp.bodyAsText())
+
+        val sendResp: HttpResponse = client.post("/api/messages") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"text":"hello"}""")
+        }
+        assertEquals(HttpStatusCode.OK, sendResp.status)
+
+        val historyResp: HttpResponse = client.get("/api/messages")
+        assertEquals(HttpStatusCode.OK, historyResp.status)
+        assertTrue(historyResp.bodyAsText().contains("hello"))
     }
 }

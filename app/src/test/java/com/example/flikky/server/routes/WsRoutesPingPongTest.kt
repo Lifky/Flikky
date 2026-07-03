@@ -42,8 +42,9 @@ class WsRoutesPingPongTest {
             install(ContentNegotiation) { json() }
             install(ServerWebSockets) {}
             routing {
-                authRoutes(pin, readAsset = { byteArrayOf() })
-                wsRoutes(pin, session, hub)
+                val authGate = AuthGate(required = true, pinAuth = pin)
+                authRoutes(authGate, readAsset = { byteArrayOf() })
+                wsRoutes(authGate, session, hub)
             }
         }
 
@@ -85,8 +86,9 @@ class WsRoutesPingPongTest {
             install(ContentNegotiation) { json() }
             install(ServerWebSockets) {}
             routing {
-                authRoutes(pin, readAsset = { byteArrayOf() })
-                wsRoutes(pin, session, hub)
+                val authGate = AuthGate(required = true, pinAuth = pin)
+                authRoutes(authGate, readAsset = { byteArrayOf() })
+                wsRoutes(authGate, session, hub)
             }
         }
 

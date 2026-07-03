@@ -1,6 +1,5 @@
 package com.example.flikky.server.routes
 
-import com.example.flikky.server.PinAuth
 import com.example.flikky.server.dto.FileMessageDto
 import com.example.flikky.server.dto.FileProgressDto
 import com.example.flikky.server.dto.FileReadyDto
@@ -38,7 +37,7 @@ interface FileStore {
 
 fun Route.fileRoutes(
     session: SessionState,
-    pinAuth: PinAuth,
+    authGate: AuthGate,
     store: FileStore,
     stats: TransferStats,
     currentSessionId: () -> Long,
@@ -48,7 +47,7 @@ fun Route.fileRoutes(
 ) {
     fun authed(call: ApplicationCall): Boolean {
         val token = call.request.cookies[AUTH_COOKIE]
-        return token != null && pinAuth.validateToken(token)
+        return authGate.isAuthorized(token)
     }
 
     post("/api/files") {

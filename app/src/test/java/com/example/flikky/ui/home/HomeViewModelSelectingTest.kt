@@ -226,6 +226,7 @@ class HomeViewModelSelectingTest {
         assertEquals("654321", armed.session.pin)
         assertEquals(listOf(1L, 2L), armed.session.sessionIds.sorted())
         assertEquals(fakeNow, armed.session.createdAt)
+        assertTrue(armed.session.requirePin)
         assertEquals(snap, armed.snapshot)
 
         // Service kicked off with ACTION_EXPORT.
@@ -238,6 +239,30 @@ class HomeViewModelSelectingTest {
         // Selection cleared on success (exits selecting mode).
         assertNull(vm.selection.value)
         assertFalse(vm.selecting.value)
+    }
+
+    @Test fun startExport_snapshots_requirePin_setting() = runTest {
+        every { settingsRepo.settings } returns MutableStateFlow(FlikkySettings(requirePin = false))
+        val snap = ExportSnapshot(
+            sessions = listOf(
+                SessionExport(
+                    id = 1L, name = "one", startedAt = 100L, endedAt = 200L,
+                    pinned = false, messages = emptyList(),
+                ),
+            ),
+            exportedAt = fakeNow,
+        )
+        coEvery { repo.exportSnapshot(any()) } returns snap
+
+        val vm = buildVm(pin = "654321")
+        vm.enterSelecting()
+        vm.toggleSelection(1L)
+
+        val result = vm.startExport()
+
+        assertEquals(HomeViewModel.ExportStartResult.Success, result)
+        val armed = session.exportMode.value as ExportMode.Armed
+        assertFalse(armed.session.requirePin)
     }
 
     @Test fun deleteSessions_calls_repository_for_each_id() = runTest {

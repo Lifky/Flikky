@@ -1,6 +1,5 @@
 package com.example.flikky.server.routes
 
-import com.example.flikky.server.PinAuth
 import com.example.flikky.server.dto.FileMessageDto
 import com.example.flikky.server.dto.MessagesResponse
 import com.example.flikky.server.dto.RecallResponse
@@ -23,7 +22,7 @@ import io.ktor.server.routing.post
 
 fun Route.messageRoutes(
     session: SessionState,
-    pinAuth: PinAuth,
+    authGate: AuthGate,
     onPersist: suspend (Message) -> Unit,
     broadcastEvent: suspend (type: String, jsonPayload: String) -> Unit,
     nowMs: () -> Long,
@@ -36,7 +35,7 @@ fun Route.messageRoutes(
 ) {
     fun requireAuth(call: ApplicationCall): Boolean {
         val token = call.request.cookies[AUTH_COOKIE]
-        return token != null && pinAuth.validateToken(token)
+        return authGate.isAuthorized(token)
     }
 
     post("/api/messages") {

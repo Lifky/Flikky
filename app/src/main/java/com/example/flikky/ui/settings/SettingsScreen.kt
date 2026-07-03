@@ -280,8 +280,20 @@ fun SettingsScreen(
 
             // ─── 会话行为 ───────────────────────────────────────────────────────
             item {
-                val sectionItems = 4
+                val sectionItems = 5
                 SettingSection(title = "会话行为") {
+                    SettingItem(
+                        title = "连接需要 PIN 码",
+                        leadingIcon = painterResource(R.drawable.ic_push_pin),
+                        subtitle = "开启后浏览器需输入 6 位 PIN；关闭后同一 Wi-Fi 内访问地址即可连接",
+                        trailing = {
+                            Switch(
+                                checked = s.requirePin,
+                                onCheckedChange = { viewModel.setRequirePin(it) },
+                            )
+                        },
+                        index = 0, total = sectionItems,
+                    )
                     val styleSubtitle = when (s.messageActionStyle) {
                         MessageActionStyle.FLOATING -> "悬浮工具栏"
                         MessageActionStyle.INLINE   -> "常驻按钮"
@@ -291,7 +303,7 @@ fun SettingsScreen(
                         leadingIcon = painterResource(R.drawable.ic_touch_app),
                         subtitle = styleSubtitle,
                         onClick = { showActionStyleDialog = true },
-                        index = 0, total = sectionItems,
+                        index = 1, total = sectionItems,
                     )
                     SettingItem(
                         title = "消息撤回（Beta）",
@@ -303,7 +315,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setRecallBeta(it) },
                             )
                         },
-                        index = 1, total = sectionItems,
+                        index = 2, total = sectionItems,
                     )
                     SettingItem(
                         title = "收藏功能（Beta）",
@@ -315,7 +327,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setFavoriteBeta(it) },
                             )
                         },
-                        index = 2, total = sectionItems,
+                        index = 3, total = sectionItems,
                     )
                     SettingItem(
                         title = "允许会话中返回",
@@ -327,7 +339,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setAllowBackDuringSession(it) },
                             )
                         },
-                        index = 3, total = sectionItems,
+                        index = 4, total = sectionItems,
                     )
                 }
             }

@@ -77,6 +77,7 @@ fun ExportingScreen(
                     ArmedContent(
                         url = ui.url,
                         pin = ui.pin,
+                        requirePin = ui.requirePin,
                         onCancel = {
                             viewModel.cancelExport()
                             onBack()
@@ -143,6 +144,7 @@ private fun topBarTitleFor(phase: ExportingUiState.Phase): String = when (phase)
 private fun ArmedContent(
     url: String,
     pin: String,
+    requirePin: Boolean,
     onCancel: () -> Unit,
 ) {
     Column(
@@ -150,10 +152,14 @@ private fun ArmedContent(
         verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        ConnectionInfoCard(url = url, pin = pin)
+        ConnectionInfoCard(url = url, pin = pin, requirePin = requirePin)
 
         Text(
-            text = "在电脑浏览器打开上方地址，输入 PIN 后下载 zip。\n下载完成本页会自动跳转。",
+            text = if (requirePin) {
+                "在电脑浏览器打开上方地址，输入 PIN 后下载 zip。\n下载完成本页会自动跳转。"
+            } else {
+                "在电脑浏览器打开上方地址即可下载 zip。\n下载完成本页会自动跳转。"
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

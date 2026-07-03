@@ -78,10 +78,11 @@ class ExportRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                authRoutes(pin, readAsset = { byteArrayOf() })
+                val authGate = AuthGate(required = true, pinAuth = pin)
+                authRoutes(authGate, readAsset = { byteArrayOf() })
                 exportRoutes(
                     sessionState = session,
-                    pinAuth = pin,
+                    authGate = authGate,
                     readAsset = { byteArrayOf() },
                     exportedBy = { _ -> error("not expected") },
                     fileResolver = { _, _ -> null },
@@ -103,10 +104,11 @@ class ExportRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                authRoutes(pin, readAsset = { byteArrayOf() })
+                val authGate = AuthGate(required = true, pinAuth = pin)
+                authRoutes(authGate, readAsset = { byteArrayOf() })
                 exportRoutes(
                     sessionState = session,
-                    pinAuth = pin,
+                    authGate = authGate,
                     readAsset = { byteArrayOf() },
                     exportedBy = { _ -> error("not expected") },
                     fileResolver = { _, _ -> null },
@@ -137,10 +139,11 @@ class ExportRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                authRoutes(pin, readAsset = { byteArrayOf() })
+                val authGate = AuthGate(required = true, pinAuth = pin)
+                authRoutes(authGate, readAsset = { byteArrayOf() })
                 exportRoutes(
                     sessionState = session,
-                    pinAuth = pin,
+                    authGate = authGate,
                     readAsset = { byteArrayOf() },
                     exportedBy = { _ -> snapshot },
                     fileResolver = { _, _ -> null },
@@ -179,10 +182,11 @@ class ExportRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                authRoutes(pin, readAsset = { byteArrayOf() })
+                val authGate = AuthGate(required = true, pinAuth = pin)
+                authRoutes(authGate, readAsset = { byteArrayOf() })
                 exportRoutes(
                     sessionState = session,
-                    pinAuth = pin,
+                    authGate = authGate,
                     readAsset = { byteArrayOf() },
                     exportedBy = { _ -> snapshot },
                     fileResolver = { _, _ -> null },
@@ -224,10 +228,11 @@ class ExportRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                authRoutes(pin, readAsset = { byteArrayOf() })
+                val authGate = AuthGate(required = true, pinAuth = pin)
+                authRoutes(authGate, readAsset = { byteArrayOf() })
                 exportRoutes(
                     sessionState = session,
-                    pinAuth = pin,
+                    authGate = authGate,
                     readAsset = { byteArrayOf() },
                     exportedBy = { _ -> snapshot },
                     fileResolver = { _, _ -> null },
@@ -261,10 +266,11 @@ class ExportRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                authRoutes(pin, readAsset = { byteArrayOf() })
+                val authGate = AuthGate(required = true, pinAuth = pin)
+                authRoutes(authGate, readAsset = { byteArrayOf() })
                 exportRoutes(
                     sessionState = session,
-                    pinAuth = pin,
+                    authGate = authGate,
                     readAsset = { byteArrayOf() },
                     exportedBy = { _ -> snapshot },
                     fileResolver = { _, _ -> null },
@@ -293,10 +299,11 @@ class ExportRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                authRoutes(pin, readAsset = { byteArrayOf() })
+                val authGate = AuthGate(required = true, pinAuth = pin)
+                authRoutes(authGate, readAsset = { byteArrayOf() })
                 exportRoutes(
                     sessionState = session,
-                    pinAuth = pin,
+                    authGate = authGate,
                     readAsset = { byteArrayOf() },
                     exportedBy = { _ -> error("not expected") },
                     fileResolver = { _, _ -> null },
@@ -318,10 +325,11 @@ class ExportRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                authRoutes(pin, readAsset = { byteArrayOf() })
+                val authGate = AuthGate(required = true, pinAuth = pin)
+                authRoutes(authGate, readAsset = { byteArrayOf() })
                 exportRoutes(
                     sessionState = session,
-                    pinAuth = pin,
+                    authGate = authGate,
                     readAsset = { byteArrayOf() },
                     exportedBy = { _ -> error("not expected") },
                     fileResolver = { _, _ -> null },
@@ -398,10 +406,11 @@ class ExportRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                authRoutes(pin, readAsset = { byteArrayOf() })
+                val authGate = AuthGate(required = true, pinAuth = pin)
+                authRoutes(authGate, readAsset = { byteArrayOf() })
                 exportRoutes(
                     sessionState = session,
-                    pinAuth = pin,
+                    authGate = authGate,
                     readAsset = { byteArrayOf() },
                     exportedBy = { _ -> snapshot },
                     fileResolver = { _, _ -> null },
@@ -460,10 +469,11 @@ class ExportRoutesTest {
         application {
             install(ContentNegotiation) { json() }
             routing {
-                authRoutes(pin, readAsset = { byteArrayOf() })
+                val authGate = AuthGate(required = true, pinAuth = pin)
+                authRoutes(authGate, readAsset = { byteArrayOf() })
                 exportRoutes(
                     sessionState = session,
-                    pinAuth = pin,
+                    authGate = authGate,
                     readAsset = { path ->
                         if (path == "web/export.html") stubHtml else throw java.io.FileNotFoundException(path)
                     },
