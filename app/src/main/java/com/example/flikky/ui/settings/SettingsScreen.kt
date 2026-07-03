@@ -284,7 +284,7 @@ fun SettingsScreen(
                 SettingSection(title = "会话行为") {
                     SettingItem(
                         title = "连接需要 PIN 码",
-                        leadingIcon = painterResource(R.drawable.ic_push_pin),
+                        leadingIcon = painterResource(R.drawable.ic_fiber_pin),
                         subtitle = "开启后浏览器需输入 6 位 PIN；关闭后同一 Wi-Fi 内访问地址即可连接",
                         trailing = {
                             Switch(
