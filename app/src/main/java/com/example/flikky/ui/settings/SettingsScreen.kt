@@ -235,7 +235,13 @@ fun SettingsScreen(
                     SettingItem(
                         title = "气泡圆角",
                         leadingIcon = painterResource(R.drawable.ic_rounded_corner),
-                        subtitle = "${radiusDraft.toInt()} dp",
+                        trailing = {
+                            Text(
+                                text = "${radiusDraft.toInt()} dp",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
                         content = {
                             Slider(
                                 value = radiusDraft,
