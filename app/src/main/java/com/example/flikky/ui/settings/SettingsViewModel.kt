@@ -24,6 +24,7 @@ import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.export.ZipImporter
 import com.example.flikky.service.TransferService
 import com.example.flikky.session.SessionState
+import com.example.flikky.ui.exporting.LocalExportWriter
 import com.example.flikky.util.IdGen
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -40,6 +41,21 @@ class SettingsViewModel @JvmOverloads constructor(
     private val sessionState: SessionState = ServiceLocator.session,
     private val pinGenerator: () -> String = { IdGen.newPin() },
     private val now: () -> Long = { System.currentTimeMillis() },
+    private val localExportWriter: suspend (Uri, ExportSnapshot) -> Unit = { uri, snapshot ->
+        LocalExportWriter.write(
+            context = app,
+            uri = uri,
+            snapshot = snapshot,
+            sessionFileResolver = { sessionId, fileId ->
+                ServiceLocator.fileStore.fileDir(sessionId).resolve(fileId)
+                    .takeIf { it.exists() && it.isFile }
+            },
+            favoriteFileResolver = { fileId ->
+                ServiceLocator.favoriteFileStore.resolve(fileId)
+                    .takeIf { it.exists() && it.isFile }
+            },
+        )
+    },
 ) : AndroidViewModel(app) {
 
     sealed class ExportStartResult {
@@ -89,34 +105,7 @@ class SettingsViewModel @JvmOverloads constructor(
         if (scope == ExportScope.SESSIONS) return ExportStartResult.UseSessionSelection
         if (isTransferOrExportRunning()) return ExportStartResult.TransferRunning
 
-        val snapshot = when (scope) {
-            ExportScope.SESSIONS -> error("Session export is owned by HomeScreen selection")
-            ExportScope.FAVORITES -> {
-                val favorites = favoritesRepo.exportSnapshot()
-                if (favorites.favorites.isEmpty()) return ExportStartResult.NoFavorites
-                ExportSnapshot(
-                    exportedAt = now(),
-                    scope = ExportScope.FAVORITES,
-                    favoriteGroups = favorites.groups,
-                    favorites = favorites.favorites,
-                )
-            }
-            ExportScope.SETTINGS -> ExportSnapshot(
-                exportedAt = now(),
-                scope = ExportScope.SETTINGS,
-                settings = repo.exportBackup(),
-            )
-            ExportScope.ALL -> {
-                val sessions = sessionRepo.exportAllSnapshot()
-                val favorites = favoritesRepo.exportSnapshot()
-                sessions.copy(
-                    scope = ExportScope.ALL,
-                    favoriteGroups = favorites.groups,
-                    favorites = favorites.favorites,
-                    settings = repo.exportBackup(),
-                )
-            }
-        }
+        val snapshot = buildExportSnapshot(scope) ?: return ExportStartResult.NoFavorites
 
         val currentSettings = repo.settings.first()
         val exportSession = ExportSession(
@@ -139,6 +128,41 @@ class SettingsViewModel @JvmOverloads constructor(
         )
         return ExportStartResult.Success
     }
+
+    suspend fun saveExport(scope: ExportScope, uri: Uri): ExportStartResult {
+        if (scope == ExportScope.SESSIONS) return ExportStartResult.UseSessionSelection
+        val snapshot = buildExportSnapshot(scope) ?: return ExportStartResult.NoFavorites
+        localExportWriter(uri, snapshot)
+        return ExportStartResult.Success
+    }
+
+    private suspend fun buildExportSnapshot(scope: ExportScope): ExportSnapshot? = when (scope) {
+            ExportScope.SESSIONS -> error("Session export is owned by HomeScreen selection")
+            ExportScope.FAVORITES -> {
+                val favorites = favoritesRepo.exportSnapshot()
+                if (favorites.favorites.isEmpty()) null else ExportSnapshot(
+                    exportedAt = now(),
+                    scope = ExportScope.FAVORITES,
+                    favoriteGroups = favorites.groups,
+                    favorites = favorites.favorites,
+                )
+            }
+            ExportScope.SETTINGS -> ExportSnapshot(
+                exportedAt = now(),
+                scope = ExportScope.SETTINGS,
+                settings = repo.exportBackup(),
+            )
+            ExportScope.ALL -> {
+                val sessions = sessionRepo.exportAllSnapshot()
+                val favorites = favoritesRepo.exportSnapshot()
+                sessions.copy(
+                    scope = ExportScope.ALL,
+                    favoriteGroups = favorites.groups,
+                    favorites = favorites.favorites,
+                    settings = repo.exportBackup(),
+                )
+            }
+        }
 
     private fun isTransferOrExportRunning(): Boolean {
         if (sessionState.snapshot.value.currentSessionId != null) return true

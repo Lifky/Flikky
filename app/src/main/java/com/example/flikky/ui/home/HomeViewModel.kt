@@ -14,8 +14,10 @@ import com.example.flikky.data.settings.SortMode
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSession
+import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.service.TransferService
 import com.example.flikky.session.SessionState
+import com.example.flikky.ui.exporting.LocalExportWriter
 import com.example.flikky.util.IdGen
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -38,6 +40,21 @@ class HomeViewModel @JvmOverloads constructor(
     private val pinGenerator: () -> String = { IdGen.newPin() },
     private val now: () -> Long = { System.currentTimeMillis() },
     private val settingsRepository: SettingsRepository = ServiceLocator.settingsRepository,
+    private val localExportWriter: suspend (Uri, ExportSnapshot) -> Unit = { uri, snapshot ->
+        LocalExportWriter.write(
+            context = app,
+            uri = uri,
+            snapshot = snapshot,
+            sessionFileResolver = { sessionId, fileId ->
+                ServiceLocator.fileStore.fileDir(sessionId).resolve(fileId)
+                    .takeIf { it.exists() && it.isFile }
+            },
+            favoriteFileResolver = { fileId ->
+                ServiceLocator.favoriteFileStore.resolve(fileId)
+                    .takeIf { it.exists() && it.isFile }
+            },
+        )
+    },
 ) : AndroidViewModel(app) {
 
     val sessions: Flow<List<SessionEntity>> = repository.observeSessions()
@@ -238,6 +255,18 @@ class HomeViewModel @JvmOverloads constructor(
             },
         )
         // Drop out of selecting mode — the exporting screen owns the UX from here.
+        _selection.value = null
+        return ExportStartResult.Success
+    }
+
+    suspend fun saveExport(uri: Uri): ExportStartResult {
+        val selectedIds = _selection.value
+        if (selectedIds.isNullOrEmpty()) return ExportStartResult.EmptySelection
+
+        val snapshot = repository.exportSnapshot(selectedIds.toList())
+        if (snapshot.sessions.isEmpty()) return ExportStartResult.NoValidSessions
+
+        localExportWriter(uri, snapshot)
         _selection.value = null
         return ExportStartResult.Success
     }

@@ -80,14 +80,18 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.SessionEntity
+import com.example.flikky.export.ExportFileName
+import com.example.flikky.export.ExportScope
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.FlikkyFloatingToolbar
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.RenameDialog
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.exporting.ExportDestinationSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -131,6 +135,8 @@ fun HomeScreen(
     LaunchedEffect(searchExpanded) { onSearchExpandedChange(searchExpanded) }
 
     var showImportDialog by remember { mutableStateOf(false) }
+    var showExportDestination by rememberSaveable { mutableStateOf(false) }
+    var showLocalExportProgress by remember { mutableStateOf(false) }
 
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -154,6 +160,33 @@ fun HomeScreen(
                     if (isEmpty()) append("未找到可导入的会话")
                 }
                 snackbarHostState.showSnackbar(msg)
+            }
+        }
+    }
+
+    val localExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        if (uri != null) {
+            showLocalExportProgress = true
+            scope.launch {
+                val message = try {
+                    when (viewModel.saveExport(uri)) {
+                        HomeViewModel.ExportStartResult.Success -> "已保存到所选位置"
+                        HomeViewModel.ExportStartResult.NoValidSessions ->
+                            "所选会话无法导出（可能都在进行中）"
+                        HomeViewModel.ExportStartResult.EmptySelection -> "请先勾选会话"
+                        HomeViewModel.ExportStartResult.TransferRunning ->
+                            "保存失败，请重试"
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    "保存失败，请重试或选择其他位置"
+                } finally {
+                    showLocalExportProgress = false
+                }
+                snackbarHostState.showSnackbar(message)
             }
         }
     }
@@ -365,19 +398,7 @@ fun HomeScreen(
                     onPinToggle = { scope.launch { viewModel.pinSelected(!allSelectedPinned) } },
                     onRename = { showRenameDialog = true },
                     onMove = { showMoveSheet = true },
-                    onExport = {
-                        scope.launch {
-                            when (viewModel.startExport()) {
-                                HomeViewModel.ExportStartResult.Success -> onStartExport()
-                                HomeViewModel.ExportStartResult.TransferRunning ->
-                                    snackbarHostState.showSnackbar("请先停止当前服务")
-                                HomeViewModel.ExportStartResult.NoValidSessions ->
-                                    snackbarHostState.showSnackbar("所选会话无法导出（可能都在进行中）")
-                                HomeViewModel.ExportStartResult.EmptySelection ->
-                                    snackbarHostState.showSnackbar("请先勾选会话")
-                            }
-                        }
-                    },
+                    onExport = { showExportDestination = true },
                     onDelete = { if (selectedCount > 0) showBatchDeleteDialog = true },
                 )
             }
@@ -394,6 +415,45 @@ fun HomeScreen(
                     CircularProgressIndicator()
                 }
             },
+        )
+    }
+
+    if (showLocalExportProgress) {
+        AlertDialog(
+            onDismissRequest = {},
+            confirmButton = {},
+            title = { Text("正在保存...") },
+            text = {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            },
+        )
+    }
+
+    if (showExportDestination) {
+        ExportDestinationSheet(
+            onSaveLocal = {
+                showExportDestination = false
+                localExportLauncher.launch(
+                    ExportFileName.build(ExportScope.SESSIONS, System.currentTimeMillis())
+                )
+            },
+            onDownloadToComputer = {
+                showExportDestination = false
+                scope.launch {
+                    when (viewModel.startExport()) {
+                        HomeViewModel.ExportStartResult.Success -> onStartExport()
+                        HomeViewModel.ExportStartResult.TransferRunning ->
+                            snackbarHostState.showSnackbar("请先停止当前服务")
+                        HomeViewModel.ExportStartResult.NoValidSessions ->
+                            snackbarHostState.showSnackbar("所选会话无法导出（可能都在进行中）")
+                        HomeViewModel.ExportStartResult.EmptySelection ->
+                            snackbarHostState.showSnackbar("请先勾选会话")
+                    }
+                }
+            },
+            onDismiss = { showExportDestination = false },
         )
     }
 

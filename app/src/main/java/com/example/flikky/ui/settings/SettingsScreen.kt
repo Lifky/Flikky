@@ -69,11 +69,13 @@ import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.MessageActionStyle
 import com.example.flikky.data.settings.ThemeMode
+import com.example.flikky.export.ExportFileName
 import com.example.flikky.export.ExportScope
 import com.example.flikky.ui.components.Avatar
 import com.example.flikky.ui.components.ChoiceDialog
 import com.example.flikky.ui.components.ChoiceRow
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.exporting.ExportDestinationSheet
 import com.example.flikky.ui.settings.components.SettingItem
 import com.example.flikky.ui.settings.components.SettingSection
 import com.example.flikky.ui.settings.sheets.AvatarPickerSheet
@@ -113,7 +115,10 @@ fun SettingsScreen(
     var showAnimSpeedDialog by remember { mutableStateOf(false) }
     var showImportProgress by remember { mutableStateOf(false) }
     var showExportProgress by remember { mutableStateOf(false) }
+    var exportProgressTitle by remember { mutableStateOf("正在准备导出...") }
     var importExportExpanded by rememberSaveable { mutableStateOf(false) }
+    var exportDestinationScope by rememberSaveable { mutableStateOf<ExportScope?>(null) }
+    var pendingLocalExportScope by rememberSaveable { mutableStateOf<ExportScope?>(null) }
 
     // Import launcher
     val importLauncher = rememberLauncherForActivityResult(
@@ -158,7 +163,38 @@ fun SettingsScreen(
         }
     }
 
+    val localExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        val exportScope = pendingLocalExportScope
+        pendingLocalExportScope = null
+        if (uri != null && exportScope != null) {
+            exportProgressTitle = "正在保存..."
+            showExportProgress = true
+            scope.launch {
+                val result = try {
+                    viewModel.saveExport(exportScope, uri)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                } finally {
+                    showExportProgress = false
+                }
+                val message = when (result) {
+                    SettingsViewModel.ExportStartResult.Success -> "已保存到所选位置"
+                    SettingsViewModel.ExportStartResult.NoFavorites -> "暂无收藏可导出"
+                    SettingsViewModel.ExportStartResult.TransferRunning,
+                    SettingsViewModel.ExportStartResult.UseSessionSelection,
+                    null -> "保存失败，请重试或选择其他位置"
+                }
+                snackbarHostState.showSnackbar(message)
+            }
+        }
+    }
+
     val launchExport: (ExportScope) -> Unit = { exportScope ->
+        exportProgressTitle = "正在准备导出..."
         showExportProgress = true
         scope.launch {
             val result = try {
@@ -482,29 +518,29 @@ fun SettingsScreen(
                             SettingItem(
                                 title = "导出会话",
                                 leadingIcon = painterResource(R.drawable.ic_upload),
-                                subtitle = "选择会话并在电脑下载",
+                                subtitle = "选择要导出的会话",
                                 onClick = onExportSessions,
                                 index = 3, total = sectionItems,
                             )
                             SettingItem(
                                 title = "导出收藏",
                                 leadingIcon = painterResource(R.drawable.ic_star_border),
-                                subtitle = "在电脑下载全部收藏",
-                                onClick = { launchExport(ExportScope.FAVORITES) },
+                                subtitle = "导出全部收藏",
+                                onClick = { exportDestinationScope = ExportScope.FAVORITES },
                                 index = 4, total = sectionItems,
                             )
                             SettingItem(
                                 title = "导出设置",
                                 leadingIcon = painterResource(R.drawable.ic_settings_outline),
-                                subtitle = "在电脑下载当前设置",
-                                onClick = { launchExport(ExportScope.SETTINGS) },
+                                subtitle = "导出当前设置",
+                                onClick = { exportDestinationScope = ExportScope.SETTINGS },
                                 index = 5, total = sectionItems,
                             )
                             SettingItem(
                                 title = "全部导出",
                                 leadingIcon = painterResource(R.drawable.ic_swap_vert),
-                                subtitle = "会话、收藏和设置一次下载",
-                                onClick = { launchExport(ExportScope.ALL) },
+                                subtitle = "导出会话、收藏和设置",
+                                onClick = { exportDestinationScope = ExportScope.ALL },
                                 index = 6, total = sectionItems,
                             )
                         }
@@ -720,12 +756,29 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = {},
             confirmButton = {},
-            title = { Text("正在准备导出...") },
+            title = { Text(exportProgressTitle) },
             text = {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             },
+        )
+    }
+
+    exportDestinationScope?.let { exportScope ->
+        ExportDestinationSheet(
+            onSaveLocal = {
+                exportDestinationScope = null
+                pendingLocalExportScope = exportScope
+                localExportLauncher.launch(
+                    ExportFileName.build(exportScope, System.currentTimeMillis())
+                )
+            },
+            onDownloadToComputer = {
+                exportDestinationScope = null
+                launchExport(exportScope)
+            },
+            onDismiss = { exportDestinationScope = null },
         )
     }
 }

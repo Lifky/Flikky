@@ -60,6 +60,19 @@ class SettingsViewModelExportTest {
         now = { 123L },
     )
 
+    private fun buildVm(
+        localExportWriter: suspend (Uri, ExportSnapshot) -> Unit,
+    ) = SettingsViewModel(
+        app = app,
+        repo = settingsRepo,
+        sessionRepo = sessionRepo,
+        favoritesRepo = favoritesRepo,
+        sessionState = sessionState,
+        pinGenerator = { "246810" },
+        now = { 123L },
+        localExportWriter = localExportWriter,
+    )
+
     @Test fun favorites_export_arms_lan_service_with_scope_and_counts() = runTest {
         coEvery { favoritesRepo.exportSnapshot() } returns FavoritesRepository.ExportData(
             groups = emptyList(),
@@ -126,6 +139,64 @@ class SettingsViewModelExportTest {
         assertEquals("Phone", armed.snapshot.settings?.deviceName)
         assertEquals(1, armed.session.favoriteCount)
         assertTrue(armed.session.settingsIncluded)
+    }
+
+    @Test fun favorites_local_export_writes_without_arming_lan_service() = runTest {
+        val uri = Uri.parse("content://flikky-test/favorites.zip")
+        coEvery { favoritesRepo.exportSnapshot() } returns FavoritesRepository.ExportData(
+            groups = emptyList(),
+            favorites = listOf(
+                FavoriteExport(
+                    id = 1L,
+                    sourceSessionId = 2L,
+                    sourceMessageId = 3L,
+                    kind = "TEXT",
+                    textContent = "note",
+                    createdAt = 4L,
+                ),
+            ),
+        )
+        var written: Pair<Uri, ExportSnapshot>? = null
+
+        val result = buildVm { target, snapshot -> written = target to snapshot }
+            .saveExport(ExportScope.FAVORITES, uri)
+
+        assertTrue(result is SettingsViewModel.ExportStartResult.Success)
+        assertEquals(uri, written?.first)
+        assertEquals(ExportScope.FAVORITES, written?.second?.scope)
+        assertTrue(sessionState.exportMode.value is ExportMode.Idle)
+        verify(exactly = 0) { app.startForegroundService(any()) }
+    }
+
+    @Test fun settings_local_export_writes_settings_snapshot() = runTest {
+        val uri = Uri.parse("content://flikky-test/settings.zip")
+        coEvery { settingsRepo.exportBackup() } returns SettingsExport(deviceName = "Phone")
+        var written: ExportSnapshot? = null
+
+        val result = buildVm { _, snapshot -> written = snapshot }
+            .saveExport(ExportScope.SETTINGS, uri)
+
+        assertTrue(result is SettingsViewModel.ExportStartResult.Success)
+        assertEquals(ExportScope.SETTINGS, written?.scope)
+        assertEquals("Phone", written?.settings?.deviceName)
+    }
+
+    @Test fun all_local_export_writes_combined_snapshot() = runTest {
+        val uri = Uri.parse("content://flikky-test/all.zip")
+        coEvery { sessionRepo.exportAllSnapshot() } returns ExportSnapshot(exportedAt = 50L)
+        coEvery { favoritesRepo.exportSnapshot() } returns FavoritesRepository.ExportData(
+            groups = emptyList(),
+            favorites = emptyList(),
+        )
+        coEvery { settingsRepo.exportBackup() } returns SettingsExport(deviceName = "Phone")
+        var written: ExportSnapshot? = null
+
+        val result = buildVm { _, snapshot -> written = snapshot }
+            .saveExport(ExportScope.ALL, uri)
+
+        assertTrue(result is SettingsViewModel.ExportStartResult.Success)
+        assertEquals(ExportScope.ALL, written?.scope)
+        assertEquals("Phone", written?.settings?.deviceName)
     }
 
     @Test fun invalid_zip_error_is_reported_once() = runTest {

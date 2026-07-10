@@ -2,6 +2,7 @@ package com.example.flikky.ui.home
 
 import android.app.Application
 import android.content.Intent
+import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.entities.SessionEntity
@@ -59,6 +60,7 @@ class HomeViewModelSelectingTest {
 
     private fun buildVm(
         pin: String = "123456",
+        localExportWriter: suspend (Uri, ExportSnapshot) -> Unit = { _, _ -> },
     ): HomeViewModel = HomeViewModel(
         app = app,
         repository = repo,
@@ -66,6 +68,7 @@ class HomeViewModelSelectingTest {
         pinGenerator = { pin },
         now = { fakeNow },
         settingsRepository = settingsRepo,
+        localExportWriter = localExportWriter,
     )
 
     @Test fun initial_state_is_not_selecting() {
@@ -263,6 +266,56 @@ class HomeViewModelSelectingTest {
         assertEquals(HomeViewModel.ExportStartResult.Success, result)
         val armed = session.exportMode.value as ExportMode.Armed
         assertFalse(armed.session.requirePin)
+    }
+
+    @Test fun saveExport_writes_selected_sessions_without_starting_service() = runTest {
+        val uri = Uri.parse("content://flikky-test/sessions.zip")
+        val snapshot = ExportSnapshot(
+            sessions = listOf(
+                SessionExport(
+                    id = 1L, name = "one", startedAt = 100L, endedAt = 200L,
+                    pinned = false, messages = emptyList(),
+                ),
+            ),
+            exportedAt = fakeNow,
+        )
+        coEvery { repo.exportSnapshot(listOf(1L)) } returns snapshot
+        var written: Pair<Uri, ExportSnapshot>? = null
+        val vm = buildVm(localExportWriter = { target, data -> written = target to data })
+        vm.enterSelecting()
+        vm.toggleSelection(1L)
+
+        val result = vm.saveExport(uri)
+
+        assertEquals(HomeViewModel.ExportStartResult.Success, result)
+        assertEquals(uri to snapshot, written)
+        assertNull(vm.selection.value)
+        assertTrue(session.exportMode.value is ExportMode.Idle)
+        verify(exactly = 0) { app.startForegroundService(any()) }
+    }
+
+    @Test fun saveExport_failure_preserves_selection_for_retry() = runTest {
+        val snapshot = ExportSnapshot(
+            sessions = listOf(
+                SessionExport(
+                    id = 1L, name = "one", startedAt = 100L, endedAt = 200L,
+                    pinned = false, messages = emptyList(),
+                ),
+            ),
+            exportedAt = fakeNow,
+        )
+        coEvery { repo.exportSnapshot(listOf(1L)) } returns snapshot
+        val vm = buildVm(localExportWriter = { _, _ -> error("disk full") })
+        vm.enterSelecting()
+        vm.toggleSelection(1L)
+
+        val failure = runCatching {
+            vm.saveExport(Uri.parse("content://flikky-test/fail.zip"))
+        }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertEquals(setOf(1L), vm.selection.value)
+        verify(exactly = 0) { app.startForegroundService(any()) }
     }
 
     @Test fun deleteSessions_calls_repository_for_each_id() = runTest {
