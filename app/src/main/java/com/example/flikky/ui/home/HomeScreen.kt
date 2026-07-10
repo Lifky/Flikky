@@ -101,6 +101,8 @@ fun HomeScreen(
     onOpenSearchHit: (Long, Long) -> Unit = { _, _ -> },
     onSelectingChange: (Boolean) -> Unit = {},
     onSearchExpandedChange: (Boolean) -> Unit = {},
+    startSelecting: Boolean = false,
+    onStartSelectingConsumed: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
 ) {
     val context = LocalContext.current
@@ -113,6 +115,13 @@ fun HomeScreen(
     val selecting by viewModel.selecting.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(startSelecting) {
+        if (startSelecting) {
+            viewModel.enterSelecting()
+            onStartSelectingConsumed()
+        }
+    }
 
     // SearchBar 展开态上提到这里：用于隐藏 FAB，并上报给 MainActivity 隐藏底栏 + 让主页铺满全屏。
     var searchExpanded by rememberSaveable { mutableStateOf(false) }

@@ -3,7 +3,9 @@ package com.example.flikky.data.settings
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import com.example.flikky.export.SettingsExport
 
 class SettingsRepository(private val ds: DataStore<Preferences>) {
     private object Keys {
@@ -122,6 +124,75 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         }
     }
 
+    suspend fun exportBackup(): SettingsExport {
+        val s = settings.first()
+        val (backgroundMode, backgroundValue) = when (val background = s.background) {
+            BackgroundSetting.Default -> "DEFAULT" to null
+            BackgroundSetting.Blank -> "BLANK" to null
+            is BackgroundSetting.Solid -> "SOLID" to background.argb.toString()
+        }
+        return SettingsExport(
+            themeMode = s.themeMode.name,
+            presetTheme = s.presetTheme.name,
+            contrastLevel = s.contrastLevel.name,
+            darkMode = s.darkMode.name,
+            amoled = s.amoled,
+            phoneAvatarId = s.phoneAvatarId,
+            phoneAvatarKey = s.phoneAvatarKey,
+            backgroundMode = backgroundMode,
+            backgroundValue = backgroundValue,
+            deviceName = s.deviceName,
+            recallBetaEnabled = s.recallBetaEnabled,
+            favoriteBetaEnabled = s.favoriteBetaEnabled,
+            requirePin = s.requirePin,
+            historyRetainLimit = s.historyRetainLimit,
+            bubbleCornerRadius = s.bubbleCornerRadius,
+            messageActionStyle = s.messageActionStyle.name,
+            avatarGrouping = s.avatarGrouping.name,
+            allowBackDuringSession = s.allowBackDuringSession,
+            sortMode = s.sortMode.name,
+            groupMode = s.groupMode.name,
+            animationSpeed = s.animationSpeed.name,
+        )
+    }
+
+    suspend fun importBackup(backup: SettingsExport) = ds.edit { prefs ->
+        backup.themeMode?.enumNameOrNull<ThemeMode>()?.let { prefs[Keys.themeMode] = it }
+        backup.presetTheme?.enumNameOrNull<PresetTheme>()?.let { prefs[Keys.preset] = it }
+        backup.contrastLevel?.enumNameOrNull<ContrastLevel>()?.let { prefs[Keys.contrast] = it }
+        backup.darkMode?.enumNameOrNull<DarkMode>()?.let { prefs[Keys.darkMode] = it }
+        backup.amoled?.let { prefs[Keys.amoled] = it }
+        backup.phoneAvatarId?.let { prefs[Keys.phoneAvatar] = it }
+        backup.phoneAvatarKey?.let { prefs[Keys.phoneAvatarKey] = it }
+        backup.deviceName?.let { prefs[Keys.deviceName] = it.trim().ifEmpty { "我的手机" }.take(20) }
+        backup.recallBetaEnabled?.let { prefs[Keys.recallBeta] = it }
+        backup.favoriteBetaEnabled?.let { prefs[Keys.favoriteBeta] = it }
+        backup.requirePin?.let { prefs[Keys.requirePin] = it }
+        backup.historyRetainLimit?.let { prefs[Keys.retainLimit] = it.coerceAtLeast(-1) }
+        backup.bubbleCornerRadius?.let {
+            prefs[Keys.bubbleCorner] = it.coerceIn(BUBBLE_CORNER_MIN, BUBBLE_CORNER_MAX)
+        }
+        backup.messageActionStyle?.enumNameOrNull<MessageActionStyle>()
+            ?.let { prefs[Keys.msgActionStyle] = it }
+        backup.avatarGrouping?.enumNameOrNull<AvatarGroupingMode>()
+            ?.let { prefs[Keys.avatarGrouping] = it }
+        backup.allowBackDuringSession?.let { prefs[Keys.allowBackDuringSession] = it }
+        backup.sortMode?.enumNameOrNull<SortMode>()?.let { prefs[Keys.sortMode] = it }
+        backup.groupMode?.enumNameOrNull<GroupMode>()?.let { prefs[Keys.groupMode] = it }
+        backup.animationSpeed?.enumNameOrNull<AnimationSpeed>()
+            ?.let { prefs[Keys.animationSpeed] = it }
+        when (backup.backgroundMode) {
+            "DEFAULT", "BLANK" -> {
+                prefs[Keys.bgMode] = backup.backgroundMode
+                prefs.remove(Keys.bgValue)
+            }
+            "SOLID" -> backup.backgroundValue?.toLongOrNull()?.let { value ->
+                prefs[Keys.bgMode] = "SOLID"
+                prefs[Keys.bgValue] = value.toString()
+            }
+        }
+    }
+
     private fun decodeBackground(mode: String?, value: String?): BackgroundSetting = when (mode) {
         "BLANK" -> BackgroundSetting.Blank
         "SOLID" -> value?.toLongOrNull()?.let { BackgroundSetting.Solid(it) } ?: BackgroundSetting.Default
@@ -135,6 +206,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             .mapNotNull { it.trim().toLongOrNull()?.takeIf { id -> id > 0L } }
             .distinct()
             .take(RECENT_FAVORITE_LIMIT)
+
+    private inline fun <reified T : Enum<T>> String.enumNameOrNull(): String? =
+        runCatching { enumValueOf<T>(this).name }.getOrNull()
 
     private companion object {
         const val RECENT_FAVORITE_LIMIT = 5

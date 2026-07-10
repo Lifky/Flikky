@@ -8,6 +8,8 @@ import com.example.flikky.export.ExportSession
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.export.MessageExport
 import com.example.flikky.export.SessionExport
+import com.example.flikky.export.ExportScope
+import com.example.flikky.export.FavoriteExport
 import com.example.flikky.network.NetworkInfo
 import com.example.flikky.service.TransferService
 import com.example.flikky.session.Origin
@@ -111,6 +113,43 @@ class ExportingViewModelTest {
 
         assertEquals(ExportingUiState.Phase.Armed, state.phase)
         assertEquals("http://192.168.1.5", state.url)
+    }
+
+    @Test fun favorites_export_exposes_scope_count_and_file_bytes() {
+        val snapshot = ExportSnapshot(
+            exportedAt = 1L,
+            scope = ExportScope.FAVORITES,
+            favorites = listOf(
+                FavoriteExport(
+                    id = 1L,
+                    sourceSessionId = 2L,
+                    sourceMessageId = 3L,
+                    kind = "FILE",
+                    fileId = "favorite-file",
+                    fileName = "a.bin",
+                    fileSize = 2_048L,
+                    fileMime = "application/octet-stream",
+                    createdAt = 4L,
+                )
+            ),
+        )
+        session.armExport(
+            ExportSession(
+                sessionIds = emptyList(),
+                pin = "123456",
+                createdAt = 1L,
+                scope = ExportScope.FAVORITES,
+                favoriteCount = 1,
+            ),
+            snapshot,
+        )
+
+        val state = buildVm().ui.value
+
+        assertEquals(ExportScope.FAVORITES, state.scope)
+        assertEquals(1, state.favoriteCount)
+        assertEquals(2_048L, state.totalBytes)
+        assertTrue(state.sessionIds.isEmpty())
     }
 
     @Test fun sending_maps_to_Sending_with_progress_bytes() {

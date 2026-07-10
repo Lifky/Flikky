@@ -120,6 +120,7 @@ class SessionRepositoryImportTest {
         assertEquals(0, result.errors.size)
 
         val imported = result.imported.single()
+        assertEquals(1L, imported.originalId)
         assertEquals("Imported", imported.originalName)
         assertEquals(3, imported.messageCount)   // 2 text + 1 file
         assertEquals(1, imported.fileCount)
@@ -160,6 +161,8 @@ class SessionRepositoryImportTest {
         assertEquals(0, second.imported.size)
         assertEquals(1, second.skipped.size)
         assertEquals("Dup", second.skipped.single().name)
+        assertEquals(1L, second.skipped.single().originalId)
+        assertEquals(first.imported.single().newId, second.skipped.single().existingId)
 
         // Only one session exists in the DB.
         val count = db.sessionDao().nonPinnedOldestFirst().count { it.name == "Dup" }

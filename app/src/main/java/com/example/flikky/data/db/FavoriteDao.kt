@@ -19,6 +19,9 @@ interface FavoriteDao {
     @Query("SELECT * FROM favorites ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<FavoriteEntity>>
 
+    @Query("SELECT * FROM favorites ORDER BY createdAt DESC")
+    suspend fun listAll(): List<FavoriteEntity>
+
     @Query("SELECT * FROM favorites WHERE id = :id")
     suspend fun getById(id: Long): FavoriteEntity?
 

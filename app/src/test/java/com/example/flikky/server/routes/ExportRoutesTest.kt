@@ -5,6 +5,9 @@ import com.example.flikky.export.ExportSession
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.export.MessageExport
 import com.example.flikky.export.SessionExport
+import com.example.flikky.export.ExportScope
+import com.example.flikky.export.FavoriteExport
+import com.example.flikky.export.SettingsExport
 import com.example.flikky.server.PinAuth
 import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
@@ -41,6 +44,63 @@ import java.io.ByteArrayInputStream
 import java.util.zip.ZipInputStream
 
 class ExportRoutesTest {
+
+    @Test
+    fun `info describes favorites and settings export without sessions`() = testApplication {
+        val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
+        val session = SessionState(nowMs = { 0L })
+        val snapshot = ExportSnapshot(
+            exportedAt = 1L,
+            scope = ExportScope.ALL,
+            favorites = listOf(
+                FavoriteExport(
+                    id = 1L,
+                    sourceSessionId = 2L,
+                    sourceMessageId = 3L,
+                    kind = "FILE",
+                    fileId = "favorite-file",
+                    fileName = "a.bin",
+                    fileSize = 123L,
+                    fileMime = "application/octet-stream",
+                    createdAt = 4L,
+                )
+            ),
+            settings = SettingsExport(deviceName = "Phone"),
+        )
+        session.armExport(
+            ExportSession(
+                sessionIds = emptyList(),
+                pin = "000000",
+                createdAt = 0L,
+                scope = ExportScope.ALL,
+                favoriteCount = 1,
+                settingsIncluded = true,
+            ),
+            snapshot,
+        )
+
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                exportRoutes(
+                    sessionState = session,
+                    authGate = AuthGate(required = false, pinAuth = pin),
+                    readAsset = { byteArrayOf() },
+                    exportedBy = { snapshot },
+                    fileResolver = { _, _ -> null },
+                    onZipSent = {},
+                    now = { 1L },
+                )
+            }
+        }
+
+        val json = Json.parseToJsonElement(client.get("/api/export/info").bodyAsText()).jsonObject
+        assertEquals("ALL", json["scope"]?.jsonPrimitive?.content)
+        assertEquals(0, json["sessionCount"]?.jsonPrimitive?.content?.toInt())
+        assertEquals(1, json["favoriteCount"]?.jsonPrimitive?.content?.toInt())
+        assertEquals(true, json["settingsIncluded"]?.jsonPrimitive?.content?.toBoolean())
+        assertEquals(123L, json["totalBytes"]?.jsonPrimitive?.long)
+    }
 
     private fun makeSnapshot(): ExportSnapshot = ExportSnapshot(
         exportedAt = 1_700_000_000_000L,

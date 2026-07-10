@@ -438,6 +438,9 @@ class TransferService : Service() {
         mode = ServiceMode.Export,
         requirePin = currentRequirePin,
         onZipSent = { handleZipSent() },
+        favoriteFileResolver = { fileId ->
+            ServiceLocator.favoriteFileStore.resolve(fileId).takeIf { it.exists() && it.isFile }
+        },
     )
 
     /**

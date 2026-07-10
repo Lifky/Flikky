@@ -101,6 +101,26 @@ class ZipImporterTest {
     }
 
     @Test
+    fun `resolveFileEntry v1_4 rejects paths outside session files directory`() {
+        val fileMsg = ParsedMessage.File(
+            ts = 1, origin = "PHONE", fileId = "abc",
+            name = "settings.json", mime = "application/json", sizeBytes = 5,
+            relativePath = "../../settings/settings.json",
+        )
+        val zip = createZip {
+            writeText("README.txt", "Version: 1.4\n")
+            writeText("settings/settings.json", "secret")
+        }
+
+        val entry = ZipImporter.resolveFileEntry(
+            "1.4", listOf(fileMsg), "abc", "sessions/1_Test", zip,
+        )
+
+        assertNull(entry)
+        zip.close()
+    }
+
+    @Test
     fun `resolveFileEntry v1_2 replays dedup naming`() {
         val file1 = ParsedMessage.File(
             ts = 1, origin = "PHONE", fileId = "aaa",

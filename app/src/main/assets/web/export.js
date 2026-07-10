@@ -1,6 +1,7 @@
 (function () {
     const summaryEl = document.getElementById('summary');
     const listEl = document.getElementById('session-list');
+    const sessionsCard = document.getElementById('sessions-card');
     const btn = document.getElementById('download-btn');
     const hintEl = document.getElementById('export-hint');
     const bannerEl = document.getElementById('export-banner');
@@ -26,12 +27,12 @@
     }
 
     function renderSummary(info) {
-        const parts = [
-            `${info.sessionCount} 个会话`,
-            `${info.messageCount} 条消息`,
-            `${info.fileCount} 个文件`,
-            `约 ${formatSize(info.totalBytes)}`,
-        ];
+        const parts = [];
+        if (info.sessionCount > 0) parts.push(`${info.sessionCount} 个会话`, `${info.messageCount} 条消息`);
+        if (info.favoriteCount > 0) parts.push(`${info.favoriteCount} 条收藏`);
+        if (info.settingsIncluded) parts.push('设置');
+        parts.push(`${(info.fileCount || 0) + (info.favoriteFileCount || 0)} 个文件`);
+        parts.push(`约 ${formatSize(info.totalBytes)}`);
         summaryEl.textContent = parts.join(' · ');
     }
 
@@ -42,11 +43,10 @@
     function renderSessions(sessions) {
         clearChildren(listEl);
         if (!sessions || sessions.length === 0) {
-            const empty = document.createElement('mdui-list-item');
-            empty.setAttribute('headline', '（无会话）');
-            listEl.appendChild(empty);
+            if (sessionsCard) sessionsCard.hidden = true;
             return;
         }
+        if (sessionsCard) sessionsCard.hidden = false;
         for (const s of sessions) {
             const item = document.createElement('mdui-list-item');
             // mdui-list-item supports setting headline/description via attrs.
@@ -62,7 +62,7 @@
 
     function enableDownload(totalBytes) {
         btn.disabled = false;
-        btn.textContent = `下载全部 (${formatSize(totalBytes)})`;
+        btn.textContent = `下载归档 (${formatSize(totalBytes)})`;
     }
 
     function disableDownloadWith(text) {

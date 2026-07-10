@@ -16,6 +16,19 @@ internal fun wireNameToOrigin(name: String): Origin = when (name) {
 }
 
 @Serializable
+internal data class BackupManifestDto(
+    val schemaVersion: Int,
+    val scope: ExportScope,
+    val exportedAt: Long,
+)
+
+@Serializable
+internal data class FavoritesArchiveDto(
+    val groups: List<FavoriteGroupExport>,
+    val favorites: List<FavoriteExport>,
+)
+
+@Serializable
 internal data class SessionDto(
     val sessionId: Long,
     val name: String,

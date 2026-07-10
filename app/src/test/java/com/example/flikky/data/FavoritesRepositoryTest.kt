@@ -24,6 +24,12 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
+import java.io.ByteArrayOutputStream
+import java.util.zip.ZipFile
+import com.example.flikky.export.ExportScope
+import com.example.flikky.export.ExportSnapshot
+import com.example.flikky.export.ZipExporter
+import com.example.flikky.export.ZipImporter
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
@@ -317,5 +323,91 @@ class FavoritesRepositoryTest {
         assertEquals(1, repo.observeFavorites().first().size)
         assertTrue(favoriteFileStore.resolve("depot-50").exists())
         assertArrayEquals("payload".toByteArray(), favoriteFileStore.resolve("depot-50").readBytes())
+    }
+
+    @Test fun exportSnapshot_preserves_groups_favorites_and_file_metadata() = runTest {
+        val groupId = repo.createGroup("Work")
+        repo.addLocalText("note", groupId)
+        clock = 80L
+        repo.addLocalFile(
+            name = "report.txt",
+            sizeBytes = null,
+            mime = "text/plain",
+            groupId = groupId,
+            source = "payload".byteInputStream(),
+        )
+
+        val exported = repo.exportSnapshot()
+
+        assertEquals(listOf("Work"), exported.groups.map { it.name })
+        assertEquals(2, exported.favorites.size)
+        val file = exported.favorites.single { it.kind == "FILE" }
+        assertEquals("depot-80", file.fileId)
+        assertEquals("report.txt", file.fileName)
+        assertEquals("text/plain", file.fileMime)
+    }
+
+    @Test fun importBackup_restores_groups_files_and_remaps_source_session() = runTest {
+        val groupId = repo.createGroup("Work")
+        clock = 90L
+        repo.addLocalFile(
+            name = "report.txt",
+            sizeBytes = null,
+            mime = "text/plain",
+            groupId = groupId,
+            source = "payload".byteInputStream(),
+        )
+        val exported = repo.exportSnapshot()
+        val snapshot = ExportSnapshot(
+            exportedAt = 100L,
+            scope = ExportScope.FAVORITES,
+            favoriteGroups = exported.groups,
+            favorites = exported.favorites.map {
+                it.copy(sourceSessionId = 44L, sourceMessageId = 55L)
+            },
+        )
+        val zipPath = tmp.newFile("favorites-backup.zip")
+        zipPath.writeBytes(ByteArrayOutputStream().also { out ->
+            ZipExporter.write(
+                out = out,
+                snapshot = snapshot,
+                fileResolver = { _, _ -> null },
+                favoriteFileResolver = { favoriteFileStore.resolve(it) },
+            )
+        }.toByteArray())
+
+        val ctx = ApplicationProvider.getApplicationContext<Context>()
+        val targetDb = Room.inMemoryDatabaseBuilder(ctx, FlikkyDatabase::class.java)
+            .allowMainThreadQueries()
+            .build()
+        val targetStore = FavoriteFileStore(tmp.newFolder("target-files"))
+        val targetRepo = FavoritesRepository(
+            favoriteDao = targetDb.favoriteDao(),
+            favoriteGroupDao = targetDb.favoriteGroupDao(),
+            sessionFileStore = SessionFileStore(tmp.newFolder("target-sessions")),
+            favoriteFileStore = targetStore,
+            now = { 200L },
+            depotIdFactory = { "restored-file" },
+        )
+        try {
+            ZipFile(zipPath).use { zip ->
+                val parsed = ZipImporter.parseBackup(zip)
+                val result = targetRepo.importBackup(
+                    backup = parsed,
+                    zipFile = zip,
+                    sessionIdMap = mapOf(44L to 444L),
+                )
+                assertEquals(1, result.imported)
+                assertEquals(0, result.skipped)
+                assertTrue(result.errors.isEmpty())
+            }
+
+            val restored = targetRepo.observeFavorites().first().single()
+            assertEquals(444L, restored.sourceSessionId)
+            assertEquals("Work", targetRepo.observeGroups().first().single().name)
+            assertArrayEquals("payload".toByteArray(), targetStore.resolve("restored-file").readBytes())
+        } finally {
+            targetDb.close()
+        }
     }
 }

@@ -9,6 +9,7 @@ import com.example.flikky.di.ServiceLocator
 import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.export.MessageExport
+import com.example.flikky.export.ExportScope
 import com.example.flikky.network.NetworkInfo
 import com.example.flikky.service.TransferService
 import com.example.flikky.session.NetworkStatus
@@ -37,6 +38,9 @@ data class ExportingUiState(
     val sessionIds: List<Long> = emptyList(),
     val networkStatus: NetworkStatus = NetworkStatus.Ok,
     val requirePin: Boolean = true,
+    val scope: ExportScope = ExportScope.SESSIONS,
+    val favoriteCount: Int = 0,
+    val settingsIncluded: Boolean = false,
 ) {
     enum class Phase { Armed, Sending, Done, Gone }
 }
@@ -116,6 +120,9 @@ class ExportingViewModel @JvmOverloads constructor(
                 bytesSent = 0L,
                 sessionIds = mode.session.sessionIds,
                 requirePin = mode.session.requirePin,
+                scope = mode.snapshot.scope,
+                favoriteCount = mode.snapshot.favorites.size,
+                settingsIncluded = mode.snapshot.settings != null,
             )
             is ExportMode.Sending -> ExportingUiState(
                 phase = ExportingUiState.Phase.Sending,
@@ -126,6 +133,9 @@ class ExportingViewModel @JvmOverloads constructor(
                 bytesSent = mode.bytesSent,
                 sessionIds = mode.session.sessionIds,
                 requirePin = mode.session.requirePin,
+                scope = mode.session.scope,
+                favoriteCount = mode.session.favoriteCount,
+                settingsIncluded = mode.session.settingsIncluded,
             )
             is ExportMode.Done -> ExportingUiState(
                 phase = ExportingUiState.Phase.Done,
@@ -136,12 +146,20 @@ class ExportingViewModel @JvmOverloads constructor(
                 bytesSent = 0L,
                 sessionIds = mode.session.sessionIds,
                 requirePin = mode.session.requirePin,
+                scope = mode.session.scope,
+                favoriteCount = mode.session.favoriteCount,
+                settingsIncluded = mode.session.settingsIncluded,
             )
         }
     }
 
-    private fun aggregateBytes(snapshot: ExportSnapshot): Long =
-        snapshot.sessions.sumOf { s ->
+    private fun aggregateBytes(snapshot: ExportSnapshot): Long {
+        val sessionBytes = snapshot.sessions.sumOf { s ->
             s.messages.filterIsInstance<MessageExport.File>().sumOf { it.sizeBytes }
         }
+        val favoriteBytes = snapshot.favorites
+            .filter { it.kind == "FILE" }
+            .sumOf { it.fileSize ?: 0L }
+        return sessionBytes + favoriteBytes
+    }
 }

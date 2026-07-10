@@ -7,6 +7,7 @@ import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.MessageEntity
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.export.ExportSnapshot
+import com.example.flikky.export.ExportScope
 import com.example.flikky.export.MessageExport
 import com.example.flikky.export.ParsedMessage
 import com.example.flikky.export.ParsedSession
@@ -256,6 +257,17 @@ class SessionRepository(
         return ExportSnapshot(sessions = sessions, exportedAt = now())
     }
 
+    suspend fun exportAllSnapshot(): ExportSnapshot {
+        val sessions = sessionDao.listFinished().map { row ->
+            row.toSessionExport(messageDao.listBySession(row.id))
+        }
+        return ExportSnapshot(
+            sessions = sessions,
+            exportedAt = now(),
+            scope = ExportScope.ALL,
+        )
+    }
+
     private fun SessionEntity.toSessionExport(messages: List<MessageEntity>): SessionExport =
         SessionExport(
             id = id,
@@ -422,8 +434,19 @@ class SessionRepository(
         val skipped: List<SkippedSession>,
         val errors: List<ImportError>,
     )
-    data class ImportedSession(val originalName: String, val newId: Long, val messageCount: Int, val fileCount: Int)
-    data class SkippedSession(val name: String, val reason: String)
+    data class ImportedSession(
+        val originalName: String,
+        val newId: Long,
+        val messageCount: Int,
+        val fileCount: Int,
+        val originalId: Long? = null,
+    )
+    data class SkippedSession(
+        val name: String,
+        val reason: String,
+        val originalId: Long? = null,
+        val existingId: Long? = null,
+    )
     data class ImportError(val name: String, val error: String)
 
     suspend fun importSessions(tempZipFile: File): ImportResult {
@@ -453,7 +476,14 @@ class SessionRepository(
                 try {
                     val existing = sessionDao.findByNameAndStartedAt(parsed.name, parsed.startedAt)
                     if (existing != null) {
-                        skipped.add(SkippedSession(parsed.name, "已存在"))
+                        skipped.add(
+                            SkippedSession(
+                                name = parsed.name,
+                                reason = "已存在",
+                                originalId = parsed.originalId,
+                                existingId = existing.id,
+                            )
+                        )
                         continue
                     }
 
@@ -530,9 +560,15 @@ class SessionRepository(
                         previewText = previewText,
                     ))
 
-                    imported.add(ImportedSession(
-                        parsed.name, newSessionId, entities.size, importedFileCount,
-                    ))
+                    imported.add(
+                        ImportedSession(
+                            originalName = parsed.name,
+                            newId = newSessionId,
+                            messageCount = entities.size,
+                            fileCount = importedFileCount,
+                            originalId = parsed.originalId,
+                        )
+                    )
                 } catch (e: Exception) {
                     errors.add(ImportError(parsed.name, e.message ?: "Unknown error"))
                 }

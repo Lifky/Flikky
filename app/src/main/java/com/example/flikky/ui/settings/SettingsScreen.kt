@@ -2,8 +2,15 @@ package com.example.flikky.ui.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,8 +27,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -38,12 +47,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -54,6 +69,7 @@ import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.MessageActionStyle
 import com.example.flikky.data.settings.ThemeMode
+import com.example.flikky.export.ExportScope
 import com.example.flikky.ui.components.Avatar
 import com.example.flikky.ui.components.ChoiceDialog
 import com.example.flikky.ui.components.ChoiceRow
@@ -64,7 +80,9 @@ import com.example.flikky.ui.settings.sheets.AvatarPickerSheet
 import com.example.flikky.ui.settings.sheets.BackgroundPickerSheet
 import com.example.flikky.ui.settings.sheets.ThemePickerSheet
 import com.example.flikky.ui.theme.Sizes
+import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 // Which sheet / dialog is open
@@ -74,10 +92,11 @@ private sealed interface ActiveSheet {
     object Background : ActiveSheet
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsScreen(
-    onExport: () -> Unit,
+    onExportSessions: () -> Unit,
+    onExportReady: () -> Unit,
     viewModel: SettingsViewModel = viewModel(),
 ) {
     val s by viewModel.settings.collectAsState()
@@ -93,6 +112,8 @@ fun SettingsScreen(
     var showAvatarGroupingDialog by remember { mutableStateOf(false) }
     var showAnimSpeedDialog by remember { mutableStateOf(false) }
     var showImportProgress by remember { mutableStateOf(false) }
+    var showExportProgress by remember { mutableStateOf(false) }
+    var importExportExpanded by rememberSaveable { mutableStateOf(false) }
 
     // Import launcher
     val importLauncher = rememberLauncherForActivityResult(
@@ -101,22 +122,62 @@ fun SettingsScreen(
         if (uri != null) {
             showImportProgress = true
             scope.launch {
-                val result = viewModel.importFromZip(uri)
-                showImportProgress = false
-                val msg = buildString {
-                    if (result.imported.isNotEmpty())
-                        append("已导入 ${result.imported.size} 个会话")
-                    if (result.skipped.isNotEmpty()) {
-                        if (isNotEmpty()) append("，")
-                        append("跳过 ${result.skipped.size} 个重复")
+                val message = try {
+                    val result = viewModel.importFromZip(uri)
+                    buildString {
+                        if (result.importedSessions > 0)
+                            append("已导入 ${result.importedSessions} 个会话")
+                        if (result.importedFavorites > 0) {
+                            if (isNotEmpty()) append("，")
+                            append("${result.importedFavorites} 条收藏")
+                        }
+                        if (result.settingsImported) {
+                            if (isNotEmpty()) append("，")
+                            append("设置已恢复")
+                        }
+                        val skipped = result.skippedSessions + result.skippedFavorites
+                        if (skipped > 0) {
+                            if (isNotEmpty()) append("，")
+                            append("跳过 $skipped 个重复")
+                        }
+                        if (result.errors.isNotEmpty()) {
+                            if (isNotEmpty()) append("，")
+                            append("${result.errors.size} 个失败")
+                        }
+                        if (isEmpty()) append("未找到可导入的数据")
                     }
-                    if (result.errors.isNotEmpty()) {
-                        if (isNotEmpty()) append("，")
-                        append("${result.errors.size} 个失败")
-                    }
-                    if (isEmpty()) append("未找到可导入的会话")
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    "导入失败，请确认所选文件是 Flikky zip 归档"
+                } finally {
+                    showImportProgress = false
                 }
-                snackbarHostState.showSnackbar(msg)
+                snackbarHostState.showSnackbar(message)
+            }
+        }
+    }
+
+    val launchExport: (ExportScope) -> Unit = { exportScope ->
+        showExportProgress = true
+        scope.launch {
+            val result = try {
+                viewModel.startExport(exportScope)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            } finally {
+                showExportProgress = false
+            }
+            when (result) {
+                SettingsViewModel.ExportStartResult.Success -> onExportReady()
+                SettingsViewModel.ExportStartResult.NoFavorites ->
+                    snackbarHostState.showSnackbar("暂无收藏可导出")
+                SettingsViewModel.ExportStartResult.TransferRunning ->
+                    snackbarHostState.showSnackbar("请先停止当前传输或导出")
+                SettingsViewModel.ExportStartResult.UseSessionSelection -> onExportSessions()
+                null -> snackbarHostState.showSnackbar("准备导出失败，请重试")
             }
         }
     }
@@ -352,7 +413,7 @@ fun SettingsScreen(
 
             // ─── 数据 ─────────────────────────────────────────────────────────
             item {
-                val sectionItems = 3
+                val sectionItems = if (importExportExpanded) 7 else 2
                 SettingSection(title = "数据") {
                     val historySubtitle = when (s.historyRetainLimit) {
                         -1   -> "无限制"
@@ -368,23 +429,86 @@ fun SettingsScreen(
                         index = 0, total = sectionItems,
                     )
                     SettingItem(
-                        title = "导入",
-                        leadingIcon = painterResource(R.drawable.ic_file_download),
-                        subtitle = "从 zip 文件导入会话",
-                        onClick = {
-                            importLauncher.launch(
-                                arrayOf("application/zip", "application/x-zip-compressed")
+                        title = "导入与导出",
+                        leadingIcon = painterResource(R.drawable.ic_swap_vert),
+                        subtitle = if (importExportExpanded) "选择一项操作" else "备份、恢复或迁移数据",
+                        trailing = {
+                            val rotation by animateFloatAsState(
+                                targetValue = if (importExportExpanded) 180f else 0f,
+                                animationSpec = Motion.spatial(),
+                                label = "ImportExportChevron",
+                            )
+                            Icon(
+                                painter = painterResource(R.drawable.ic_expand_more),
+                                contentDescription = null,
+                                modifier = Modifier.rotate(rotation),
+                            )
+                        },
+                        onClick = { importExportExpanded = !importExportExpanded },
+                        modifier = Modifier.semantics {
+                            stateDescription = if (importExportExpanded) "已展开" else "已收起"
+                            customActions = listOf(
+                                CustomAccessibilityAction(
+                                    label = if (importExportExpanded) "收起" else "展开",
+                                    action = {
+                                        importExportExpanded = !importExportExpanded
+                                        true
+                                    },
+                                )
                             )
                         },
                         index = 1, total = sectionItems,
                     )
-                    SettingItem(
-                        title = "导出",
-                        leadingIcon = painterResource(R.drawable.ic_upload),
-                        subtitle = "将会话导出为 zip 文件",
-                        onClick = onExport,
-                        index = 2, total = sectionItems,
-                    )
+                    AnimatedVisibility(
+                        visible = importExportExpanded,
+                        enter = expandVertically(Motion.spatial()) + fadeIn(Motion.effects()),
+                        exit = shrinkVertically(Motion.spatialFast()) + fadeOut(Motion.effectsFast()),
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                        ) {
+                            SettingItem(
+                                title = "导入",
+                                leadingIcon = painterResource(R.drawable.ic_file_download),
+                                subtitle = "从 Flikky zip 归档恢复",
+                                onClick = {
+                                    importLauncher.launch(
+                                        arrayOf("application/zip", "application/x-zip-compressed")
+                                    )
+                                },
+                                index = 2, total = sectionItems,
+                            )
+                            SettingItem(
+                                title = "导出会话",
+                                leadingIcon = painterResource(R.drawable.ic_upload),
+                                subtitle = "选择会话并在电脑下载",
+                                onClick = onExportSessions,
+                                index = 3, total = sectionItems,
+                            )
+                            SettingItem(
+                                title = "导出收藏",
+                                leadingIcon = painterResource(R.drawable.ic_star_border),
+                                subtitle = "在电脑下载全部收藏",
+                                onClick = { launchExport(ExportScope.FAVORITES) },
+                                index = 4, total = sectionItems,
+                            )
+                            SettingItem(
+                                title = "导出设置",
+                                leadingIcon = painterResource(R.drawable.ic_settings_outline),
+                                subtitle = "在电脑下载当前设置",
+                                onClick = { launchExport(ExportScope.SETTINGS) },
+                                index = 5, total = sectionItems,
+                            )
+                            SettingItem(
+                                title = "全部导出",
+                                leadingIcon = painterResource(R.drawable.ic_swap_vert),
+                                subtitle = "会话、收藏和设置一次下载",
+                                onClick = { launchExport(ExportScope.ALL) },
+                                index = 6, total = sectionItems,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -585,6 +709,18 @@ fun SettingsScreen(
             onDismissRequest = {},
             confirmButton = {},
             title = { Text("正在导入...") },
+            text = {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            },
+        )
+    }
+    if (showExportProgress) {
+        AlertDialog(
+            onDismissRequest = {},
+            confirmButton = {},
+            title = { Text("正在准备导出...") },
             text = {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()

@@ -62,20 +62,20 @@ class ZipExporterTest {
     // --- 1: empty snapshot ---
 
     @Test
-    fun `empty snapshot writes only README`() {
+    fun `empty snapshot writes manifest and README`() {
         val snapshot = ExportSnapshot(sessions = emptyList(), exportedAt = 0L)
         val out = ByteArrayOutputStream()
         ZipExporter.write(out, snapshot, resolver(emptyMap()), utc)
 
         val entries = readAll(out.toByteArray())
-        assertEquals(1, entries.size)
-        assertEquals("README.txt", entries[0].name)
-        val readme = String(entries[0].bytes, Charsets.UTF_8)
+        assertEquals(2, entries.size)
+        assertTrue(entries.any { it.name == "manifest.json" })
+        val readme = String(entries.single { it.name == "README.txt" }.bytes, Charsets.UTF_8)
         assertTrue(readme.contains("Sessions: 0"))
         assertTrue(readme.contains("Total messages: 0"))
         assertTrue(readme.contains("Total files: 0"))
         assertTrue(readme.contains("Total bytes: 0"))
-        assertTrue(readme.contains("Version: 1.4"))
+        assertTrue(readme.contains("Version: 2.0"))
     }
 
     // --- 2: single session, 1 text + 1 file ---

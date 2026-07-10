@@ -3,6 +3,8 @@ package com.example.flikky.service
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.export.MessageExport
 import com.example.flikky.export.SessionExport
+import com.example.flikky.export.ExportScope
+import com.example.flikky.export.FavoriteExport
 import com.example.flikky.session.Origin
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -78,6 +80,28 @@ class ExportNotificationTextTest {
     @Test
     fun `title constant is stable`() {
         assertEquals("Flikky 正在提供导出", ExportNotificationText.TITLE)
+    }
+
+    @Test
+    fun `favorites snapshot describes favorite count and bytes`() {
+        val snap = ExportSnapshot(
+            exportedAt = 0L,
+            scope = ExportScope.FAVORITES,
+            favorites = listOf(
+                FavoriteExport(
+                    id = 1L,
+                    sourceSessionId = 2L,
+                    sourceMessageId = 3L,
+                    kind = "FILE",
+                    fileId = "x",
+                    fileName = "x.bin",
+                    fileSize = 2_048L,
+                    fileMime = "application/octet-stream",
+                    createdAt = 4L,
+                )
+            ),
+        )
+        assertEquals("1 条收藏 / 2 KB 可下载", ExportNotificationText.body(snap))
     }
 
     // ---- helpers ----

@@ -8,10 +8,11 @@ import java.util.Locale
 import java.util.TimeZone
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 /**
- * Streams an [ExportSnapshot] into a single zip archive following the v1.2
- * design spec (§4.1 / §4.2).
+ * Streams an [ExportSnapshot] into a round-trip-capable Flikky backup archive.
  *
  * Pure Kotlin / java.util.zip; zero Android dependencies. The caller owns the
  * lifecycle of [out] — this object writes a complete zip stream and finishes
@@ -21,40 +22,60 @@ import java.util.zip.ZipOutputStream
  * Layout produced:
  * ```
  * README.txt
+ * manifest.json
  * sessions/{id}_{safeName}/
  *     messages.txt
  *     messages.json
  *     files/{originalName}     (with _2/_3 suffixes on intra-session collisions)
+ * favorites/favorites.json
+ * favorites/files/{id}_{safeName}
+ * settings/settings.json
  * ```
  *
- * Trade-offs (intentional for v1.2):
- * - `messages.json`'s `relativePath` field is computed by
- *   [MessagesJsonFormatter] before de-duplication, so JSON values may not
- *   match the actual zip entry path when names collide. v1.3 will unify.
- * - Missing files (resolver returns `null` or file does not exist) are written
- *   as `files/MISSING_{fileId}.txt` placeholders rather than aborting the
- *   whole export. A diagnostic line goes to stderr.
+ * Missing session files are represented by `MISSING_{fileId}.txt` placeholders.
+ * Missing favorite files remain in metadata and are reported as failed during import.
  */
 object ZipExporter {
 
     private const val README_PATH = "README.txt"
+    private const val MANIFEST_PATH = "manifest.json"
+    private const val FAVORITES_PATH = "favorites/favorites.json"
+    private const val SETTINGS_PATH = "settings/settings.json"
     private const val SESSIONS_DIR = "sessions/"
     private const val INVALID_NAME_CHARS = "/\\*?\"<>|\n\r"
     private const val SAFE_NAME_MAX = 40
     private const val README_TIMESTAMP_PATTERN = "yyyy-MM-dd HH:mm:ss"
     private const val BUFFER_SIZE = 8 * 1024
+    private const val SCHEMA_VERSION = 2
+    private val json = Json { encodeDefaults = true }
 
     fun write(
         out: OutputStream,
         snapshot: ExportSnapshot,
         fileResolver: (sessionId: Long, fileId: String) -> File?,
         timeZone: TimeZone = TimeZone.getDefault(),
+        favoriteFileResolver: (fileId: String) -> File? = { null },
     ) {
         val zip = ZipOutputStream(out, Charsets.UTF_8)
         try {
+            writeTextEntry(
+                zip,
+                MANIFEST_PATH,
+                json.encodeToString(
+                    BackupManifestDto(
+                        schemaVersion = SCHEMA_VERSION,
+                        scope = snapshot.scope,
+                        exportedAt = snapshot.exportedAt,
+                    )
+                ),
+            )
             writeReadme(zip, snapshot, timeZone)
             for (session in snapshot.sessions) {
                 writeSession(zip, session, fileResolver, timeZone)
+            }
+            writeFavorites(zip, snapshot, favoriteFileResolver)
+            snapshot.settings?.let { settings ->
+                writeTextEntry(zip, SETTINGS_PATH, json.encodeToString(settings))
             }
             zip.finish()
             zip.flush()
@@ -68,10 +89,16 @@ object ZipExporter {
 
     private fun writeReadme(zip: ZipOutputStream, snapshot: ExportSnapshot, timeZone: TimeZone) {
         val totalMessages = snapshot.sessions.sumOf { it.messages.size }
-        val totalFiles = snapshot.sessions.sumOf { s -> s.messages.count { it is MessageExport.File } }
-        val totalBytes = snapshot.sessions.sumOf { s ->
+        val sessionFiles = snapshot.sessions.sumOf { s -> s.messages.count { it is MessageExport.File } }
+        val sessionBytes = snapshot.sessions.sumOf { s ->
             s.messages.filterIsInstance<MessageExport.File>().sumOf { it.sizeBytes }
         }
+        val favoriteFiles = snapshot.favorites.count { it.kind == "FILE" }
+        val favoriteBytes = snapshot.favorites
+            .filter { it.kind == "FILE" }
+            .sumOf { it.fileSize ?: 0L }
+        val totalFiles = sessionFiles + favoriteFiles
+        val totalBytes = sessionBytes + favoriteBytes
         val sessionCount = snapshot.sessions.size
 
         val df = SimpleDateFormat(README_TIMESTAMP_PATTERN, Locale.US).apply {
@@ -83,17 +110,54 @@ object ZipExporter {
 
         val sb = StringBuilder()
         sb.append("Flikky Export\n")
-        sb.append("Version: 1.4\n")
+        sb.append("Version: 2.0\n")
+        sb.append("Scope: ").append(snapshot.scope.name).append('\n')
         sb.append("Exported at: ").append(exportedStr).append(" (").append(tzStr).append(")\n")
         sb.append("Sessions: ").append(sessionCount).append('\n')
         sb.append("Total messages: ").append(totalMessages).append('\n')
         sb.append("Total files: ").append(totalFiles).append('\n')
         sb.append("Total bytes: ").append(totalBytes).append('\n')
+        sb.append("Favorites: ").append(snapshot.favorites.size).append('\n')
+        sb.append("Settings: ").append(if (snapshot.settings != null) "yes" else "no").append('\n')
         sb.append('\n')
-        sb.append("此 zip 包含你从 Flikky 手机端勾选导出的 ").append(sessionCount).append(" 条会话。\n")
-        sb.append("每个会话一个子目录，内含 messages.txt（纯文本消息日志）、messages.json（结构化数据）和 files/（原始附件）。\n")
+        sb.append("此 zip 是 Flikky 可回导归档。\n")
+        if (sessionCount > 0) {
+            sb.append("每个会话一个子目录，内含 messages.txt、messages.json 和 files/。\n")
+        }
 
         writeTextEntry(zip, README_PATH, sb.toString())
+    }
+
+    private fun writeFavorites(
+        zip: ZipOutputStream,
+        snapshot: ExportSnapshot,
+        fileResolver: (String) -> File?,
+    ) {
+        if (snapshot.favorites.isEmpty() && snapshot.favoriteGroups.isEmpty()) return
+
+        val archived = snapshot.favorites.map { favorite ->
+            val fileId = favorite.fileId
+            if (favorite.kind != "FILE" || fileId == null) return@map favorite
+            val entryName = "${favorite.id}_${safeName(favorite.fileName ?: fileId)}"
+            val relativePath = "favorites/files/$entryName"
+            val source = fileResolver(fileId)
+            if (source != null && source.exists() && source.isFile) {
+                writeFileEntry(zip, relativePath, source)
+            } else {
+                System.err.println("ZipExporter: missing favorite file $fileId")
+            }
+            favorite.copy(relativePath = relativePath)
+        }
+        writeTextEntry(
+            zip,
+            FAVORITES_PATH,
+            json.encodeToString(
+                FavoritesArchiveDto(
+                    groups = snapshot.favoriteGroups,
+                    favorites = archived,
+                )
+            ),
+        )
     }
 
     // --- per-session ---

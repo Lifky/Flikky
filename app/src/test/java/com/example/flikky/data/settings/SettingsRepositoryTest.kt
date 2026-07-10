@@ -19,11 +19,12 @@ import org.robolectric.annotation.Config
 @Config(sdk = [33])
 class SettingsRepositoryTest {
     @get:Rule val tmp = TemporaryFolder()
+    private var storeIndex = 0
 
     private fun makeRepo(scope: TestScope): SettingsRepository {
         val ds = PreferenceDataStoreFactory.create(
             scope = scope.backgroundScope,
-            produceFile = { tmp.newFile("settings.preferences_pb") },
+            produceFile = { tmp.newFile("settings-${storeIndex++}.preferences_pb") },
         )
         return SettingsRepository(ds)
     }
@@ -162,5 +163,36 @@ class SettingsRepositoryTest {
         }
 
         assertEquals(listOf(3L, 6L, 5L, 4L, 2L), repo.settings.first().recentFavoriteIds)
+    }
+
+    @Test fun backup_export_and_import_roundtrip_user_settings_without_navigation_state() = runTest {
+        val source = makeRepo(this)
+        source.setThemeMode(ThemeMode.PRESET)
+        source.setPresetTheme(PresetTheme.ANAN_BLUE)
+        source.setDarkMode(DarkMode.DARK)
+        source.setDeviceName("Backup phone")
+        source.setRequirePin(false)
+        source.setHistoryRetainLimit(-1)
+        source.setActiveGroup(99L)
+        source.setActiveFavoriteGroup(98L)
+        source.recordRecentFavorite(97L)
+
+        val backup = source.exportBackup()
+        val target = makeRepo(this)
+        target.setActiveGroup(5L)
+        target.setActiveFavoriteGroup(6L)
+        target.recordRecentFavorite(7L)
+        target.importBackup(backup)
+
+        val restored = target.settings.first()
+        assertEquals(ThemeMode.PRESET, restored.themeMode)
+        assertEquals(PresetTheme.ANAN_BLUE, restored.presetTheme)
+        assertEquals(DarkMode.DARK, restored.darkMode)
+        assertEquals("Backup phone", restored.deviceName)
+        assertEquals(false, restored.requirePin)
+        assertEquals(-1, restored.historyRetainLimit)
+        assertEquals(5L, restored.activeGroupId)
+        assertEquals(6L, restored.activeFavoriteGroupId)
+        assertEquals(listOf(7L), restored.recentFavoriteIds)
     }
 }

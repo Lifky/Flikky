@@ -7,6 +7,7 @@ import com.example.flikky.data.db.FlikkyDatabase
 import com.example.flikky.data.db.entities.MessageEntity
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.export.MessageExport
+import com.example.flikky.export.ExportScope
 import com.example.flikky.session.Origin
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -161,5 +162,17 @@ class SessionRepositoryExportSnapshotTest {
 
         clock = 222L
         assertEquals(222L, repo.exportSnapshot(listOf(sid)).exportedAt)
+    }
+
+    @Test fun exportAllSnapshot_includes_finished_and_excludes_in_progress() = runTest {
+        val finished = insertSession(startedAt = 1L, endedAt = 2L, name = "finished")
+        insertText(finished, id = 1L, ts = 1L, content = "done")
+        val active = insertSession(startedAt = 3L, endedAt = null, name = "active")
+        insertText(active, id = 2L, ts = 3L, content = "live")
+
+        val snapshot = repo.exportAllSnapshot()
+
+        assertEquals(ExportScope.ALL, snapshot.scope)
+        assertEquals(listOf(finished), snapshot.sessions.map { it.id })
     }
 }

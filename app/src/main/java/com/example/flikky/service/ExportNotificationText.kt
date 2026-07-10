@@ -2,6 +2,7 @@ package com.example.flikky.service
 
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.export.MessageExport
+import com.example.flikky.export.ExportScope
 
 /**
  * Pure Android-free helper that turns an [ExportSnapshot] into the human-readable
@@ -24,10 +25,20 @@ object ExportNotificationText {
      */
     fun body(snapshot: ExportSnapshot): String {
         val sessionCount = snapshot.sessions.size
-        val totalBytes = snapshot.sessions.sumOf { s ->
+        val sessionBytes = snapshot.sessions.sumOf { s ->
             s.messages.filterIsInstance<MessageExport.File>().sumOf { it.sizeBytes }
         }
-        return "$sessionCount 个会话 / ${formatBytes(totalBytes)} 可下载"
+        val favoriteBytes = snapshot.favorites
+            .filter { it.kind == "FILE" }
+            .sumOf { it.fileSize ?: 0L }
+        val totalBytes = sessionBytes + favoriteBytes
+        val content = when (snapshot.scope) {
+            ExportScope.SESSIONS -> "$sessionCount 个会话"
+            ExportScope.FAVORITES -> "${snapshot.favorites.size} 条收藏"
+            ExportScope.SETTINGS -> "设置"
+            ExportScope.ALL -> "全部数据"
+        }
+        return "$content / ${formatBytes(totalBytes)} 可下载"
     }
 
     internal fun formatBytes(bytes: Long): String {

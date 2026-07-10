@@ -16,6 +16,14 @@ data class ParsedSession(
     val sessionDir: String,
 )
 
+data class ParsedBackup(
+    val scope: ExportScope,
+    val sessions: List<ParsedSession>,
+    val favoriteGroups: List<FavoriteGroupExport>,
+    val favorites: List<FavoriteExport>,
+    val settings: SettingsExport?,
+)
+
 sealed class ParsedMessage {
     abstract val ts: Long
     abstract val origin: String
@@ -72,6 +80,40 @@ object ZipImporter {
         return sessions
     }
 
+    fun parseBackup(zipFile: ZipFile): ParsedBackup {
+        val manifest = zipFile.getEntry("manifest.json")
+            ?.takeUnless { isPathTraversal(it.name) }
+            ?.let { entry ->
+                val raw = zipFile.getInputStream(entry).use { it.readBytes().toString(Charsets.UTF_8) }
+                jsonParser.decodeFromString(BackupManifestDto.serializer(), raw)
+            }
+        val favorites = zipFile.getEntry("favorites/favorites.json")
+            ?.takeUnless { isPathTraversal(it.name) }
+            ?.let { entry ->
+                val raw = zipFile.getInputStream(entry).use { it.readBytes().toString(Charsets.UTF_8) }
+                jsonParser.decodeFromString(FavoritesArchiveDto.serializer(), raw)
+            }
+        val settings = zipFile.getEntry("settings/settings.json")
+            ?.takeUnless { isPathTraversal(it.name) }
+            ?.let { entry ->
+                val raw = zipFile.getInputStream(entry).use { it.readBytes().toString(Charsets.UTF_8) }
+                jsonParser.decodeFromString(SettingsExport.serializer(), raw)
+            }
+        return ParsedBackup(
+            scope = manifest?.scope ?: ExportScope.SESSIONS,
+            sessions = parse(zipFile),
+            favoriteGroups = favorites?.groups.orEmpty(),
+            favorites = favorites?.favorites.orEmpty(),
+            settings = settings,
+        )
+    }
+
+    fun resolveFavoriteFileEntry(favorite: FavoriteExport, zipFile: ZipFile): ZipEntry? {
+        val path = favorite.relativePath ?: return null
+        if (isPathTraversal(path) || !path.startsWith("favorites/files/")) return null
+        return zipFile.getEntry(path)?.takeUnless { isPathTraversal(it.name) }
+    }
+
     fun resolveFileEntry(
         version: String?,
         fileMessages: List<ParsedMessage.File>,
@@ -83,8 +125,11 @@ object ZipImporter {
 
         if (isV14OrLater) {
             val target = fileMessages.firstOrNull { it.fileId == targetFileId } ?: return null
+            if (isPathTraversal(target.relativePath) || !target.relativePath.startsWith("files/")) {
+                return null
+            }
             val entryPath = "$sessionDir/${target.relativePath}"
-            return zipFile.getEntry(entryPath)
+            return zipFile.getEntry(entryPath)?.takeUnless { isPathTraversal(it.name) }
         }
 
         // Backward compat: replay the dedup algorithm to compute actual zip entry names
@@ -120,7 +165,9 @@ object ZipImporter {
     }
 
     private fun isPathTraversal(name: String): Boolean =
-        name.contains("../") || name.startsWith("/")
+        name.startsWith("/") ||
+            name.startsWith("\\") ||
+            name.split('/', '\\').any { it == ".." }
 
     private fun MessageDto.toParsedMessage(): ParsedMessage = when (this) {
         is MessageDto.TextDto -> ParsedMessage.Text(

@@ -47,6 +47,7 @@ fun Route.exportRoutes(
     fileResolver: (sessionId: Long, fileId: String) -> java.io.File?,
     onZipSent: suspend () -> Unit,
     now: () -> Long,
+    favoriteFileResolver: (fileId: String) -> java.io.File? = { null },
 ) {
     fun authed(call: ApplicationCall): Boolean {
         val token = call.request.cookies[AUTH_COOKIE]
@@ -105,6 +106,7 @@ fun Route.exportRoutes(
                     snapshot = snapshot,
                     fileResolver = fileResolver,
                     timeZone = TimeZone.getDefault(),
+                    favoriteFileResolver = favoriteFileResolver,
                 )
             }
             streamedOk = true
@@ -129,10 +131,14 @@ private fun buildFilename(nowMs: Long): String {
 }
 
 private fun estimateTotalBytes(snapshot: ExportSnapshot): Long {
-    return snapshot.sessions.sumOf { s ->
+    val sessionBytes = snapshot.sessions.sumOf { s ->
         s.messages.filterIsInstance<com.example.flikky.export.MessageExport.File>()
             .sumOf { it.sizeBytes }
     }
+    val favoriteBytes = snapshot.favorites
+        .filter { it.kind == "FILE" }
+        .sumOf { it.fileSize ?: 0L }
+    return sessionBytes + favoriteBytes
 }
 
 // Minimal placeholder shipped until T8 delivers the real export page.
@@ -146,7 +152,11 @@ private val STUB_EXPORT_HTML: String =
 
 @Serializable
 internal data class ExportInfoDto(
+    val scope: String,
     val sessionCount: Int,
+    val favoriteCount: Int,
+    val favoriteFileCount: Int,
+    val settingsIncluded: Boolean,
     val messageCount: Int,
     val fileCount: Int,
     val totalBytes: Long,
@@ -178,10 +188,14 @@ private fun buildInfoDto(snapshot: ExportSnapshot): ExportInfoDto {
         )
     }
     return ExportInfoDto(
+        scope = snapshot.scope.name,
         sessionCount = sessionDtos.size,
+        favoriteCount = snapshot.favorites.size,
+        favoriteFileCount = snapshot.favorites.count { it.kind == "FILE" },
+        settingsIncluded = snapshot.settings != null,
         messageCount = sessionDtos.sumOf { it.messageCount },
         fileCount = sessionDtos.sumOf { it.fileCount },
-        totalBytes = sessionDtos.sumOf { it.totalBytes },
+        totalBytes = estimateTotalBytes(snapshot),
         sessions = sessionDtos,
     )
 }

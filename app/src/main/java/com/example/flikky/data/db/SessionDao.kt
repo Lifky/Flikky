@@ -35,6 +35,9 @@ interface SessionDao {
     @Query("SELECT * FROM sessions WHERE endedAt IS NULL")
     suspend fun listUnfinished(): List<SessionEntity>
 
+    @Query("SELECT * FROM sessions WHERE endedAt IS NOT NULL ORDER BY startedAt DESC")
+    suspend fun listFinished(): List<SessionEntity>
+
     @Query("SELECT * FROM sessions WHERE name = :name AND startedAt = :startedAt LIMIT 1")
     suspend fun findByNameAndStartedAt(name: String, startedAt: Long): SessionEntity?
 

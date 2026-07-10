@@ -19,6 +19,12 @@ interface FavoriteGroupDao {
     @Query("SELECT * FROM favorite_groups ORDER BY sortOrder ASC")
     fun observeAll(): Flow<List<FavoriteGroupEntity>>
 
+    @Query("SELECT * FROM favorite_groups ORDER BY sortOrder ASC")
+    suspend fun listAll(): List<FavoriteGroupEntity>
+
+    @Query("SELECT * FROM favorite_groups WHERE name = :name LIMIT 1")
+    suspend fun findByName(name: String): FavoriteGroupEntity?
+
     @Query("SELECT * FROM favorite_groups WHERE id = :id")
     suspend fun getById(id: Long): FavoriteGroupEntity?
 

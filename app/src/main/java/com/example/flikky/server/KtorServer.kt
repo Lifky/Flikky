@@ -55,6 +55,7 @@ class KtorServer(
     private val mode: ServiceMode = ServiceMode.Transfer,
     private val requirePin: Boolean = true,
     private val onZipSent: suspend () -> Unit = {},
+    private val favoriteFileResolver: (String) -> java.io.File? = { null },
     /**
      * M9: provides the phone's current appearance for GET /api/peer-info.
      * Lambda so the caller can always read the latest settings without
@@ -166,6 +167,7 @@ class KtorServer(
             },
             onZipSent = onZipSent,
             now = nowMs,
+            favoriteFileResolver = favoriteFileResolver,
         )
         // v1.3 test2 修订：export 页也挂 WS，让浏览器通过 WS onclose 立即
         // 感知断网（不再依赖 fetch 探测的 3 秒延迟）。WS 复用同一 cookie 鉴权。

@@ -38,6 +38,7 @@ import com.example.flikky.ui.components.ConnectionInfoCard
 import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.theme.Spacing
+import com.example.flikky.export.ExportScope
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -98,6 +99,8 @@ fun ExportingScreen(
                     DoneContent(
                         sessionCount = ui.sessionCount,
                         sessionIds = ui.sessionIds,
+                        scope = ui.scope,
+                        favoriteCount = ui.favoriteCount,
                         onKeep = {
                             viewModel.acknowledge()
                             onBack()
@@ -221,6 +224,8 @@ private fun SendingContent(
 private fun DoneContent(
     sessionCount: Int,
     sessionIds: List<Long>,
+    scope: ExportScope,
+    favoriteCount: Int,
     onKeep: () -> Unit,
     onConfirmDelete: (List<Long>) -> Unit,
 ) {
@@ -238,32 +243,42 @@ private fun DoneContent(
             color = MaterialTheme.colorScheme.primary,
         )
         Text(
-            text = "已导出 $sessionCount 个会话到 PC",
+            text = when (scope) {
+                ExportScope.SESSIONS -> "已导出 $sessionCount 个会话到 PC"
+                ExportScope.FAVORITES -> "已导出 $favoriteCount 条收藏到 PC"
+                ExportScope.SETTINGS -> "已导出设置到 PC"
+                ExportScope.ALL -> "已导出全部数据到 PC"
+            },
             style = MaterialTheme.typography.headlineSmall,
         )
         Text(
-            text = "zip 已保存在电脑下载目录。现在可以选择保留本地副本，或在确认 zip 无误后删除本地。",
+            text = if (scope == ExportScope.SESSIONS) {
+                "zip 已保存在电脑下载目录。现在可以选择保留本地副本，或在确认 zip 无误后删除本地。"
+            } else {
+                "zip 已保存在电脑下载目录，可随时通过设置中的“导入”恢复。"
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         Spacer(Modifier.weight(1f))
 
-        Button(
-            onClick = onKeep,
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text("保留本地") }
+        Button(onClick = onKeep, modifier = Modifier.fillMaxWidth()) {
+            Text(if (scope == ExportScope.SESSIONS) "保留本地" else "完成")
+        }
 
-        TextButton(
-            onClick = { showDeleteConfirm = true },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.textButtonColors(
-                contentColor = MaterialTheme.colorScheme.error,
-            ),
-        ) { Text("删除本地") }
+        if (scope == ExportScope.SESSIONS) {
+            TextButton(
+                onClick = { showDeleteConfirm = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) { Text("删除本地") }
+        }
     }
 
-    if (showDeleteConfirm) {
+    if (showDeleteConfirm && scope == ExportScope.SESSIONS) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
             title = { Text("确认删除本地 $sessionCount 条会话？") },

@@ -75,6 +75,7 @@ class MainActivity : ComponentActivity() {
                     var homeSearchExpanded by remember { mutableStateOf(false) }
                     var favoritesSelecting by remember { mutableStateOf(false) }
                     var favoritesSearchExpanded by remember { mutableStateOf(false) }
+                    var pendingSessionExportSelection by remember { mutableStateOf(false) }
 
                     Scaffold(
                         bottomBar = {
@@ -133,6 +134,10 @@ class MainActivity : ComponentActivity() {
                                         onOpenSearchHit = { sessionId, messageId ->
                                             nav.navigate("history/$sessionId?highlight=$messageId")
                                         },
+                                        startSelecting = pendingSessionExportSelection,
+                                        onStartSelectingConsumed = {
+                                            pendingSessionExportSelection = false
+                                        },
                                     )
                                 }
                             }
@@ -140,7 +145,15 @@ class MainActivity : ComponentActivity() {
                                 // 顶部 inset 交给 SettingsScreen 的 LargeTopAppBar 自己消费（标题栏铺到状态栏下方），这里只补底部。
                                 Box(Modifier.padding(bottom = innerPadding.calculateBottomPadding())) {
                                     SettingsScreen(
-                                        onExport = { nav.navigate("exporting") },
+                                        onExportSessions = {
+                                            pendingSessionExportSelection = true
+                                            nav.navigate("transfer") {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                                popUpTo(nav.graph.startDestinationId) { saveState = true }
+                                            }
+                                        },
+                                        onExportReady = { nav.navigate("exporting") },
                                     )
                                 }
                             }
