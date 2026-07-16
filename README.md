@@ -20,8 +20,8 @@ Flikky is designed for trusted local networks and keeps the operational complexi
 
 | Channel | Revision | State |
 | --- | --- | --- |
-| Stable source | [`v1.13.0`](https://github.com/Lifky/Flikky/tree/v1.13.0) · 2026-07-05 | Optional PIN authentication, local favorites, and the complete transfer/history experience described below. |
-| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.13.0...main) | Full ZIP backup scopes, local or browser export destinations, contextual archive actions, and current UI fixes. |
+| Stable source | [`v1.14.0`](https://github.com/Lifky/Flikky/tree/v1.14.0) · 2026-07-16 | Optional PIN authentication, local favorites, full ZIP backup scopes, local or browser export destinations, contextual archive actions, and the complete transfer/history experience described below. |
+| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.14.0...main) | No unreleased changes beyond the stable tag. |
 
 Use the stable tag for a reproducible build. Use `main` when evaluating the latest unreleased work. Version history is available from the repository's [tags](https://github.com/Lifky/Flikky/tags).
 
