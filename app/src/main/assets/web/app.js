@@ -175,6 +175,7 @@
     let phoneAvatarKey = AVATAR_DEFAULT_PHONE;
     let avatarPickerFilled = avatarIconSpec(normalizeAvatarKey(myAvatarKey, AVATAR_DEFAULT_BROWSER)).filled;
     let avatarGrouping = 'FIRST';
+    let recallEnabled = false;
 
     // Track last rendered origin for consecutive same-origin suppression.
     // 'PHONE' | 'BROWSER' | null
@@ -423,6 +424,10 @@
 
     function applyPeerAppearance(data, fallbackName) {
         const name = (data.deviceName && typeof data.deviceName === 'string') ? data.deviceName : fallbackName;
+        if (Object.prototype.hasOwnProperty.call(data, 'recallEnabled')) {
+            recallEnabled = data.recallEnabled === true;
+            if (!recallEnabled) closeRecallMenu();
+        }
         phoneAvatarKey = resolvePhoneAvatarKey(data);
         avatarGrouping = normalizeAvatarGrouping(data.avatarGrouping);
         renderPeerHeader(name, phoneAvatarKey);
@@ -632,6 +637,7 @@
         let longPressTimer = null;
         let pressX = 0, pressY = 0;
         bubble.addEventListener('pointerdown', (e) => {
+            if (!recallEnabled) return;
             // 鼠标只接受左键；触摸 / 笔不区分。
             if (e.pointerType === 'mouse' && e.button !== 0) return;
             // 文件气泡里的 <a> 点击下载，不要被长按拦截——但移动设备上 <a>
@@ -656,6 +662,7 @@
     }
 
     function showRecallMenu(messageId, x, y) {
+        if (!recallEnabled) return;
         closeRecallMenu();
         // 外层仍是 fixed 定位到指针坐标的手写容器——mdui-dropdown 的 anchor 模型不支持
         // 任意屏幕坐标 + 动态气泡长按触发，硬换会倒退。内部换成官方 mdui-menu / menu-item，
@@ -700,6 +707,7 @@
      * 用 mdui-dialog 弹一个简单的确认窗。点击"撤回"才真正调 DELETE。
      */
     function confirmRecallMessage(messageId) {
+        if (!recallEnabled) return;
         const dialog = document.getElementById('recall-confirm-dialog');
         if (!dialog) {
             // 回退：mdui 没加载，直接走 native confirm。
@@ -723,6 +731,7 @@
     }
 
     async function doRecallMessage(messageId) {
+        if (!recallEnabled) return;
         try {
             const r = await fetch(`/api/messages/${messageId}`, {
                 method: 'DELETE',
@@ -733,7 +742,12 @@
                 removeMessageNode(messageId);
                 if (window.flikky && window.flikky.showInfo) window.flikky.showInfo('消息已撤回');
             } else if (r.status === 403) {
-                if (window.flikky && window.flikky.showError) window.flikky.showError('只能撤回自己发的消息');
+                let error = null;
+                try { error = await r.json(); } catch (_) {}
+                const message = error && error.error === 'recall_disabled'
+                    ? '消息撤回未开启'
+                    : '只能撤回自己发的消息';
+                if (window.flikky && window.flikky.showError) window.flikky.showError(message);
             } else {
                 if (window.flikky && window.flikky.showError) window.flikky.showError('撤回失败');
             }

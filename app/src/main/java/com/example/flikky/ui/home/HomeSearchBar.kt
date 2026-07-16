@@ -21,8 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -33,12 +31,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -50,15 +47,15 @@ import com.example.flikky.R
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
+import com.example.flikky.ui.components.ImportExportOverflowMenu
 import com.example.flikky.ui.search.SearchViewModel
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import java.text.SimpleDateFormat
 import java.util.Date
-import java.util.Locale
 
 /**
- * 主页顶部 SearchBar：折叠态取代顶栏（去标题），trailing overflow 收纳「导入」。
+ * 主页顶部 SearchBar：折叠态取代顶栏（去标题），trailing overflow 收纳会话导入与导出。
  * 原地展开为全屏搜索，结果分「会话」（名称匹配）+「消息」（FTS，复用 SearchViewModel）两组。
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,6 +68,7 @@ fun HomeSearchBar(
     onResume: () -> Unit,
     onOpenMessageHit: (sessionId: Long, messageId: Long) -> Unit,
     onImport: () -> Unit,
+    onExport: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val ctx = LocalContext.current
@@ -136,21 +134,12 @@ fun HomeSearchBar(
                             }
                         }
                     } else {
-                        var menu by remember { mutableStateOf(false) }
-                        Box {
-                            IconButton(onClick = { menu = true }) {
-                                Icon(painterResource(R.drawable.ic_more_vert), contentDescription = "更多")
-                            }
-                            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                                DropdownMenuItem(
-                                    text = { Text("导入") },
-                                    onClick = { menu = false; onImport() },
-                                    leadingIcon = {
-                                        Icon(painterResource(R.drawable.ic_file_download), contentDescription = null)
-                                    },
-                                )
-                            }
-                        }
+                        ImportExportOverflowMenu(
+                            importLabel = "导入会话",
+                            exportLabel = "导出会话",
+                            onImport = onImport,
+                            onExport = onExport,
+                        )
                     }
                 },
             )
@@ -242,6 +231,7 @@ private fun MessageHitRow(
     hit: SessionRepository.SearchHit,
     onClick: () -> Unit,
 ) {
+    val locale = LocalLocale.current.platformLocale
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -273,7 +263,7 @@ private fun MessageHitRow(
             )
         }
         Text(
-            SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(hit.timestamp)),
+            SimpleDateFormat("MM-dd HH:mm", locale).format(Date(hit.timestamp)),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

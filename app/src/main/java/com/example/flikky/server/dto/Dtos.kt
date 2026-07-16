@@ -150,6 +150,7 @@ data class PeerInfoDto(
     // 默认 18 与 data.settings.BUBBLE_CORNER_DEFAULT 对齐；DTO 不依赖 data 层，故此处内联。
     val bubbleCornerRadius: Int = 18,
     val avatarGrouping: String = "FIRST",
+    val recallEnabled: Boolean,
 )
 
 @Serializable

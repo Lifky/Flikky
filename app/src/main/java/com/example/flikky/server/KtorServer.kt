@@ -51,6 +51,7 @@ class KtorServer(
      */
     private val onRecallMessage: suspend (messageId: Long, callerSenderId: String) -> ServerRecallOutcome =
         { _, _ -> ServerRecallOutcome.NotFound },
+    private val recallEnabled: () -> Boolean = { false },
     private val nowMs: () -> Long = System::currentTimeMillis,
     private val mode: ServiceMode = ServiceMode.Transfer,
     private val requirePin: Boolean = true,
@@ -62,7 +63,12 @@ class KtorServer(
      * blocking on a Flow — rebind-safe by construction (read at call time).
      */
     private val peerInfoProvider: () -> PeerInfoDto = {
-        PeerInfoDto(deviceName = "Flikky", phoneAvatarId = 0, backgroundMode = "DEFAULT")
+        PeerInfoDto(
+            deviceName = "Flikky",
+            phoneAvatarId = 0,
+            backgroundMode = "DEFAULT",
+            recallEnabled = false,
+        )
     },
 ) {
     private var engine: EmbeddedServer<*, *>? = null
@@ -138,6 +144,7 @@ class KtorServer(
             broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
             nowMs = nowMs,
             recallHandler = onRecallMessage,
+            recallEnabled = recallEnabled,
         )
         fileRoutes(
             session = session,

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -45,6 +48,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,18 +56,24 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.flikky.export.ExportFileName
+import com.example.flikky.export.ExportScope
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
+import com.example.flikky.ui.components.ImportExportOverflowMenu
 import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.setPlainText
+import com.example.flikky.ui.exporting.ArchiveViewModel
+import com.example.flikky.ui.exporting.ExportDestinationSheet
 import com.example.flikky.ui.home.GroupChips
 import com.example.flikky.ui.home.GroupManageDialog
 import com.example.flikky.ui.home.MoveToGroupSheet
 import com.example.flikky.ui.theme.Spacing
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,7 +81,9 @@ import kotlinx.coroutines.launch
 fun FavoritesScreen(
     onSelectingChange: (Boolean) -> Unit = {},
     onSearchExpandedChange: (Boolean) -> Unit = {},
+    onExportReady: () -> Unit = {},
     viewModel: FavoritesViewModel = viewModel(),
+    archiveViewModel: ArchiveViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
 ) {
     val items by viewModel.items.collectAsState(initial = emptyList())
     val groups by viewModel.groups.collectAsState(initial = emptyList())
@@ -93,6 +105,72 @@ fun FavoritesScreen(
     var showMoveSheet by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showAddFavoriteSheet by remember { mutableStateOf(false) }
+    var showImportProgress by remember { mutableStateOf(false) }
+    var showExportProgress by remember { mutableStateOf(false) }
+    var exportProgressTitle by remember { mutableStateOf("正在准备导出...") }
+    var showExportDestination by rememberSaveable { mutableStateOf(false) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            showImportProgress = true
+            scope.launch {
+                val message = try {
+                    val result = archiveViewModel.importFavoritesFromZip(uri)
+                    buildString {
+                        if (result.importedFavorites > 0) {
+                            append("已导入 ${result.importedFavorites} 条收藏")
+                        }
+                        if (result.skippedFavorites > 0) {
+                            if (isNotEmpty()) append("，")
+                            append("跳过 ${result.skippedFavorites} 个重复")
+                        }
+                        if (result.errors.isNotEmpty()) {
+                            if (isNotEmpty()) append("，")
+                            append("${result.errors.size} 个失败")
+                        }
+                        if (isEmpty()) append("未找到可导入的收藏")
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    "导入失败，请确认所选文件是 Flikky zip 归档"
+                } finally {
+                    showImportProgress = false
+                }
+                snackbarHostState.showSnackbar(message)
+            }
+        }
+    }
+
+    val localExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        if (uri != null) {
+            exportProgressTitle = "正在保存..."
+            showExportProgress = true
+            scope.launch {
+                val result = try {
+                    archiveViewModel.saveExport(ExportScope.FAVORITES, uri)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                } finally {
+                    showExportProgress = false
+                }
+                val message = when (result) {
+                    ArchiveViewModel.ExportStartResult.Success -> "已保存到所选位置"
+                    ArchiveViewModel.ExportStartResult.NoFavorites -> "暂无收藏可导出"
+                    ArchiveViewModel.ExportStartResult.TransferRunning,
+                    ArchiveViewModel.ExportStartResult.UseSessionSelection,
+                    null -> "保存失败，请重试或选择其他位置"
+                }
+                snackbarHostState.showSnackbar(message)
+            }
+        }
+    }
     val pickFavoriteFile = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri ->
@@ -151,10 +229,22 @@ fun FavoritesScreen(
                             placeholder = { Text("搜索收藏") },
                             leadingIcon = { Icon(Icons.Default.Search, contentDescription = "搜索") },
                             trailingIcon = {
-                                if (query.isNotBlank()) {
-                                    IconButton(onClick = viewModel::clearQuery) {
-                                        Icon(Icons.Default.Close, contentDescription = "清空搜索")
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    if (query.isNotBlank()) {
+                                        IconButton(onClick = viewModel::clearQuery) {
+                                            Icon(Icons.Default.Close, contentDescription = "清空搜索")
+                                        }
                                     }
+                                    ImportExportOverflowMenu(
+                                        importLabel = "导入收藏",
+                                        exportLabel = "导出收藏",
+                                        onImport = {
+                                            importLauncher.launch(
+                                                arrayOf("application/zip", "application/x-zip-compressed")
+                                            )
+                                        },
+                                        onExport = { showExportDestination = true },
+                                    )
                                 }
                             },
                         )
@@ -254,6 +344,69 @@ fun FavoritesScreen(
                 )
             }
         }
+    }
+
+    if (showImportProgress) {
+        AlertDialog(
+            onDismissRequest = {},
+            confirmButton = {},
+            title = { Text("正在导入...") },
+            text = {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            },
+        )
+    }
+
+    if (showExportProgress) {
+        AlertDialog(
+            onDismissRequest = {},
+            confirmButton = {},
+            title = { Text(exportProgressTitle) },
+            text = {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            },
+        )
+    }
+
+    if (showExportDestination) {
+        ExportDestinationSheet(
+            onSaveLocal = {
+                showExportDestination = false
+                localExportLauncher.launch(
+                    ExportFileName.build(ExportScope.FAVORITES, System.currentTimeMillis())
+                )
+            },
+            onDownloadToComputer = {
+                showExportDestination = false
+                exportProgressTitle = "正在准备导出..."
+                showExportProgress = true
+                scope.launch {
+                    val result = try {
+                        archiveViewModel.startExport(ExportScope.FAVORITES)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        null
+                    } finally {
+                        showExportProgress = false
+                    }
+                    when (result) {
+                        ArchiveViewModel.ExportStartResult.Success -> onExportReady()
+                        ArchiveViewModel.ExportStartResult.NoFavorites ->
+                            snackbarHostState.showSnackbar("暂无收藏可导出")
+                        ArchiveViewModel.ExportStartResult.TransferRunning ->
+                            snackbarHostState.showSnackbar("请先停止当前传输或导出")
+                        ArchiveViewModel.ExportStartResult.UseSessionSelection,
+                        null -> snackbarHostState.showSnackbar("准备导出失败，请重试")
+                    }
+                }
+            },
+            onDismiss = { showExportDestination = false },
+        )
     }
 
     if (showCreateGroup) {

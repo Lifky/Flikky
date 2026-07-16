@@ -255,6 +255,7 @@ fun HomeScreen(
                     onResume = { resumeNavigate() },
                     onOpenMessageHit = onOpenSearchHit,
                     onImport = { importLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed")) },
+                    onExport = viewModel::enterSelecting,
                 )
             } else {
                 LaunchedEffect(Unit) { onSearchExpandedChange(false) }

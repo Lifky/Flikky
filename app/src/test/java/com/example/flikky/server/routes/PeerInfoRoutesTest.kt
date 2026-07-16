@@ -39,6 +39,7 @@ class PeerInfoRoutesTest {
         phoneAvatarId = 3,
         backgroundMode = "GRADIENT",
         backgroundValue = "sunset",
+        recallEnabled = false,
     )
 
     private fun setupApp(provider: () -> PeerInfoDto): io.ktor.server.application.Application.() -> Unit = {
@@ -87,6 +88,20 @@ class PeerInfoRoutesTest {
         // bubbleCornerRadius defaults to 18 and is serialized so the browser can mirror it.
         assertEquals(18, body["bubbleCornerRadius"]!!.jsonPrimitive.int)
         assertEquals("FIRST", body["avatarGrouping"]!!.jsonPrimitive.content)
+        assertEquals(false, body["recallEnabled"]!!.jsonPrimitive.boolean)
+    }
+
+    @Test
+    fun `peer-info carries recall availability`() = testApplication {
+        application(setupApp { testPeerInfo.copy(recallEnabled = true) })
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        val resp: HttpResponse = http.get("/api/peer-info")
+        assertEquals(HttpStatusCode.OK, resp.status)
+
+        val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
+        assertEquals(true, body["recallEnabled"]!!.jsonPrimitive.boolean)
     }
 
     @Test

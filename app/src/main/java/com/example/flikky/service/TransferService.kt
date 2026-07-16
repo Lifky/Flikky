@@ -411,6 +411,7 @@ class TransferService : Service() {
                 is SessionRepository.RecallOutcome.Denied -> ServerRecallOutcome.Denied // unreachable since v1.5.0 — recallMessage never returns Denied
             }
         },
+        recallEnabled = { latestSettings.recallBetaEnabled },
         mode = ServiceMode.Transfer,
         requirePin = currentRequirePin,
         // M9: lambda reads the @Volatile field (not a closure-captured local) so
@@ -636,6 +637,7 @@ class TransferService : Service() {
                 themeDark = resolvedDark,
                 bubbleCornerRadius = bubbleCornerRadius,
                 avatarGrouping = avatarGrouping.name,
+                recallEnabled = recallBetaEnabled,
             )
         }
 

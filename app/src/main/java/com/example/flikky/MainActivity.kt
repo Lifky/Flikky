@@ -163,6 +163,7 @@ class MainActivity : ComponentActivity() {
                                         FavoritesScreen(
                                             onSelectingChange = { favoritesSelecting = it },
                                             onSearchExpandedChange = { favoritesSearchExpanded = it },
+                                            onExportReady = { nav.navigate("exporting") },
                                         )
                                     } else {
                                         LaunchedEffect(Unit) {

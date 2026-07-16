@@ -1,5 +1,6 @@
 package com.example.flikky.ui.settings
 
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -54,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
@@ -75,6 +77,7 @@ import com.example.flikky.ui.components.Avatar
 import com.example.flikky.ui.components.ChoiceDialog
 import com.example.flikky.ui.components.ChoiceRow
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.exporting.ArchiveViewModel
 import com.example.flikky.ui.exporting.ExportDestinationSheet
 import com.example.flikky.ui.settings.components.SettingItem
 import com.example.flikky.ui.settings.components.SettingSection
@@ -100,10 +103,19 @@ fun SettingsScreen(
     onExportSessions: () -> Unit,
     onExportReady: () -> Unit,
     viewModel: SettingsViewModel = viewModel(),
+    archiveViewModel: ArchiveViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
 ) {
+    val context = LocalContext.current
     val s by viewModel.settings.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val versionLabel = remember(context) {
+        context.packageManager
+            .getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
+            .versionName
+            ?.let { "v$it" }
+            ?: "未知"
+    }
 
     // Sheet / dialog state
     var activeSheet by remember { mutableStateOf<ActiveSheet?>(null) }
@@ -128,7 +140,7 @@ fun SettingsScreen(
             showImportProgress = true
             scope.launch {
                 val message = try {
-                    val result = viewModel.importFromZip(uri)
+                    val result = archiveViewModel.importFromZip(uri)
                     buildString {
                         if (result.importedSessions > 0)
                             append("已导入 ${result.importedSessions} 个会话")
@@ -173,7 +185,7 @@ fun SettingsScreen(
             showExportProgress = true
             scope.launch {
                 val result = try {
-                    viewModel.saveExport(exportScope, uri)
+                    archiveViewModel.saveExport(exportScope, uri)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
@@ -182,10 +194,10 @@ fun SettingsScreen(
                     showExportProgress = false
                 }
                 val message = when (result) {
-                    SettingsViewModel.ExportStartResult.Success -> "已保存到所选位置"
-                    SettingsViewModel.ExportStartResult.NoFavorites -> "暂无收藏可导出"
-                    SettingsViewModel.ExportStartResult.TransferRunning,
-                    SettingsViewModel.ExportStartResult.UseSessionSelection,
+                    ArchiveViewModel.ExportStartResult.Success -> "已保存到所选位置"
+                    ArchiveViewModel.ExportStartResult.NoFavorites -> "暂无收藏可导出"
+                    ArchiveViewModel.ExportStartResult.TransferRunning,
+                    ArchiveViewModel.ExportStartResult.UseSessionSelection,
                     null -> "保存失败，请重试或选择其他位置"
                 }
                 snackbarHostState.showSnackbar(message)
@@ -198,7 +210,7 @@ fun SettingsScreen(
         showExportProgress = true
         scope.launch {
             val result = try {
-                viewModel.startExport(exportScope)
+                archiveViewModel.startExport(exportScope)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -207,12 +219,12 @@ fun SettingsScreen(
                 showExportProgress = false
             }
             when (result) {
-                SettingsViewModel.ExportStartResult.Success -> onExportReady()
-                SettingsViewModel.ExportStartResult.NoFavorites ->
+                ArchiveViewModel.ExportStartResult.Success -> onExportReady()
+                ArchiveViewModel.ExportStartResult.NoFavorites ->
                     snackbarHostState.showSnackbar("暂无收藏可导出")
-                SettingsViewModel.ExportStartResult.TransferRunning ->
+                ArchiveViewModel.ExportStartResult.TransferRunning ->
                     snackbarHostState.showSnackbar("请先停止当前传输或导出")
-                SettingsViewModel.ExportStartResult.UseSessionSelection -> onExportSessions()
+                ArchiveViewModel.ExportStartResult.UseSessionSelection -> onExportSessions()
                 null -> snackbarHostState.showSnackbar("准备导出失败，请重试")
             }
         }
@@ -555,7 +567,13 @@ fun SettingsScreen(
                     SettingItem(
                         title = "版本",
                         leadingIcon = painterResource(R.drawable.ic_info),
-                        subtitle = "v1.11.0",
+                        trailing = {
+                            Text(
+                                text = versionLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
                         index = 0, total = sectionItems,
                     )
                     SettingItem(

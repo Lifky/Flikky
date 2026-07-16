@@ -32,6 +32,7 @@ fun Route.messageRoutes(
      * server 包因此不依赖 data 包。
      */
     recallHandler: suspend (messageId: Long, callerSenderId: String) -> ServerRecallOutcome,
+    recallEnabled: () -> Boolean = { false },
 ) {
     fun requireAuth(call: ApplicationCall): Boolean {
         val token = call.request.cookies[AUTH_COOKIE]
@@ -107,6 +108,10 @@ fun Route.messageRoutes(
      */
     delete("/api/messages/{id}") {
         if (!requireAuth(call)) { call.respond(HttpStatusCode.Unauthorized); return@delete }
+        if (!recallEnabled()) {
+            call.respond(HttpStatusCode.Forbidden, mapOf("error" to "recall_disabled"))
+            return@delete
+        }
         val id = call.parameters["id"]?.toLongOrNull()
             ?: run { call.respond(HttpStatusCode.BadRequest, mapOf("error" to "invalid_id")); return@delete }
         val senderId = call.request.headers["X-Client-Id"]

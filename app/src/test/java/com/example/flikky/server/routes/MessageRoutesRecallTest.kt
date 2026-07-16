@@ -46,6 +46,7 @@ class MessageRoutesRecallTest {
     private fun setupApp(
         recallHandler: suspend (Long, String) -> ServerRecallOutcome,
         captureBroadcast: ((String, String) -> Unit)? = null,
+        recallEnabled: () -> Boolean = { true },
     ): io.ktor.server.application.Application.() -> Unit = {
         install(ContentNegotiation) { json() }
         routing {
@@ -60,6 +61,7 @@ class MessageRoutesRecallTest {
                 broadcastEvent = { type, payload -> captureBroadcast?.invoke(type, payload) },
                 nowMs = { 0L },
                 recallHandler = recallHandler,
+                recallEnabled = recallEnabled,
             )
         }
     }
@@ -97,6 +99,31 @@ class MessageRoutesRecallTest {
         assertEquals(HttpStatusCode.BadRequest, resp.status)
         val err = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
         assertEquals("invalid_id", err["error"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `DELETE when recall is disabled returns 403 without invoking handler`() = testApplication {
+        var handlerInvoked = false
+        application(
+            setupApp(
+                recallHandler = { _, _ ->
+                    handlerInvoked = true
+                    ServerRecallOutcome.Success(messageId = 123L, sessionId = 7L)
+                },
+                recallEnabled = { false },
+            ),
+        )
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        val resp: HttpResponse = http.delete("/api/messages/123") {
+            header("X-Client-Id", "phone-abc")
+        }
+
+        assertEquals(HttpStatusCode.Forbidden, resp.status)
+        val err = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
+        assertEquals("recall_disabled", err["error"]!!.jsonPrimitive.content)
+        assertEquals(false, handlerInvoked)
     }
 
     @Test

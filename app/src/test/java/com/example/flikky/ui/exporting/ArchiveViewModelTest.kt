@@ -1,4 +1,4 @@
-package com.example.flikky.ui.settings
+package com.example.flikky.ui.exporting
 
 import android.app.Application
 import android.content.Intent
@@ -13,9 +13,11 @@ import com.example.flikky.export.ExportScope
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.export.FavoriteExport
 import com.example.flikky.export.SettingsExport
+import com.example.flikky.export.ZipExporter
 import com.example.flikky.service.TransferService
 import com.example.flikky.session.SessionState
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
@@ -33,7 +35,7 @@ import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
-class SettingsViewModelExportTest {
+class ArchiveViewModelTest {
     private lateinit var app: Application
     private lateinit var settingsRepo: SettingsRepository
     private lateinit var sessionRepo: SessionRepository
@@ -50,11 +52,11 @@ class SettingsViewModelExportTest {
         sessionState = SessionState(nowMs = { 0L })
     }
 
-    private fun buildVm() = SettingsViewModel(
+    private fun buildVm() = ArchiveViewModel(
         app = app,
-        repo = settingsRepo,
-        sessionRepo = sessionRepo,
-        favoritesRepo = favoritesRepo,
+        settingsRepository = settingsRepo,
+        sessionRepository = sessionRepo,
+        favoritesRepository = favoritesRepo,
         sessionState = sessionState,
         pinGenerator = { "246810" },
         now = { 123L },
@@ -62,11 +64,11 @@ class SettingsViewModelExportTest {
 
     private fun buildVm(
         localExportWriter: suspend (Uri, ExportSnapshot) -> Unit,
-    ) = SettingsViewModel(
+    ) = ArchiveViewModel(
         app = app,
-        repo = settingsRepo,
-        sessionRepo = sessionRepo,
-        favoritesRepo = favoritesRepo,
+        settingsRepository = settingsRepo,
+        sessionRepository = sessionRepo,
+        favoritesRepository = favoritesRepo,
         sessionState = sessionState,
         pinGenerator = { "246810" },
         now = { 123L },
@@ -90,7 +92,7 @@ class SettingsViewModelExportTest {
 
         val result = buildVm().startExport(ExportScope.FAVORITES)
 
-        assertTrue(result is SettingsViewModel.ExportStartResult.Success)
+        assertTrue(result is ArchiveViewModel.ExportStartResult.Success)
         val armed = sessionState.exportMode.value as ExportMode.Armed
         assertEquals(ExportScope.FAVORITES, armed.snapshot.scope)
         assertEquals(1, armed.snapshot.favorites.size)
@@ -109,7 +111,7 @@ class SettingsViewModelExportTest {
 
         val result = buildVm().startExport(ExportScope.FAVORITES)
 
-        assertTrue(result is SettingsViewModel.ExportStartResult.NoFavorites)
+        assertTrue(result is ArchiveViewModel.ExportStartResult.NoFavorites)
         assertTrue(sessionState.exportMode.value is ExportMode.Idle)
         verify(exactly = 0) { app.startForegroundService(any()) }
     }
@@ -133,7 +135,7 @@ class SettingsViewModelExportTest {
 
         val result = buildVm().startExport(ExportScope.ALL)
 
-        assertTrue(result is SettingsViewModel.ExportStartResult.Success)
+        assertTrue(result is ArchiveViewModel.ExportStartResult.Success)
         val armed = sessionState.exportMode.value as ExportMode.Armed
         assertEquals(ExportScope.ALL, armed.snapshot.scope)
         assertEquals("Phone", armed.snapshot.settings?.deviceName)
@@ -161,7 +163,7 @@ class SettingsViewModelExportTest {
         val result = buildVm { target, snapshot -> written = target to snapshot }
             .saveExport(ExportScope.FAVORITES, uri)
 
-        assertTrue(result is SettingsViewModel.ExportStartResult.Success)
+        assertTrue(result is ArchiveViewModel.ExportStartResult.Success)
         assertEquals(uri, written?.first)
         assertEquals(ExportScope.FAVORITES, written?.second?.scope)
         assertTrue(sessionState.exportMode.value is ExportMode.Idle)
@@ -176,7 +178,7 @@ class SettingsViewModelExportTest {
         val result = buildVm { _, snapshot -> written = snapshot }
             .saveExport(ExportScope.SETTINGS, uri)
 
-        assertTrue(result is SettingsViewModel.ExportStartResult.Success)
+        assertTrue(result is ArchiveViewModel.ExportStartResult.Success)
         assertEquals(ExportScope.SETTINGS, written?.scope)
         assertEquals("Phone", written?.settings?.deviceName)
     }
@@ -194,7 +196,7 @@ class SettingsViewModelExportTest {
         val result = buildVm { _, snapshot -> written = snapshot }
             .saveExport(ExportScope.ALL, uri)
 
-        assertTrue(result is SettingsViewModel.ExportStartResult.Success)
+        assertTrue(result is ArchiveViewModel.ExportStartResult.Success)
         assertEquals(ExportScope.ALL, written?.scope)
         assertEquals("Phone", written?.settings?.deviceName)
     }
@@ -211,5 +213,39 @@ class SettingsViewModelExportTest {
         val result = buildVm().importFromZip(uri)
 
         assertEquals(listOf("无法打开 zip"), result.errors)
+    }
+
+    @Test fun favorites_import_does_not_restore_sessions_or_settings() = runTest {
+        val archive = File(app.cacheDir, "favorites.zip")
+        archive.outputStream().use { output ->
+            ZipExporter.write(
+                out = output,
+                snapshot = ExportSnapshot(
+                    exportedAt = 123L,
+                    scope = ExportScope.FAVORITES,
+                    favorites = listOf(
+                        FavoriteExport(
+                            id = 1L,
+                            sourceSessionId = 2L,
+                            sourceMessageId = 3L,
+                            kind = "TEXT",
+                            textContent = "note",
+                            createdAt = 4L,
+                        ),
+                    ),
+                ),
+                fileResolver = { _, _ -> null },
+            )
+        }
+        coEvery { favoritesRepo.importBackup(any(), any(), any()) } returns
+            FavoritesRepository.ImportResult(imported = 1, skipped = 0, errors = emptyList())
+
+        val result = buildVm().importFavoritesFromZip(Uri.fromFile(archive))
+
+        assertEquals(1, result.importedFavorites)
+        assertEquals(0, result.importedSessions)
+        assertEquals(false, result.settingsImported)
+        coVerify(exactly = 0) { sessionRepo.importSessions(any()) }
+        coVerify(exactly = 0) { settingsRepo.importBackup(any()) }
     }
 }

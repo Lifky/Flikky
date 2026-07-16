@@ -174,6 +174,11 @@ function createDocument() {
     body: new Element('body'),
     documentElement: new Element('html'),
     createElement: (tag) => new Element(tag),
+    createTextNode: (text) => {
+      const node = new Element('#text');
+      node.textContent = text;
+      return node;
+    },
     getElementById: (id) => ids.get(id) || Array.from(ids.values()).map((el) => findById(el, id)).find(Boolean) || null,
     addEventListener() {},
     removeEventListener() {},
@@ -205,7 +210,7 @@ function loadAppForTest() {
   const source = fs.readFileSync(appPath, 'utf8');
   const patched = source.replace(
     /(\s*)setSendEnabled\(false\);\s*loadHistory\(\)\.then\(openWs\);\s*\}\)\(\);/,
-    "$1setSendEnabled(false);\n$1window.__flikkyWebTest = { renderText, removeMessageNode, onWsEvent, list, peerAvatar: document.getElementById('peer-avatar') };\n})();",
+    "$1setSendEnabled(false);\n$1window.__flikkyWebTest = { renderText, removeMessageNode, onWsEvent, showRecallMenu, closeRecallMenu, hasRecallMenu: () => document.body.children.some((child) => child.id === 'recall-menu'), list, peerAvatar: document.getElementById('peer-avatar') };\n})();",
   );
 
   if (patched === source) {
@@ -299,6 +304,20 @@ function runGroupingModeTest(mode, expected) {
 runGroupingModeTest('FIRST', ['avatar', 'spacer', 'spacer']);
 runGroupingModeTest('LAST', ['spacer', 'spacer', 'avatar']);
 runGroupingModeTest('EACH', ['avatar', 'avatar', 'avatar']);
+
+function runRecallFeatureGateTest() {
+  const app = loadAppForTest();
+
+  app.showRecallMenu(1, 0, 0);
+  assertDeepEqual(app.hasRecallMenu(), false, 'recall menu must stay hidden when recall is disabled');
+
+  app.onWsEvent({ type: 'settings_changed', payload: { recallEnabled: true } });
+  app.showRecallMenu(1, 0, 0);
+  assertDeepEqual(app.hasRecallMenu(), true, 'recall menu should be available when recall is enabled');
+  app.closeRecallMenu();
+}
+
+runRecallFeatureGateTest();
 
 function runPartialSettingsDoesNotResetPhoneAvatarTest() {
   const app = loadAppForTest();
