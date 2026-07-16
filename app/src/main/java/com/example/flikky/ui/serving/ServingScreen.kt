@@ -51,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.animation.AnimatedContent
@@ -103,6 +104,18 @@ fun ServingScreen(
     var showPeerAvatarPicker by remember { mutableStateOf(false) }
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
+    val favoriteLabel = stringResource(R.string.serving_favorite)
+    val unfavoriteLabel = stringResource(R.string.serving_unfavorite)
+    val copyLabel = stringResource(R.string.serving_copy)
+    val openLabel = stringResource(R.string.serving_open)
+    val recallLabel = stringResource(R.string.serving_recall)
+    val deleteLabel = stringResource(R.string.serving_delete)
+    val deletedMessage = stringResource(R.string.serving_deleted)
+    val undoLabel = stringResource(R.string.serving_undo)
+    val backBlockedMessage = stringResource(R.string.serving_back_blocked)
+    val favoriteSentMessage = stringResource(R.string.serving_favorite_sent)
+    val favoriteSourceMissingMessage = stringResource(R.string.serving_favorite_source_missing)
+    val activeSessionName = stringResource(R.string.serving_active_session)
     val pickFile = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent()
     ) { uri -> uri?.let { viewModel.offerFile(it) } }
@@ -147,7 +160,7 @@ fun ServingScreen(
             if (sid != null) {
                 add(MessageAction(
                     icon = if (faved) starPainter else starBorderPainter,
-                    label = if (faved) "取消收藏" else "收藏",
+                    label = if (faved) unfavoriteLabel else favoriteLabel,
                     onClick = {
                         actionTarget = null
                         if (faved) {
@@ -163,7 +176,7 @@ fun ServingScreen(
         if (msg is Message.Text) {
             add(MessageAction(
                 icon = copyPainter,
-                label = "复制",
+                label = copyLabel,
                 onClick = {
                     scope.launch { clipboard.setPlainText(msg.content) }
                     actionTarget = null
@@ -174,7 +187,7 @@ fun ServingScreen(
         if (msg is Message.File && msg.status == Message.File.Status.COMPLETED) {
             add(MessageAction(
                 icon = downloadPainter,
-                label = "打开",
+                label = openLabel,
                 onClick = {
                     viewModel.openFile(msg)
                     actionTarget = null
@@ -185,7 +198,7 @@ fun ServingScreen(
         if (settings.recallBetaEnabled && msg.origin == Origin.PHONE && !isFailed) {
             add(MessageAction(
                 icon = undoPainter,
-                label = "撤回",
+                label = recallLabel,
                 onClick = {
                     recallTarget = msg.id
                     actionTarget = null
@@ -195,7 +208,7 @@ fun ServingScreen(
         // 删除 — always present
         add(MessageAction(
             icon = deletePainter,
-            label = "删除",
+            label = deleteLabel,
             danger = true,
             onClick = {
                 val id = msg.id
@@ -203,8 +216,8 @@ fun ServingScreen(
                 viewModel.deleteLocalWithUndo(id)
                 scope.launch {
                     val result = snackbarHostState.showSnackbar(
-                        message = "已删除",
-                        actionLabel = "撤销",
+                        message = deletedMessage,
+                        actionLabel = undoLabel,
                         duration = SnackbarDuration.Short,
                     )
                     if (result == SnackbarResult.ActionPerformed) {
@@ -246,7 +259,7 @@ fun ServingScreen(
     androidx.activity.compose.BackHandler(
         enabled = actionTarget == null && !settings.allowBackDuringSession,
     ) {
-        scope.launch { snackbarHostState.showSnackbar("会话进行中，请点右上角停止服务以退出") }
+        scope.launch { snackbarHostState.showSnackbar(backBlockedMessage) }
     }
 
     LaunchedEffect(viewModel) {
@@ -308,7 +321,7 @@ fun ServingScreen(
                                 FilledTonalIconButton(onClick = { showQuickSettings = true }) {
                                     Icon(
                                         painter = painterResource(R.drawable.ic_settings),
-                                        contentDescription = "快捷设置",
+                                        contentDescription = stringResource(R.string.serving_quick_settings),
                                     )
                                 }
                                 FilledTonalIconButton(
@@ -320,7 +333,7 @@ fun ServingScreen(
                                 ) {
                                     Icon(
                                         painter = painterResource(R.drawable.ic_power),
-                                        contentDescription = "停止服务",
+                                        contentDescription = stringResource(R.string.serving_stop_service),
                                     )
                                 }
                             }
@@ -336,7 +349,7 @@ fun ServingScreen(
                         ) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                             Text(
-                                "等待浏览器连接…",
+                                stringResource(R.string.serving_waiting_browser),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -349,7 +362,7 @@ fun ServingScreen(
                                 contentColor = MaterialTheme.colorScheme.onErrorContainer,
                             ),
                             modifier = Modifier.align(Alignment.CenterHorizontally),
-                        ) { Text("停止服务") }
+                        ) { Text(stringResource(R.string.serving_stop_service)) }
                     }
                 }
             }
@@ -447,7 +460,7 @@ fun ServingScreen(
                 OutlinedTextField(
                     value = draft,
                     onValueChange = { draft = it },
-                    placeholder = { Text("输入消息") },
+                    placeholder = { Text(stringResource(R.string.serving_input_message)) },
                     modifier = Modifier.weight(1f),
                     maxLines = 4,
                     // 未连接时禁用输入框：不可点、不弹键盘，避免无连接时编辑/发送的边界态。
@@ -457,7 +470,7 @@ fun ServingScreen(
                     onClick = { showAttachSheet = true },
                     enabled = ui.clientConnected,
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "添加")
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.serving_add))
                 }
                 if (settings.favoriteBetaEnabled) {
                     IconButton(
@@ -468,7 +481,7 @@ fun ServingScreen(
                             painter = painterResource(
                                 if (showFavoriteQuickSheet) R.drawable.ic_star else R.drawable.ic_star_border
                             ),
-                            contentDescription = "收藏",
+                            contentDescription = stringResource(R.string.serving_favorite),
                         )
                     }
                 }
@@ -479,7 +492,7 @@ fun ServingScreen(
                 ) {
                     Icon(
                         painterResource(R.drawable.ic_arrow_upward),
-                        contentDescription = "发送",
+                        contentDescription = stringResource(R.string.serving_send),
                     )
                 }
             }
@@ -498,16 +511,16 @@ fun ServingScreen(
     recallTarget?.let { targetId ->
         AlertDialog(
             onDismissRequest = { recallTarget = null },
-            title = { Text("撤回这条消息？") },
-            text = { Text("撤回后两端都会消失，不可恢复。") },
+            title = { Text(stringResource(R.string.serving_recall_title)) },
+            text = { Text(stringResource(R.string.serving_recall_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     recallTarget = null
                     viewModel.recallMessage(targetId)
-                }) { Text("撤回") }
+                }) { Text(stringResource(R.string.serving_recall)) }
             },
             dismissButton = {
-                TextButton(onClick = { recallTarget = null }) { Text("取消") }
+                TextButton(onClick = { recallTarget = null }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -534,7 +547,7 @@ fun ServingScreen(
 
     if (showPeerAvatarPicker) {
         AvatarPickerSheet(
-            title = "选择浏览器头像",
+            title = stringResource(R.string.serving_choose_browser_avatar),
             currentKey = peerAvatarKey,
             fallbackKey = AvatarKey.DEFAULT_PEER,
             onSelect = { viewModel.setPeerAvatarKey(it); showPeerAvatarPicker = false },
@@ -550,7 +563,7 @@ fun ServingScreen(
             onSend = { favorite ->
                 viewModel.sendFavorite(favorite)
                 viewModel.recordRecentFavorite(favorite.id)
-                scope.launch { snackbarHostState.showSnackbar("已发送收藏") }
+                scope.launch { snackbarHostState.showSnackbar(favoriteSentMessage) }
             },
             onDismiss = { showFavoriteQuickSheet = false },
         )
@@ -564,8 +577,8 @@ fun ServingScreen(
                 pendingFavoriteMsg = null
                 if (sid == null) return@FavoriteGroupPickerSheet
                 scope.launch {
-                    runCatching { favoriteMessage(sid, "进行中会话", msg, groupId) }
-                        .onFailure { snackbarHostState.showSnackbar("收藏失败：源文件不存在") }
+                    runCatching { favoriteMessage(sid, activeSessionName, msg, groupId) }
+                        .onFailure { snackbarHostState.showSnackbar(favoriteSourceMissingMessage) }
                 }
             },
             onCreateGroup = { name ->
@@ -575,8 +588,8 @@ fun ServingScreen(
                     val target = pendingFavoriteMsg
                     pendingFavoriteMsg = null
                     if (sid != null && target != null) {
-                        runCatching { favoriteMessage(sid, "进行中会话", target, groupId) }
-                            .onFailure { snackbarHostState.showSnackbar("收藏失败：源文件不存在") }
+                        runCatching { favoriteMessage(sid, activeSessionName, target, groupId) }
+                            .onFailure { snackbarHostState.showSnackbar(favoriteSourceMissingMessage) }
                     }
                 }
             },

@@ -19,11 +19,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.flikky.R
 import com.example.flikky.data.settings.BUBBLE_CORNER_MAX
 import com.example.flikky.data.settings.BUBBLE_CORNER_MIN
 import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.DarkMode
+import com.example.flikky.ui.settings.localizedLabel
 import com.example.flikky.ui.theme.Spacing
 
 /**
@@ -62,7 +65,7 @@ fun QuickSettingsSheet(
                 .padding(bottom = Spacing.xxxl),
         ) {
             Text(
-                "快捷设置",
+                stringResource(R.string.quick_settings_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = Spacing.lg),
             )
@@ -72,7 +75,7 @@ fun QuickSettingsSheet(
                 mutableStateOf(bubbleCornerRadius.toFloat())
             }
             Text(
-                "气泡圆角 · ${radiusDraft.toInt()} dp",
+                stringResource(R.string.quick_settings_bubble_corner, radiusDraft.toInt()),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -86,15 +89,15 @@ fun QuickSettingsSheet(
             )
 
             Text(
-                "头像显示",
+                stringResource(R.string.quick_settings_avatar_display),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = Spacing.md, bottom = Spacing.sm),
             )
             val avatarModes = listOf(
-                AvatarGroupingMode.FIRST to "首条",
-                AvatarGroupingMode.LAST to "末条",
-                AvatarGroupingMode.EACH to "每条",
+                AvatarGroupingMode.FIRST to stringResource(R.string.quick_settings_avatar_first),
+                AvatarGroupingMode.LAST to stringResource(R.string.quick_settings_avatar_last),
+                AvatarGroupingMode.EACH to stringResource(R.string.quick_settings_avatar_each),
             )
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 avatarModes.forEachIndexed { index, (mode, label) ->
@@ -110,24 +113,20 @@ fun QuickSettingsSheet(
 
             // ── 深色模式 ──
             Text(
-                "深色模式",
+                stringResource(R.string.quick_settings_dark_mode),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = Spacing.md, bottom = Spacing.sm),
             )
-            val modes = listOf(
-                DarkMode.SYSTEM to "跟随系统",
-                DarkMode.LIGHT to "常亮",
-                DarkMode.DARK to "常暗",
-            )
+            val modes = DarkMode.entries
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                modes.forEachIndexed { index, (mode, label) ->
+                modes.forEachIndexed { index, mode ->
                     SegmentedButton(
                         selected = darkMode == mode,
                         onClick = { onSetDarkMode(mode) },
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
                     ) {
-                        Text(label)
+                        Text(mode.localizedLabel())
                     }
                 }
             }

@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_start_service">Start service</string>
+    <string name="home_continue_service">Continue session</string>
+    <string name="home_empty_group">No sessions in this group</string>
+    <string name="home_importing">Importing…</string>
+    <string name="home_saving">Saving…</string>
+    <plurals name="home_imported_sessions">
+        <item quantity="one">Imported %1$d session</item>
+        <item quantity="other">Imported %1$d sessions</item>
+    </plurals>
+    <plurals name="home_import_skipped">
+        <item quantity="one">Skipped %1$d duplicate</item>
+        <item quantity="other">Skipped %1$d duplicates</item>
+    </plurals>
+    <plurals name="home_import_failed_count">
+        <item quantity="one">%1$d failed</item>
+        <item quantity="other">%1$d failed</item>
+    </plurals>
+    <string name="home_import_empty">No importable sessions found</string>
+    <string name="home_export_saved">Saved to the selected location</string>
+    <string name="home_export_ineligible">The selected sessions can\'t be exported. They may still be active.</string>
+    <string name="home_select_sessions_first">Select at least one session</string>
+    <string name="home_save_failed">Couldn\'t save. Try again.</string>
+    <string name="home_save_failed_location">Couldn\'t save. Try again or choose another location.</string>
+    <string name="home_notification_denied">Notification permission was denied. The service is still running, but its status won\'t appear in notifications.</string>
+    <string name="home_stop_service_first">Stop the current service first</string>
+    <string name="home_all_groups">All</string>
+    <string name="home_group_fallback">Group</string>
+    <plurals name="home_sessions_moved">
+        <item quantity="one">Moved %1$d session to “%2$s”</item>
+        <item quantity="other">Moved %1$d sessions to “%2$s”</item>
+    </plurals>
+    <string name="home_new_group">New group</string>
+    <string name="home_group_deleted">Deleted group “%1$s”</string>
+    <string name="home_undo">Undo</string>
+    <plurals name="home_delete_sessions_title">
+        <item quantity="one">Delete %1$d session?</item>
+        <item quantity="other">Delete %1$d sessions?</item>
+    </plurals>
+    <string name="home_delete_sessions_text">All messages and files in the selected sessions will be permanently deleted.</string>
+    <string name="home_delete">Delete</string>
+    <plurals name="home_selected_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
+    <string name="home_close">Close</string>
+    <string name="home_select_all">Select all</string>
+    <string name="home_pin">Pin</string>
+    <string name="home_unpin">Unpin</string>
+    <string name="home_rename">Rename</string>
+    <string name="home_move_to_group">Move to group</string>
+    <string name="home_export">Export</string>
+    <string name="home_tagline">LAN file and message transfer</string>
+    <string name="home_empty">No previous sessions. Tap “Start service” to begin your first transfer.</string>
+    <string name="home_group_name">Group name</string>
+    <string name="home_selected">Selected</string>
+    <string name="home_not_selected">Not selected</string>
+    <string name="home_pinned">Pinned</string>
+    <string name="home_stop_to_select">Stop the service to select this session</string>
+    <string name="home_in_progress">In progress</string>
+    <string name="home_stop">Stop</string>
+    <plurals name="home_message_count">
+        <item quantity="one">%1$d message</item>
+        <item quantity="other">%1$d messages</item>
+    </plurals>
+    <plurals name="home_file_count">
+        <item quantity="one">%1$d file</item>
+        <item quantity="other">%1$d files</item>
+    </plurals>
+
+    <string name="home_search_placeholder">Search sessions and messages</string>
+    <string name="home_search_collapse">Collapse search</string>
+    <string name="home_search">Search</string>
+    <string name="home_search_clear">Clear</string>
+    <string name="home_import_sessions">Import sessions</string>
+    <string name="home_export_sessions">Export sessions</string>
+    <string name="home_search_hint">Enter a keyword to search sessions and messages</string>
+    <string name="home_search_empty">No matches found</string>
+    <string name="home_search_sessions">Sessions</string>
+    <string name="home_search_messages">Messages</string>
+    <string name="home_file">File</string>
+
+    <string name="home_manage_group">Manage group</string>
+    <string name="home_group_order">Order</string>
+    <string name="home_move_up">Move up</string>
+    <string name="home_move_down">Move down</string>
+    <string name="home_delete_group">Delete group</string>
+    <string name="home_save">Save</string>
+    <string name="home_move_sheet_title">Move to group</string>
+    <string name="home_move_out_of_group">All (remove from group)</string>
+
+    <string name="home_section_running">In progress</string>
+    <string name="home_section_pinned">Pinned</string>
+    <string name="home_section_ended">Ended</string>
+    <string name="home_section_today">Today</string>
+    <string name="home_section_yesterday">Yesterday</string>
+    <string name="home_section_earlier">Earlier</string>
+</resources>

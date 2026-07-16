@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.flikky.R
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.settings.AvatarGroupingMode
@@ -100,8 +101,8 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         // v1.3 对端撤回 snackbar：浏览器撤回消息后 TransferService 桥接
         // emit 到 ServiceLocator.recallNotifications → 这里转发到 events channel
         // → ServingScreen 弹 snackbar「对方撤回了一条消息」。
-        ServiceLocator.recallNotifications.onEach { msg ->
-            _events.trySend(msg)
+        ServiceLocator.recallNotifications.onEach {
+            _events.trySend(ctx.getString(R.string.serving_peer_recalled))
         }.launchIn(viewModelScope)
 
         combine(
@@ -179,7 +180,11 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         val mime = favorite.fileMime ?: "application/octet-stream"
         viewModelScope.launch {
             val sent = controller?.offerStoredFile(source, name, size, mime) == true
-            if (!sent) _events.trySend("收藏文件不存在")
+            if (!sent) {
+                _events.trySend(
+                    getApplication<Application>().getString(R.string.serving_favorite_file_missing)
+                )
+            }
         }
     }
 
@@ -189,16 +194,25 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun recallMessage(messageId: Long) {
         val ctrl = controller ?: run {
-            _events.trySend("无法撤回：服务已停止"); return
+            _events.trySend(
+                getApplication<Application>().getString(R.string.serving_recall_service_stopped)
+            )
+            return
         }
         viewModelScope.launch {
             when (ctrl.recallMessage(messageId)) {
                 is SessionRepository.RecallOutcome.Success ->
-                    _events.trySend("消息已撤回")
+                    _events.trySend(
+                        getApplication<Application>().getString(R.string.serving_recall_success)
+                    )
                 is SessionRepository.RecallOutcome.NotFound ->
-                    _events.trySend("消息已撤回")  // 真删后再撤等价 idempotent 成功
+                    _events.trySend(
+                        getApplication<Application>().getString(R.string.serving_recall_success)
+                    ) // 真删后再撤等价 idempotent 成功
                 is SessionRepository.RecallOutcome.Denied -> // unreachable since v1.5.0 — recallMessage never returns Denied
-                    _events.trySend("只能撤回自己发的消息")
+                    _events.trySend(
+                        getApplication<Application>().getString(R.string.serving_recall_denied)
+                    )
             }
         }
     }
@@ -213,19 +227,19 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         if (msg.status != Message.File.Status.COMPLETED) return
         val ctx = getApplication<Application>()
         val sid = ServiceLocator.session.snapshot.value.currentSessionId ?: run {
-            Toast.makeText(ctx, "无会话上下文", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, R.string.serving_no_session_context, Toast.LENGTH_SHORT).show()
             return
         }
         val f = File(File(File(ctx.filesDir, "sessions/$sid"), "files"), msg.fileId)
         if (!f.exists()) {
-            Toast.makeText(ctx, "文件不存在（服务重启后浏览器上传的文件会丢失）", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, R.string.serving_uploaded_file_missing, Toast.LENGTH_SHORT).show()
             return
         }
         val authority = "${ctx.packageName}.fileprovider"
         val uri = try {
             FileProvider.getUriForFile(ctx, authority, f, msg.name)
         } catch (e: IllegalArgumentException) {
-            Toast.makeText(ctx, "无法暴露此文件（FileProvider 路径未配置）", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, R.string.file_provider_unavailable, Toast.LENGTH_SHORT).show()
             return
         }
         val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -233,11 +247,11 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         try {
-            ctx.startActivity(Intent.createChooser(intent, "打开文件").apply {
+            ctx.startActivity(Intent.createChooser(intent, ctx.getString(R.string.file_open_chooser)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             })
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(ctx, "没有可以打开此类型文件的应用", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, R.string.file_no_handler, Toast.LENGTH_SHORT).show()
         }
     }
 

@@ -3,6 +3,7 @@ package com.example.flikky.ui.home
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
+import com.example.flikky.R
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flikky.data.SessionRepository
@@ -296,7 +297,12 @@ class HomeViewModel @JvmOverloads constructor(
                 tempFile.outputStream().use { out -> input.copyTo(out) }
             } ?: return SessionRepository.ImportResult(
                 emptyList(), emptyList(),
-                listOf(SessionRepository.ImportError("zip", "无法读取文件")),
+                listOf(
+                    SessionRepository.ImportError(
+                        "zip",
+                        ctx.getString(R.string.archive_read_failed),
+                    )
+                ),
             )
             return repository.importSessions(tempFile)
         } finally {

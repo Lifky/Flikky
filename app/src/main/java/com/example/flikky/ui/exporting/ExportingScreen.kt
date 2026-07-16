@@ -32,6 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.ui.components.ConnectionInfoCard
@@ -39,6 +41,7 @@ import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.theme.Spacing
 import com.example.flikky.export.ExportScope
+import com.example.flikky.R
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -136,10 +139,11 @@ private fun PhaseContainer(content: @Composable () -> Unit) {
     }
 }
 
+@Composable
 private fun topBarTitleFor(phase: ExportingUiState.Phase): String = when (phase) {
-    ExportingUiState.Phase.Armed -> "导出就绪"
-    ExportingUiState.Phase.Sending -> "正在发送"
-    ExportingUiState.Phase.Done -> "导出完成"
+    ExportingUiState.Phase.Armed -> stringResource(R.string.exporting_title_ready)
+    ExportingUiState.Phase.Sending -> stringResource(R.string.exporting_title_sending)
+    ExportingUiState.Phase.Done -> stringResource(R.string.exporting_title_done)
     ExportingUiState.Phase.Gone -> ""
 }
 
@@ -159,9 +163,9 @@ private fun ArmedContent(
 
         Text(
             text = if (requirePin) {
-                "在电脑浏览器打开上方地址，输入 PIN 后下载 zip。\n下载完成本页会自动跳转。"
+                stringResource(R.string.exporting_ready_with_pin)
             } else {
-                "在电脑浏览器打开上方地址即可下载 zip。\n下载完成本页会自动跳转。"
+                stringResource(R.string.exporting_ready_without_pin)
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -174,7 +178,7 @@ private fun ArmedContent(
             colors = ButtonDefaults.textButtonColors(
                 contentColor = MaterialTheme.colorScheme.error,
             ),
-        ) { Text("取消导出") }
+        ) { Text(stringResource(R.string.exporting_cancel)) }
     }
 }
 
@@ -194,7 +198,7 @@ private fun SendingContent(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            text = "浏览器正在下载 zip …",
+            text = stringResource(R.string.exporting_browser_downloading),
             style = MaterialTheme.typography.titleMedium,
         )
 
@@ -204,7 +208,11 @@ private fun SendingContent(
         )
 
         Text(
-            text = "已发送 ${formatSize(bytesSent)} / ${formatSize(totalBytes)}",
+            text = stringResource(
+                R.string.exporting_progress,
+                formatSize(bytesSent),
+                formatSize(totalBytes),
+            ),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -213,7 +221,7 @@ private fun SendingContent(
 
         TextButton(onClick = onCancel) {
             Text(
-                text = "取消导出",
+                text = stringResource(R.string.exporting_cancel),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -244,18 +252,26 @@ private fun DoneContent(
         )
         Text(
             text = when (scope) {
-                ExportScope.SESSIONS -> "已导出 $sessionCount 个会话到 PC"
-                ExportScope.FAVORITES -> "已导出 $favoriteCount 条收藏到 PC"
-                ExportScope.SETTINGS -> "已导出设置到 PC"
-                ExportScope.ALL -> "已导出全部数据到 PC"
+                ExportScope.SESSIONS -> pluralStringResource(
+                    R.plurals.exporting_sessions_done,
+                    sessionCount,
+                    sessionCount,
+                )
+                ExportScope.FAVORITES -> pluralStringResource(
+                    R.plurals.exporting_favorites_done,
+                    favoriteCount,
+                    favoriteCount,
+                )
+                ExportScope.SETTINGS -> stringResource(R.string.exporting_settings_done)
+                ExportScope.ALL -> stringResource(R.string.exporting_all_done)
             },
             style = MaterialTheme.typography.headlineSmall,
         )
         Text(
             text = if (scope == ExportScope.SESSIONS) {
-                "zip 已保存在电脑下载目录。现在可以选择保留本地副本，或在确认 zip 无误后删除本地。"
+                stringResource(R.string.exporting_sessions_saved_description)
             } else {
-                "zip 已保存在电脑下载目录，可随时通过设置中的“导入”恢复。"
+                stringResource(R.string.exporting_archive_saved_description)
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -264,7 +280,12 @@ private fun DoneContent(
         Spacer(Modifier.weight(1f))
 
         Button(onClick = onKeep, modifier = Modifier.fillMaxWidth()) {
-            Text(if (scope == ExportScope.SESSIONS) "保留本地" else "完成")
+            Text(
+                stringResource(
+                    if (scope == ExportScope.SESSIONS) R.string.exporting_keep_local
+                    else R.string.common_done,
+                )
+            )
         }
 
         if (scope == ExportScope.SESSIONS) {
@@ -274,18 +295,29 @@ private fun DoneContent(
                 colors = ButtonDefaults.textButtonColors(
                     contentColor = MaterialTheme.colorScheme.error,
                 ),
-            ) { Text("删除本地") }
+            ) { Text(stringResource(R.string.exporting_delete_local)) }
         }
     }
 
     if (showDeleteConfirm && scope == ExportScope.SESSIONS) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("确认删除本地 $sessionCount 条会话？") },
+            title = {
+                Text(
+                    pluralStringResource(
+                        R.plurals.exporting_delete_title,
+                        sessionCount,
+                        sessionCount,
+                    )
+                )
+            },
             text = {
                 Text(
-                    "将删除 $sessionCount 条会话与对应的所有文件，此操作不可撤销。" +
-                        "请先确认 zip 已保存到 PC 安全位置。"
+                    pluralStringResource(
+                        R.plurals.exporting_delete_message,
+                        sessionCount,
+                        sessionCount,
+                    )
                 )
             },
             confirmButton = {
@@ -297,10 +329,12 @@ private fun DoneContent(
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error,
                     ),
-                ) { Text("确认删除") }
+                ) { Text(stringResource(R.string.exporting_confirm_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) { Text("取消") }
+                TextButton(onClick = { showDeleteConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
             },
         )
     }

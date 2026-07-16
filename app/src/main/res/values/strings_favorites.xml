@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="favorites_title">收藏</string>
+    <string name="favorites_search">搜索收藏</string>
+    <string name="favorites_search_action">搜索</string>
+    <string name="favorites_clear_search">清空搜索</string>
+    <string name="favorites_import">导入收藏</string>
+    <string name="favorites_export">导出收藏</string>
+    <string name="favorites_add">添加收藏</string>
+    <string name="favorites_empty_search">没有匹配的收藏</string>
+    <string name="favorites_empty_group">该合集还没有收藏</string>
+    <string name="favorites_empty">点 + 添加本地文本或文件，也可以在消息或文件上点 ☆ 收藏</string>
+    <string name="favorites_copied">已复制</string>
+    <string name="favorites_sent">已发送收藏</string>
+    <string name="favorites_connect_browser">请先连接浏览器</string>
+    <string name="favorites_importing">正在导入…</string>
+    <string name="favorites_preparing_export">正在准备导出…</string>
+    <string name="favorites_saving">正在保存…</string>
+    <plurals name="favorites_imported">
+        <item quantity="other">已导入 %1$d 条收藏</item>
+    </plurals>
+    <plurals name="favorites_import_skipped">
+        <item quantity="other">跳过 %1$d 个重复</item>
+    </plurals>
+    <plurals name="favorites_import_failed_count">
+        <item quantity="other">%1$d 个失败</item>
+    </plurals>
+    <string name="favorites_import_empty">未找到可导入的收藏</string>
+    <string name="favorites_import_failed">导入失败，请确认所选文件是 Flikky zip 归档</string>
+    <string name="favorites_export_saved">已保存到所选位置</string>
+    <string name="favorites_export_empty">暂无收藏可导出</string>
+    <string name="favorites_export_save_failed">保存失败，请重试或选择其他位置</string>
+    <string name="favorites_file_added">已添加文件收藏</string>
+    <string name="favorites_file_add_failed">文件添加失败</string>
+    <string name="favorites_stop_transfer_first">请先停止当前传输或导出</string>
+    <string name="favorites_export_prepare_failed">准备导出失败，请重试</string>
+    <string name="favorites_new_group">新建合集</string>
+    <string name="favorites_group_deleted">已删除合集“%1$s”</string>
+    <plurals name="favorites_moved">
+        <item quantity="other">已移动 %1$d 个收藏</item>
+    </plurals>
+    <plurals name="favorites_delete_title">
+        <item quantity="other">删除 %1$d 个收藏</item>
+    </plurals>
+    <string name="favorites_delete_text">将删除收藏快照及对应副本文件。该操作不可撤销。</string>
+    <string name="favorites_delete">删除</string>
+    <string name="favorites_text_added">已添加文本收藏</string>
+    <string name="favorites_move_to_group">移动到合集</string>
+    <string name="favorites_send">发送收藏</string>
+    <string name="favorites_unnamed_file">未命名文件</string>
+    <string name="favorites_empty_text">空文本</string>
+
+    <string name="favorites_choose_group">选择合集</string>
+    <string name="favorites_all_ungrouped">全部 / 不分组</string>
+    <string name="favorites_group_name">合集名</string>
+    <string name="favorites_add_title">添加收藏</string>
+    <string name="favorites_text_message">文本消息</string>
+    <string name="favorites_add_text">添加文本</string>
+    <string name="favorites_choose_file">选择本地文件</string>
+</resources>

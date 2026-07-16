@@ -9,6 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import com.example.flikky.R
 import com.example.flikky.data.settings.BackgroundSetting
 
 @Composable
@@ -23,7 +25,12 @@ fun ConversationBackground(
         when (setting) {
             BackgroundSetting.Default -> {
                 // centered faint watermark: connection status
-                val text = if (connected) "已连接" + (peerName?.let { " · $it" } ?: "") else "未连接"
+                val text = if (connected) {
+                    stringResource(R.string.conversation_connected) +
+                        (peerName?.let { " · $it" } ?: "")
+                } else {
+                    stringResource(R.string.conversation_disconnected)
+                }
                 Box(Modifier.fillMaxSize(), Alignment.Center) {
                     Text(
                         text,

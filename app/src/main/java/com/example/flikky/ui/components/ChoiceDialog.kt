@@ -23,7 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.flikky.R
 import com.example.flikky.ui.theme.Spacing
 
 /**
@@ -39,7 +41,7 @@ fun ChoiceDialog(
     title: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    dismissLabel: String = "取消",
+    dismissLabel: String? = null,
     confirmButton: (@Composable () -> Unit)? = null,
     options: @Composable ColumnScope.() -> Unit,
 ) {
@@ -67,7 +69,9 @@ fun ChoiceDialog(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(onClick = onDismiss) { Text(dismissLabel) }
+                    TextButton(onClick = onDismiss) {
+                        Text(dismissLabel ?: stringResource(R.string.common_cancel))
+                    }
                     if (confirmButton != null) {
                         Spacer(Modifier.width(Spacing.sm))
                         confirmButton()

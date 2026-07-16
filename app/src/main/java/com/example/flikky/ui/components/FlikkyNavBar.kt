@@ -6,6 +6,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import com.example.flikky.R
 
 @Composable
@@ -23,10 +24,10 @@ fun FlikkyNavBar(
             icon = {
                 Icon(
                     painterResource(if (transferSelected) R.drawable.ic_send else R.drawable.ic_send_outline),
-                    contentDescription = "传输",
+                    contentDescription = stringResource(R.string.nav_transfer),
                 )
             },
-            label = { Text("传输") },
+            label = { Text(stringResource(R.string.nav_transfer)) },
             alwaysShowLabel = false,
         )
 
@@ -38,10 +39,10 @@ fun FlikkyNavBar(
                 icon = {
                     Icon(
                         painterResource(if (favoritesSelected) R.drawable.ic_star else R.drawable.ic_star_border),
-                        contentDescription = "收藏",
+                        contentDescription = stringResource(R.string.nav_favorites),
                     )
                 },
-                label = { Text("收藏") },
+                label = { Text(stringResource(R.string.nav_favorites)) },
                 alwaysShowLabel = false,
             )
         }
@@ -54,10 +55,10 @@ fun FlikkyNavBar(
             icon = {
                 Icon(
                     painterResource(if (settingsSelected) R.drawable.ic_settings else R.drawable.ic_settings_outline),
-                    contentDescription = "设置",
+                    contentDescription = stringResource(R.string.nav_settings),
                 )
             },
-            label = { Text("设置") },
+            label = { Text(stringResource(R.string.nav_settings)) },
             alwaysShowLabel = false,
         )
     }

@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import com.example.flikky.R
 import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.ui.theme.Sizes
@@ -60,7 +61,7 @@ fun MoveToGroupSheet(
                 .padding(bottom = Spacing.lg),
         ) {
             Text(
-                text = "移动到分组",
+                text = stringResource(R.string.home_move_sheet_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(
                     horizontal = Spacing.screenEdge,
@@ -68,7 +69,7 @@ fun MoveToGroupSheet(
                 ),
             )
             MoveTargetRow(
-                label = "全部（移出分组）",
+                label = stringResource(R.string.home_move_out_of_group),
                 iconRes = R.drawable.ic_swap_vert,
                 onClick = { onSelect(null) },
             )

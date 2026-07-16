@@ -9,6 +9,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import com.example.flikky.R
 
 @Composable
 fun RenameDialog(
@@ -19,7 +21,7 @@ fun RenameDialog(
     var draft by remember(initial) { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("重命名会话") },
+        title = { Text(stringResource(R.string.common_rename_session)) },
         text = {
             OutlinedTextField(
                 value = draft,
@@ -27,7 +29,13 @@ fun RenameDialog(
                 singleLine = true,
             )
         },
-        confirmButton = { TextButton(onClick = { onConfirm(draft) }) { Text("确定") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(draft) }) {
+                Text(stringResource(R.string.common_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+        },
     )
 }

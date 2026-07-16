@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
+import com.example.flikky.R
 import com.example.flikky.data.FavoritesRepository
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.settings.SettingsRepository
@@ -141,7 +142,14 @@ class ArchiveViewModel @JvmOverloads constructor(
         try {
             context.contentResolver.openInputStream(uri)?.use { input ->
                 tempFile.outputStream().use { output -> input.copyTo(output) }
-            } ?: return ImportResult(0, 0, 0, 0, false, listOf("无法读取文件"))
+            } ?: return ImportResult(
+                0,
+                0,
+                0,
+                0,
+                false,
+                listOf(context.getString(R.string.archive_read_failed)),
+            )
 
             val sessionResult = if (favoritesOnly) null else sessionRepository.importSessions(tempFile)
             if (sessionResult?.errors?.any { it.name == "zip" } == true) {
@@ -179,7 +187,9 @@ class ArchiveViewModel @JvmOverloads constructor(
                         settingsImported = true
                     }
                 }
-            }.onFailure { archiveErrors += it.message ?: "无法解析归档" }
+            }.onFailure {
+                archiveErrors += it.message ?: context.getString(R.string.archive_parse_failed)
+            }
 
             return ImportResult(
                 importedSessions = sessionResult?.imported?.size ?: 0,

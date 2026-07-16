@@ -12,7 +12,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.flikky.R
 import com.example.flikky.session.NetworkStatus
 import com.example.flikky.ui.theme.Spacing
 
@@ -40,19 +42,19 @@ fun NetworkStatusBanner(
         is NetworkStatus.Switching -> BannerStyle(
             bg = Color(0xFFFFF59D),   // amber 200
             fg = Color(0xFF5D4037),   // brown 700
-            text = "正在切换网络…",
+            text = stringResource(R.string.network_switching),
             showAck = false,
         )
         is NetworkStatus.Lost -> BannerStyle(
             bg = Color(0xFFFFCDD2),   // red 100
             fg = Color(0xFFB71C1C),   // red 900
-            text = "已失联，等待网络恢复",
+            text = stringResource(R.string.network_lost),
             showAck = false,
         )
         is NetworkStatus.Switched -> BannerStyle(
             bg = Color(0xFFBBDEFB),   // blue 100
             fg = Color(0xFF0D47A1),   // blue 900
-            text = "网络已切换，URL 已更新为 ${status.newUrl}，请让浏览器重新打开",
+            text = stringResource(R.string.network_switched, status.newUrl),
             showAck = true,
         )
     }
@@ -73,7 +75,7 @@ fun NetworkStatusBanner(
         )
         if (showAck) {
             TextButton(onClick = onAcknowledge) {
-                Text("我知道了", color = fg)
+                Text(stringResource(R.string.network_acknowledge), color = fg)
             }
         }
     }

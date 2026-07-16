@@ -50,7 +50,9 @@ class PeerInfoRoutesTest {
             authRoutes(
                 authGate,
                 readAsset = { byteArrayOf() },
-                publicThemeProvider = { WebThemeDto(themeSeed = "#6750A4", themeDark = true) },
+                publicThemeProvider = {
+                    WebThemeDto(themeSeed = "#6750A4", themeDark = true, languageTag = "en")
+                },
             )
             peerInfoRoutes(authGate = authGate, provider = provider)
         }
@@ -118,7 +120,7 @@ class PeerInfoRoutesTest {
     }
 
     @Test
-    fun `web-theme is public and only returns theme fields`() = testApplication {
+    fun `web-theme is public and returns appearance fields`() = testApplication {
         application(setupApp { testPeerInfo })
 
         val resp: HttpResponse = client.get("/api/web-theme")
@@ -127,6 +129,7 @@ class PeerInfoRoutesTest {
         val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
         assertEquals("#6750A4", body["themeSeed"]!!.jsonPrimitive.content)
         assertEquals(true, body["themeDark"]!!.jsonPrimitive.boolean)
-        assertEquals(setOf("themeSeed", "themeDark"), body.keys)
+        assertEquals("en", body["languageTag"]!!.jsonPrimitive.content)
+        assertEquals(setOf("themeSeed", "themeDark", "languageTag"), body.keys)
     }
 }

@@ -12,9 +12,12 @@ import org.junit.Test
 class ExportNotificationTextTest {
 
     @Test
-    fun `empty snapshot reads 0 sessions 0 MB`() {
+    fun `empty snapshot summarizes 0 sessions and 0 MB`() {
         val snap = ExportSnapshot(sessions = emptyList(), exportedAt = 0L)
-        assertEquals("0 个会话 / 0 MB 可下载", ExportNotificationText.body(snap))
+        assertEquals(
+            ExportNotificationText.Summary(ExportScope.SESSIONS, 0, "0 MB"),
+            ExportNotificationText.summary(snap),
+        )
     }
 
     @Test
@@ -28,7 +31,8 @@ class ExportNotificationTextTest {
                 ),
             ),
         )
-        assertEquals("1 个会话 / 0 MB 可下载", ExportNotificationText.body(snap))
+        assertEquals(1, ExportNotificationText.summary(snap).itemCount)
+        assertEquals("0 MB", ExportNotificationText.summary(snap).formattedBytes)
     }
 
     @Test
@@ -50,7 +54,8 @@ class ExportNotificationTextTest {
                 ),
             ),
         )
-        assertEquals("2 个会话 / 5 MB 可下载", ExportNotificationText.body(snap))
+        assertEquals(2, ExportNotificationText.summary(snap).itemCount)
+        assertEquals("5 MB", ExportNotificationText.summary(snap).formattedBytes)
     }
 
     @Test
@@ -62,7 +67,7 @@ class ExportNotificationTextTest {
             ),
         )
         // 500 KB / 1024 = 0.488 MB → shown as "500 KB"
-        assertEquals("1 个会话 / 500 KB 可下载", ExportNotificationText.body(snap))
+        assertEquals("500 KB", ExportNotificationText.summary(snap).formattedBytes)
     }
 
     @Test
@@ -74,12 +79,7 @@ class ExportNotificationTextTest {
             ),
         )
         // 1_700_000 bytes ≈ 1.62 MB → "1.6 MB"
-        assertEquals("1 个会话 / 1.6 MB 可下载", ExportNotificationText.body(snap))
-    }
-
-    @Test
-    fun `title constant is stable`() {
-        assertEquals("Flikky 正在提供导出", ExportNotificationText.TITLE)
+        assertEquals("1.6 MB", ExportNotificationText.summary(snap).formattedBytes)
     }
 
     @Test
@@ -101,7 +101,10 @@ class ExportNotificationTextTest {
                 )
             ),
         )
-        assertEquals("1 条收藏 / 2 KB 可下载", ExportNotificationText.body(snap))
+        assertEquals(
+            ExportNotificationText.Summary(ExportScope.FAVORITES, 1, "2 KB"),
+            ExportNotificationText.summary(snap),
+        )
     }
 
     // ---- helpers ----

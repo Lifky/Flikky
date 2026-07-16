@@ -10,7 +10,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.flikky.R
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Spacing
 
@@ -31,9 +34,9 @@ fun ConversationStatusRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("运行 ${formatUptime(uptimeSeconds)}", style = MaterialTheme.typography.labelMedium,
+        Text(stringResource(R.string.conversation_running, formatUptime(uptimeSeconds)), style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("$fileCount 文件", style = MaterialTheme.typography.labelMedium,
+        Text(pluralStringResource(R.plurals.conversation_file_count, fileCount, fileCount), style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(formatRate(bytesPerSecond), style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant)

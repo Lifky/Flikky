@@ -54,8 +54,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.flikky.R
 import com.example.flikky.export.ExportFileName
 import com.example.flikky.export.ExportScope
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
@@ -107,7 +110,9 @@ fun FavoritesScreen(
     var showAddFavoriteSheet by remember { mutableStateOf(false) }
     var showImportProgress by remember { mutableStateOf(false) }
     var showExportProgress by remember { mutableStateOf(false) }
-    var exportProgressTitle by remember { mutableStateOf("正在准备导出...") }
+    var exportProgressTitle by remember(context) {
+        mutableStateOf(context.getString(R.string.favorites_preparing_export))
+    }
     var showExportDestination by rememberSaveable { mutableStateOf(false) }
 
     val importLauncher = rememberLauncherForActivityResult(
@@ -118,24 +123,35 @@ fun FavoritesScreen(
             scope.launch {
                 val message = try {
                     val result = archiveViewModel.importFavoritesFromZip(uri)
-                    buildString {
+                    buildList {
                         if (result.importedFavorites > 0) {
-                            append("已导入 ${result.importedFavorites} 条收藏")
+                            add(context.resources.getQuantityString(
+                                R.plurals.favorites_imported,
+                                result.importedFavorites,
+                                result.importedFavorites,
+                            ))
                         }
                         if (result.skippedFavorites > 0) {
-                            if (isNotEmpty()) append("，")
-                            append("跳过 ${result.skippedFavorites} 个重复")
+                            add(context.resources.getQuantityString(
+                                R.plurals.favorites_import_skipped,
+                                result.skippedFavorites,
+                                result.skippedFavorites,
+                            ))
                         }
                         if (result.errors.isNotEmpty()) {
-                            if (isNotEmpty()) append("，")
-                            append("${result.errors.size} 个失败")
+                            add(context.resources.getQuantityString(
+                                R.plurals.favorites_import_failed_count,
+                                result.errors.size,
+                                result.errors.size,
+                            ))
                         }
-                        if (isEmpty()) append("未找到可导入的收藏")
-                    }
+                    }.ifEmpty {
+                        listOf(context.getString(R.string.favorites_import_empty))
+                    }.joinToString(context.getString(R.string.common_list_separator))
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
-                    "导入失败，请确认所选文件是 Flikky zip 归档"
+                    context.getString(R.string.favorites_import_failed)
                 } finally {
                     showImportProgress = false
                 }
@@ -148,7 +164,7 @@ fun FavoritesScreen(
         ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
         if (uri != null) {
-            exportProgressTitle = "正在保存..."
+            exportProgressTitle = context.getString(R.string.favorites_saving)
             showExportProgress = true
             scope.launch {
                 val result = try {
@@ -161,11 +177,13 @@ fun FavoritesScreen(
                     showExportProgress = false
                 }
                 val message = when (result) {
-                    ArchiveViewModel.ExportStartResult.Success -> "已保存到所选位置"
-                    ArchiveViewModel.ExportStartResult.NoFavorites -> "暂无收藏可导出"
+                    ArchiveViewModel.ExportStartResult.Success ->
+                        context.getString(R.string.favorites_export_saved)
+                    ArchiveViewModel.ExportStartResult.NoFavorites ->
+                        context.getString(R.string.favorites_export_empty)
                     ArchiveViewModel.ExportStartResult.TransferRunning,
                     ArchiveViewModel.ExportStartResult.UseSessionSelection,
-                    null -> "保存失败，请重试或选择其他位置"
+                    null -> context.getString(R.string.favorites_export_save_failed)
                 }
                 snackbarHostState.showSnackbar(message)
             }
@@ -177,7 +195,10 @@ fun FavoritesScreen(
         if (uri != null) {
             scope.launch {
                 val added = viewModel.addLocalFile(uri)
-                snackbarHostState.showSnackbar(if (added) "已添加文件收藏" else "文件添加失败")
+                snackbarHostState.showSnackbar(context.getString(
+                    if (added) R.string.favorites_file_added
+                    else R.string.favorites_file_add_failed
+                ))
             }
         }
     }
@@ -194,17 +215,26 @@ fun FavoritesScreen(
         topBar = {
             if (selecting) {
                 TopAppBar(
-                    title = { Text("已选 ${selectedIds.size} 个") },
+                    title = {
+                        Text(pluralStringResource(
+                            R.plurals.home_selected_count,
+                            selectedIds.size,
+                            selectedIds.size,
+                        ))
+                    },
                     navigationIcon = {
                         IconButton(onClick = { viewModel.exitSelecting() }) {
-                            Icon(Icons.Default.Close, contentDescription = "关闭")
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = stringResource(R.string.home_close),
+                            )
                         }
                     },
                     actions = {
                         TextButton(
                             onClick = { viewModel.selectAll(items.map { it.id }) },
                             enabled = items.isNotEmpty(),
-                        ) { Text("全选") }
+                        ) { Text(stringResource(R.string.home_select_all)) }
                     },
                 )
             } else {
@@ -226,18 +256,26 @@ fun FavoritesScreen(
                             onSearch = {},
                             expanded = false,
                             onExpandedChange = {},
-                            placeholder = { Text("搜索收藏") },
-                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "搜索") },
+                            placeholder = { Text(stringResource(R.string.favorites_search)) },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Search,
+                                    contentDescription = stringResource(R.string.favorites_search_action),
+                                )
+                            },
                             trailingIcon = {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     if (query.isNotBlank()) {
                                         IconButton(onClick = viewModel::clearQuery) {
-                                            Icon(Icons.Default.Close, contentDescription = "清空搜索")
+                                            Icon(
+                                                Icons.Default.Close,
+                                                contentDescription = stringResource(R.string.favorites_clear_search),
+                                            )
                                         }
                                     }
                                     ImportExportOverflowMenu(
-                                        importLabel = "导入收藏",
-                                        exportLabel = "导出收藏",
+                                        importLabel = stringResource(R.string.favorites_import),
+                                        exportLabel = stringResource(R.string.favorites_export),
                                         onImport = {
                                             importLauncher.launch(
                                                 arrayOf("application/zip", "application/x-zip-compressed")
@@ -256,7 +294,10 @@ fun FavoritesScreen(
         floatingActionButton = {
             if (!selecting) {
                 FloatingActionButton(onClick = { showAddFavoriteSheet = true }) {
-                    Icon(Icons.Default.Add, contentDescription = "添加收藏")
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = stringResource(R.string.favorites_add),
+                    )
                 }
             }
         },
@@ -285,9 +326,9 @@ fun FavoritesScreen(
                     if (items.isEmpty()) {
                         EmptyFavorites(
                             text = when {
-                                query.isNotBlank() -> "没有匹配的收藏"
-                                activeGroupId != null -> "该合集还没有收藏"
-                                else -> "点 + 添加本地文本或文件，也可以在消息或文件上点 ☆ 收藏"
+                                query.isNotBlank() -> stringResource(R.string.favorites_empty_search)
+                                activeGroupId != null -> stringResource(R.string.favorites_empty_group)
+                                else -> stringResource(R.string.favorites_empty)
                             },
                             modifier = Modifier.fillMaxSize(),
                         )
@@ -311,7 +352,11 @@ fun FavoritesScreen(
                                             viewModel.toggleSelection(favorite.id)
                                         } else if (favorite.kind == "TEXT") {
                                             scope.launch { clipboard.setPlainText(favorite.textContent.orEmpty()) }
-                                            Toast.makeText(context, "已复制", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(
+                                                context,
+                                                R.string.favorites_copied,
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
                                         } else {
                                             viewModel.openFavoriteFile(favorite)
                                         }
@@ -321,7 +366,10 @@ fun FavoritesScreen(
                                         scope.launch {
                                             val sent = viewModel.sendFavorite(favorite)
                                             snackbarHostState.showSnackbar(
-                                                if (sent) "已发送收藏" else "请先连接浏览器"
+                                                context.getString(
+                                                    if (sent) R.string.favorites_sent
+                                                    else R.string.favorites_connect_browser
+                                                )
                                             )
                                         }
                                     },
@@ -350,7 +398,7 @@ fun FavoritesScreen(
         AlertDialog(
             onDismissRequest = {},
             confirmButton = {},
-            title = { Text("正在导入...") },
+            title = { Text(stringResource(R.string.favorites_importing)) },
             text = {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -382,7 +430,7 @@ fun FavoritesScreen(
             },
             onDownloadToComputer = {
                 showExportDestination = false
-                exportProgressTitle = "正在准备导出..."
+                exportProgressTitle = context.getString(R.string.favorites_preparing_export)
                 showExportProgress = true
                 scope.launch {
                     val result = try {
@@ -397,11 +445,17 @@ fun FavoritesScreen(
                     when (result) {
                         ArchiveViewModel.ExportStartResult.Success -> onExportReady()
                         ArchiveViewModel.ExportStartResult.NoFavorites ->
-                            snackbarHostState.showSnackbar("暂无收藏可导出")
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.favorites_export_empty)
+                            )
                         ArchiveViewModel.ExportStartResult.TransferRunning ->
-                            snackbarHostState.showSnackbar("请先停止当前传输或导出")
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.favorites_stop_transfer_first)
+                            )
                         ArchiveViewModel.ExportStartResult.UseSessionSelection,
-                        null -> snackbarHostState.showSnackbar("准备导出失败，请重试")
+                        null -> snackbarHostState.showSnackbar(
+                            context.getString(R.string.favorites_export_prepare_failed)
+                        )
                     }
                 }
             },
@@ -411,7 +465,7 @@ fun FavoritesScreen(
 
     if (showCreateGroup) {
         GroupNameDialog(
-            title = "新建合集",
+            title = stringResource(R.string.favorites_new_group),
             onConfirm = {
                 showCreateGroup = false
                 viewModel.createGroup(it)
@@ -452,8 +506,8 @@ fun FavoritesScreen(
                     val token = viewModel.deleteGroupWithUndo(group.id)
                     if (token != null) {
                         val result = snackbarHostState.showSnackbar(
-                            message = "已删除合集「${group.name}」",
-                            actionLabel = "撤销",
+                            message = context.getString(R.string.favorites_group_deleted, group.name),
+                            actionLabel = context.getString(R.string.home_undo),
                         )
                         if (result == SnackbarResult.ActionPerformed) {
                             viewModel.restoreGroup(token.first, token.second)
@@ -472,7 +526,13 @@ fun FavoritesScreen(
                 showMoveSheet = false
                 scope.launch {
                     val count = viewModel.moveSelectedToGroup(targetGroup)
-                    if (count > 0) snackbarHostState.showSnackbar("已移动 $count 个收藏")
+                    if (count > 0) {
+                        snackbarHostState.showSnackbar(context.resources.getQuantityString(
+                            R.plurals.favorites_moved,
+                            count,
+                            count,
+                        ))
+                    }
                 }
             },
             onDismiss = { showMoveSheet = false },
@@ -481,9 +541,13 @@ fun FavoritesScreen(
 
     if (showDeleteConfirm) {
         ConfirmDialog(
-            title = "删除 ${selectedIds.size} 个收藏",
-            text = "将删除收藏快照及对应副本文件。该操作不可撤销。",
-            confirmLabel = "删除",
+            title = pluralStringResource(
+                R.plurals.favorites_delete_title,
+                selectedIds.size,
+                selectedIds.size,
+            ),
+            text = stringResource(R.string.favorites_delete_text),
+            confirmLabel = stringResource(R.string.favorites_delete),
             danger = true,
             onConfirm = {
                 showDeleteConfirm = false
@@ -500,7 +564,9 @@ fun FavoritesScreen(
                     val added = viewModel.addLocalText(text)
                     if (added) {
                         showAddFavoriteSheet = false
-                        snackbarHostState.showSnackbar("已添加文本收藏")
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.favorites_text_added)
+                        )
                     }
                 }
             },
@@ -517,7 +583,10 @@ fun FavoritesScreen(
 private fun EmptyFavorites(text: String, modifier: Modifier = Modifier) {
     Box(modifier = modifier.padding(Spacing.screenEdge), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("收藏", style = MaterialTheme.typography.headlineMedium)
+            Text(
+                stringResource(R.string.favorites_title),
+                style = MaterialTheme.typography.headlineMedium,
+            )
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyMedium,

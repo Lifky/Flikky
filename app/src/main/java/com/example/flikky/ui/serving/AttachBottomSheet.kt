@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.ui.components.OptionCard
@@ -41,7 +42,7 @@ fun AttachBottomSheet(
                 .padding(bottom = Spacing.xxxl),
         ) {
             Text(
-                "添加",
+                stringResource(R.string.attach_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = Spacing.lg),
             )
@@ -51,17 +52,17 @@ fun AttachBottomSheet(
             ) {
                 OptionCard(
                     iconRes = R.drawable.ic_attach_file,
-                    label = "文件",
+                    label = stringResource(R.string.attach_file),
                     onClick = onPickFile,
                     modifier = Modifier.weight(1f),
-                    description = "任意类型",
+                    description = stringResource(R.string.attach_file_summary),
                 )
                 OptionCard(
                     iconRes = R.drawable.ic_image,
-                    label = "图片",
+                    label = stringResource(R.string.attach_image),
                     onClick = onPickImage,
                     modifier = Modifier.weight(1f),
-                    description = "从相册选择",
+                    description = stringResource(R.string.attach_image_summary),
                 )
             }
         }

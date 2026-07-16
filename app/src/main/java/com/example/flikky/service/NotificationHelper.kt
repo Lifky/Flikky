@@ -15,11 +15,12 @@ object NotificationHelper {
 
     fun ensureChannel(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
-        if (nm.getNotificationChannel(CHANNEL_ID) != null) return
         val channel = NotificationChannel(
-            CHANNEL_ID, "Flikky 服务", NotificationManager.IMPORTANCE_LOW
+            CHANNEL_ID,
+            context.getString(R.string.service_channel_name),
+            NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Flikky 局域网传输服务运行中"
+            description = context.getString(R.string.service_channel_description)
             setShowBadge(false)
         }
         nm.createNotificationChannel(channel)

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="service_channel_name">Flikky service</string>
+    <string name="service_channel_description">Flikky local network transfer service is running</string>
+    <string name="service_starting">Starting…</string>
+    <string name="service_transfer_title">Flikky service is running</string>
+    <string name="service_transfer_with_pin">URL  %1$s\nPIN  Open the app to view</string>
+    <string name="service_transfer_without_pin">URL  %1$s\nConnect without a PIN</string>
+    <string name="service_export_title">Flikky export is available</string>
+    <plurals name="service_export_sessions">
+        <item quantity="one">%1$d session</item>
+        <item quantity="other">%1$d sessions</item>
+    </plurals>
+    <plurals name="service_export_favorites">
+        <item quantity="one">%1$d favorite</item>
+        <item quantity="other">%1$d favorites</item>
+    </plurals>
+    <string name="service_export_settings">Settings</string>
+    <string name="service_export_all_data">All data</string>
+    <string name="service_export_body">%1$s / %2$s available to download</string>
+    <string name="service_export_fallback">Export available</string>
+    <string name="service_default_session_name">Session %1$s</string>
+</resources>

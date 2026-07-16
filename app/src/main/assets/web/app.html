@@ -11,25 +11,25 @@
 <body class="chat-page">
     <div class="chat">
         <mdui-top-app-bar>
-            <div class="header-peer" id="header-peer" aria-label="对方信息">
-                <div class="avatar-circle" id="peer-avatar" aria-label="对方头像"></div>
+            <div class="header-peer" id="header-peer" aria-label="对方信息" data-i18n-aria-label="app.peer_info">
+                <div class="avatar-circle" id="peer-avatar" aria-label="对方头像" data-i18n-aria-label="app.peer_avatar"></div>
                 <span class="header-peer-name" id="peer-name"></span>
             </div>
             <div class="chat-meta" style="margin-right:8px;">
-                <mdui-chip id="conn" variant="assist" selected>连接中…</mdui-chip>
+                <mdui-chip id="conn" data-i18n="app.connecting" variant="assist" selected>连接中…</mdui-chip>
                 <span id="uptime">00:00</span>
                 <span>·</span>
-                <span id="count">0</span><span> 文件</span>
+                <span id="count">0 个文件</span>
                 <span>·</span>
                 <span id="rate">0 B/s</span>
             </div>
             <div class="header-my-avatar-wrap" style="margin-right:16px;">
-                <button class="avatar-circle avatar-btn" id="my-avatar-btn" aria-label="我的头像，点击更换" type="button"></button>
+                <button class="avatar-circle avatar-btn" id="my-avatar-btn" aria-label="我的头像，点击更换" data-i18n-aria-label="app.my_avatar" type="button"></button>
             </div>
         </mdui-top-app-bar>
 
         <!-- Avatar picker (12 presets) — official mdui-dialog -->
-        <mdui-dialog id="avatar-picker" close-on-overlay-click close-on-esc headline="选择头像">
+        <mdui-dialog id="avatar-picker" close-on-overlay-click close-on-esc headline="选择头像" data-i18n-headline="app.choose_avatar">
             <div class="avatar-picker-grid" id="avatar-picker-grid"></div>
         </mdui-dialog>
 
@@ -40,13 +40,15 @@
             <input type="file" id="file-picker" style="display:none" multiple>
             <mdui-button id="file-btn" variant="outlined">
                 <span slot="icon" class="material-symbols-outlined">attach_file</span>
-                附件
+                <span data-i18n="app.attach">附件</span>
             </mdui-button>
             <mdui-text-field
                 id="text-input"
                 variant="outlined"
                 label="消息"
+                data-i18n-label="app.message"
                 placeholder="输入消息"
+                data-i18n-placeholder="app.message_placeholder"
                 rows="1"
                 autosize
                 min-rows="1"
@@ -54,7 +56,7 @@
             </mdui-text-field>
             <mdui-button id="send-btn" variant="filled">
                 <span slot="icon" class="material-symbols-outlined">arrow_upward</span>
-                发送
+                <span data-i18n="app.send">发送</span>
             </mdui-button>
         </div>
     </div>
@@ -62,13 +64,14 @@
     <mdui-snackbar id="snackbar" placement="bottom"></mdui-snackbar>
 
     <!-- v1.3 D26: 撤回二次确认 dialog。两端一致：手机端 AlertDialog ⇄ 浏览器 mdui-dialog -->
-    <mdui-dialog id="recall-confirm-dialog" close-on-overlay-click="true" close-on-esc="true" headline="撤回这条消息？">
-        <div style="padding: 0 24px 8px;">撤回后两端都会消失，不可恢复。</div>
-        <mdui-button slot="action" data-action="cancel" variant="text">取消</mdui-button>
-        <mdui-button slot="action" data-action="confirm" variant="text">撤回</mdui-button>
+    <mdui-dialog id="recall-confirm-dialog" close-on-overlay-click="true" close-on-esc="true" headline="撤回这条消息？" data-i18n-headline="app.recall_title">
+        <div data-i18n="app.recall_body" style="padding: 0 24px 8px;">撤回后两端都会消失，不可恢复。</div>
+        <mdui-button slot="action" data-action="cancel" data-i18n="common.cancel" variant="text">取消</mdui-button>
+        <mdui-button slot="action" data-action="confirm" data-i18n="app.recall" variant="text">撤回</mdui-button>
     </mdui-dialog>
 
     <script src="/static/vendor/mdui.global.js"></script>
+    <script src="/static/i18n.js"></script>
     <script src="/static/snackbar.js"></script>
     <script src="/static/app.js"></script>
 </body>

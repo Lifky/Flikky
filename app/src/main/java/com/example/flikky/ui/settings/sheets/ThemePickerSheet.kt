@@ -33,13 +33,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.flikky.R
 import com.example.flikky.data.settings.ContrastLevel
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.data.settings.PresetTheme
 import com.example.flikky.data.settings.ThemeMode
 import com.example.flikky.ui.theme.Spacing
 import com.example.flikky.ui.theme.presetScheme
+import com.example.flikky.ui.settings.localizedLabel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -66,7 +69,7 @@ fun ThemePickerSheet(
                 .padding(bottom = Spacing.xxxl),
         ) {
             Text(
-                text = "主题",
+                text = stringResource(R.string.settings_theme),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = Spacing.lg),
             )
@@ -87,11 +90,11 @@ fun ThemePickerSheet(
             ) {
                 Column {
                     Text(
-                        text = "跟随壁纸（动态色）",
+                        text = stringResource(R.string.theme_dynamic),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                     Text(
-                        text = "Android 12+ 自动提取主色",
+                        text = stringResource(R.string.theme_dynamic_summary),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -108,7 +111,7 @@ fun ThemePickerSheet(
             if (current.themeMode == ThemeMode.PRESET) {
                 Spacer(Modifier.height(Spacing.lg))
                 Text(
-                    text = "预设色彩",
+                    text = stringResource(R.string.theme_presets),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = Spacing.md),
@@ -154,7 +157,7 @@ fun ThemePickerSheet(
                             }
                             Spacer(Modifier.height(Spacing.xs))
                             Text(
-                                text = preset.label,
+                                text = preset.localizedLabel(),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (isSelected) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -166,7 +169,7 @@ fun ThemePickerSheet(
                 // 对比度档：跟随系统 / 标准 / 中 / 高（每个主题都备有三套 role）。
                 Spacer(Modifier.height(Spacing.lg))
                 Text(
-                    text = "对比度",
+                    text = stringResource(R.string.theme_contrast),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = Spacing.md),
@@ -179,7 +182,7 @@ fun ThemePickerSheet(
                             onClick = { onSelectContrast(level) },
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = levels.size),
                         ) {
-                            Text(level.label)
+                            Text(level.localizedLabel())
                         }
                     }
                 }

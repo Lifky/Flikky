@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -50,6 +51,8 @@ fun FavoriteRow(
     modifier: Modifier = Modifier,
 ) {
     val selectedNow = selected
+    val selectedDescription = stringResource(R.string.home_selected)
+    val notSelectedDescription = stringResource(R.string.home_not_selected)
     val shapes = ListItemDefaults.segmentedShapes(index = positionInRun, count = runSize)
     val colors = ListItemDefaults.segmentedColors(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -68,7 +71,7 @@ fun FavoriteRow(
         .then(
             if (selecting) Modifier.semantics {
                 this.selected = selectedNow
-                stateDescription = if (selectedNow) "已选中" else "未选中"
+                stateDescription = if (selectedNow) selectedDescription else notSelectedDescription
             } else Modifier
         )
 
@@ -116,7 +119,7 @@ fun FavoriteRow(
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_arrow_upward),
-                contentDescription = "发送收藏",
+                contentDescription = stringResource(R.string.favorites_send),
             )
         }
     }
@@ -149,8 +152,13 @@ fun FavoriteRow(
     }
 }
 
+@Composable
 private fun FavoriteEntity.primaryText(): String =
-    if (kind == "FILE") fileName ?: "未命名文件" else textContent?.ifBlank { null } ?: "空文本"
+    if (kind == "FILE") {
+        fileName ?: stringResource(R.string.favorites_unnamed_file)
+    } else {
+        textContent?.ifBlank { null } ?: stringResource(R.string.favorites_empty_text)
+    }
 
 private fun FavoriteEntity.subtitle(): String =
     formatTime(createdAt)

@@ -57,9 +57,9 @@ object ServiceLocator {
      * 成功撤回时 emit；ServingViewModel 监听后弹 snackbar。
      * extraBufferCapacity 避免 tryEmit 在无 collector 时丢弃。
      */
-    private val _recallNotifications = MutableSharedFlow<String>(extraBufferCapacity = 16)
-    val recallNotifications: SharedFlow<String> = _recallNotifications.asSharedFlow()
-    fun notifyRecall(message: String) { _recallNotifications.tryEmit(message) }
+    private val _recallNotifications = MutableSharedFlow<Unit>(extraBufferCapacity = 16)
+    val recallNotifications: SharedFlow<Unit> = _recallNotifications.asSharedFlow()
+    fun notifyRecall() { _recallNotifications.tryEmit(Unit) }
 
     fun init(app: Context) {
         appContext = app.applicationContext

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="serving_favorite">Favorite</string>
+    <string name="serving_unfavorite">Remove favorite</string>
+    <string name="serving_copy">Copy</string>
+    <string name="serving_open">Open</string>
+    <string name="serving_recall">Recall</string>
+    <string name="serving_delete">Delete</string>
+    <string name="serving_deleted">Deleted</string>
+    <string name="serving_undo">Undo</string>
+    <string name="serving_back_blocked">The session is still active. Tap Stop service in the top-right corner to leave.</string>
+    <string name="serving_quick_settings">Quick settings</string>
+    <string name="serving_stop_service">Stop service</string>
+    <string name="serving_waiting_browser">Waiting for a browser…</string>
+    <string name="serving_input_message">Enter a message</string>
+    <string name="serving_add">Add</string>
+    <string name="serving_send">Send</string>
+    <string name="serving_recall_title">Recall this message?</string>
+    <string name="serving_recall_text">It will disappear on both devices and can\'t be recovered.</string>
+    <string name="serving_choose_browser_avatar">Choose browser avatar</string>
+    <string name="serving_favorite_sent">Favorite sent</string>
+    <string name="serving_active_session">Active session</string>
+    <string name="serving_favorite_source_missing">Couldn\'t add favorite: source file is missing</string>
+
+    <string name="serving_peer_recalled">The other device recalled a message</string>
+    <string name="serving_favorite_file_missing">Favorite file is missing</string>
+    <string name="serving_recall_service_stopped">Can\'t recall: the service has stopped</string>
+    <string name="serving_recall_success">Message recalled</string>
+    <string name="serving_recall_denied">You can only recall messages you sent</string>
+    <string name="serving_no_session_context">No active session</string>
+    <string name="serving_uploaded_file_missing">File not found. Browser uploads are lost when the service restarts.</string>
+
+    <string name="quick_settings_title">Quick settings</string>
+    <string name="quick_settings_bubble_corner">Bubble corners · %1$d dp</string>
+    <string name="quick_settings_avatar_display">Avatar display</string>
+    <string name="quick_settings_avatar_first">First</string>
+    <string name="quick_settings_avatar_last">Last</string>
+    <string name="quick_settings_avatar_each">Every</string>
+    <string name="quick_settings_dark_mode">Dark mode</string>
+
+    <string name="favorite_quick_title">Favorites</string>
+    <string name="favorite_quick_recent">Recently used</string>
+    <string name="favorite_quick_search">Search favorites</string>
+    <string name="favorite_quick_clear_search">Clear search</string>
+    <string name="favorite_quick_all">All</string>
+    <string name="favorite_quick_empty">No favorites yet</string>
+    <string name="favorite_quick_no_match">No matching favorites</string>
+
+    <string name="attach_title">Add</string>
+    <string name="attach_file">File</string>
+    <string name="attach_file_summary">Any file type</string>
+    <string name="attach_image">Image</string>
+    <string name="attach_image_summary">Choose from gallery</string>
+</resources>

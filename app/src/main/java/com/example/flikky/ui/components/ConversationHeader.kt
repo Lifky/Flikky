@@ -11,8 +11,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.flikky.R
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Spacing
 import com.example.flikky.ui.theme.connected
@@ -52,12 +54,12 @@ fun ConversationHeader(
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = peerName.ifBlank { "对端设备" },
+                text = peerName.ifBlank { stringResource(R.string.conversation_peer_device) },
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "已连接",
+                text = stringResource(R.string.conversation_connected),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.connected,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,

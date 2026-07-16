@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_section_theme_color">主题与色彩</string>
+    <string name="settings_theme">主题</string>
+    <string name="settings_theme_follow_wallpaper">跟随壁纸</string>
+    <string name="settings_dark_mode">深色模式</string>
+    <string name="settings_dark_mode_system">跟随系统</string>
+    <string name="settings_dark_mode_light">常亮</string>
+    <string name="settings_dark_mode_dark">常暗</string>
+    <string name="settings_amoled">AMOLED 纯黑</string>
+    <string name="settings_amoled_summary">深色模式下使用纯黑背景</string>
+    <string name="settings_animation_speed">动画速度</string>
+    <string name="settings_animation_off">关闭</string>
+    <string name="settings_animation_slow">慢</string>
+    <string name="settings_animation_standard">标准</string>
+    <string name="settings_animation_fast">快</string>
+
+    <string name="settings_section_identity">身份</string>
+    <string name="settings_device_name">本机名称</string>
+    <string name="settings_app_avatar">APP 端头像</string>
+    <string name="settings_default_device_name">我的手机</string>
+
+    <string name="settings_section_session_appearance">会话外观</string>
+    <string name="settings_bubble_corner">气泡圆角</string>
+    <string name="settings_avatar_display">头像显示</string>
+    <string name="settings_avatar_first">组内首条显示</string>
+    <string name="settings_avatar_last">组内末条显示</string>
+    <string name="settings_avatar_each">每条都显示</string>
+    <string name="settings_session_background">进行中会话背景</string>
+
+    <string name="settings_section_session_behavior">会话行为</string>
+    <string name="settings_require_pin">连接需要 PIN 码</string>
+    <string name="settings_require_pin_summary">开启后浏览器需输入 6 位 PIN；关闭后同一 Wi-Fi 内访问地址即可连接</string>
+    <string name="settings_message_action_style">消息操作样式</string>
+    <string name="settings_message_action_floating">悬浮工具栏</string>
+    <string name="settings_message_action_inline">常驻按钮</string>
+    <string name="settings_recall">消息撤回</string>
+    <string name="settings_recall_summary">允许撤回已发送的消息</string>
+    <string name="settings_favorites">收藏功能</string>
+    <string name="settings_favorites_summary">开启后显示收藏入口，并允许收藏消息</string>
+    <string name="settings_allow_back">允许会话中返回</string>
+    <string name="settings_allow_back_summary">默认拦截返回键保护会话；开启后可返回主页查看历史（会话期间设置入口锁定）</string>
+
+    <string name="settings_section_data">数据</string>
+    <string name="settings_history_limit">历史保存数量</string>
+    <string name="settings_history_unlimited">无限制</string>
+    <string name="settings_history_disabled">不保存</string>
+    <string name="settings_history_default">默认（20 条）</string>
+    <plurals name="settings_history_count">
+        <item quantity="other">%1$d 条</item>
+    </plurals>
+    <string name="settings_import_export">导入与导出</string>
+    <string name="settings_import_export_choose">选择一项操作</string>
+    <string name="settings_import_export_summary">备份、恢复或迁移数据</string>
+    <string name="settings_import">导入</string>
+    <string name="settings_import_summary">从 Flikky zip 归档恢复</string>
+    <string name="settings_export_sessions">导出会话</string>
+    <string name="settings_export_sessions_summary">选择要导出的会话</string>
+    <string name="settings_export_favorites">导出收藏</string>
+    <string name="settings_export_favorites_summary">导出全部收藏</string>
+    <string name="settings_export_settings">导出设置</string>
+    <string name="settings_export_settings_summary">导出当前设置</string>
+    <string name="settings_export_all">全部导出</string>
+    <string name="settings_export_all_summary">导出会话、收藏和设置</string>
+
+    <string name="settings_section_about">关于</string>
+    <string name="settings_version">版本</string>
+    <string name="settings_open_source">开源</string>
+    <string name="settings_open_source_summary">Ktor · mdui · Apache/MIT</string>
+
+    <string name="settings_device_name_limit">最多 20 字</string>
+    <string name="settings_history_custom">自定义</string>
+    <string name="settings_history_input_hint">0=不保存，-1=无限制</string>
+
+    <string name="settings_importing">正在导入…</string>
+    <string name="settings_preparing_export">正在准备导出…</string>
+    <string name="settings_saving">正在保存…</string>
+    <plurals name="settings_imported_sessions">
+        <item quantity="other">已导入 %1$d 个会话</item>
+    </plurals>
+    <plurals name="settings_imported_favorites">
+        <item quantity="other">%1$d 条收藏</item>
+    </plurals>
+    <string name="settings_imported_settings">设置已恢复</string>
+    <plurals name="settings_import_skipped">
+        <item quantity="other">跳过 %1$d 个重复</item>
+    </plurals>
+    <plurals name="settings_import_failed_count">
+        <item quantity="other">%1$d 个失败</item>
+    </plurals>
+    <string name="settings_import_empty">未找到可导入的数据</string>
+    <string name="settings_import_failed">导入失败，请确认所选文件是 Flikky zip 归档</string>
+    <string name="settings_export_saved">已保存到所选位置</string>
+    <string name="settings_no_favorites">暂无收藏可导出</string>
+    <string name="settings_export_save_failed">保存失败，请重试或选择其他位置</string>
+    <string name="settings_stop_transfer_first">请先停止当前传输或导出</string>
+    <string name="settings_export_prepare_failed">准备导出失败，请重试</string>
+
+    <string name="theme_dynamic">跟随壁纸（动态色）</string>
+    <string name="theme_dynamic_summary">Android 12+ 自动提取主色</string>
+    <string name="theme_presets">预设色彩</string>
+    <string name="theme_contrast">对比度</string>
+    <string name="theme_preset_danshu_red">淡曙红</string>
+    <string name="theme_preset_danzi_red">丹紫红</string>
+    <string name="theme_preset_chengpi_yellow">橙皮黄</string>
+    <string name="theme_preset_qiukui_yellow">秋葵黄</string>
+    <string name="theme_preset_anan_blue">安安蓝</string>
+    <string name="theme_preset_zhumu_gray">珠母灰</string>
+    <string name="theme_preset_yingwu_green">鹦鹉绿</string>
+    <string name="theme_preset_jiehua_purple">芥花紫</string>
+    <string name="theme_contrast_system">跟随系统</string>
+    <string name="theme_contrast_standard">标准</string>
+    <string name="theme_contrast_medium">中</string>
+    <string name="theme_contrast_high">高</string>
+
+    <string name="avatar_choose">选择头像</string>
+    <string name="avatar_filled_icons">填充图标</string>
+    <string name="avatar_single_character">单个字符</string>
+
+    <string name="background_title">会话背景</string>
+    <string name="background_theme_solid">纯色（跟随主题）</string>
+    <string name="background_custom_hue">自定义（色相）</string>
+</resources>

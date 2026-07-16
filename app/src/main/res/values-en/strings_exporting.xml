@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="exporting_title_ready">Export ready</string>
+    <string name="exporting_title_sending">Sending</string>
+    <string name="exporting_title_done">Export complete</string>
+    <string name="exporting_ready_with_pin">Open the address above in a computer browser, enter the PIN, and download the zip.\nThis page will advance automatically when the download finishes.</string>
+    <string name="exporting_ready_without_pin">Open the address above in a computer browser to download the zip.\nThis page will advance automatically when the download finishes.</string>
+    <string name="exporting_cancel">Cancel export</string>
+    <string name="exporting_browser_downloading">The browser is downloading the zip…</string>
+    <string name="exporting_progress">Sent %1$s / %2$s</string>
+    <plurals name="exporting_sessions_done">
+        <item quantity="one">Exported %1$d session to PC</item>
+        <item quantity="other">Exported %1$d sessions to PC</item>
+    </plurals>
+    <plurals name="exporting_favorites_done">
+        <item quantity="one">Exported %1$d favorite to PC</item>
+        <item quantity="other">Exported %1$d favorites to PC</item>
+    </plurals>
+    <string name="exporting_settings_done">Exported settings to PC</string>
+    <string name="exporting_all_done">Exported all data to PC</string>
+    <string name="exporting_sessions_saved_description">The zip is in your computer’s Downloads folder. Keep the local copies, or delete them after checking the zip.</string>
+    <string name="exporting_archive_saved_description">The zip is in your computer’s Downloads folder. You can restore it later from Import in Settings.</string>
+    <string name="exporting_keep_local">Keep local copies</string>
+    <string name="exporting_delete_local">Delete local copies</string>
+    <plurals name="exporting_delete_title">
+        <item quantity="one">Delete %1$d local session?</item>
+        <item quantity="other">Delete %1$d local sessions?</item>
+    </plurals>
+    <plurals name="exporting_delete_message">
+        <item quantity="one">This will permanently delete %1$d session and all its files. First confirm that the zip is stored safely on your PC.</item>
+        <item quantity="other">This will permanently delete %1$d sessions and all their files. First confirm that the zip is stored safely on your PC.</item>
+    </plurals>
+    <string name="exporting_confirm_delete">Delete</string>
+
+    <string name="export_destination_title">Export to</string>
+    <string name="export_destination_local">Save on this device</string>
+    <string name="export_destination_local_summary">Choose where to save the ZIP archive</string>
+    <string name="export_destination_computer">Download on computer</string>
+    <string name="export_destination_computer_summary">Download in a browser over the same Wi-Fi</string>
+    <string name="archive_read_failed">Couldn\'t read the file</string>
+    <string name="archive_parse_failed">Couldn\'t read the archive</string>
+    <string name="export_write_failed">Couldn\'t write to the selected location</string>
+</resources>

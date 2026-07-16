@@ -57,6 +57,8 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
@@ -65,6 +67,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
+import com.example.flikky.data.settings.AppLanguage
+import com.example.flikky.data.settings.AppLanguageManager
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.AnimationSpeed
@@ -107,18 +111,20 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val s by viewModel.settings.collectAsState()
+    val appLanguage = AppLanguageManager.current(context)
+    val defaultDeviceName = stringResource(R.string.settings_default_device_name)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val versionLabel = remember(context) {
+    val versionName = remember(context) {
         context.packageManager
             .getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
             .versionName
-            ?.let { "v$it" }
-            ?: "未知"
     }
+    val versionLabel = versionName?.let { "v$it" } ?: stringResource(R.string.common_unknown)
 
     // Sheet / dialog state
     var activeSheet by remember { mutableStateOf<ActiveSheet?>(null) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
     var showDarkModeDialog by remember { mutableStateOf(false) }
     var showDeviceNameDialog by remember { mutableStateOf(false) }
     var showHistoryLimitDialog by remember { mutableStateOf(false) }
@@ -127,7 +133,9 @@ fun SettingsScreen(
     var showAnimSpeedDialog by remember { mutableStateOf(false) }
     var showImportProgress by remember { mutableStateOf(false) }
     var showExportProgress by remember { mutableStateOf(false) }
-    var exportProgressTitle by remember { mutableStateOf("正在准备导出...") }
+    var exportProgressTitle by remember(context) {
+        mutableStateOf(context.getString(R.string.settings_preparing_export))
+    }
     var importExportExpanded by rememberSaveable { mutableStateOf(false) }
     var exportDestinationScope by rememberSaveable { mutableStateOf<ExportScope?>(null) }
     var pendingLocalExportScope by rememberSaveable { mutableStateOf<ExportScope?>(null) }
@@ -141,32 +149,46 @@ fun SettingsScreen(
             scope.launch {
                 val message = try {
                     val result = archiveViewModel.importFromZip(uri)
-                    buildString {
-                        if (result.importedSessions > 0)
-                            append("已导入 ${result.importedSessions} 个会话")
+                    buildList {
+                        if (result.importedSessions > 0) {
+                            add(context.resources.getQuantityString(
+                                R.plurals.settings_imported_sessions,
+                                result.importedSessions,
+                                result.importedSessions,
+                            ))
+                        }
                         if (result.importedFavorites > 0) {
-                            if (isNotEmpty()) append("，")
-                            append("${result.importedFavorites} 条收藏")
+                            add(context.resources.getQuantityString(
+                                R.plurals.settings_imported_favorites,
+                                result.importedFavorites,
+                                result.importedFavorites,
+                            ))
                         }
                         if (result.settingsImported) {
-                            if (isNotEmpty()) append("，")
-                            append("设置已恢复")
+                            add(context.getString(R.string.settings_imported_settings))
                         }
                         val skipped = result.skippedSessions + result.skippedFavorites
                         if (skipped > 0) {
-                            if (isNotEmpty()) append("，")
-                            append("跳过 $skipped 个重复")
+                            add(context.resources.getQuantityString(
+                                R.plurals.settings_import_skipped,
+                                skipped,
+                                skipped,
+                            ))
                         }
                         if (result.errors.isNotEmpty()) {
-                            if (isNotEmpty()) append("，")
-                            append("${result.errors.size} 个失败")
+                            add(context.resources.getQuantityString(
+                                R.plurals.settings_import_failed_count,
+                                result.errors.size,
+                                result.errors.size,
+                            ))
                         }
-                        if (isEmpty()) append("未找到可导入的数据")
-                    }
+                    }.ifEmpty {
+                        listOf(context.getString(R.string.settings_import_empty))
+                    }.joinToString(context.getString(R.string.common_list_separator))
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
-                    "导入失败，请确认所选文件是 Flikky zip 归档"
+                    context.getString(R.string.settings_import_failed)
                 } finally {
                     showImportProgress = false
                 }
@@ -181,7 +203,7 @@ fun SettingsScreen(
         val exportScope = pendingLocalExportScope
         pendingLocalExportScope = null
         if (uri != null && exportScope != null) {
-            exportProgressTitle = "正在保存..."
+            exportProgressTitle = context.getString(R.string.settings_saving)
             showExportProgress = true
             scope.launch {
                 val result = try {
@@ -194,11 +216,13 @@ fun SettingsScreen(
                     showExportProgress = false
                 }
                 val message = when (result) {
-                    ArchiveViewModel.ExportStartResult.Success -> "已保存到所选位置"
-                    ArchiveViewModel.ExportStartResult.NoFavorites -> "暂无收藏可导出"
+                    ArchiveViewModel.ExportStartResult.Success ->
+                        context.getString(R.string.settings_export_saved)
+                    ArchiveViewModel.ExportStartResult.NoFavorites ->
+                        context.getString(R.string.settings_no_favorites)
                     ArchiveViewModel.ExportStartResult.TransferRunning,
                     ArchiveViewModel.ExportStartResult.UseSessionSelection,
-                    null -> "保存失败，请重试或选择其他位置"
+                    null -> context.getString(R.string.settings_export_save_failed)
                 }
                 snackbarHostState.showSnackbar(message)
             }
@@ -206,7 +230,7 @@ fun SettingsScreen(
     }
 
     val launchExport: (ExportScope) -> Unit = { exportScope ->
-        exportProgressTitle = "正在准备导出..."
+        exportProgressTitle = context.getString(R.string.settings_preparing_export)
         showExportProgress = true
         scope.launch {
             val result = try {
@@ -221,11 +245,13 @@ fun SettingsScreen(
             when (result) {
                 ArchiveViewModel.ExportStartResult.Success -> onExportReady()
                 ArchiveViewModel.ExportStartResult.NoFavorites ->
-                    snackbarHostState.showSnackbar("暂无收藏可导出")
+                    snackbarHostState.showSnackbar(context.getString(R.string.settings_no_favorites))
                 ArchiveViewModel.ExportStartResult.TransferRunning ->
-                    snackbarHostState.showSnackbar("请先停止当前传输或导出")
+                    snackbarHostState.showSnackbar(context.getString(R.string.settings_stop_transfer_first))
                 ArchiveViewModel.ExportStartResult.UseSessionSelection -> onExportSessions()
-                null -> snackbarHostState.showSnackbar("准备导出失败，请重试")
+                null -> snackbarHostState.showSnackbar(
+                    context.getString(R.string.settings_export_prepare_failed)
+                )
             }
         }
     }
@@ -241,7 +267,7 @@ fun SettingsScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(painter = painterResource(R.drawable.ic_settings), contentDescription = null)
                         Spacer(Modifier.width(Spacing.sm))
-                        Text("设置")
+                        Text(stringResource(R.string.settings_title))
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -260,35 +286,45 @@ fun SettingsScreen(
             contentPadding = PaddingValues(horizontal = Spacing.screenEdge, vertical = Spacing.screenEdge),
             verticalArrangement = Arrangement.spacedBy(Spacing.sectionGap),
         ) {
+            item {
+                SettingSection(title = stringResource(R.string.settings_section_general)) {
+                    SettingItem(
+                        title = stringResource(R.string.settings_language),
+                        leadingIcon = painterResource(R.drawable.ic_language),
+                        subtitle = appLanguage.localizedLabel(),
+                        onClick = { showLanguageDialog = true },
+                    )
+                }
+            }
+
             // ─── 主题与色彩 ─────────────────────────────────────────────────────
             item {
                 val sectionItems = 4
-                SettingSection(title = "主题与色彩") {
-                    val themeSubtitle = if (s.themeMode == ThemeMode.DYNAMIC) "跟随壁纸"
-                    else s.presetTheme.label
+                SettingSection(title = stringResource(R.string.settings_section_theme_color)) {
+                    val themeSubtitle = if (s.themeMode == ThemeMode.DYNAMIC) {
+                        stringResource(R.string.settings_theme_follow_wallpaper)
+                    } else {
+                        s.presetTheme.localizedLabel()
+                    }
                     SettingItem(
-                        title = "主题",
+                        title = stringResource(R.string.settings_theme),
                         leadingIcon = painterResource(R.drawable.ic_palette),
                         subtitle = themeSubtitle,
                         onClick = { activeSheet = ActiveSheet.Theme },
                         index = 0, total = sectionItems,
                     )
-                    val darkSubtitle = when (s.darkMode) {
-                        DarkMode.SYSTEM -> "跟随系统"
-                        DarkMode.LIGHT  -> "常亮"
-                        DarkMode.DARK   -> "常暗"
-                    }
+                    val darkSubtitle = s.darkMode.localizedLabel()
                     SettingItem(
-                        title = "深色模式",
+                        title = stringResource(R.string.settings_dark_mode),
                         leadingIcon = painterResource(R.drawable.ic_dark_mode),
                         subtitle = darkSubtitle,
                         onClick = { showDarkModeDialog = true },
                         index = 1, total = sectionItems,
                     )
                     SettingItem(
-                        title = "AMOLED 纯黑",
+                        title = stringResource(R.string.settings_amoled),
                         leadingIcon = painterResource(R.drawable.ic_contrast),
-                        subtitle = "深色模式下使用纯黑背景",
+                        subtitle = stringResource(R.string.settings_amoled_summary),
                         trailing = {
                             Switch(
                                 checked = s.amoled,
@@ -297,14 +333,9 @@ fun SettingsScreen(
                         },
                         index = 2, total = sectionItems,
                     )
-                    val animSpeedSubtitle = when (s.animationSpeed) {
-                        AnimationSpeed.OFF      -> "关闭"
-                        AnimationSpeed.SLOW     -> "慢"
-                        AnimationSpeed.STANDARD -> "标准"
-                        AnimationSpeed.FAST     -> "快"
-                    }
+                    val animSpeedSubtitle = s.animationSpeed.localizedLabel()
                     SettingItem(
-                        title = "动画速度",
+                        title = stringResource(R.string.settings_animation_speed),
                         leadingIcon = painterResource(R.drawable.ic_animation),
                         subtitle = animSpeedSubtitle,
                         onClick = { showAnimSpeedDialog = true },
@@ -316,16 +347,16 @@ fun SettingsScreen(
             // ─── 身份 ─────────────────────────────────────────────────────────
             item {
                 val sectionItems = 2
-                SettingSection(title = "身份") {
+                SettingSection(title = stringResource(R.string.settings_section_identity)) {
                     SettingItem(
-                        title = "本机名称",
+                        title = stringResource(R.string.settings_device_name),
                         leadingIcon = painterResource(R.drawable.ic_smartphone),
-                        subtitle = s.deviceName,
+                        subtitle = s.deviceName.ifBlank { defaultDeviceName },
                         onClick = { showDeviceNameDialog = true },
                         index = 0, total = sectionItems,
                     )
                     SettingItem(
-                        title = "APP 端头像",
+                        title = stringResource(R.string.settings_app_avatar),
                         leadingIcon = painterResource(R.drawable.ic_account_circle),
                         trailing = { Avatar(avatarKey = s.phoneAvatarKey, size = Sizes.avatar) },
                         onClick = { activeSheet = ActiveSheet.Avatar },
@@ -337,12 +368,12 @@ fun SettingsScreen(
             // ─── 会话外观 ───────────────────────────────────────────────────────
             item {
                 val sectionItems = 3
-                SettingSection(title = "会话外观") {
+                SettingSection(title = stringResource(R.string.settings_section_session_appearance)) {
                     var radiusDraft by remember(s.bubbleCornerRadius) {
                         mutableStateOf(s.bubbleCornerRadius.toFloat())
                     }
                     SettingItem(
-                        title = "气泡圆角",
+                        title = stringResource(R.string.settings_bubble_corner),
                         leadingIcon = painterResource(R.drawable.ic_rounded_corner),
                         trailing = {
                             Text(
@@ -365,26 +396,17 @@ fun SettingsScreen(
                         },
                         index = 0, total = sectionItems,
                     )
-                    val groupingSubtitle = when (s.avatarGrouping) {
-                        AvatarGroupingMode.FIRST -> "组内首条显示"
-                        AvatarGroupingMode.LAST  -> "组内末条显示"
-                        AvatarGroupingMode.EACH  -> "每条都显示"
-                    }
+                    val groupingSubtitle = s.avatarGrouping.localizedLabel()
                     SettingItem(
-                        title = "头像显示",
+                        title = stringResource(R.string.settings_avatar_display),
                         leadingIcon = painterResource(R.drawable.ic_face),
                         subtitle = groupingSubtitle,
                         onClick = { showAvatarGroupingDialog = true },
                         index = 1, total = sectionItems,
                     )
-                    val bgSubtitle = when (val bg = s.background) {
-                        is BackgroundSetting.Default  -> "默认"
-                        is BackgroundSetting.Blank    -> "空白"
-                        is BackgroundSetting.Solid    -> "纯色"
-                        // BackgroundSetting.Gradient removed in v1.6.0
-                    }
+                    val bgSubtitle = s.background.localizedLabel()
                     SettingItem(
-                        title = "进行中会话背景",
+                        title = stringResource(R.string.settings_session_background),
                         leadingIcon = painterResource(R.drawable.ic_image),
                         subtitle = bgSubtitle,
                         onClick = { activeSheet = ActiveSheet.Background },
@@ -396,11 +418,11 @@ fun SettingsScreen(
             // ─── 会话行为 ───────────────────────────────────────────────────────
             item {
                 val sectionItems = 5
-                SettingSection(title = "会话行为") {
+                SettingSection(title = stringResource(R.string.settings_section_session_behavior)) {
                     SettingItem(
-                        title = "连接需要 PIN 码",
+                        title = stringResource(R.string.settings_require_pin),
                         leadingIcon = painterResource(R.drawable.ic_fiber_pin),
-                        subtitle = "开启后浏览器需输入 6 位 PIN；关闭后同一 Wi-Fi 内访问地址即可连接",
+                        subtitle = stringResource(R.string.settings_require_pin_summary),
                         trailing = {
                             Switch(
                                 checked = s.requirePin,
@@ -409,21 +431,18 @@ fun SettingsScreen(
                         },
                         index = 0, total = sectionItems,
                     )
-                    val styleSubtitle = when (s.messageActionStyle) {
-                        MessageActionStyle.FLOATING -> "悬浮工具栏"
-                        MessageActionStyle.INLINE   -> "常驻按钮"
-                    }
+                    val styleSubtitle = s.messageActionStyle.localizedLabel()
                     SettingItem(
-                        title = "消息操作样式",
+                        title = stringResource(R.string.settings_message_action_style),
                         leadingIcon = painterResource(R.drawable.ic_touch_app),
                         subtitle = styleSubtitle,
                         onClick = { showActionStyleDialog = true },
                         index = 1, total = sectionItems,
                     )
                     SettingItem(
-                        title = "消息撤回",
+                        title = stringResource(R.string.settings_recall),
                         leadingIcon = painterResource(R.drawable.ic_undo),
-                        subtitle = "允许撤回已发送的消息",
+                        subtitle = stringResource(R.string.settings_recall_summary),
                         trailing = {
                             Switch(
                                 checked = s.recallBetaEnabled,
@@ -433,9 +452,9 @@ fun SettingsScreen(
                         index = 2, total = sectionItems,
                     )
                     SettingItem(
-                        title = "收藏功能",
+                        title = stringResource(R.string.settings_favorites),
                         leadingIcon = painterResource(R.drawable.ic_star_border),
-                        subtitle = "开启后显示收藏入口，并允许收藏消息",
+                        subtitle = stringResource(R.string.settings_favorites_summary),
                         trailing = {
                             Switch(
                                 checked = s.favoriteBetaEnabled,
@@ -445,9 +464,9 @@ fun SettingsScreen(
                         index = 3, total = sectionItems,
                     )
                     SettingItem(
-                        title = "允许会话中返回",
+                        title = stringResource(R.string.settings_allow_back),
                         leadingIcon = rememberVectorPainter(Icons.AutoMirrored.Filled.ArrowBack),
-                        subtitle = "默认拦截返回键保护会话；开启后可返回主页查看历史（会话期间设置入口锁定）",
+                        subtitle = stringResource(R.string.settings_allow_back_summary),
                         trailing = {
                             Switch(
                                 checked = s.allowBackDuringSession,
@@ -462,24 +481,32 @@ fun SettingsScreen(
             // ─── 数据 ─────────────────────────────────────────────────────────
             item {
                 val sectionItems = if (importExportExpanded) 7 else 2
-                SettingSection(title = "数据") {
+                SettingSection(title = stringResource(R.string.settings_section_data)) {
                     val historySubtitle = when (s.historyRetainLimit) {
-                        -1   -> "无限制"
-                        0    -> "不保存"
-                        20   -> "默认（20 条）"
-                        else -> "${s.historyRetainLimit} 条"
+                        -1 -> stringResource(R.string.settings_history_unlimited)
+                        0 -> stringResource(R.string.settings_history_disabled)
+                        20 -> stringResource(R.string.settings_history_default)
+                        else -> pluralStringResource(
+                            R.plurals.settings_history_count,
+                            s.historyRetainLimit,
+                            s.historyRetainLimit,
+                        )
                     }
                     SettingItem(
-                        title = "历史保存数量",
+                        title = stringResource(R.string.settings_history_limit),
                         leadingIcon = painterResource(R.drawable.ic_history),
                         subtitle = historySubtitle,
                         onClick = { showHistoryLimitDialog = true },
                         index = 0, total = sectionItems,
                     )
                     SettingItem(
-                        title = "导入与导出",
+                        title = stringResource(R.string.settings_import_export),
                         leadingIcon = painterResource(R.drawable.ic_swap_vert),
-                        subtitle = if (importExportExpanded) "选择一项操作" else "备份、恢复或迁移数据",
+                        subtitle = if (importExportExpanded) {
+                            stringResource(R.string.settings_import_export_choose)
+                        } else {
+                            stringResource(R.string.settings_import_export_summary)
+                        },
                         trailing = {
                             val rotation by animateFloatAsState(
                                 targetValue = if (importExportExpanded) 180f else 0f,
@@ -494,10 +521,16 @@ fun SettingsScreen(
                         },
                         onClick = { importExportExpanded = !importExportExpanded },
                         modifier = Modifier.semantics {
-                            stateDescription = if (importExportExpanded) "已展开" else "已收起"
+                            stateDescription = context.getString(
+                                if (importExportExpanded) R.string.common_expanded
+                                else R.string.common_collapsed
+                            )
                             customActions = listOf(
                                 CustomAccessibilityAction(
-                                    label = if (importExportExpanded) "收起" else "展开",
+                                    label = context.getString(
+                                        if (importExportExpanded) R.string.common_collapse
+                                        else R.string.common_expand
+                                    ),
                                     action = {
                                         importExportExpanded = !importExportExpanded
                                         true
@@ -517,9 +550,9 @@ fun SettingsScreen(
                             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
                         ) {
                             SettingItem(
-                                title = "导入",
+                                title = stringResource(R.string.settings_import),
                                 leadingIcon = painterResource(R.drawable.ic_file_download),
-                                subtitle = "从 Flikky zip 归档恢复",
+                                subtitle = stringResource(R.string.settings_import_summary),
                                 onClick = {
                                     importLauncher.launch(
                                         arrayOf("application/zip", "application/x-zip-compressed")
@@ -528,30 +561,30 @@ fun SettingsScreen(
                                 index = 2, total = sectionItems,
                             )
                             SettingItem(
-                                title = "导出会话",
+                                title = stringResource(R.string.settings_export_sessions),
                                 leadingIcon = painterResource(R.drawable.ic_upload),
-                                subtitle = "选择要导出的会话",
+                                subtitle = stringResource(R.string.settings_export_sessions_summary),
                                 onClick = onExportSessions,
                                 index = 3, total = sectionItems,
                             )
                             SettingItem(
-                                title = "导出收藏",
+                                title = stringResource(R.string.settings_export_favorites),
                                 leadingIcon = painterResource(R.drawable.ic_star_border),
-                                subtitle = "导出全部收藏",
+                                subtitle = stringResource(R.string.settings_export_favorites_summary),
                                 onClick = { exportDestinationScope = ExportScope.FAVORITES },
                                 index = 4, total = sectionItems,
                             )
                             SettingItem(
-                                title = "导出设置",
+                                title = stringResource(R.string.settings_export_settings),
                                 leadingIcon = painterResource(R.drawable.ic_settings_outline),
-                                subtitle = "导出当前设置",
+                                subtitle = stringResource(R.string.settings_export_settings_summary),
                                 onClick = { exportDestinationScope = ExportScope.SETTINGS },
                                 index = 5, total = sectionItems,
                             )
                             SettingItem(
-                                title = "全部导出",
+                                title = stringResource(R.string.settings_export_all),
                                 leadingIcon = painterResource(R.drawable.ic_swap_vert),
-                                subtitle = "导出会话、收藏和设置",
+                                subtitle = stringResource(R.string.settings_export_all_summary),
                                 onClick = { exportDestinationScope = ExportScope.ALL },
                                 index = 6, total = sectionItems,
                             )
@@ -563,9 +596,9 @@ fun SettingsScreen(
             // ─── 关于 ─────────────────────────────────────────────────────────
             item {
                 val sectionItems = 2
-                SettingSection(title = "关于") {
+                SettingSection(title = stringResource(R.string.settings_section_about)) {
                     SettingItem(
-                        title = "版本",
+                        title = stringResource(R.string.settings_version),
                         leadingIcon = painterResource(R.drawable.ic_info),
                         trailing = {
                             Text(
@@ -577,14 +610,32 @@ fun SettingsScreen(
                         index = 0, total = sectionItems,
                     )
                     SettingItem(
-                        title = "开源",
+                        title = stringResource(R.string.settings_open_source),
                         leadingIcon = painterResource(R.drawable.ic_code),
-                        subtitle = "Ktor · mdui · Apache/MIT",
+                        subtitle = stringResource(R.string.settings_open_source_summary),
                         index = 1, total = sectionItems,
                     )
                 }
             }
         }
+        }
+    }
+
+    if (showLanguageDialog) {
+        ChoiceDialog(
+            title = stringResource(R.string.settings_language),
+            onDismiss = { showLanguageDialog = false },
+        ) {
+            AppLanguage.entries.forEach { language ->
+                ChoiceRow(
+                    label = language.localizedLabel(),
+                    selected = appLanguage == language,
+                    onClick = {
+                        showLanguageDialog = false
+                        AppLanguageManager.set(context, language)
+                    },
+                )
+            }
         }
     }
 
@@ -613,14 +664,13 @@ fun SettingsScreen(
 
     // ─── Dark mode dialog ─────────────────────────────────────────────────────
     if (showDarkModeDialog) {
-        ChoiceDialog(title = "深色模式", onDismiss = { showDarkModeDialog = false }) {
-            listOf(
-                DarkMode.SYSTEM to "跟随系统",
-                DarkMode.LIGHT  to "常亮",
-                DarkMode.DARK   to "常暗",
-            ).forEach { (mode, label) ->
+        ChoiceDialog(
+            title = stringResource(R.string.settings_dark_mode),
+            onDismiss = { showDarkModeDialog = false },
+        ) {
+            DarkMode.entries.forEach { mode ->
                 ChoiceRow(
-                    label = label,
+                    label = mode.localizedLabel(),
                     selected = s.darkMode == mode,
                     onClick = {
                         viewModel.setDarkMode(mode)
@@ -633,13 +683,13 @@ fun SettingsScreen(
 
     // ─── Message action style dialog ──────────────────────────────────────────
     if (showActionStyleDialog) {
-        ChoiceDialog(title = "消息操作样式", onDismiss = { showActionStyleDialog = false }) {
-            listOf(
-                MessageActionStyle.FLOATING to "悬浮工具栏",
-                MessageActionStyle.INLINE   to "常驻按钮",
-            ).forEach { (style, label) ->
+        ChoiceDialog(
+            title = stringResource(R.string.settings_message_action_style),
+            onDismiss = { showActionStyleDialog = false },
+        ) {
+            MessageActionStyle.entries.forEach { style ->
                 ChoiceRow(
-                    label = label,
+                    label = style.localizedLabel(),
                     selected = s.messageActionStyle == style,
                     onClick = {
                         viewModel.setMessageActionStyle(style)
@@ -652,14 +702,13 @@ fun SettingsScreen(
 
     // ─── Avatar grouping dialog ───────────────────────────────────────────────
     if (showAvatarGroupingDialog) {
-        ChoiceDialog(title = "头像显示", onDismiss = { showAvatarGroupingDialog = false }) {
-            listOf(
-                AvatarGroupingMode.FIRST to "组内首条显示",
-                AvatarGroupingMode.LAST  to "组内末条显示",
-                AvatarGroupingMode.EACH  to "每条都显示",
-            ).forEach { (mode, label) ->
+        ChoiceDialog(
+            title = stringResource(R.string.settings_avatar_display),
+            onDismiss = { showAvatarGroupingDialog = false },
+        ) {
+            AvatarGroupingMode.entries.forEach { mode ->
                 ChoiceRow(
-                    label = label,
+                    label = mode.localizedLabel(),
                     selected = s.avatarGrouping == mode,
                     onClick = {
                         viewModel.setAvatarGrouping(mode)
@@ -672,15 +721,13 @@ fun SettingsScreen(
 
     // ─── Animation speed dialog ───────────────────────────────────────────────
     if (showAnimSpeedDialog) {
-        ChoiceDialog(title = "动画速度", onDismiss = { showAnimSpeedDialog = false }) {
-            listOf(
-                AnimationSpeed.OFF      to "关闭",
-                AnimationSpeed.SLOW     to "慢",
-                AnimationSpeed.STANDARD to "标准",
-                AnimationSpeed.FAST     to "快",
-            ).forEach { (speed, label) ->
+        ChoiceDialog(
+            title = stringResource(R.string.settings_animation_speed),
+            onDismiss = { showAnimSpeedDialog = false },
+        ) {
+            AnimationSpeed.entries.forEach { speed ->
                 ChoiceRow(
-                    label = label,
+                    label = speed.localizedLabel(),
                     selected = s.animationSpeed == speed,
                     onClick = {
                         viewModel.setAnimationSpeed(speed)
@@ -693,26 +740,31 @@ fun SettingsScreen(
 
     // ─── Device name dialog ───────────────────────────────────────────────────
     if (showDeviceNameDialog) {
-        var draft by remember { mutableStateOf(s.deviceName) }
+        var draft by remember { mutableStateOf(s.deviceName.ifBlank { defaultDeviceName }) }
         AlertDialog(
             onDismissRequest = { showDeviceNameDialog = false },
-            title = { Text("本机名称") },
+            title = { Text(stringResource(R.string.settings_device_name)) },
             text = {
                 OutlinedTextField(
                     value = draft,
                     onValueChange = { if (it.length <= 20) draft = it },
                     singleLine = true,
-                    label = { Text("最多 20 字") },
+                    label = { Text(stringResource(R.string.settings_device_name_limit)) },
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
-                    viewModel.setDeviceName(draft.trim().ifEmpty { s.deviceName })
+                    val normalized = draft.trim()
+                        .takeUnless { it == defaultDeviceName }
+                        .orEmpty()
+                    viewModel.setDeviceName(normalized)
                     showDeviceNameDialog = false
-                }) { Text("确定") }
+                }) { Text(stringResource(R.string.common_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeviceNameDialog = false }) { Text("取消") }
+                TextButton(onClick = { showDeviceNameDialog = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
             },
         )
     }
@@ -726,18 +778,26 @@ fun SettingsScreen(
             )
         }
         ChoiceDialog(
-            title = "历史保存数量",
+            title = stringResource(R.string.settings_history_limit),
             onDismiss = { showHistoryLimitDialog = false },
             confirmButton = {
                 TextButton(onClick = {
                     val limit = if (useDefault) 20 else customStr.toIntOrNull() ?: s.historyRetainLimit
                     viewModel.setHistoryRetainLimit(limit)
                     showHistoryLimitDialog = false
-                }) { Text("确定") }
+                }) { Text(stringResource(R.string.common_confirm)) }
             },
         ) {
-            ChoiceRow(label = "默认（20 条）", selected = useDefault, onClick = { useDefault = true })
-            ChoiceRow(label = "自定义", selected = !useDefault, onClick = { useDefault = false })
+            ChoiceRow(
+                label = stringResource(R.string.settings_history_default),
+                selected = useDefault,
+                onClick = { useDefault = true },
+            )
+            ChoiceRow(
+                label = stringResource(R.string.settings_history_custom),
+                selected = !useDefault,
+                onClick = { useDefault = false },
+            )
             if (!useDefault) {
                 OutlinedTextField(
                     value = customStr,
@@ -748,7 +808,7 @@ fun SettingsScreen(
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                    label = { Text("0=不保存，-1=无限制") },
+                    label = { Text(stringResource(R.string.settings_history_input_hint)) },
                     modifier = Modifier
                         .padding(horizontal = 24.dp)
                         .padding(top = Spacing.sm),
@@ -762,7 +822,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = {},
             confirmButton = {},
-            title = { Text("正在导入...") },
+            title = { Text(stringResource(R.string.settings_importing)) },
             text = {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()

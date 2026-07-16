@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="common_confirm">确定</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_done">完成</string>
+    <string name="common_unknown">未知</string>
+    <string name="common_default">默认</string>
+    <string name="common_blank">空白</string>
+    <string name="common_solid_color">纯色</string>
+    <string name="common_enabled">已开启</string>
+    <string name="common_disabled">已关闭</string>
+    <string name="common_expanded">已展开</string>
+    <string name="common_collapsed">已收起</string>
+    <string name="common_expand">展开</string>
+    <string name="common_collapse">收起</string>
+    <string name="common_more">更多</string>
+    <string name="common_rename_session">重命名会话</string>
+    <string name="connection_open_in_browser">在电脑浏览器打开</string>
+    <string name="connection_copy_address">复制地址</string>
+    <string name="connection_method">连接方式</string>
+    <string name="connection_without_pin">免 PIN 连接</string>
+    <string name="network_switching">正在切换网络…</string>
+    <string name="network_lost">已失联，等待网络恢复</string>
+    <string name="network_switched">网络已切换，URL 已更新为 %1$s，请让浏览器重新打开</string>
+    <string name="network_acknowledge">我知道了</string>
+    <string name="nav_transfer">传输</string>
+    <string name="nav_favorites">收藏</string>
+    <string name="nav_settings">设置</string>
+    <string name="conversation_running">运行 %1$s</string>
+    <plurals name="conversation_file_count">
+        <item quantity="other">%1$d 文件</item>
+    </plurals>
+    <string name="conversation_peer_device">对端设备</string>
+    <string name="conversation_connected">已连接</string>
+    <string name="conversation_disconnected">未连接</string>
+    <string name="file_transferring">传输中 %1$d%%</string>
+    <string name="file_transfer_failed">传输失败</string>
+    <string name="file_tap_to_open">点击打开</string>
+    <string name="file_missing">文件不存在</string>
+    <string name="file_provider_unavailable">无法暴露此文件（FileProvider 路径未配置）</string>
+    <string name="file_open_chooser">打开文件</string>
+    <string name="file_no_handler">没有可以打开此类型文件的应用</string>
+    <string name="common_list_separator">，</string>
+</resources>

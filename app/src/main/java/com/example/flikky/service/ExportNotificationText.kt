@@ -5,25 +5,28 @@ import com.example.flikky.export.MessageExport
 import com.example.flikky.export.ExportScope
 
 /**
- * Pure Android-free helper that turns an [ExportSnapshot] into the human-readable
- * body shown in the export-mode foreground-service notification.
+ * Pure Android-free helper that aggregates an [ExportSnapshot] for the
+ * export-mode foreground-service notification.
  *
- * Extracted so the aggregation logic (session count + total file bytes → "N 个
- * 会话 / X MB 可下载") can be unit-tested on the JVM without spinning up the
- * Android notification stack.
+ * Android resources turn the returned scope/count/byte summary into localized
+ * text; keeping the aggregation here lets it be unit-tested on the JVM without
+ * spinning up the Android notification stack.
  */
 object ExportNotificationText {
-    const val TITLE: String = "Flikky 正在提供导出"
+    data class Summary(
+        val scope: ExportScope,
+        val itemCount: Int,
+        val formattedBytes: String,
+    )
 
     /**
-     * Format: "N 个会话 / X MB 可下载"
-     * - Sessions: count of sessions in snapshot.
-     * - Bytes: sum of file-message sizes across all sessions.
+     * - Item count: sessions or favorites, depending on [ExportSnapshot.scope].
+     * - Bytes: sum of file-message and favorite-file sizes in the snapshot.
      *   - < 1 MB  → shown as "X KB"
      *   - ≥ 1 MB  → shown as "X.X MB"
      *   - 0 bytes → "0 MB"
      */
-    fun body(snapshot: ExportSnapshot): String {
+    fun summary(snapshot: ExportSnapshot): Summary {
         val sessionCount = snapshot.sessions.size
         val sessionBytes = snapshot.sessions.sumOf { s ->
             s.messages.filterIsInstance<MessageExport.File>().sumOf { it.sizeBytes }
@@ -32,13 +35,12 @@ object ExportNotificationText {
             .filter { it.kind == "FILE" }
             .sumOf { it.fileSize ?: 0L }
         val totalBytes = sessionBytes + favoriteBytes
-        val content = when (snapshot.scope) {
-            ExportScope.SESSIONS -> "$sessionCount 个会话"
-            ExportScope.FAVORITES -> "${snapshot.favorites.size} 条收藏"
-            ExportScope.SETTINGS -> "设置"
-            ExportScope.ALL -> "全部数据"
+        val itemCount = when (snapshot.scope) {
+            ExportScope.SESSIONS -> sessionCount
+            ExportScope.FAVORITES -> snapshot.favorites.size
+            ExportScope.SETTINGS, ExportScope.ALL -> 0
         }
-        return "$content / ${formatBytes(totalBytes)} 可下载"
+        return Summary(snapshot.scope, itemCount, formatBytes(totalBytes))
     }
 
     internal fun formatBytes(bytes: Long): String {

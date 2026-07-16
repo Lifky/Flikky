@@ -40,7 +40,7 @@ class HomeListBuilderTest {
         val out = HomeListBuilder.build(listOf(a, b, p), SortMode.TIME, GroupMode.NONE, TODAY, ZONE)
 
         assertEquals(listOf(3L, 2L, 1L), out.sessionIds())
-        assertEquals(emptyList<String>(), out.headers())
+        assertEquals(emptyList<HomeSection>(), out.headers())
     }
 
     @Test
@@ -67,7 +67,7 @@ class HomeListBuilderTest {
             ZONE,
         )
 
-        assertEquals(listOf("进行中", "置顶", "已结束"), out.headers())
+        assertEquals(listOf(HomeSection.RUNNING, HomeSection.PINNED, HomeSection.ENDED), out.headers())
         assertEquals(listOf(1L, 2L, 3L), out.sessionIds())
     }
 
@@ -77,7 +77,7 @@ class HomeListBuilderTest {
 
         val out = HomeListBuilder.build(listOf(ended), SortMode.TIME, GroupMode.STATUS, TODAY, ZONE)
 
-        assertEquals(listOf("已结束"), out.headers())
+        assertEquals(listOf(HomeSection.ENDED), out.headers())
         assertEquals(listOf(1L), out.sessionIds())
     }
 
@@ -96,7 +96,10 @@ class HomeListBuilderTest {
             ZONE,
         )
 
-        assertEquals(listOf("置顶", "今天", "昨天", "更早"), out.headers())
+        assertEquals(
+            listOf(HomeSection.PINNED, HomeSection.TODAY, HomeSection.YESTERDAY, HomeSection.EARLIER),
+            out.headers(),
+        )
         assertEquals(listOf(1L, 2L, 3L, 4L), out.sessionIds())
     }
 
@@ -112,7 +115,7 @@ class HomeListBuilderTest {
             ZONE,
         )
 
-        assertEquals(listOf("昨天"), out.headers())
+        assertEquals(listOf(HomeSection.YESTERDAY), out.headers())
         assertEquals(listOf(1L), out.sessionIds())
     }
 
@@ -125,7 +128,7 @@ class HomeListBuilderTest {
 
         val out = HomeListBuilder.build(listOf(z, a, p2, p1), SortMode.NAME, GroupMode.DATE, TODAY, ZONE)
 
-        assertEquals(listOf("置顶", "今天", "昨天"), out.headers())
+        assertEquals(listOf(HomeSection.PINNED, HomeSection.TODAY, HomeSection.YESTERDAY), out.headers())
         assertEquals(listOf(4L, 3L, 1L, 2L), out.sessionIds())
     }
 
@@ -133,7 +136,7 @@ class HomeListBuilderTest {
     fun empty_list_has_no_headers() {
         val out = HomeListBuilder.build(emptyList(), SortMode.TIME, GroupMode.DATE, TODAY, ZONE)
 
-        assertEquals(emptyList<String>(), out.headers())
+        assertEquals(emptyList<HomeSection>(), out.headers())
         assertEquals(emptyList<Long>(), out.sessionIds())
     }
 
@@ -171,7 +174,7 @@ class HomeListBuilderTest {
     @Test
     fun segmentPositions_singleSection_runsFirstMiddleLast() {
         val items = listOf(
-            HomeListItem.Header("今天"),
+            HomeListItem.Header(HomeSection.TODAY),
             HomeListItem.SessionItem(session(1, "A", ms(TODAY))),
             HomeListItem.SessionItem(session(2, "B", ms(TODAY))),
             HomeListItem.SessionItem(session(3, "C", ms(TODAY))),
@@ -197,10 +200,10 @@ class HomeListBuilderTest {
     @Test
     fun segmentPositions_headerResetsRun() {
         val items = listOf(
-            HomeListItem.Header("置顶"),
+            HomeListItem.Header(HomeSection.PINNED),
             HomeListItem.SessionItem(session(1, "A", ms(TODAY))),
             HomeListItem.SessionItem(session(2, "B", ms(TODAY))),
-            HomeListItem.Header("今天"),
+            HomeListItem.Header(HomeSection.TODAY),
             HomeListItem.SessionItem(session(3, "C", ms(TODAY))),
         )
 
@@ -216,7 +219,7 @@ class HomeListBuilderTest {
     }
 
     private fun List<HomeListItem>.headers() =
-        filterIsInstance<HomeListItem.Header>().map { it.label }
+        filterIsInstance<HomeListItem.Header>().map { it.section }
 
     private fun List<HomeListItem>.sessionIds() =
         filterIsInstance<HomeListItem.SessionItem>().map { it.session.id }

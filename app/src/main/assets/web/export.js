@@ -5,6 +5,14 @@
     const btn = document.getElementById('download-btn');
     const hintEl = document.getElementById('export-hint');
     const bannerEl = document.getElementById('export-banner');
+    const i18n = window.flikkyI18n;
+    const t = (key, values) => i18n.t(key, values);
+    const countText = (key, count) => i18n.count(key, count);
+    let latestInfo = null;
+    let summaryState = { key: 'export.loading' };
+    let downloadState = { type: 'key', key: 'export.preparing' };
+    let hintKey = 'export.hint';
+    let bannerState = null;
 
     // snackbar.js may or may not be loaded (defensive — page works without it).
     const showError = (msg) => {
@@ -22,17 +30,24 @@
         return b + ' B';
     }
 
-    function setSummaryText(text) {
-        summaryEl.textContent = text;
+    function setSummary(key, values) {
+        latestInfo = null;
+        summaryState = { key, values };
+        summaryEl.textContent = t(key, values);
     }
 
     function renderSummary(info) {
+        latestInfo = info;
+        summaryState = null;
         const parts = [];
-        if (info.sessionCount > 0) parts.push(`${info.sessionCount} 个会话`, `${info.messageCount} 条消息`);
-        if (info.favoriteCount > 0) parts.push(`${info.favoriteCount} 条收藏`);
-        if (info.settingsIncluded) parts.push('设置');
-        parts.push(`${(info.fileCount || 0) + (info.favoriteFileCount || 0)} 个文件`);
-        parts.push(`约 ${formatSize(info.totalBytes)}`);
+        if (info.sessionCount > 0) {
+            parts.push(countText('export.sessions', info.sessionCount));
+            parts.push(countText('export.messages', info.messageCount));
+        }
+        if (info.favoriteCount > 0) parts.push(countText('export.favorites', info.favoriteCount));
+        if (info.settingsIncluded) parts.push(t('export.settings'));
+        parts.push(countText('export.files', (info.fileCount || 0) + (info.favoriteFileCount || 0)));
+        parts.push(t('export.approx_size', { size: formatSize(info.totalBytes) }));
         summaryEl.textContent = parts.join(' · ');
     }
 
@@ -52,8 +67,12 @@
             // mdui-list-item supports setting headline/description via attrs.
             // Use setAttribute (which internally uses string assignment) rather
             // than innerHTML-based rendering; attribute values are not parsed as HTML.
-            item.setAttribute('headline', s.name || `会话 #${s.id}`);
-            const desc = `${s.messageCount} 条消息 · ${s.fileCount} 个文件 · ${formatSize(s.totalBytes)}`;
+            item.setAttribute('headline', s.name || t('export.session_fallback', { id: s.id }));
+            const desc = t('export.session_description', {
+                messages: countText('export.messages', s.messageCount),
+                files: countText('export.files', s.fileCount),
+                size: formatSize(s.totalBytes),
+            });
             item.setAttribute('description', desc);
             item.setAttribute('rounded', '');
             listEl.appendChild(item);
@@ -61,13 +80,15 @@
     }
 
     function enableDownload(totalBytes) {
+        downloadState = { type: 'archive', totalBytes };
         btn.disabled = false;
-        btn.textContent = `下载归档 (${formatSize(totalBytes)})`;
+        btn.textContent = t('export.download_archive', { size: formatSize(totalBytes) });
     }
 
-    function disableDownloadWith(text) {
+    function disableDownloadWith(key, values) {
+        downloadState = { type: 'key', key, values };
         btn.disabled = true;
-        btn.textContent = text;
+        btn.textContent = t(key, values);
     }
 
     async function loadInfo() {
@@ -75,8 +96,8 @@
         try {
             resp = await fetch('/api/export/info', { credentials: 'same-origin' });
         } catch (_) {
-            setSummaryText('网络错误，无法读取导出信息');
-            showError('网络错误，请检查连接');
+            setSummary('export.network_info_failed');
+            showError(t('export.network_check'));
             return;
         }
         if (resp.status === 401) {
@@ -84,22 +105,22 @@
             return;
         }
         if (resp.status === 409) {
-            setSummaryText('导出会话已失效');
-            disableDownloadWith('不可下载');
-            showError('导出会话已失效，请在手机上重新发起');
+            setSummary('export.expired');
+            disableDownloadWith('export.unavailable');
+            showError(t('export.expired_action'));
             return;
         }
         if (!resp.ok) {
-            setSummaryText(`加载失败 (${resp.status})`);
-            showError(`加载失败 (${resp.status})`);
+            setSummary('export.load_failed', { status: resp.status });
+            showError(t('export.load_failed', { status: resp.status }));
             return;
         }
         let info;
         try {
             info = await resp.json();
         } catch (_) {
-            setSummaryText('响应解析失败');
-            showError('响应解析失败');
+            setSummary('export.parse_failed');
+            showError(t('export.parse_failed'));
             return;
         }
         renderSummary(info);
@@ -141,14 +162,16 @@
     let healthTimer = null;
     let downloadStarted = false;
 
-    function showExportBanner(text) {
+    function showExportBanner(key, values) {
         if (!bannerEl) return;
-        bannerEl.textContent = text; // 安全红线：禁止 innerHTML
+        bannerState = { key, values };
+        bannerEl.textContent = t(key, values);
         bannerEl.hidden = false;
     }
 
     function hideExportBanner() {
         if (!bannerEl) return;
+        bannerState = null;
         bannerEl.hidden = true;
     }
 
@@ -172,9 +195,9 @@
             healthFailCount++;
             if (healthFailCount >= 1 && !healthDisconnected) {
                 healthDisconnected = true;
-                showExportBanner('与手机连接已断开，请检查网络');
+                showExportBanner('export.disconnected');
                 setDownloadEnabled(false);
-                showError('与手机的连接已断开');
+                showError(t('export.disconnected_short'));
             }
             return;
         }
@@ -188,9 +211,9 @@
             healthFailCount++;
             if (healthFailCount >= 1 && !healthDisconnected) {
                 healthDisconnected = true;
-                showExportBanner('与手机连接已断开，请检查网络');
+                showExportBanner('export.disconnected');
                 setDownloadEnabled(false);
-                showError('与手机的连接已断开');
+                showError(t('export.disconnected_short'));
             }
             return;
         }
@@ -200,7 +223,7 @@
             healthFailCount = 0;
             hideExportBanner();
             setDownloadEnabled(true);
-            showInfo('连接已恢复');
+            showInfo(t('export.connection_restored'));
         } else {
             healthFailCount = 0;
         }
@@ -221,11 +244,12 @@
     btn.addEventListener('click', () => {
         if (btn.disabled) return;
         downloadStarted = true;
-        disableDownloadWith('下载中…');
+        disableDownloadWith('export.downloading');
         triggerDownload();
-        showInfo('下载已开始，可在浏览器下载管理器查看进度');
+        showInfo(t('export.download_started'));
         if (hintEl) {
-            hintEl.textContent = '下载已开始；完成后可关闭此页面。手机端服务会在传输结束后自动停止。';
+            hintKey = 'export.download_started_hint';
+            hintEl.textContent = t(hintKey);
         }
         // 下载开始后关闭链路检测——zip 走独立 HTTP GET 流，WS 断不断不影响它。
         // server 传完 zip 后会 stopSelf()，WS 自然关掉；如果我们还在检测，
@@ -264,9 +288,9 @@
         if (healthDisconnected) return;
         healthDisconnected = true;
         healthFailCount = 99;
-        showExportBanner('与手机连接已断开，请检查网络');
+        showExportBanner('export.disconnected');
         setDownloadEnabled(false);
-        showError('与手机的连接已断开');
+        showError(t('export.disconnected_short'));
     }
 
     function stopExportWsPing() {
@@ -306,7 +330,7 @@
                 healthFailCount = 0;
                 hideExportBanner();
                 setDownloadEnabled(true);
-                showInfo('连接已恢复');
+                showInfo(t('export.connection_restored'));
             }
         };
         ws.onmessage = (e) => {
@@ -322,7 +346,7 @@
                     stopHealthProbe();
                     exportWs = null;
                     try { ws.close(); } catch (_) {}
-                    disableDownloadWith('已取消');
+                    disableDownloadWith('export.cancelled');
                     hideExportBanner();
                     showCancelDialog();
                     return;
@@ -343,6 +367,26 @@
     window.addEventListener('beforeunload', () => {
         stopHealthProbe();
         if (exportWs) try { exportWs.close(); } catch (_) {}
+    });
+
+    i18n.onChange(() => {
+        if (summaryState) {
+            summaryEl.textContent = t(summaryState.key, summaryState.values);
+        } else if (latestInfo) {
+            renderSummary(latestInfo);
+            renderSessions(latestInfo.sessions || []);
+        }
+        if (downloadState.type === 'archive') {
+            btn.textContent = t('export.download_archive', {
+                size: formatSize(downloadState.totalBytes),
+            });
+        } else {
+            btn.textContent = t(downloadState.key, downloadState.values);
+        }
+        if (hintEl) hintEl.textContent = t(hintKey);
+        if (bannerState && bannerEl) {
+            bannerEl.textContent = t(bannerState.key, bannerState.values);
+        }
     });
 
     loadInfo();

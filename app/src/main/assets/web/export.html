@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Flikky 导出</title>
+    <title data-i18n="export.title">Flikky 导出</title>
     <link rel="stylesheet" href="/static/vendor/mdui.css">
     <link rel="stylesheet" href="/static/tokens.css">
     <link rel="stylesheet" href="/static/app.css">
@@ -11,7 +11,7 @@
 <body>
     <div class="export-wrap">
         <mdui-top-app-bar scroll-behavior="elevate">
-            <mdui-top-app-bar-title>Flikky 导出</mdui-top-app-bar-title>
+            <mdui-top-app-bar-title data-i18n="export.title">Flikky 导出</mdui-top-app-bar-title>
         </mdui-top-app-bar>
 
         <main class="export-main">
@@ -21,20 +21,20 @@
             <div id="export-banner" class="export-banner" role="status" aria-live="polite" hidden></div>
 
             <mdui-card id="summary-card" variant="filled" class="export-card">
-                <h2 class="export-card-title">即将下载</h2>
-                <div id="summary" class="export-summary">读取中…</div>
+                <h2 class="export-card-title" data-i18n="export.pending">即将下载</h2>
+                <div id="summary" class="export-summary" data-i18n="export.loading">读取中…</div>
             </mdui-card>
 
             <mdui-card variant="outlined" id="sessions-card" class="export-card" hidden>
-                <h3 class="export-card-title">会话清单</h3>
+                <h3 class="export-card-title" data-i18n="export.session_list">会话清单</h3>
                 <mdui-list id="session-list"></mdui-list>
             </mdui-card>
 
             <div class="export-actions">
-                <mdui-button id="download-btn" variant="filled" disabled>准备中…</mdui-button>
+                <mdui-button id="download-btn" data-i18n="export.preparing" variant="filled" disabled>准备中…</mdui-button>
             </div>
 
-            <p class="export-hint" id="export-hint">
+            <p class="export-hint" id="export-hint" data-i18n="export.hint">
                 提示：下载由浏览器处理，开始后可保持此页面开启直至保存完成。
             </p>
         </main>
@@ -42,12 +42,13 @@
 
     <mdui-snackbar id="snackbar" placement="bottom"></mdui-snackbar>
 
-    <mdui-dialog id="export-cancel-dialog" close-on-overlay-click="true" close-on-esc="true" headline="导出已取消">
-        <div style="padding: 0 24px 8px;">手机端已取消本次导出，如需重新导出请回到手机端操作。</div>
-        <mdui-button slot="action" data-action="ok" variant="text">我知道了</mdui-button>
+    <mdui-dialog id="export-cancel-dialog" close-on-overlay-click="true" close-on-esc="true" headline="导出已取消" data-i18n-headline="export.cancelled_title">
+        <div data-i18n="export.cancelled_body" style="padding: 0 24px 8px;">手机端已取消本次导出，如需重新导出请回到手机端操作。</div>
+        <mdui-button slot="action" data-action="ok" data-i18n="common.got_it" variant="text">我知道了</mdui-button>
     </mdui-dialog>
 
     <script src="/static/vendor/mdui.global.js"></script>
+    <script src="/static/i18n.js"></script>
     <script src="/static/snackbar.js"></script>
     <script src="/static/export.js"></script>
 </body>

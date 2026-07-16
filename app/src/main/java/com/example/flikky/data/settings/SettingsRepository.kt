@@ -51,7 +51,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             phoneAvatarId = p[Keys.phoneAvatar] ?: 0,
             phoneAvatarKey = p[Keys.phoneAvatarKey] ?: "icon:smartphone",
             background = decodeBackground(p[Keys.bgMode], p[Keys.bgValue]),
-            deviceName = p[Keys.deviceName] ?: "我的手机",
+            deviceName = normalizeDeviceName(p[Keys.deviceName]),
             recallBetaEnabled = p[Keys.recallBeta] ?: false,
             favoriteBetaEnabled = p[Keys.favoriteBeta] ?: false,
             requirePin = p[Keys.requirePin] ?: true,
@@ -87,7 +87,11 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setAmoled(v: Boolean) = ds.edit { it[Keys.amoled] = v }
     suspend fun setPhoneAvatar(v: Int) = ds.edit { it[Keys.phoneAvatar] = v }
     suspend fun setPhoneAvatarKey(v: String) = ds.edit { it[Keys.phoneAvatarKey] = v }
-    suspend fun setDeviceName(v: String) = ds.edit { it[Keys.deviceName] = v.trim().ifEmpty { "我的手机" }.take(20) }
+    suspend fun setDeviceName(v: String) = ds.edit { prefs ->
+        val normalized = normalizeDeviceName(v)
+        if (normalized.isEmpty()) prefs.remove(Keys.deviceName)
+        else prefs[Keys.deviceName] = normalized
+    }
     suspend fun setRecallBeta(v: Boolean) = ds.edit { it[Keys.recallBeta] = v }
     suspend fun setFavoriteBeta(v: Boolean) = ds.edit { it[Keys.favoriteBeta] = v }
     suspend fun setRequirePin(v: Boolean) = ds.edit { it[Keys.requirePin] = v }
@@ -164,7 +168,11 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         backup.amoled?.let { prefs[Keys.amoled] = it }
         backup.phoneAvatarId?.let { prefs[Keys.phoneAvatar] = it }
         backup.phoneAvatarKey?.let { prefs[Keys.phoneAvatarKey] = it }
-        backup.deviceName?.let { prefs[Keys.deviceName] = it.trim().ifEmpty { "我的手机" }.take(20) }
+        backup.deviceName?.let { value ->
+            val normalized = normalizeDeviceName(value)
+            if (normalized.isEmpty()) prefs.remove(Keys.deviceName)
+            else prefs[Keys.deviceName] = normalized
+        }
         backup.recallBetaEnabled?.let { prefs[Keys.recallBeta] = it }
         backup.favoriteBetaEnabled?.let { prefs[Keys.favoriteBeta] = it }
         backup.requirePin?.let { prefs[Keys.requirePin] = it }
@@ -207,10 +215,18 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             .distinct()
             .take(RECENT_FAVORITE_LIMIT)
 
+    private fun normalizeDeviceName(value: String?): String = value
+        .orEmpty()
+        .trim()
+        .take(20)
+        .takeUnless { it == LEGACY_DEFAULT_DEVICE_NAME }
+        .orEmpty()
+
     private inline fun <reified T : Enum<T>> String.enumNameOrNull(): String? =
         runCatching { enumValueOf<T>(this).name }.getOrNull()
 
     private companion object {
         const val RECENT_FAVORITE_LIMIT = 5
+        const val LEGACY_DEFAULT_DEVICE_NAME = "我的手机"
     }
 }

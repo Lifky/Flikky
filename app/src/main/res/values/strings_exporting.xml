@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="exporting_title_ready">导出就绪</string>
+    <string name="exporting_title_sending">正在发送</string>
+    <string name="exporting_title_done">导出完成</string>
+    <string name="exporting_ready_with_pin">在电脑浏览器打开上方地址，输入 PIN 后下载 zip。\n下载完成本页会自动跳转。</string>
+    <string name="exporting_ready_without_pin">在电脑浏览器打开上方地址即可下载 zip。\n下载完成本页会自动跳转。</string>
+    <string name="exporting_cancel">取消导出</string>
+    <string name="exporting_browser_downloading">浏览器正在下载 zip…</string>
+    <string name="exporting_progress">已发送 %1$s / %2$s</string>
+    <plurals name="exporting_sessions_done">
+        <item quantity="other">已导出 %1$d 个会话到 PC</item>
+    </plurals>
+    <plurals name="exporting_favorites_done">
+        <item quantity="other">已导出 %1$d 条收藏到 PC</item>
+    </plurals>
+    <string name="exporting_settings_done">已导出设置到 PC</string>
+    <string name="exporting_all_done">已导出全部数据到 PC</string>
+    <string name="exporting_sessions_saved_description">zip 已保存在电脑下载目录。现在可以选择保留本地副本，或在确认 zip 无误后删除本地。</string>
+    <string name="exporting_archive_saved_description">zip 已保存在电脑下载目录，可随时通过设置中的“导入”恢复。</string>
+    <string name="exporting_keep_local">保留本地</string>
+    <string name="exporting_delete_local">删除本地</string>
+    <plurals name="exporting_delete_title">
+        <item quantity="other">确认删除本地 %1$d 条会话？</item>
+    </plurals>
+    <plurals name="exporting_delete_message">
+        <item quantity="other">将删除 %1$d 条会话与对应的所有文件，此操作不可撤销。请先确认 zip 已保存到 PC 安全位置。</item>
+    </plurals>
+    <string name="exporting_confirm_delete">确认删除</string>
+
+    <string name="export_destination_title">导出到</string>
+    <string name="export_destination_local">保存到本机</string>
+    <string name="export_destination_local_summary">选择位置保存 ZIP 归档</string>
+    <string name="export_destination_computer">在电脑下载</string>
+    <string name="export_destination_computer_summary">通过同一 Wi-Fi 在浏览器下载</string>
+    <string name="archive_read_failed">无法读取文件</string>
+    <string name="archive_parse_failed">无法解析归档</string>
+    <string name="export_write_failed">无法写入所选位置</string>
+</resources>

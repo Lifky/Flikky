@@ -28,6 +28,8 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
+import com.example.flikky.R
 import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.ui.theme.Spacing
 
@@ -42,7 +44,7 @@ fun buildGroupChipModels(
     activeGroupId: Long?,
 ): List<GroupChipModel> =
     listOf(
-        GroupChipModel(id = null, label = "全部", selected = activeGroupId == null),
+        GroupChipModel(id = null, label = "", selected = activeGroupId == null),
     ) + groups
         .sortedWith(compareBy<GroupEntity> { it.sortOrder }.thenBy { it.createdAt }.thenBy { it.id })
         .map { group ->
@@ -68,6 +70,7 @@ fun GroupChips(
 ) {
     val byId = groups.associateBy { it.id }
     val models = buildGroupChipModels(groups, activeGroupId)
+    val newGroupLabel = stringResource(R.string.home_new_group)
 
     Row(
         modifier = modifier
@@ -91,9 +94,9 @@ fun GroupChips(
         }
         IconButton(
             onClick = onAdd,
-            modifier = Modifier.semantics { contentDescription = "新建分组" },
+            modifier = Modifier.semantics { contentDescription = newGroupLabel },
         ) {
-            Icon(Icons.Default.Add, contentDescription = "新建分组")
+            Icon(Icons.Default.Add, contentDescription = newGroupLabel)
         }
     }
 }
@@ -112,7 +115,8 @@ private fun GroupFilterChip(
         onClick = { onSelect(model.id) },
         label = {
             Text(
-                text = model.label,
+                text = if (model.id == null) stringResource(R.string.home_all_groups)
+                    else model.label,
                 style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

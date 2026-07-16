@@ -157,6 +157,7 @@ data class PeerInfoDto(
 data class WebThemeDto(
     val themeSeed: String? = null,
     val themeDark: Boolean = false,
+    val languageTag: String = "zh-CN",
 )
 
 /**

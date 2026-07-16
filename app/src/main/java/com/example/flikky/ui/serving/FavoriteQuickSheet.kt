@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
@@ -99,13 +100,13 @@ fun FavoriteQuickSheet(
                 .padding(bottom = Spacing.lg),
         ) {
             Text(
-                text = "收藏",
+                text = stringResource(R.string.favorite_quick_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
             )
             if (recentFavorites.isNotEmpty()) {
                 Text(
-                    text = "最近使用",
+                    text = stringResource(R.string.favorite_quick_recent),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = Spacing.screenEdge, vertical = Spacing.xs),
@@ -135,12 +136,15 @@ fun FavoriteQuickSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = Spacing.screenEdge),
-                placeholder = { Text("搜索收藏") },
+                placeholder = { Text(stringResource(R.string.favorite_quick_search)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (query.isNotBlank()) {
                         IconButton(onClick = { query = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "清空搜索")
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = stringResource(R.string.favorite_quick_clear_search),
+                            )
                         }
                     }
                 },
@@ -162,7 +166,7 @@ fun FavoriteQuickSheet(
             ) {
                 item {
                     FavoriteGroupChip(
-                        label = "全部",
+                        label = stringResource(R.string.favorite_quick_all),
                         selected = activeGroupId == null,
                         onClick = { activeGroupId = null },
                     )
@@ -184,7 +188,10 @@ fun FavoriteQuickSheet(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = if (query.isBlank()) "暂无收藏" else "没有匹配的收藏",
+                        text = stringResource(
+                            if (query.isBlank()) R.string.favorite_quick_empty
+                            else R.string.favorite_quick_no_match
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -336,16 +343,22 @@ private fun FavoriteQuickRow(
         IconButton(onClick = onSend) {
             Icon(
                 painter = painterResource(R.drawable.ic_arrow_upward),
-                contentDescription = "发送收藏",
+                contentDescription = stringResource(R.string.favorites_send),
                 tint = MaterialTheme.colorScheme.primary,
             )
         }
     }
 }
 
+@Composable
 private fun FavoriteEntity.primaryLabel(): String =
-    if (kind == "FILE") fileName ?: "未命名文件" else textContent?.ifBlank { null } ?: "空文本"
+    if (kind == "FILE") {
+        fileName ?: stringResource(R.string.favorites_unnamed_file)
+    } else {
+        textContent?.ifBlank { null } ?: stringResource(R.string.favorites_empty_text)
+    }
 
+@Composable
 private fun FavoriteEntity.compactLabel(): String {
     val raw = primaryLabel().replace('\n', ' ').trim()
     return if (raw.length <= 12) raw else raw.take(12).trimEnd() + "…"

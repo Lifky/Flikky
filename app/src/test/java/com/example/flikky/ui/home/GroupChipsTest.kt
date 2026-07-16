@@ -17,7 +17,7 @@ class GroupChipsTest {
         val models = buildGroupChipModels(groups, activeGroupId = null)
 
         assertEquals(listOf(null, 1L, 2L), models.map { it.id })
-        assertEquals(listOf("全部", "A", "B"), models.map { it.label })
+        assertEquals(listOf("", "A", "B"), models.map { it.label })
         assertTrue(models.first().selected)
     }
 

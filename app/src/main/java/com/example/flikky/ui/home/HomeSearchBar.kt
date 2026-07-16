@@ -37,6 +37,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -116,27 +118,36 @@ fun HomeSearchBar(
                 onSearch = { },
                 expanded = expanded,
                 onExpandedChange = onExpandedChange,
-                placeholder = { Text("搜索会话与消息") },
+                placeholder = { Text(stringResource(R.string.home_search_placeholder)) },
                 leadingIcon = {
                     if (expanded) {
                         IconButton(onClick = { collapse() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "收起搜索")
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.home_search_collapse),
+                            )
                         }
                     } else {
-                        Icon(Icons.Default.Search, contentDescription = "搜索")
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = stringResource(R.string.home_search),
+                        )
                     }
                 },
                 trailingIcon = {
                     if (expanded) {
                         if (query.isNotEmpty()) {
                             IconButton(onClick = { searchVm.onQueryChange("") }) {
-                                Icon(Icons.Default.Close, contentDescription = "清空")
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.home_search_clear),
+                                )
                             }
                         }
                     } else {
                         ImportExportOverflowMenu(
-                            importLabel = "导入会话",
-                            exportLabel = "导出会话",
+                            importLabel = stringResource(R.string.home_import_sessions),
+                            exportLabel = stringResource(R.string.home_export_sessions),
                             onImport = onImport,
                             onExport = onExport,
                         )
@@ -146,15 +157,16 @@ fun HomeSearchBar(
         },
     ) {
         when {
-            query.isBlank() -> CenterHint("输入关键词搜索会话与消息")
+            query.isBlank() -> CenterHint(stringResource(R.string.home_search_hint))
             sessionHits.isEmpty() && msgHits.isEmpty() ->
                 // Only show "no match" once the debounce has settled; suppress the ~300ms flash
                 // that would otherwise appear when a query has only message hits (not session-name hits).
-                if (settled) CenterHint("没有找到匹配项") else Box(Modifier.fillMaxSize())
+                if (settled) CenterHint(stringResource(R.string.home_search_empty))
+                else Box(Modifier.fillMaxSize())
             // 全屏展开后内容会延伸到导航栏/键盘之下，给结果列表补 nav + ime inset，末项不被遮挡。
             else -> LazyColumn(modifier = Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
                 if (sessionHits.isNotEmpty()) {
-                    item { SectionHeader("会话") }
+                    item { SectionHeader(stringResource(R.string.home_search_sessions)) }
                     items(sessionHits, key = { "s${it.id}" }) { s ->
                         SessionHitRow(s) {
                             collapse()
@@ -163,7 +175,7 @@ fun HomeSearchBar(
                     }
                 }
                 if (msgHits.isNotEmpty()) {
-                    item { SectionHeader("消息") }
+                    item { SectionHeader(stringResource(R.string.home_search_messages)) }
                     items(msgHits, key = { "m${it.messageId}" }) { hit ->
                         MessageHitRow(hit) { collapse(); onOpenMessageHit(hit.sessionId, hit.messageId) }
                     }
@@ -217,7 +229,14 @@ private fun SessionHitRow(s: SessionEntity, onClick: () -> Unit) {
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            if (s.endedAt == null) "进行中" else s.previewText ?: "${s.messageCount} 条消息 · ${s.fileCount} 文件",
+            if (s.endedAt == null) {
+                stringResource(R.string.home_in_progress)
+            } else {
+                s.previewText ?: listOf(
+                    pluralStringResource(R.plurals.home_message_count, s.messageCount, s.messageCount),
+                    pluralStringResource(R.plurals.home_file_count, s.fileCount, s.fileCount),
+                ).joinToString(" · ")
+            },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -249,7 +268,7 @@ private fun MessageHitRow(
                 Icon(
                     // 与消息文件气泡（MessageBubble 用 ic_description）统一图标风格。
                     painterResource(R.drawable.ic_description),
-                    contentDescription = "文件",
+                    contentDescription = stringResource(R.string.home_file),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

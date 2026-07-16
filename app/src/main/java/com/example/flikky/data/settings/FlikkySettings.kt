@@ -4,30 +4,30 @@ enum class ThemeMode { DYNAMIC, PRESET }
 
 /**
  * 8 个命名预设主题。色值来自用户自定义的 Material Theme Builder 导出
- * （ui/theme/scheme 包下的 Scheme 对象，逐字未改）。枚举常量名用英文，[label] 是中文展示名。
+ * （ui/theme/scheme 包下的 Scheme 对象，逐字未改）。枚举常量名用英文，展示名由 UI 资源提供。
  * [seedHex] 是该主题的身份种子色（取 light/标准 的 primary），推给浏览器端 `mdui.setColorScheme`
  * 让双端配色对齐——MDC 与 mdui 同用 Material Color Utilities，同一 seed 出同一色相。
  */
-enum class PresetTheme(val label: String, val seedHex: String) {
-    DANSHU_RED("淡曙红", "#8F4A4C"),
-    DANZI_RED("丹紫红", "#8B4A63"),
-    CHENGPI_YELLOW("橙皮黄", "#825513"),
-    QIUKUI_YELLOW("秋葵黄", "#6D5E0E"),
-    ANAN_BLUE("安安蓝", "#33618D"),
-    ZHUMU_GRAY("珠母灰", "#8E4D31"),
-    YINGWU_GREEN("鹦鹉绿", "#466730"),
-    JIEHUA_PURPLE("芥花紫", "#844C72"),
+enum class PresetTheme(val seedHex: String) {
+    DANSHU_RED("#8F4A4C"),
+    DANZI_RED("#8B4A63"),
+    CHENGPI_YELLOW("#825513"),
+    QIUKUI_YELLOW("#6D5E0E"),
+    ANAN_BLUE("#33618D"),
+    ZHUMU_GRAY("#8E4D31"),
+    YINGWU_GREEN("#466730"),
+    JIEHUA_PURPLE("#844C72"),
 }
 
 /**
  * 对比度档。[SYSTEM] 跟随系统无障碍对比度（API34+ `UiModeManager.getContrast()`，低版本回落
  * [STANDARD]）；其余为手动锁定。每个 [PresetTheme] 都备有标准/中/高三套 MD3 role。
  */
-enum class ContrastLevel(val label: String) {
-    SYSTEM("跟随系统"),
-    STANDARD("标准"),
-    MEDIUM("中"),
-    HIGH("高"),
+enum class ContrastLevel {
+    SYSTEM,
+    STANDARD,
+    MEDIUM,
+    HIGH,
 }
 
 enum class DarkMode { SYSTEM, LIGHT, DARK }
@@ -71,7 +71,7 @@ data class FlikkySettings(
     val phoneAvatarId: Int = 0,
     val phoneAvatarKey: String = "icon:smartphone",
     val background: BackgroundSetting = BackgroundSetting.Default,
-    val deviceName: String = "我的手机",
+    val deviceName: String = "",
     val recallBetaEnabled: Boolean = false,
     val favoriteBetaEnabled: Boolean = false,
     val requirePin: Boolean = true,

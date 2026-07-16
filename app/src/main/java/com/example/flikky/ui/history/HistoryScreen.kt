@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -101,6 +102,14 @@ fun HistoryScreen(
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val favoriteLabel = stringResource(R.string.history_favorite)
+    val unfavoriteLabel = stringResource(R.string.history_unfavorite)
+    val copyLabel = stringResource(R.string.history_copy)
+    val openLabel = stringResource(R.string.history_open)
+    val deleteLabel = stringResource(R.string.history_delete)
+    val deletedMessage = stringResource(R.string.history_deleted)
+    val undoLabel = stringResource(R.string.history_undo)
+    val favoriteSourceMissingMessage = stringResource(R.string.history_favorite_source_missing)
 
     // v1.3 T20: scroll-to + flash-highlight when arriving from the home search.
     val listState = rememberLazyListState()
@@ -151,7 +160,7 @@ fun HistoryScreen(
             val faved = msg.id in favoritedIds
             add(MessageAction(
                 icon = if (faved) starPainter else starBorderPainter,
-                label = if (faved) "取消收藏" else "收藏",
+                label = if (faved) unfavoriteLabel else favoriteLabel,
                 onClick = {
                     actionTarget = null
                     if (faved) {
@@ -165,7 +174,7 @@ fun HistoryScreen(
         if (msg is Message.Text) {
             add(MessageAction(
                 icon = copyPainter,
-                label = "复制",
+                label = copyLabel,
                 onClick = {
                     scope.launch { clipboard.setPlainText(msg.content) }
                     actionTarget = null
@@ -175,7 +184,7 @@ fun HistoryScreen(
         if (msg is Message.File && msg.status == Message.File.Status.COMPLETED) {
             add(MessageAction(
                 icon = downloadPainter,
-                label = "打开",
+                label = openLabel,
                 onClick = {
                     openFile(ctx, sessionId, msg)
                     actionTarget = null
@@ -184,7 +193,7 @@ fun HistoryScreen(
         }
         add(MessageAction(
             icon = deletePainter,
-            label = "删除",
+            label = deleteLabel,
             danger = true,
             onClick = {
                 val id = msg.id
@@ -192,8 +201,8 @@ fun HistoryScreen(
                 viewModel.deleteLocalWithUndo(id)
                 scope.launch {
                     val result = snackbarHostState.showSnackbar(
-                        message = "已删除",
-                        actionLabel = "撤销",
+                        message = deletedMessage,
+                        actionLabel = undoLabel,
                     )
                     if (result == SnackbarResult.ActionPerformed) {
                         viewModel.undoDelete()
@@ -225,28 +234,35 @@ fun HistoryScreen(
         },
         topBar = {
             TopAppBar(
-                title = { Text(session?.name ?: "会话") },
+                title = { Text(session?.name ?: stringResource(R.string.history_session_fallback)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回") }
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.history_back),
+                        )
+                    }
                 },
                 actions = {
                     IconButton(onClick = { menuExpanded = true }, enabled = !inProgress) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "更多")
+                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.common_more))
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         val pinned = session?.pinned == true
                         DropdownMenuItem(
-                            text = { Text(if (pinned) "取消置顶" else "置顶") },
+                            text = {
+                                Text(stringResource(if (pinned) R.string.history_unpin else R.string.history_pin))
+                            },
                             onClick = { menuExpanded = false; viewModel.setPinned(!pinned) },
                             leadingIcon = { Icon(pinPainter, contentDescription = null) },
                         )
                         DropdownMenuItem(
-                            text = { Text("重命名") },
+                            text = { Text(stringResource(R.string.history_rename)) },
                             onClick = { menuExpanded = false; showRename = true },
                             leadingIcon = { Icon(editPainter, contentDescription = null) },
                         )
                         DropdownMenuItem(
-                            text = { Text("删除") },
+                            text = { Text(stringResource(R.string.history_delete)) },
                             onClick = { menuExpanded = false; showDelete = true },
                             leadingIcon = { Icon(deletePainter, contentDescription = null) },
                         )
@@ -357,32 +373,34 @@ fun HistoryScreen(
         var draft by remember { mutableStateOf(session?.name ?: "") }
         AlertDialog(
             onDismissRequest = { showRename = false },
-            title = { Text("重命名会话") },
+            title = { Text(stringResource(R.string.common_rename_session)) },
             text = {
                 OutlinedTextField(
                     value = draft, onValueChange = { draft = it }, singleLine = true,
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showRename = false; viewModel.rename(draft) }) { Text("确定") }
+                TextButton(onClick = { showRename = false; viewModel.rename(draft) }) {
+                    Text(stringResource(R.string.common_confirm))
+                }
             },
             dismissButton = {
-                TextButton(onClick = { showRename = false }) { Text("取消") }
+                TextButton(onClick = { showRename = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
     if (showDelete) {
         AlertDialog(
             onDismissRequest = { showDelete = false },
-            title = { Text("删除会话") },
-            text = { Text("将删除此会话的所有消息与文件。该操作不可撤销。") },
+            title = { Text(stringResource(R.string.history_delete_session_title)) },
+            text = { Text(stringResource(R.string.history_delete_session_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     showDelete = false; viewModel.delete(); onBack()
-                }) { Text("删除") }
+                }) { Text(stringResource(R.string.history_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDelete = false }) { Text("取消") }
+                TextButton(onClick = { showDelete = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -393,7 +411,7 @@ fun HistoryScreen(
                 pendingFavoriteMsg = null
                 scope.launch {
                     runCatching { favoriteHistoryMessage(sessionId, session?.name, msg, groupId) }
-                        .onFailure { snackbarHostState.showSnackbar("收藏失败：源文件不存在") }
+                        .onFailure { snackbarHostState.showSnackbar(favoriteSourceMissingMessage) }
                 }
             },
             onCreateGroup = { name ->
@@ -403,7 +421,7 @@ fun HistoryScreen(
                     pendingFavoriteMsg = null
                     if (target != null) {
                         runCatching { favoriteHistoryMessage(sessionId, session?.name, target, groupId) }
-                            .onFailure { snackbarHostState.showSnackbar("收藏失败：源文件不存在") }
+                            .onFailure { snackbarHostState.showSnackbar(favoriteSourceMissingMessage) }
                     }
                 }
             },
@@ -423,13 +441,13 @@ private fun openFile(ctx: Context, sessionId: Long, msg: Message.File) {
     if (msg.status != Message.File.Status.COMPLETED) return
     val f = File(File(File(ctx.filesDir, "sessions/$sessionId"), "files"), msg.fileId)
     if (!f.exists()) {
-        Toast.makeText(ctx, "文件不存在", Toast.LENGTH_SHORT).show(); return
+        Toast.makeText(ctx, R.string.file_missing, Toast.LENGTH_SHORT).show(); return
     }
     val authority = "${ctx.packageName}.fileprovider"
     val uri = try {
         FileProvider.getUriForFile(ctx, authority, f, msg.name)
     } catch (e: IllegalArgumentException) {
-        Toast.makeText(ctx, "无法暴露此文件（FileProvider 路径未配置）", Toast.LENGTH_SHORT).show()
+        Toast.makeText(ctx, R.string.file_provider_unavailable, Toast.LENGTH_SHORT).show()
         return
     }
     val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -437,10 +455,10 @@ private fun openFile(ctx: Context, sessionId: Long, msg: Message.File) {
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
     }
     try {
-        ctx.startActivity(Intent.createChooser(intent, "打开文件").apply {
+        ctx.startActivity(Intent.createChooser(intent, ctx.getString(R.string.file_open_chooser)).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         })
     } catch (_: ActivityNotFoundException) {
-        Toast.makeText(ctx, "没有可以打开此类型文件的应用", Toast.LENGTH_SHORT).show()
+        Toast.makeText(ctx, R.string.file_no_handler, Toast.LENGTH_SHORT).show()
     }
 }

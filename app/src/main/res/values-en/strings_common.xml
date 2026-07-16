@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="common_confirm">Confirm</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_done">Done</string>
+    <string name="common_unknown">Unknown</string>
+    <string name="common_default">Default</string>
+    <string name="common_blank">Blank</string>
+    <string name="common_solid_color">Solid color</string>
+    <string name="common_enabled">On</string>
+    <string name="common_disabled">Off</string>
+    <string name="common_expanded">Expanded</string>
+    <string name="common_collapsed">Collapsed</string>
+    <string name="common_expand">Expand</string>
+    <string name="common_collapse">Collapse</string>
+    <string name="common_more">More</string>
+    <string name="common_rename_session">Rename session</string>
+    <string name="connection_open_in_browser">Open in a computer browser</string>
+    <string name="connection_copy_address">Copy address</string>
+    <string name="connection_method">Connection</string>
+    <string name="connection_without_pin">Connect without PIN</string>
+    <string name="network_switching">Switching network…</string>
+    <string name="network_lost">Connection lost. Waiting for the network…</string>
+    <string name="network_switched">Network changed. The URL is now %1$s. Reopen it in the browser.</string>
+    <string name="network_acknowledge">Got it</string>
+    <string name="nav_transfer">Transfer</string>
+    <string name="nav_favorites">Favorites</string>
+    <string name="nav_settings">Settings</string>
+    <string name="conversation_running">Running %1$s</string>
+    <plurals name="conversation_file_count">
+        <item quantity="one">%1$d file</item>
+        <item quantity="other">%1$d files</item>
+    </plurals>
+    <string name="conversation_peer_device">Peer device</string>
+    <string name="conversation_connected">Connected</string>
+    <string name="conversation_disconnected">Disconnected</string>
+    <string name="file_transferring">Transferring %1$d%%</string>
+    <string name="file_transfer_failed">Transfer failed</string>
+    <string name="file_tap_to_open">Tap to open</string>
+    <string name="file_missing">File not found</string>
+    <string name="file_provider_unavailable">This file can\'t be shared because its FileProvider path isn\'t configured.</string>
+    <string name="file_open_chooser">Open file</string>
+    <string name="file_no_handler">No app can open this file type</string>
+    <string name="common_list_separator">, </string>
+</resources>

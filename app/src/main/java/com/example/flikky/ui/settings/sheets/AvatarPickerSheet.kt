@@ -31,7 +31,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.flikky.R
 import com.example.flikky.ui.components.Avatar
 import com.example.flikky.ui.components.AvatarContent
 import com.example.flikky.ui.components.AvatarKey
@@ -42,7 +44,7 @@ import com.example.flikky.ui.theme.Spacing
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AvatarPickerSheet(
-    title: String = "选择头像",
+    title: String? = null,
     currentKey: String,
     fallbackKey: String = AvatarKey.DEFAULT_PHONE,
     onSelect: (String) -> Unit,
@@ -82,7 +84,7 @@ fun AvatarPickerSheet(
                 .padding(bottom = Spacing.xxxl),
         ) {
             Text(
-                text = title,
+                text = title ?: stringResource(R.string.avatar_choose),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = Spacing.lg),
             )
@@ -95,7 +97,7 @@ fun AvatarPickerSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
-                    text = "填充图标",
+                    text = stringResource(R.string.avatar_filled_icons),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -158,14 +160,14 @@ fun AvatarPickerSheet(
                     value = charDraft,
                     onValueChange = { charDraft = it.take(1) },
                     singleLine = true,
-                    placeholder = { Text("单个字符") },
+                    placeholder = { Text(stringResource(R.string.avatar_single_character)) },
                     modifier = Modifier.weight(1f),
                 )
                 FilledTonalButton(
                     onClick = { onSelect(AvatarKey.char(charDraft)) },
                     enabled = charDraft.isNotBlank(),
                 ) {
-                    Text("确定")
+                    Text(stringResource(R.string.common_confirm))
                 }
             }
         }

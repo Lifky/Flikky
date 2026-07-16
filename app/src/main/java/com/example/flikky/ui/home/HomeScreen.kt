@@ -70,6 +70,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -146,19 +148,31 @@ fun HomeScreen(
             scope.launch {
                 val result = viewModel.importFromZip(uri)
                 showImportDialog = false
-                val msg = buildString {
-                    if (result.imported.isNotEmpty())
-                        append("已导入 ${result.imported.size} 个会话")
+                val msg = buildList {
+                    if (result.imported.isNotEmpty()) {
+                        add(context.resources.getQuantityString(
+                            R.plurals.home_imported_sessions,
+                            result.imported.size,
+                            result.imported.size,
+                        ))
+                    }
                     if (result.skipped.isNotEmpty()) {
-                        if (isNotEmpty()) append("，")
-                        append("跳过 ${result.skipped.size} 个重复")
+                        add(context.resources.getQuantityString(
+                            R.plurals.home_import_skipped,
+                            result.skipped.size,
+                            result.skipped.size,
+                        ))
                     }
                     if (result.errors.isNotEmpty()) {
-                        if (isNotEmpty()) append("，")
-                        append("${result.errors.size} 个失败")
+                        add(context.resources.getQuantityString(
+                            R.plurals.home_import_failed_count,
+                            result.errors.size,
+                            result.errors.size,
+                        ))
                     }
-                    if (isEmpty()) append("未找到可导入的会话")
-                }
+                }.ifEmpty {
+                    listOf(context.getString(R.string.home_import_empty))
+                }.joinToString(context.getString(R.string.common_list_separator))
                 snackbarHostState.showSnackbar(msg)
             }
         }
@@ -172,17 +186,19 @@ fun HomeScreen(
             scope.launch {
                 val message = try {
                     when (viewModel.saveExport(uri)) {
-                        HomeViewModel.ExportStartResult.Success -> "已保存到所选位置"
+                        HomeViewModel.ExportStartResult.Success ->
+                            context.getString(R.string.home_export_saved)
                         HomeViewModel.ExportStartResult.NoValidSessions ->
-                            "所选会话无法导出（可能都在进行中）"
-                        HomeViewModel.ExportStartResult.EmptySelection -> "请先勾选会话"
+                            context.getString(R.string.home_export_ineligible)
+                        HomeViewModel.ExportStartResult.EmptySelection ->
+                            context.getString(R.string.home_select_sessions_first)
                         HomeViewModel.ExportStartResult.TransferRunning ->
-                            "保存失败，请重试"
+                            context.getString(R.string.home_save_failed)
                     }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
-                    "保存失败，请重试或选择其他位置"
+                    context.getString(R.string.home_save_failed_location)
                 } finally {
                     showLocalExportProgress = false
                 }
@@ -208,7 +224,7 @@ fun HomeScreen(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (!granted) {
-            Toast.makeText(context, "通知权限被拒：服务仍运行，但通知栏不会显示状态", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, R.string.home_notification_denied, Toast.LENGTH_LONG).show()
         }
         startAndNavigate()
     }
@@ -284,10 +300,24 @@ fun HomeScreen(
                             startAndNavigate()
                         }
                     },
-                    text = { Text(if (hasInProgress) "继续服务" else "启动服务") },
+                    text = {
+                        Text(stringResource(
+                            if (hasInProgress) R.string.home_continue_service
+                            else R.string.home_start_service
+                        ))
+                    },
                     icon = {
-                        if (hasInProgress) Icon(Icons.Default.PlayArrow, contentDescription = "继续服务")
-                        else Icon(Icons.Default.Add, contentDescription = "启动服务")
+                        if (hasInProgress) {
+                            Icon(
+                                Icons.Default.PlayArrow,
+                                contentDescription = stringResource(R.string.home_continue_service),
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = stringResource(R.string.home_start_service),
+                            )
+                        }
                     },
                 )
             }
@@ -334,7 +364,7 @@ fun HomeScreen(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Text(
-                                    text = "该分组还没有会话",
+                                    text = stringResource(R.string.home_empty_group),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -354,14 +384,14 @@ fun HomeScreen(
                                     homeItems,
                                     key = { _, item ->
                                         when (item) {
-                                            is HomeListItem.Header -> "h:${item.label}"
+                                            is HomeListItem.Header -> "h:${item.section}"
                                             is HomeListItem.SessionItem -> "s:${item.session.id}"
                                         }
                                     },
                                 ) { index, item ->
                                     when (item) {
                                         is HomeListItem.Header ->
-                                            SectionHeader(item.label, modifier = flikkyItemAnimation())
+                                            SectionHeader(item.section, modifier = flikkyItemAnimation())
                                         is HomeListItem.SessionItem -> {
                                             val s = item.session
                                             val (posInRun, runSize) = segPositions[index]
@@ -410,7 +440,7 @@ fun HomeScreen(
         AlertDialog(
             onDismissRequest = {},
             confirmButton = {},
-            title = { Text("正在导入...") },
+            title = { Text(stringResource(R.string.home_importing)) },
             text = {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -423,7 +453,7 @@ fun HomeScreen(
         AlertDialog(
             onDismissRequest = {},
             confirmButton = {},
-            title = { Text("正在保存...") },
+            title = { Text(stringResource(R.string.home_saving)) },
             text = {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
@@ -446,11 +476,17 @@ fun HomeScreen(
                     when (viewModel.startExport()) {
                         HomeViewModel.ExportStartResult.Success -> onStartExport()
                         HomeViewModel.ExportStartResult.TransferRunning ->
-                            snackbarHostState.showSnackbar("请先停止当前服务")
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.home_stop_service_first)
+                            )
                         HomeViewModel.ExportStartResult.NoValidSessions ->
-                            snackbarHostState.showSnackbar("所选会话无法导出（可能都在进行中）")
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.home_export_ineligible)
+                            )
                         HomeViewModel.ExportStartResult.EmptySelection ->
-                            snackbarHostState.showSnackbar("请先勾选会话")
+                            snackbarHostState.showSnackbar(
+                                context.getString(R.string.home_select_sessions_first)
+                            )
                     }
                 }
             },
@@ -475,12 +511,18 @@ fun HomeScreen(
             onSelect = { targetGroupId ->
                 showMoveSheet = false
                 val targetName =
-                    if (targetGroupId == null) "全部"
-                    else groups.firstOrNull { it.id == targetGroupId }?.name ?: "分组"
+                    if (targetGroupId == null) context.getString(R.string.home_all_groups)
+                    else groups.firstOrNull { it.id == targetGroupId }?.name
+                        ?: context.getString(R.string.home_group_fallback)
                 scope.launch {
                     val count = viewModel.moveSelectedToGroup(targetGroupId)
                     if (count > 0) {
-                        snackbarHostState.showSnackbar("已移动 $count 个会话到「$targetName」")
+                        snackbarHostState.showSnackbar(context.resources.getQuantityString(
+                            R.plurals.home_sessions_moved,
+                            count,
+                            count,
+                            targetName,
+                        ))
                     }
                 }
             },
@@ -490,7 +532,7 @@ fun HomeScreen(
 
     if (showCreateGroupDialog) {
         GroupNameDialog(
-            title = "新建分组",
+            title = stringResource(R.string.home_new_group),
             initial = "",
             onConfirm = { name ->
                 showCreateGroupDialog = false
@@ -528,8 +570,8 @@ fun HomeScreen(
                     val token = viewModel.deleteGroupWithUndo(group.id)
                     if (token != null) {
                         val result = snackbarHostState.showSnackbar(
-                            message = "已删除分组「${group.name}」",
-                            actionLabel = "撤销",
+                            message = context.getString(R.string.home_group_deleted, group.name),
+                            actionLabel = context.getString(R.string.home_undo),
                         )
                         if (result == SnackbarResult.ActionPerformed) {
                             viewModel.restoreGroup(token.first, token.second)
@@ -543,9 +585,13 @@ fun HomeScreen(
 
     if (showBatchDeleteDialog) {
         ConfirmDialog(
-            title = "删除 $selectedCount 个会话",
-            text = "将删除所选会话的全部消息与文件。该操作不可撤销。",
-            confirmLabel = "删除",
+            title = pluralStringResource(
+                R.plurals.home_delete_sessions_title,
+                selectedCount,
+                selectedCount,
+            ),
+            text = stringResource(R.string.home_delete_sessions_text),
+            confirmLabel = stringResource(R.string.home_delete),
             danger = true,
             onConfirm = {
                 showBatchDeleteDialog = false
@@ -557,9 +603,9 @@ fun HomeScreen(
 }
 
 @Composable
-private fun SectionHeader(label: String, modifier: Modifier = Modifier) {
+private fun SectionHeader(section: HomeSection, modifier: Modifier = Modifier) {
     Text(
-        text = label,
+        text = section.localizedLabel(),
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier
@@ -577,12 +623,18 @@ private fun SelectingTopBar(
     selectAllEnabled: Boolean,
 ) {
     TopAppBar(
-        title = { Text("已选 $selectedCount 个") },
+        title = {
+            Text(pluralStringResource(R.plurals.home_selected_count, selectedCount, selectedCount))
+        },
         navigationIcon = {
-            IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = "关闭") }
+            IconButton(onClick = onClose) {
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.home_close))
+            }
         },
         actions = {
-            TextButton(onClick = onSelectAll, enabled = selectAllEnabled) { Text("全选") }
+            TextButton(onClick = onSelectAll, enabled = selectAllEnabled) {
+                Text(stringResource(R.string.home_select_all))
+            }
         },
         colors = TopAppBarDefaults.topAppBarColors(),
     )
@@ -607,24 +659,35 @@ private fun SelectingFloatingToolbar(
         IconButton(onClick = onPinToggle, enabled = enabled) {
             Icon(
                 painterResource(R.drawable.ic_push_pin),
-                contentDescription = if (allPinned) "取消置顶" else "置顶",
+                contentDescription = stringResource(
+                    if (allPinned) R.string.home_unpin else R.string.home_pin
+                ),
             )
         }
         if (selectedCount == 1) {
             IconButton(onClick = onRename) {
-                Icon(painterResource(R.drawable.ic_edit), contentDescription = "重命名")
+                Icon(
+                    painterResource(R.drawable.ic_edit),
+                    contentDescription = stringResource(R.string.home_rename),
+                )
             }
         }
         IconButton(onClick = onMove, enabled = enabled) {
-            Icon(painterResource(R.drawable.ic_drive_file_move), contentDescription = "移动到分组")
+            Icon(
+                painterResource(R.drawable.ic_drive_file_move),
+                contentDescription = stringResource(R.string.home_move_to_group),
+            )
         }
         IconButton(onClick = onExport, enabled = enabled) {
-            Icon(painterResource(R.drawable.ic_upload), contentDescription = "导出")
+            Icon(
+                painterResource(R.drawable.ic_upload),
+                contentDescription = stringResource(R.string.home_export),
+            )
         }
         IconButton(onClick = onDelete, enabled = enabled) {
             Icon(
                 painterResource(R.drawable.ic_delete),
-                contentDescription = "删除",
+                contentDescription = stringResource(R.string.home_delete),
                 tint = if (enabled) MaterialTheme.colorScheme.error else LocalContentColor.current,
             )
         }
@@ -637,12 +700,12 @@ private fun EmptyHero(modifier: Modifier = Modifier) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Flikky", style = MaterialTheme.typography.displayMedium)
             Text(
-                "局域网文件与消息传输",
+                stringResource(R.string.home_tagline),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.padding(top = Spacing.sm),
             )
             Text(
-                "尚无历史会话。点右下「启动服务」开始第一次传输。",
+                stringResource(R.string.home_empty),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = Spacing.lg),
@@ -668,7 +731,7 @@ private fun GroupNameDialog(
                 value = draft,
                 onValueChange = { draft = it.take(12) },
                 singleLine = true,
-                label = { Text("分组名") },
+                label = { Text(stringResource(R.string.home_group_name)) },
                 supportingText = { Text("${draft.length}/12") },
                 isError = draft.isNotEmpty() && trimmed.isEmpty(),
             )
@@ -677,9 +740,11 @@ private fun GroupNameDialog(
             TextButton(
                 onClick = { onConfirm(trimmed) },
                 enabled = trimmed.isNotEmpty(),
-            ) { Text("确定") }
+            ) { Text(stringResource(R.string.common_confirm)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+        },
     )
 }
 
@@ -702,6 +767,8 @@ private fun SessionRow(
     val dimmed = selecting && inProgress
     val selectedNow = selectable && checked
     val haptic = LocalHapticFeedback.current
+    val selectedDescription = stringResource(R.string.home_selected)
+    val notSelectedDescription = stringResource(R.string.home_not_selected)
 
     // Content color matches the resolved container: onPrimaryContainer when selected, else onSurface.
     val onContent = if (selectedNow) MaterialTheme.colorScheme.onPrimaryContainer
@@ -727,7 +794,7 @@ private fun SessionRow(
         .then(
             if (selectable) Modifier.semantics {
                 selected = checked
-                stateDescription = if (checked) "已选中" else "未选中"
+                stateDescription = if (checked) selectedDescription else notSelectedDescription
             } else Modifier
         )
 
@@ -736,7 +803,7 @@ private fun SessionRow(
             if (s.pinned) {
                 Icon(
                     painter = painterResource(R.drawable.ic_push_pin),
-                    contentDescription = "已置顶",
+                    contentDescription = stringResource(R.string.home_pinned),
                     modifier = Modifier.size(16.dp),
                     tint = if (selectedNow) onContent else MaterialTheme.colorScheme.primary,
                 )
@@ -749,8 +816,19 @@ private fun SessionRow(
         Column {
             Text(
                 text = when {
-                    selecting && inProgress -> "结束服务后可选择"
-                    else -> s.previewText ?: "${s.messageCount} 条消息 · ${s.fileCount} 文件"
+                    selecting && inProgress -> stringResource(R.string.home_stop_to_select)
+                    else -> s.previewText ?: listOf(
+                        pluralStringResource(
+                            R.plurals.home_message_count,
+                            s.messageCount,
+                            s.messageCount,
+                        ),
+                        pluralStringResource(
+                            R.plurals.home_file_count,
+                            s.fileCount,
+                            s.fileCount,
+                        ),
+                    ).joinToString(" · ")
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = if (selectedNow) onContent.copy(alpha = 0.8f)
@@ -758,7 +836,8 @@ private fun SessionRow(
                 maxLines = 1,
             )
             Text(
-                text = if (inProgress) "进行中" else formatRelative(s.startedAt),
+                text = if (inProgress) stringResource(R.string.home_in_progress)
+                    else formatRelative(s.startedAt),
                 style = MaterialTheme.typography.labelSmall,
                 color = when {
                     selectedNow -> onContent.copy(alpha = 0.8f)
@@ -772,7 +851,7 @@ private fun SessionRow(
     val trailing: (@Composable () -> Unit)? = if (inProgress && !selecting) {
         {
             TextButton(onClick = onStopInProgress) {
-                Text("停止", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.home_stop), color = MaterialTheme.colorScheme.error)
             }
         }
     } else null
@@ -819,3 +898,15 @@ private fun SessionRow(
 
 private val DATE_FMT = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
 private fun formatRelative(ms: Long): String = DATE_FMT.format(Date(ms))
+
+@Composable
+private fun HomeSection.localizedLabel(): String = stringResource(
+    when (this) {
+        HomeSection.RUNNING -> R.string.home_section_running
+        HomeSection.PINNED -> R.string.home_section_pinned
+        HomeSection.ENDED -> R.string.home_section_ended
+        HomeSection.TODAY -> R.string.home_section_today
+        HomeSection.YESTERDAY -> R.string.home_section_yesterday
+        HomeSection.EARLIER -> R.string.home_section_earlier
+    }
+)

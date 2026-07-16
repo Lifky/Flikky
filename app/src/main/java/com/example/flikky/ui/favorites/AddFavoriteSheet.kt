@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.ui.theme.Spacing
@@ -50,7 +51,7 @@ fun AddFavoriteSheet(
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             Text(
-                text = "添加收藏",
+                text = stringResource(R.string.favorites_add_title),
                 style = MaterialTheme.typography.titleMedium,
             )
             OutlinedTextField(
@@ -59,7 +60,7 @@ fun AddFavoriteSheet(
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 1,
                 maxLines = 5,
-                label = { Text("文本消息") },
+                label = { Text(stringResource(R.string.favorites_text_message)) },
                 leadingIcon = {
                     Icon(
                         painter = painterResource(R.drawable.ic_edit),
@@ -72,7 +73,7 @@ fun AddFavoriteSheet(
                 enabled = draft.isNotBlank(),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("添加文本")
+                Text(stringResource(R.string.favorites_add_text))
             }
             FilledTonalButton(
                 onClick = onPickFile,
@@ -83,7 +84,7 @@ fun AddFavoriteSheet(
                     contentDescription = null,
                 )
                 Text(
-                    text = "选择本地文件",
+                    text = stringResource(R.string.favorites_choose_file),
                     modifier = Modifier.padding(start = Spacing.sm),
                 )
             }

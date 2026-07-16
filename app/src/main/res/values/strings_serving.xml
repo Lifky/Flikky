@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="serving_favorite">收藏</string>
+    <string name="serving_unfavorite">取消收藏</string>
+    <string name="serving_copy">复制</string>
+    <string name="serving_open">打开</string>
+    <string name="serving_recall">撤回</string>
+    <string name="serving_delete">删除</string>
+    <string name="serving_deleted">已删除</string>
+    <string name="serving_undo">撤销</string>
+    <string name="serving_back_blocked">会话进行中，请点右上角停止服务以退出</string>
+    <string name="serving_quick_settings">快捷设置</string>
+    <string name="serving_stop_service">停止服务</string>
+    <string name="serving_waiting_browser">等待浏览器连接…</string>
+    <string name="serving_input_message">输入消息</string>
+    <string name="serving_add">添加</string>
+    <string name="serving_send">发送</string>
+    <string name="serving_recall_title">撤回这条消息？</string>
+    <string name="serving_recall_text">撤回后两端都会消失，不可恢复。</string>
+    <string name="serving_choose_browser_avatar">选择浏览器头像</string>
+    <string name="serving_favorite_sent">已发送收藏</string>
+    <string name="serving_active_session">进行中会话</string>
+    <string name="serving_favorite_source_missing">收藏失败：源文件不存在</string>
+
+    <string name="serving_peer_recalled">对方撤回了一条消息</string>
+    <string name="serving_favorite_file_missing">收藏文件不存在</string>
+    <string name="serving_recall_service_stopped">无法撤回：服务已停止</string>
+    <string name="serving_recall_success">消息已撤回</string>
+    <string name="serving_recall_denied">只能撤回自己发的消息</string>
+    <string name="serving_no_session_context">无会话上下文</string>
+    <string name="serving_uploaded_file_missing">文件不存在（服务重启后浏览器上传的文件会丢失）</string>
+
+    <string name="quick_settings_title">快捷设置</string>
+    <string name="quick_settings_bubble_corner">气泡圆角 · %1$d dp</string>
+    <string name="quick_settings_avatar_display">头像显示</string>
+    <string name="quick_settings_avatar_first">首条</string>
+    <string name="quick_settings_avatar_last">末条</string>
+    <string name="quick_settings_avatar_each">每条</string>
+    <string name="quick_settings_dark_mode">深色模式</string>
+
+    <string name="favorite_quick_title">收藏</string>
+    <string name="favorite_quick_recent">最近使用</string>
+    <string name="favorite_quick_search">搜索收藏</string>
+    <string name="favorite_quick_clear_search">清空搜索</string>
+    <string name="favorite_quick_all">全部</string>
+    <string name="favorite_quick_empty">暂无收藏</string>
+    <string name="favorite_quick_no_match">没有匹配的收藏</string>
+
+    <string name="attach_title">添加</string>
+    <string name="attach_file">文件</string>
+    <string name="attach_file_summary">任意类型</string>
+    <string name="attach_image">图片</string>
+    <string name="attach_image_summary">从相册选择</string>
+</resources>

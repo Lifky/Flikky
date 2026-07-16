@@ -37,6 +37,16 @@ class SettingsRepositoryTest {
         assertEquals(false, s.recallBetaEnabled)
         assertEquals(false, s.favoriteBetaEnabled)
         assertEquals(true, s.requirePin)
+        assertEquals("", s.deviceName)
+    }
+
+    @Test fun blank_device_name_restores_localized_default_sentinel() = runTest {
+        val repo = makeRepo(this)
+        repo.setDeviceName("Desk phone")
+        assertEquals("Desk phone", repo.settings.first().deviceName)
+
+        repo.setDeviceName("   ")
+        assertEquals("", repo.settings.first().deviceName)
     }
 
     @Test fun update_persists_and_emits() = runTest {

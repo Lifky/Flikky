@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -158,18 +159,19 @@ private fun FileBubbleContent(
                 // File names need deliberate emphasis inside the metadata block.
                 fontWeight = FontWeight.Medium,
             )
+            val status = when {
+                isTransferring -> stringResource(
+                    R.string.file_transferring,
+                    ((transferProgress ?: 0f) * 100).toInt(),
+                )
+                msg.status == Message.File.Status.FAILED ->
+                    stringResource(R.string.file_transfer_failed)
+                msg.status == Message.File.Status.COMPLETED ->
+                    stringResource(R.string.file_tap_to_open)
+                else -> null
+            }
             Text(
-                text = buildString {
-                    append(formatSize(msg.sizeBytes))
-                    when {
-                        isTransferring -> {
-                            val pct = ((transferProgress ?: 0f) * 100).toInt()
-                            append("  ·  传输中 $pct%")
-                        }
-                        msg.status == Message.File.Status.FAILED -> append("  ·  传输失败")
-                        msg.status == Message.File.Status.COMPLETED -> append("  ·  点击打开")
-                    }
-                },
+                text = listOfNotNull(formatSize(msg.sizeBytes), status).joinToString("  ·  "),
                 color = fg.copy(alpha = 0.75f),
                 style = MaterialTheme.typography.bodySmall,
             )

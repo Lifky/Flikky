@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import com.example.flikky.R
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.ui.theme.Sizes
@@ -62,12 +63,12 @@ fun FavoriteGroupPickerSheet(
                 .padding(bottom = Spacing.lg),
         ) {
             Text(
-                text = "选择合集",
+                text = stringResource(R.string.favorites_choose_group),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
             )
             PickerRow(
-                label = "全部 / 不分组",
+                label = stringResource(R.string.favorites_all_ungrouped),
                 iconRes = R.drawable.ic_swap_vert,
                 onClick = { onSelect(null) },
             )
@@ -91,14 +92,14 @@ fun FavoriteGroupPickerSheet(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(Modifier.width(Spacing.lg))
-                Text("新建合集", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.favorites_new_group), style = MaterialTheme.typography.bodyLarge)
             }
         }
     }
 
     if (showCreate) {
         GroupNameDialog(
-            title = "新建合集",
+            title = stringResource(R.string.favorites_new_group),
             onConfirm = { name ->
                 showCreate = false
                 onCreateGroup(name)
@@ -149,7 +150,7 @@ internal fun GroupNameDialog(
                 value = draft,
                 onValueChange = { draft = it.take(12) },
                 singleLine = true,
-                label = { Text("合集名") },
+                label = { Text(stringResource(R.string.favorites_group_name)) },
                 supportingText = { Text("${draft.length}/12") },
                 isError = draft.isNotEmpty() && trimmed.isEmpty(),
                 modifier = Modifier.fillMaxWidth(),
@@ -159,8 +160,10 @@ internal fun GroupNameDialog(
             TextButton(
                 onClick = { onConfirm(trimmed) },
                 enabled = trimmed.isNotEmpty(),
-            ) { Text("确定") }
+            ) { Text(stringResource(R.string.common_confirm)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+        },
     )
 }

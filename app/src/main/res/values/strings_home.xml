@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_start_service">启动服务</string>
+    <string name="home_continue_service">继续服务</string>
+    <string name="home_empty_group">该分组还没有会话</string>
+    <string name="home_importing">正在导入…</string>
+    <string name="home_saving">正在保存…</string>
+    <plurals name="home_imported_sessions">
+        <item quantity="other">已导入 %1$d 个会话</item>
+    </plurals>
+    <plurals name="home_import_skipped">
+        <item quantity="other">跳过 %1$d 个重复</item>
+    </plurals>
+    <plurals name="home_import_failed_count">
+        <item quantity="other">%1$d 个失败</item>
+    </plurals>
+    <string name="home_import_empty">未找到可导入的会话</string>
+    <string name="home_export_saved">已保存到所选位置</string>
+    <string name="home_export_ineligible">所选会话无法导出（可能都在进行中）</string>
+    <string name="home_select_sessions_first">请先勾选会话</string>
+    <string name="home_save_failed">保存失败，请重试</string>
+    <string name="home_save_failed_location">保存失败，请重试或选择其他位置</string>
+    <string name="home_notification_denied">通知权限被拒：服务仍运行，但通知栏不会显示状态</string>
+    <string name="home_stop_service_first">请先停止当前服务</string>
+    <string name="home_all_groups">全部</string>
+    <string name="home_group_fallback">分组</string>
+    <plurals name="home_sessions_moved">
+        <item quantity="other">已移动 %1$d 个会话到“%2$s”</item>
+    </plurals>
+    <string name="home_new_group">新建分组</string>
+    <string name="home_group_deleted">已删除分组“%1$s”</string>
+    <string name="home_undo">撤销</string>
+    <plurals name="home_delete_sessions_title">
+        <item quantity="other">删除 %1$d 个会话</item>
+    </plurals>
+    <string name="home_delete_sessions_text">将删除所选会话的全部消息与文件。该操作不可撤销。</string>
+    <string name="home_delete">删除</string>
+    <plurals name="home_selected_count">
+        <item quantity="other">已选 %1$d 个</item>
+    </plurals>
+    <string name="home_close">关闭</string>
+    <string name="home_select_all">全选</string>
+    <string name="home_pin">置顶</string>
+    <string name="home_unpin">取消置顶</string>
+    <string name="home_rename">重命名</string>
+    <string name="home_move_to_group">移动到分组</string>
+    <string name="home_export">导出</string>
+    <string name="home_tagline">局域网文件与消息传输</string>
+    <string name="home_empty">尚无历史会话。点右下“启动服务”开始第一次传输。</string>
+    <string name="home_group_name">分组名</string>
+    <string name="home_selected">已选中</string>
+    <string name="home_not_selected">未选中</string>
+    <string name="home_pinned">已置顶</string>
+    <string name="home_stop_to_select">结束服务后可选择</string>
+    <string name="home_in_progress">进行中</string>
+    <string name="home_stop">停止</string>
+    <plurals name="home_message_count">
+        <item quantity="other">%1$d 条消息</item>
+    </plurals>
+    <plurals name="home_file_count">
+        <item quantity="other">%1$d 文件</item>
+    </plurals>
+
+    <string name="home_search_placeholder">搜索会话与消息</string>
+    <string name="home_search_collapse">收起搜索</string>
+    <string name="home_search">搜索</string>
+    <string name="home_search_clear">清空</string>
+    <string name="home_import_sessions">导入会话</string>
+    <string name="home_export_sessions">导出会话</string>
+    <string name="home_search_hint">输入关键词搜索会话与消息</string>
+    <string name="home_search_empty">没有找到匹配项</string>
+    <string name="home_search_sessions">会话</string>
+    <string name="home_search_messages">消息</string>
+    <string name="home_file">文件</string>
+
+    <string name="home_manage_group">管理分组</string>
+    <string name="home_group_order">顺序</string>
+    <string name="home_move_up">上移</string>
+    <string name="home_move_down">下移</string>
+    <string name="home_delete_group">删除分组</string>
+    <string name="home_save">保存</string>
+    <string name="home_move_sheet_title">移动到分组</string>
+    <string name="home_move_out_of_group">全部（移出分组）</string>
+
+    <string name="home_section_running">进行中</string>
+    <string name="home_section_pinned">置顶</string>
+    <string name="home_section_ended">已结束</string>
+    <string name="home_section_today">今天</string>
+    <string name="home_section_yesterday">昨天</string>
+    <string name="home_section_earlier">更早</string>
+</resources>

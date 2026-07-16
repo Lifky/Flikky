@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -51,7 +52,7 @@ fun ConnectionInfoCard(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "在电脑浏览器打开",
+                text = stringResource(R.string.connection_open_in_browser),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -70,7 +71,7 @@ fun ConnectionInfoCard(
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(Modifier.width(Spacing.sm))
-                Text("复制地址")
+                Text(stringResource(R.string.connection_copy_address))
             }
             Spacer(Modifier.height(Spacing.xs))
             if (requirePin) {
@@ -89,12 +90,12 @@ fun ConnectionInfoCard(
                 )
             } else {
                 Text(
-                    text = "连接方式",
+                    text = stringResource(R.string.connection_method),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = "免 PIN 连接",
+                    text = stringResource(R.string.connection_without_pin),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )

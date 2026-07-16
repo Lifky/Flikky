@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="favorites_title">Favorites</string>
+    <string name="favorites_search">Search favorites</string>
+    <string name="favorites_search_action">Search</string>
+    <string name="favorites_clear_search">Clear search</string>
+    <string name="favorites_import">Import favorites</string>
+    <string name="favorites_export">Export favorites</string>
+    <string name="favorites_add">Add favorite</string>
+    <string name="favorites_empty_search">No matching favorites</string>
+    <string name="favorites_empty_group">No favorites in this collection</string>
+    <string name="favorites_empty">Tap + to add local text or files. You can also tap ☆ on a message or file.</string>
+    <string name="favorites_copied">Copied</string>
+    <string name="favorites_sent">Favorite sent</string>
+    <string name="favorites_connect_browser">Connect a browser first</string>
+    <string name="favorites_importing">Importing…</string>
+    <string name="favorites_preparing_export">Preparing export…</string>
+    <string name="favorites_saving">Saving…</string>
+    <plurals name="favorites_imported">
+        <item quantity="one">Imported %1$d favorite</item>
+        <item quantity="other">Imported %1$d favorites</item>
+    </plurals>
+    <plurals name="favorites_import_skipped">
+        <item quantity="one">Skipped %1$d duplicate</item>
+        <item quantity="other">Skipped %1$d duplicates</item>
+    </plurals>
+    <plurals name="favorites_import_failed_count">
+        <item quantity="one">%1$d failed</item>
+        <item quantity="other">%1$d failed</item>
+    </plurals>
+    <string name="favorites_import_empty">No importable favorites found</string>
+    <string name="favorites_import_failed">Import failed. Make sure the selected file is a Flikky zip archive.</string>
+    <string name="favorites_export_saved">Saved to the selected location</string>
+    <string name="favorites_export_empty">No favorites to export</string>
+    <string name="favorites_export_save_failed">Couldn\'t save. Try again or choose another location.</string>
+    <string name="favorites_file_added">File added to favorites</string>
+    <string name="favorites_file_add_failed">Couldn\'t add the file</string>
+    <string name="favorites_stop_transfer_first">Stop the current transfer or export first</string>
+    <string name="favorites_export_prepare_failed">Couldn\'t prepare the export. Try again.</string>
+    <string name="favorites_new_group">New collection</string>
+    <string name="favorites_group_deleted">Deleted collection “%1$s”</string>
+    <plurals name="favorites_moved">
+        <item quantity="one">Moved %1$d favorite</item>
+        <item quantity="other">Moved %1$d favorites</item>
+    </plurals>
+    <plurals name="favorites_delete_title">
+        <item quantity="one">Delete %1$d favorite?</item>
+        <item quantity="other">Delete %1$d favorites?</item>
+    </plurals>
+    <string name="favorites_delete_text">Favorite snapshots and their copied files will be permanently deleted.</string>
+    <string name="favorites_delete">Delete</string>
+    <string name="favorites_text_added">Text added to favorites</string>
+    <string name="favorites_move_to_group">Move to collection</string>
+    <string name="favorites_send">Send favorite</string>
+    <string name="favorites_unnamed_file">Unnamed file</string>
+    <string name="favorites_empty_text">Empty text</string>
+
+    <string name="favorites_choose_group">Choose collection</string>
+    <string name="favorites_all_ungrouped">All / no collection</string>
+    <string name="favorites_group_name">Collection name</string>
+    <string name="favorites_add_title">Add favorite</string>
+    <string name="favorites_text_message">Text message</string>
+    <string name="favorites_add_text">Add text</string>
+    <string name="favorites_choose_file">Choose local file</string>
+</resources>

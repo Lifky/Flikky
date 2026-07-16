@@ -84,7 +84,7 @@ class HomeViewModelTest {
         val vm = HomeViewModel(app, repo, stubSession(), settingsRepository = settings)
 
         val out = vm.homeItems.first()
-        assertEquals(listOf(HomeListBuilder.BUCKET_TODAY), out.headers())
+        assertEquals(listOf(HomeSection.TODAY), out.headers())
         assertEquals(listOf(1L), out.sessionIds())
     }
 
@@ -206,7 +206,7 @@ class HomeViewModelTest {
     }
 
     private fun List<HomeListItem>.headers() =
-        filterIsInstance<HomeListItem.Header>().map { it.label }
+        filterIsInstance<HomeListItem.Header>().map { it.section }
 
     private fun List<HomeListItem>.sessionIds() =
         filterIsInstance<HomeListItem.SessionItem>().map { it.session.id }

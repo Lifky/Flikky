@@ -8,6 +8,10 @@
     const uptimeEl = document.getElementById('uptime');
     const countEl = document.getElementById('count');
     const rateEl = document.getElementById('rate');
+    const i18n = window.flikkyI18n;
+    const t = (key, values) => i18n.t(key, values);
+    const countText = (key, count) => i18n.count(key, count);
+    let lastStatus = null;
 
     const ua = navigator.userAgent || '';
     if (/Android|iPhone|iPad|iPod/i.test(ua)) {
@@ -273,7 +277,7 @@
         const peerNameEl = document.getElementById('peer-name');
         renderAvatar(peerAvatarEl, avatarKey);
         if (peerNameEl) {
-            peerNameEl.textContent = '来自 ' + deviceName;
+            peerNameEl.textContent = t('app.peer_from', { device: deviceName });
         }
     }
 
@@ -305,12 +309,14 @@
     }
 
     let currentBackgroundMode = 'DEFAULT';
-    let currentDeviceName = '手机';
+    let currentDeviceName = t('app.phone');
     let connectionWatermarkState = 'connected';
 
     function defaultWatermarkText() {
-        const status = connectionWatermarkState === 'disconnected' ? '已断开' : '已连接';
-        return status + ' · ' + currentDeviceName;
+        const status = connectionWatermarkState === 'disconnected'
+            ? t('app.disconnected')
+            : t('app.connected');
+        return t('app.watermark', { status, device: currentDeviceName });
     }
 
     function refreshDefaultWatermark() {
@@ -446,7 +452,7 @@
             const r = await fetch('/api/peer-info');
             if (!r.ok) return;
             const data = await r.json();
-            applyPeerAppearance(data, '手机');
+            applyPeerAppearance(data, t('app.phone'));
         } catch (_) {
             // Fail silently — do not block transfers.
         }
@@ -462,7 +468,8 @@
             row.id = 'avatar-fill-row';
             row.className = 'avatar-fill-row';
             const label = document.createElement('span');
-            label.textContent = '填充图标';
+            label.id = 'avatar-fill-label';
+            label.textContent = t('app.filled_icons');
             const fillSwitch = document.createElement('mdui-switch');
             fillSwitch.id = 'avatar-fill-switch';
             fillSwitch.checked = avatarPickerFilled;
@@ -490,7 +497,7 @@
         charCell.type = 'button';
         charCell.textContent = 'A';
         charCell.addEventListener('click', () => {
-            const value = window.prompt('Avatar character', 'A') || '';
+            const value = window.prompt(t('app.avatar_character'), 'A') || '';
             const first = Array.from(value.trim())[0];
             if (first) selectAvatar('char:' + first);
         });
@@ -679,7 +686,7 @@
         const mduiMenu = document.createElement('mdui-menu');
         const item = document.createElement('mdui-menu-item');
         item.appendChild(materialSymbolEl('undo', false, 'icon'));
-        item.appendChild(document.createTextNode('撤回'));
+        item.appendChild(document.createTextNode(t('app.recall')));
         item.addEventListener('click', (e) => {
             e.stopPropagation();
             closeRecallMenu();
@@ -714,7 +721,7 @@
         const dialog = document.getElementById('recall-confirm-dialog');
         if (!dialog) {
             // 回退：mdui 没加载，直接走 native confirm。
-            if (window.confirm('撤回这条消息？两端都会消失，不可恢复。')) {
+            if (window.confirm(`${t('app.recall_title')} ${t('app.recall_body')}`)) {
                 doRecallMessage(messageId);
             }
             return;
@@ -743,19 +750,25 @@
             if (r.ok || r.status === 404) {
                 // 200 刚撤；404 已删（idempotent）。本地节点直接消失 + snackbar 提示。
                 removeMessageNode(messageId);
-                if (window.flikky && window.flikky.showInfo) window.flikky.showInfo('消息已撤回');
+                if (window.flikky && window.flikky.showInfo) {
+                    window.flikky.showInfo(t('app.message_recalled'));
+                }
             } else if (r.status === 403) {
                 let error = null;
                 try { error = await r.json(); } catch (_) {}
                 const message = error && error.error === 'recall_disabled'
-                    ? '消息撤回未开启'
-                    : '只能撤回自己发的消息';
+                    ? t('app.recall_not_enabled')
+                    : t('app.recall_own_only');
                 if (window.flikky && window.flikky.showError) window.flikky.showError(message);
             } else {
-                if (window.flikky && window.flikky.showError) window.flikky.showError('撤回失败');
+                if (window.flikky && window.flikky.showError) {
+                    window.flikky.showError(t('app.recall_failed'));
+                }
             }
         } catch (_) {
-            if (window.flikky && window.flikky.showError) window.flikky.showError('撤回失败：网络错误');
+            if (window.flikky && window.flikky.showError) {
+                window.flikky.showError(t('app.recall_network_failed'));
+            }
         }
     }
 
@@ -897,10 +910,12 @@
         // 失败提示：整个气泡可点击重试，不用下划线超链接。
         const hint = document.createElement('span');
         hint.className = 'retry-hint';
-        hint.textContent = '上传失败，点击重试';
+        hint.dataset.flikkyI18n = 'app.upload_failed_retry';
+        hint.textContent = t('app.upload_failed_retry');
         bubble.appendChild(hint);
         bubble.style.cursor = 'pointer';
-        bubble.title = '点击重试';
+        bubble.dataset.flikkyI18nTitle = 'app.retry';
+        bubble.title = t('app.retry');
         bubble.addEventListener('click', function retryHandler() {
             bubble.removeEventListener('click', retryHandler);
             // M9b: bubble is inside a .bubble-row — remove the whole row.
@@ -916,11 +931,14 @@
 
         if (window.flikky && window.flikky.showError) {
             const suffix = status ? ` (${status})` : '';
-            window.flikky.showError(`上传失败：${file.name}${suffix}`);
+            window.flikky.showError(t('app.upload_failed_file', {
+                file: file.name,
+                suffix,
+            }));
         }
     }
 
-    function markBubbleFailedNoRetry(bubble, text) {
+    function markBubbleFailedNoRetry(bubble, key) {
         if (!bubble) return;
         bubble.classList.remove('uploading', 'transferring');
         bubble.classList.add('failed');
@@ -932,7 +950,8 @@
         if (hint) hint.remove();
         const failHint = document.createElement('span');
         failHint.className = 'retry-hint';
-        failHint.textContent = text;
+        failHint.dataset.flikkyI18n = key;
+        failHint.textContent = t(key);
         bubble.appendChild(failHint);
         bubble.style.cursor = 'default';
     }
@@ -947,7 +966,7 @@
         if (ev.type === 'server_stopped') {
             serverStopped = true;
             setConnectionWatermarkState('disconnected');
-            showBanner('terminated', '服务已停止，连接已断开');
+            showBanner('terminated', 'app.service_stopped');
             setSendEnabled(false);
             return;
         }
@@ -970,7 +989,7 @@
                 const stillThere = list.querySelector(`[data-message-id="${p.messageId}"]`);
                 removeMessageNode(p.messageId);
                 if (stillThere && window.flikky && window.flikky.showInfo) {
-                    window.flikky.showInfo('对方撤回了一条消息');
+                    window.flikky.showInfo(t('app.peer_recalled'));
                 }
             }
             return;
@@ -1009,13 +1028,12 @@
             if (p && typeof p.messageId === 'number') {
                 const bubble = list.querySelector(`[data-message-id="${p.messageId}"]`);
                 if (bubble) {
-                    markBubbleFailedNoRetry(bubble, '传输失败');
+                    markBubbleFailedNoRetry(bubble, 'app.transfer_failed');
                 }
             }
         } else if (ev.type === 'status') {
-            uptimeEl.textContent = formatUptime(ev.payload.uptime || 0);
-            countEl.textContent = ev.payload.fileCount;
-            rateEl.textContent = formatRate(ev.payload.bytesPerSecond);
+            lastStatus = ev.payload;
+            renderStatus();
         } else if (ev.type === 'peer_avatar_changed') {
             if (ev.payload && typeof ev.payload.avatarKey === 'string') {
                 myAvatarKey = normalizeAvatarKey(ev.payload.avatarKey, AVATAR_DEFAULT_BROWSER);
@@ -1026,7 +1044,7 @@
                 updatePickerSelection();
             }
         } else if (ev.type === 'settings_changed') {
-            applyPeerAppearance(ev.payload || {}, '手机');
+            applyPeerAppearance(ev.payload || {}, t('app.phone'));
         }
     }
 
@@ -1074,18 +1092,32 @@
         }
     }
 
-    function setConn(text) { conn.textContent = text; }
+    let currentConnKey = 'app.connecting';
+    function setConn(key) {
+        currentConnKey = key;
+        conn.textContent = t(key);
+    }
+
+    function renderStatus() {
+        if (!lastStatus) return;
+        uptimeEl.textContent = formatUptime(lastStatus.uptime || 0);
+        countEl.textContent = countText('app.files', Number(lastStatus.fileCount) || 0);
+        rateEl.textContent = formatRate(lastStatus.bytesPerSecond || 0);
+    }
 
     // 断网卡片：醒目位置展示连接状态。
     const banner = document.getElementById('conn-banner');
-    function showBanner(kind, text) {
+    let bannerState = null;
+    function showBanner(kind, key, values) {
         if (!banner) return;
-        banner.textContent = text;
+        bannerState = { kind, key, values };
+        banner.textContent = t(key, values);
         banner.dataset.kind = kind;   // 'disconnected' | 'restored'
         banner.hidden = false;
     }
     function hideBanner() {
         if (!banner) return;
+        bannerState = null;
         banner.hidden = true;
     }
 
@@ -1142,8 +1174,8 @@
         wsConnected = false;
         setConnectionWatermarkState('disconnected');
         setSendEnabled(false);
-        setConn('已断开');
-        if (hadConnected) showBanner('disconnected', '连接已断开，正在尝试重连…');
+        setConn('app.disconnected');
+        if (hadConnected) showBanner('disconnected', 'app.reconnecting');
         stopHeartbeat();
         activeUploads.forEach(xhr => { try { xhr.abort(); } catch(_) {} });
         activeUploads = [];
@@ -1154,7 +1186,7 @@
         if (!serverStopped && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
             reconnectTimer = setTimeout(() => { reconnectTimer = null; openWs(); }, 1500);
         } else if (!serverStopped) {
-            showBanner('terminated', '连接已断开，服务可能已关闭');
+            showBanner('terminated', 'app.service_maybe_closed');
         }
     }
 
@@ -1211,7 +1243,7 @@
             wsConnected = true;
             serverStopped = false;
             setConnectionWatermarkState('connected');
-            setConn('已连接');
+            setConn('app.connected');
             setSendEnabled(true);
             lastFrameAt = Date.now();
             reconnectAttempts = 0;   // 成功一次就清零计数
@@ -1223,7 +1255,7 @@
             loadHistory().catch(() => {});
             if (hadConnected) {
                 // 仅在"曾经连过又重连"时弹"已恢复"卡片，避免首次连上也弹。
-                showBanner('restored', '已重新连接');
+                showBanner('restored', 'app.reconnected');
                 setTimeout(() => { if (banner && banner.dataset.kind === 'restored') hideBanner(); }, 3000);
             } else {
                 hideBanner();
@@ -1237,20 +1269,23 @@
             currentWs = null;
             wsConnected = false;
             setConnectionWatermarkState('disconnected');
-            setConn('已断开');
+            setConn('app.disconnected');
             setSendEnabled(false);
             stopHeartbeat();
             if (serverStopped) {
-                showBanner('terminated', '服务已停止，连接已断开');
+                showBanner('terminated', 'app.service_stopped');
                 return;
             }
             if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-                showBanner('terminated', '连接已断开，服务可能已关闭');
+                showBanner('terminated', 'app.service_maybe_closed');
                 return;
             }
             reconnectAttempts++;
             if (hadConnected) {
-                showBanner('disconnected', `连接已断开，正在尝试重连…（${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}）`);
+                showBanner('disconnected', 'app.reconnecting_attempt', {
+                    attempt: reconnectAttempts,
+                    max: MAX_RECONNECT_ATTEMPTS,
+                });
             }
             reconnectTimer = setTimeout(() => { reconnectTimer = null; openWs(); }, 1500);
         };
@@ -1268,7 +1303,7 @@
         if (!text) return;
         if (!wsConnected) {
             if (window.flikky && window.flikky.showError) {
-                window.flikky.showError('连接已断开，请稍候');
+                window.flikky.showError(t('app.wait_reconnect'));
             }
             return;
         }
@@ -1293,7 +1328,7 @@
             }
         } catch (e) {
             if (window.flikky && window.flikky.showError) {
-                window.flikky.showError('发送失败');
+                window.flikky.showError(t('app.send_failed'));
             }
         } finally {
             sendBtn.disabled = !wsConnected;
@@ -1315,7 +1350,10 @@
                 updateBubbleProgress(bubble, e.loaded, e.total);
                 if (e.loaded >= e.total) {
                     const pct = bubble.querySelector('.progress-pct');
-                    if (pct) pct.textContent = '处理中...';
+                    if (pct) {
+                        pct.dataset.flikkyI18n = 'app.processing';
+                        pct.textContent = t('app.processing');
+                    }
                 }
             }
         };
@@ -1337,9 +1375,9 @@
         };
         xhr.onerror = () => { removeFromActive(); markBubbleFailed(bubble, file); };
         xhr.ontimeout = () => { removeFromActive(); markBubbleFailed(bubble, file, 'timeout'); };
-        xhr.onabort = () => { removeFromActive(); markBubbleFailedNoRetry(bubble, '发送失败'); };
+        xhr.onabort = () => { removeFromActive(); markBubbleFailedNoRetry(bubble, 'app.send_failed'); };
         xhr.upload.onerror = () => { removeFromActive(); markBubbleFailed(bubble, file); };
-        xhr.upload.onabort = () => { removeFromActive(); markBubbleFailedNoRetry(bubble, '发送失败'); };
+        xhr.upload.onabort = () => { removeFromActive(); markBubbleFailedNoRetry(bubble, 'app.send_failed'); };
         xhr.open('POST', '/api/files');
         xhr.setRequestHeader('X-Client-Id', myClientId);
         xhr.setRequestHeader('X-File-Size', String(file.size));
@@ -1354,6 +1392,27 @@
     filePicker.addEventListener('change', () => {
         for (const f of filePicker.files) sendFile(f);
         filePicker.value = '';
+    });
+
+    i18n.onChange(() => {
+        conn.textContent = t(currentConnKey);
+        if (lastStatus) renderStatus();
+        else countEl.textContent = countText('app.files', 0);
+        renderPeerHeader(currentDeviceName, phoneAvatarKey);
+        refreshDefaultWatermark();
+        const fillLabel = document.getElementById('avatar-fill-label');
+        if (fillLabel) fillLabel.textContent = t('app.filled_icons');
+        document.querySelectorAll('[data-flikky-i18n]').forEach((element) => {
+            element.textContent = t(element.dataset.flikkyI18n);
+        });
+        document.querySelectorAll('[data-flikky-i18n-title]').forEach((element) => {
+            element.title = t(element.dataset.flikkyI18nTitle);
+        });
+        if (bannerState && banner) {
+            banner.textContent = t(bannerState.key, bannerState.values);
+        }
+        closeRecallMenu();
+        fetchPeerInfo().catch(() => {});
     });
 
     // 初始禁用，等 WS 连上后启用。

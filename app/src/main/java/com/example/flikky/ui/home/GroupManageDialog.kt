@@ -24,6 +24,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.example.flikky.R
 import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.ui.theme.Spacing
 
@@ -46,27 +48,33 @@ fun GroupManageDialog(
     val trimmed = draft.trim()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("管理分组") },
+        title = { Text(stringResource(R.string.home_manage_group)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = draft,
                     onValueChange = { draft = it.take(12) },
                     singleLine = true,
-                    label = { Text("分组名") },
+                    label = { Text(stringResource(R.string.home_group_name)) },
                     supportingText = { Text("${draft.length}/12") },
                     isError = draft.isNotEmpty() && trimmed.isEmpty(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(Spacing.sm))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("顺序", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.home_group_order), style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.width(Spacing.sm))
                     IconButton(onClick = onMoveUp, enabled = canMoveUp) {
-                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "上移")
+                        Icon(
+                            Icons.Default.KeyboardArrowUp,
+                            contentDescription = stringResource(R.string.home_move_up),
+                        )
                     }
                     IconButton(onClick = onMoveDown, enabled = canMoveDown) {
-                        Icon(Icons.Default.KeyboardArrowDown, contentDescription = "下移")
+                        Icon(
+                            Icons.Default.KeyboardArrowDown,
+                            contentDescription = stringResource(R.string.home_move_down),
+                        )
                     }
                 }
                 TextButton(
@@ -74,7 +82,7 @@ fun GroupManageDialog(
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error,
                     ),
-                ) { Text("删除分组") }
+                ) { Text(stringResource(R.string.home_delete_group)) }
             }
         },
         confirmButton = {
@@ -84,8 +92,10 @@ fun GroupManageDialog(
                     onDismiss()
                 },
                 enabled = trimmed.isNotEmpty(),
-            ) { Text("保存") }
+            ) { Text(stringResource(R.string.home_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+        },
     )
 }

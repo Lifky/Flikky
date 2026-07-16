@@ -70,6 +70,7 @@ class KtorServer(
             recallEnabled = false,
         )
     },
+    private val webLanguageTagProvider: () -> String = { "zh-CN" },
 ) {
     private var engine: EmbeddedServer<*, *>? = null
     var boundPort: Int = -1
@@ -116,7 +117,11 @@ class KtorServer(
                             },
                             publicThemeProvider = {
                                 val info = peerInfoProvider()
-                                WebThemeDto(themeSeed = info.themeSeed, themeDark = info.themeDark)
+                                WebThemeDto(
+                                    themeSeed = info.themeSeed,
+                                    themeDark = info.themeDark,
+                                    languageTag = webLanguageTagProvider(),
+                                )
                             },
                         )
                         when (mode) {

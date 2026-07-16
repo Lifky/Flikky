@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.export.ZipExporter
+import com.example.flikky.R
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
@@ -18,7 +19,7 @@ object LocalExportWriter {
         favoriteFileResolver: (fileId: String) -> File?,
     ) = withContext(Dispatchers.IO) {
         val output = context.contentResolver.openOutputStream(uri, "w")
-            ?: throw IOException("无法写入所选位置")
+            ?: throw IOException(context.getString(R.string.export_write_failed))
         output.use {
             ZipExporter.write(
                 out = it,

@@ -13,13 +13,16 @@ import android.os.Binder
 import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
+import com.example.flikky.R
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.settings.BackgroundSetting
+import com.example.flikky.data.settings.AppLanguageManager
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.data.settings.ThemeMode
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.export.ExportMode
+import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.network.LinkInfo
 import com.example.flikky.network.NetworkRebinder
 import com.example.flikky.network.RebindIntent
@@ -108,7 +111,7 @@ class TransferService : Service() {
             val placeholder = NotificationHelper.build(
                 context = this,
                 title = "Flikky",
-                text = "正在启动…",
+                text = getString(R.string.service_starting),
             )
             startForeground(
                 NotificationHelper.NOTIFICATION_ID,
@@ -144,7 +147,7 @@ class TransferService : Service() {
             }
 
         val now = System.currentTimeMillis()
-        val name = defaultSessionName(now)
+        val name = getString(R.string.service_default_session_name, FMT.format(Date(now)))
         val startSettings = runBlocking { ServiceLocator.settingsRepository.settings.first() }
         latestSettings = startSettings
         currentRequirePin = startSettings.requirePin
@@ -172,7 +175,13 @@ class TransferService : Service() {
                 ServiceLocator.settingsRepository.settings.collect {
                     latestSettings = it
                     if (currentMode == ServiceMode.Transfer) {
-                        val payload = Json.encodeToString(PeerInfoDto.serializer(), it.toPeerInfoDto(isSystemDark()))
+                        val payload = Json.encodeToString(
+                            PeerInfoDto.serializer(),
+                            it.toPeerInfoDto(
+                                systemDark = isSystemDark(),
+                                defaultDeviceName = getString(R.string.settings_default_device_name),
+                            ),
+                        )
                         ktor?.wsHub?.broadcast("settings_changed", payload)
                     }
                 }
@@ -235,7 +244,7 @@ class TransferService : Service() {
 
         val notif = NotificationHelper.build(
             context = this,
-            title = "Flikky 服务运行中",
+            title = getString(R.string.service_transfer_title),
             text = transferNotificationText(ip, port),
         )
         startForeground(
@@ -300,8 +309,8 @@ class TransferService : Service() {
 
         val notif = NotificationHelper.build(
             context = this,
-            title = ExportNotificationText.TITLE,
-            text = ExportNotificationText.body(armed.snapshot),
+            title = getString(R.string.service_export_title),
+            text = exportNotificationBody(armed.snapshot),
         )
         startForeground(
             EXPORT_NOTIFICATION_ID,
@@ -404,7 +413,7 @@ class TransferService : Service() {
                 is SessionRepository.RecallOutcome.Success -> {
                     ServiceLocator.session.removeMessage(out.messageId)
                     if (out.wasFile) ServiceLocator.stats.decrementFileCount()
-                    ServiceLocator.notifyRecall("对方撤回了一条消息")
+                    ServiceLocator.notifyRecall()
                     ServerRecallOutcome.Success(out.messageId, out.sessionId)
                 }
                 is SessionRepository.RecallOutcome.NotFound -> ServerRecallOutcome.NotFound
@@ -417,7 +426,13 @@ class TransferService : Service() {
         // M9: lambda reads the @Volatile field (not a closure-captured local) so
         // each KtorServer rebuild on rebind picks up the latest settings without
         // holding a stale reference to a previous KtorServer instance.
-        peerInfoProvider = { latestSettings.toPeerInfoDto(isSystemDark()) },
+        peerInfoProvider = {
+            latestSettings.toPeerInfoDto(
+                systemDark = isSystemDark(),
+                defaultDeviceName = getString(R.string.settings_default_device_name),
+            )
+        },
+        webLanguageTagProvider = { AppLanguageManager.effectiveLanguageTag(this) },
     )
 
     /**
@@ -442,6 +457,7 @@ class TransferService : Service() {
         favoriteFileResolver = { fileId ->
             ServiceLocator.favoriteFileStore.resolve(fileId).takeIf { it.exists() && it.isFile }
         },
+        webLanguageTagProvider = { AppLanguageManager.effectiveLanguageTag(this) },
     )
 
     /**
@@ -548,15 +564,16 @@ class TransferService : Service() {
         val notif = when (mode) {
             ServiceMode.Transfer -> NotificationHelper.build(
                 context = this,
-                title = "Flikky 服务运行中",
+                title = getString(R.string.service_transfer_title),
                 text = transferNotificationText(newIp, port),
             )
             ServiceMode.Export -> {
                 val armed = ServiceLocator.session.exportMode.value as? ExportMode.Armed
                 NotificationHelper.build(
                     context = this,
-                    title = ExportNotificationText.TITLE,
-                    text = armed?.let { ExportNotificationText.body(it.snapshot) } ?: "正在提供导出",
+                    title = getString(R.string.service_export_title),
+                    text = armed?.let { exportNotificationBody(it.snapshot) }
+                        ?: getString(R.string.service_export_fallback),
                 )
             }
         }
@@ -598,10 +615,31 @@ class TransferService : Service() {
 
     private fun transferNotificationText(ip: String, port: Int): String =
         if (currentRequirePin) {
-            "URL  http://$ip:$port\nPIN  打开 APP 查看"
+            getString(R.string.service_transfer_with_pin, "http://$ip:$port")
         } else {
-            "URL  http://$ip:$port\n免 PIN 连接"
+            getString(R.string.service_transfer_without_pin, "http://$ip:$port")
         }
+
+    private fun exportNotificationBody(snapshot: ExportSnapshot): String {
+        val summary = ExportNotificationText.summary(snapshot)
+        val content = when (summary.scope) {
+            com.example.flikky.export.ExportScope.SESSIONS -> resources.getQuantityString(
+                R.plurals.service_export_sessions,
+                summary.itemCount,
+                summary.itemCount,
+            )
+            com.example.flikky.export.ExportScope.FAVORITES -> resources.getQuantityString(
+                R.plurals.service_export_favorites,
+                summary.itemCount,
+                summary.itemCount,
+            )
+            com.example.flikky.export.ExportScope.SETTINGS ->
+                getString(R.string.service_export_settings)
+            com.example.flikky.export.ExportScope.ALL ->
+                getString(R.string.service_export_all_data)
+        }
+        return getString(R.string.service_export_body, content, summary.formattedBytes)
+    }
 
     companion object {
         const val ACTION_START = "com.example.flikky.START"
@@ -612,7 +650,10 @@ class TransferService : Service() {
          * M9: maps FlikkySettings.background → (backgroundMode, backgroundValue)
          * using the same string encoding as SettingsRepository (DEFAULT/BLANK/SOLID/GRADIENT).
          */
-        internal fun FlikkySettings.toPeerInfoDto(systemDark: Boolean): PeerInfoDto {
+        internal fun FlikkySettings.toPeerInfoDto(
+            systemDark: Boolean,
+            defaultDeviceName: String,
+        ): PeerInfoDto {
             val (mode, value) = when (val bg = background) {
                 is BackgroundSetting.Default -> "DEFAULT" to null
                 is BackgroundSetting.Blank -> "BLANK" to null
@@ -628,7 +669,7 @@ class TransferService : Service() {
             }
             val seed = if (themeMode == ThemeMode.PRESET) presetTheme.seedHex else null
             return PeerInfoDto(
-                deviceName = deviceName,
+                deviceName = deviceName.ifBlank { defaultDeviceName },
                 phoneAvatarId = phoneAvatarId,
                 phoneAvatarKey = phoneAvatarKey,
                 backgroundMode = mode,
@@ -646,6 +687,5 @@ class TransferService : Service() {
         private const val TAG = "TransferService"
 
         private val FMT = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
-        fun defaultSessionName(nowMs: Long): String = "${FMT.format(Date(nowMs))} 会话"
     }
 }

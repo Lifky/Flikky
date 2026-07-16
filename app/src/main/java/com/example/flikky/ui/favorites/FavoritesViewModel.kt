@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.flikky.R
 import com.example.flikky.data.FavoriteFileStore
 import com.example.flikky.data.FavoritesRepository
 import com.example.flikky.data.db.entities.FavoriteEntity
@@ -228,14 +229,14 @@ class FavoritesViewModel @JvmOverloads constructor(
         val ctx = getApplication<Application>()
         val file = favoriteFileStore().resolve(depotId)
         if (!file.exists()) {
-            Toast.makeText(ctx, "文件不存在", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, R.string.file_missing, Toast.LENGTH_SHORT).show()
             return
         }
         val authority = "${ctx.packageName}.fileprovider"
         val uri = try {
             FileProvider.getUriForFile(ctx, authority, file, favorite.fileName ?: depotId)
         } catch (_: IllegalArgumentException) {
-            Toast.makeText(ctx, "无法暴露此文件（FileProvider 路径未配置）", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, R.string.file_provider_unavailable, Toast.LENGTH_SHORT).show()
             return
         }
         val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -243,11 +244,11 @@ class FavoritesViewModel @JvmOverloads constructor(
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         try {
-            ctx.startActivity(Intent.createChooser(intent, "打开文件").apply {
+            ctx.startActivity(Intent.createChooser(intent, ctx.getString(R.string.file_open_chooser)).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             })
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(ctx, "没有可以打开此类型文件的应用", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, R.string.file_no_handler, Toast.LENGTH_SHORT).show()
         }
     }
 }

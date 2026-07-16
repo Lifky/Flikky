@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.ui.theme.Spacing
@@ -47,21 +48,21 @@ fun ExportDestinationSheet(
                 .padding(bottom = Spacing.xxxl),
         ) {
             Text(
-                text = "导出到",
+                text = stringResource(R.string.export_destination_title),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = Spacing.lg),
             )
             Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                 DestinationItem(
-                    title = "保存到本机",
-                    subtitle = "选择位置保存 ZIP 归档",
+                    title = stringResource(R.string.export_destination_local),
+                    subtitle = stringResource(R.string.export_destination_local_summary),
                     icon = painterResource(R.drawable.ic_file_download),
                     onClick = onSaveLocal,
                     index = 0,
                 )
                 DestinationItem(
-                    title = "在电脑下载",
-                    subtitle = "通过同一 Wi-Fi 在浏览器下载",
+                    title = stringResource(R.string.export_destination_computer),
+                    subtitle = stringResource(R.string.export_destination_computer_summary),
                     icon = painterResource(R.drawable.ic_upload),
                     onClick = onDownloadToComputer,
                     index = 1,

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="service_channel_name">Flikky 服务</string>
+    <string name="service_channel_description">Flikky 局域网传输服务运行中</string>
+    <string name="service_starting">正在启动…</string>
+    <string name="service_transfer_title">Flikky 服务运行中</string>
+    <string name="service_transfer_with_pin">URL  %1$s\nPIN  打开 APP 查看</string>
+    <string name="service_transfer_without_pin">URL  %1$s\n免 PIN 连接</string>
+    <string name="service_export_title">Flikky 正在提供导出</string>
+    <plurals name="service_export_sessions">
+        <item quantity="other">%1$d 个会话</item>
+    </plurals>
+    <plurals name="service_export_favorites">
+        <item quantity="other">%1$d 条收藏</item>
+    </plurals>
+    <string name="service_export_settings">设置</string>
+    <string name="service_export_all_data">全部数据</string>
+    <string name="service_export_body">%1$s / %2$s 可下载</string>
+    <string name="service_export_fallback">正在提供导出</string>
+    <string name="service_default_session_name">%1$s 会话</string>
+</resources>

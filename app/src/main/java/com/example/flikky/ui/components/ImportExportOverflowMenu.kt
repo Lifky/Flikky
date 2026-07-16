@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import com.example.flikky.R
 
 @Composable
@@ -27,7 +28,7 @@ fun ImportExportOverflowMenu(
         IconButton(onClick = { expanded = true }) {
             Icon(
                 painter = painterResource(R.drawable.ic_more_vert),
-                contentDescription = "更多",
+                contentDescription = stringResource(R.string.common_more),
             )
         }
         DropdownMenu(
