@@ -46,7 +46,7 @@
     <string name="home_move_to_group">移动到分组</string>
     <string name="home_export">导出</string>
     <string name="home_tagline">局域网文件与消息传输</string>
-    <string name="home_empty">尚无历史会话。点右下“启动服务”开始第一次传输。</string>
+    <string name="home_empty">尚无历史会话。\n点右下“启动服务”开始第一次传输。</string>
     <string name="home_group_name">分组名</string>
     <string name="home_selected">已选中</string>
     <string name="home_not_selected">未选中</string>

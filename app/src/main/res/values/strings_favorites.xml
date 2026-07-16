@@ -9,7 +9,7 @@
     <string name="favorites_add">添加收藏</string>
     <string name="favorites_empty_search">没有匹配的收藏</string>
     <string name="favorites_empty_group">该合集还没有收藏</string>
-    <string name="favorites_empty">点 + 添加本地文本或文件，也可以在消息或文件上点 ☆ 收藏</string>
+    <string name="favorites_empty">点 + 添加本地文本或文件\n也可以在消息或文件上点 ☆ 收藏</string>
     <string name="favorites_copied">已复制</string>
     <string name="favorites_sent">已发送收藏</string>
     <string name="favorites_connect_browser">请先连接浏览器</string>

@@ -44,6 +44,34 @@ class LocalizationResourcesTest {
         )
     }
 
+    @Test
+    fun `empty state copy uses semantic line breaks in simplified Chinese`() {
+        val localized = context.forLanguage("zh-CN")
+
+        assertEquals(
+            "点 + 添加本地文本或文件\n也可以在消息或文件上点 ☆ 收藏",
+            localized.getString(R.string.favorites_empty),
+        )
+        assertEquals(
+            "尚无历史会话。\n点右下“启动服务”开始第一次传输。",
+            localized.getString(R.string.home_empty),
+        )
+    }
+
+    @Test
+    fun `empty state copy uses semantic line breaks in English`() {
+        val localized = context.forLanguage("en")
+
+        assertEquals(
+            "Tap + to add local text or files.\nYou can also tap ☆ on a message or file.",
+            localized.getString(R.string.favorites_empty),
+        )
+        assertEquals(
+            "No previous sessions.\nTap “Start service” to begin your first transfer.",
+            localized.getString(R.string.home_empty),
+        )
+    }
+
     private fun Context.forLanguage(languageTag: String): Context {
         val configuration = Configuration(resources.configuration).apply {
             setLocales(LocaleList.forLanguageTags(languageTag))

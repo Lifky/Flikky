@@ -52,7 +52,7 @@
     <string name="home_move_to_group">Move to group</string>
     <string name="home_export">Export</string>
     <string name="home_tagline">LAN file and message transfer</string>
-    <string name="home_empty">No previous sessions. Tap “Start service” to begin your first transfer.</string>
+    <string name="home_empty">No previous sessions.\nTap “Start service” to begin your first transfer.</string>
     <string name="home_group_name">Group name</string>
     <string name="home_selected">Selected</string>
     <string name="home_not_selected">Not selected</string>

@@ -85,6 +85,7 @@ import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.export.ExportFileName
 import com.example.flikky.export.ExportScope
 import com.example.flikky.ui.components.ConfirmDialog
+import com.example.flikky.ui.components.EmptyStateContent
 import com.example.flikky.ui.components.FlikkyFloatingToolbar
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.RenameDialog
@@ -332,7 +333,7 @@ fun HomeScreen(
                         .fillMaxSize(),
                     contentAlignment = Alignment.TopCenter,
                 ) {
-                    EmptyHero(modifier = Modifier.fillMaxSize().maxContentWidth())
+                    HomeEmptyState(modifier = Modifier.fillMaxSize().maxContentWidth())
                 }
             } else {
                 Box(
@@ -695,23 +696,13 @@ private fun SelectingFloatingToolbar(
 }
 
 @Composable
-private fun EmptyHero(modifier: Modifier = Modifier) {
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Flikky", style = MaterialTheme.typography.displayMedium)
-            Text(
-                stringResource(R.string.home_tagline),
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = Spacing.sm),
-            )
-            Text(
-                stringResource(R.string.home_empty),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = Spacing.lg),
-            )
-        }
-    }
+private fun HomeEmptyState(modifier: Modifier = Modifier) {
+    EmptyStateContent(
+        title = stringResource(R.string.app_name),
+        subtitle = stringResource(R.string.home_tagline),
+        description = stringResource(R.string.home_empty),
+        modifier = modifier,
+    )
 }
 
 @Composable

@@ -9,7 +9,7 @@
     <string name="favorites_add">Add favorite</string>
     <string name="favorites_empty_search">No matching favorites</string>
     <string name="favorites_empty_group">No favorites in this collection</string>
-    <string name="favorites_empty">Tap + to add local text or files. You can also tap ☆ on a message or file.</string>
+    <string name="favorites_empty">Tap + to add local text or files.\nYou can also tap ☆ on a message or file.</string>
     <string name="favorites_copied">Copied</string>
     <string name="favorites_sent">Favorite sent</string>
     <string name="favorites_connect_browser">Connect a browser first</string>

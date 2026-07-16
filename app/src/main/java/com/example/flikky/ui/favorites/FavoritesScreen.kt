@@ -56,7 +56,6 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
@@ -65,6 +64,7 @@ import com.example.flikky.export.ExportScope
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.ConfirmDialog
+import com.example.flikky.ui.components.EmptyStateContent
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.ImportExportOverflowMenu
 import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
@@ -582,21 +582,9 @@ fun FavoritesScreen(
 
 @Composable
 private fun EmptyFavorites(text: String, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.padding(Spacing.screenEdge), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                stringResource(R.string.favorites_title),
-                style = MaterialTheme.typography.headlineMedium,
-            )
-            Text(
-                text = text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .padding(top = Spacing.sm)
-                    .widthIn(max = 360.dp),
-            )
-        }
-    }
+    EmptyStateContent(
+        title = stringResource(R.string.favorites_title),
+        description = text,
+        modifier = modifier,
+    )
 }
