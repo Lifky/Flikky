@@ -1,248 +1,145 @@
-# Flikky
+<p align="center">
+  <img src="./app/src/main/ic_launcher-playstore.png" width="128" alt="Flikky 图标">
+</p>
 
-[English](./README.md) | **简体中文**
+<h1 align="center">Flikky</h1>
 
-安卓手机与浏览器之间的局域网文件与消息互传。接收端零安装、零联网，专为临时即用的共享场景设计。
+<p align="center">
+  Android 手机与现代浏览器之间，无需账号的局域网传输工具。
+</p>
 
-手机启动内嵌 HTTP 服务器，同 WiFi 下任意浏览器打开手机上展示的 URL，输入一次性 6 位 PIN 后即建立会话，文本与文件可双向实时传输。
+<p align="center">
+  <a href="./README.md">English</a> · <strong>简体中文</strong>
+</p>
+
+Flikky 会把 Android 手机变成一个短时运行的本地文件服务器。同一 Wi-Fi 下的浏览器打开 App 展示的地址，即可实时互传文本和文件。浏览器端不用安装应用、扩展，不用注册账号，不依赖云服务，也不需要互联网连接。
+
+Flikky 面向可信局域网使用，并把配对、会话状态、历史记录、收藏、备份和恢复等复杂性全部留在 Android App 内处理。
 
 ## 当前状态
 
-- **v1.0** — 最小连通闭环：启动服务、URL + PIN 配对、双向文本与文件、MD3 聊天气泡、前台服务常驻通知、完整安全基线。
-- **v1.1** — *已发布（2026-04-21）* — Room 会话归档、主页会话列表（置顶 / 重命名 / 删除）、历史详情只读查看、APP 启动时 crash-recovery、FIFO 保留最近 20 条非置顶会话（置顶不占配额）。
-- **v1.2** — *已发布（2026-05-13）* — 多会话批量导出到 PC（流式 zip）、浏览器上传实时进度气泡、mdui snackbar、WiFi 自动重绑 + 状态 banner、进行中会话主页交互（继续 / 行内停止）、WS 应用层心跳 + server_stopped 区分主动停止与网络断开。
-- **v1.3** — *已发布（2026-05-24）* — 跨会话消息搜索（FTS4 + LIKE fallback）、进行中服务消息撤回（真删 + 双端二次确认 + 即时同步）、History 单条消息删除、应用层 ping/pong 替代被动心跳、闭包死引用系统性审计 + 回归保护、导出页 WS 健康检测 + 取消导出 dialog。
-- **v1.4.0** — *已发布（2026-06-04）* — 文件传输异步化（双向即时 IN_PROGRESS 气泡 + 进度条 + 失败态 `传输失败`/`发送失败` 反馈 + 上传中断自动清理）、从 zip 导入回 APP（向后兼容 v1.2/v1.3 格式 + name+startedAt 重复检测 + 导入后 FIFO sweep）、导出格式 `relativePath` 去重修复（messages.json 与 zip entry 对齐，版本号升至 1.4）。
-- **v1.5.0** — *已发布（2026-06-08）* — UI/UX 大改：底部导航（传输 / 设置）、基于 DataStore 的完整设置体系 + 即时换肤（Material You 动态色 + 4 套暖调预设 + 三态深色 + AMOLED）、APP/对端预设头像与进行中会话背景**两端同步**（`GET /api/peer-info` + WS `client_hello`）、长按消息操作栏（复制 / 撤回 / 打开 / 删除带撤销，逐个错位弹出）、可配置 History 保存数量（含 `0`=不保存、`-1`=无限制）、可编辑本机名称、消息撤回 Beta 开关、emoji→Material 图标全量迁移与 +1 档圆角形状。
-- **v1.5.1** — *已发布（2026-06-16）* — 浏览器对话页滚动修复（mdui 固定 top-app-bar 给 `<body>` 注入 `padding-top`，与 `100vh` flex 外壳冲突 → 作用域化的 `body.chat-page` 覆盖 + `100dvh`），并清理了 v1.5.0 遗留的若干 cosmetic 小问题。
-- **v1.6.0** — *已发布（2026-06-16）* — **会话体验重构**：顶部上下文自适应（配对前连接卡片 → 连上后 spring 塌缩为纤细对端头部）、悬浮消息工具栏（单击召唤 / 长按选词 / 单击空白清除）+ 设置开关切换为气泡旁常驻操作栏、两端统一四角等圆角气泡（默认 18dp）+ 圆角 slider、头像显示设置（组内首条 / 末条 / 每条）、输入区重做（输入框 + add 底部面板的文件/图片方卡 + 圆形发送）+ 第二行统计兼作 snackbar 落区、会话背景去渐变改为主题派生纯色 + 自定义色相 slider、等待连接加载指示、停止服务移至头部、「允许会话中返回」开关（默认拦截返回；会话运行期间锁定设置入口），以及修正的 edge-to-edge IME inset 让输入行紧贴键盘上方。应用 `versionName`/`versionCode` 现已纳入维护（此前一直冻结在 1.0/1）。
-- **v1.7.0** — *已发布（2026-06-18）* — **主页重构**：去掉标题栏，改为大号 MD3 `SearchBar` 原地展开为**真全屏**，同时搜索**会话名 + 消息内容**（FTS），结果分「会话」「消息」两组；导入入口收进 overflow 菜单。**长按是进多选的唯一入口**，选中态用**无 Checkbox 的纯色三态**（`primaryContainer` 填充）+ TalkBack 选中语义；多选时底部导航被**自适应操作栏**（置顶智能切换 / 单选重命名 / 导出 / 批量删除）顶替。退役独立搜索路由。系统栏现与 App 颜色对齐（`isNavigationBarContrastEnforced=false` + `isAppearanceLightNavigationBars`）。
-- **v1.8.0** — *已发布（2026-06-24）* — **设计系统与布局打底**：T 恤尺码 Spacing/Sizes token（全 UI 字面量迁移）、完整 MD3 type scale + 语义 typography 扩展（CJK 段落折行）、内联 shape 换成 `MaterialTheme.shapes`、抽出公共组件（OptionCard / ConfirmDialog / RenameDialog）+ 底栏图标统一到单一 drawable 源、设置页重组为六大逻辑区 + Large 标题栏 + 每行 leading icon + M3 segmented 列表观感、搜索框展开动画顺滑且贴齐屏幕边缘、宽屏内容区 600dp 上限并将主页/设置/历史/服务/导出居中。*(与 v1.9.0 同批发布；此里程碑 tag 内部 versionName 仍是 1.7.0——版本号 bump 落在 v1.9.0 发布时。)*
-- **v1.9.0** — *已发布（2026-06-24）* — **会话分组系统**：主页新增文件夹式 filter chip（固定「全部」+ 自定义分组，单选），底层走 Room v4 migration（`session_groups` 表 + `sessions.groupId`）；当前分组态持久化于 DataStore，会话归入「启动那一刻所在的分组」。组内按 置顶 → 今天 → 昨天 → 更早 分桶。长按自定义 chip 弹统一管理框（改名 / 上下移排序 / 删除带撤销）；「全部」是虚拟、不可删、不可移的 chip。多选改为 MD3 floating toolbar（胶囊、纯图标：置顶 / 重命名 / **移动到分组** / 导出 / 删除）顶替整宽底栏；**移动到分组**弹底部 sheet（自定义分组 + 「全部」移出分组）。设置 polish：Radio 整行可点、气泡圆角 Slider 独占整宽一行、去掉「主题 / 深色模式」与 leading icon 重复的右侧图标。整体取代 v1.8.0 的排序/分组 chip。应用 `versionName` / `versionCode` → 1.9.0 / 10900。
-- **v1.9.1** — *已发布（2026-06-24）* — 设置对话框与列表 polish：单选对话框（深色模式 / 消息操作样式 / 头像显示 / 历史保存数量）重做为共用的 `ChoiceDialog`，选项行整宽、≥56dp 高、铺到对话框内边、整行一个统一 ripple（Radio 仅作视觉指示）——取代原先「行矮、内缩、只有圆点可点」的样式；并给设置项标题/副标题与右侧 `Switch` 之间加固定间隔，长文案不再顶到开关上。应用 `versionName` / `versionCode` → 1.9.1 / 10901。
-- **v1.10.0** — *已发布（2026-06-26）* — **收藏 / 弹药库**：底部导航新增**收藏** tab（传输 / 收藏 / 设置），底层走 Room v5 migration。给 TEXT 或已完成 FILE 气泡（进行中会话或 history 皆可）点收藏会留一份**独立快照副本**——不与源消息建外键，因此源消息被删、整个源会话被删、乃至 FIFO 淘汰后收藏副本仍在；文件复制进收藏专属目录、经 FileProvider 打开。星标可逆（实心 / 空心回显经 `(sourceSessionId, sourceMessageId)` 在 live + history 两端同步）；点收藏时弹底部 sheet 选合集（全部 + 已有 + 内联新建）。收藏拥有独立合集（chip 行、长按管理框、隔离的搜索 + 多选），与会话分组**完全独立**——删合集只把其下收藏 re-home 到「全部」，不级联删除。本版还把首页 / 收藏 / 消息三处 floating toolbar 统一到共用的 `FlikkyFloatingToolbar` 胶囊规格，并在启动时用持久化最大 id 给消息 id 计数器播种，重启后 id 不再相撞。应用 `versionName` / `versionCode` → 1.10.0 / 11000。
-- **v1.10.1** — *已发布（2026-06-27）* — **收藏快速发送 & 图标全量焕新**：每条收藏新增一键发送，把快照推进进行中会话——收藏页行内、以及会话页输入行 `★` 拉起的全新**弹药箱** `ModalBottomSheet` 皆可——文本走 `sendText`、文件走新增的 `offerStoredFile` 重载流式拷贝收藏副本，门槛与会话发送键一致同为 `clientConnected`，并带一行「最近使用」快捷发送（仅持久化 id 到 DataStore）。发送图标复用会话发送键的 `ic_arrow_upward`（不是纸飞机）。另外，全部 32 个 vector drawable 迁移到**官方 Material Symbols**（opsz24 / wght400、经 `translateY(960)` group 逐字保留官方 path）——取代旧版 Material Icons 与一个与官方对不上的手搓 `ic_send_outline`——且首页 / 收藏多选工具栏改为内容区悬浮（更轻的胶囊、内层 Scaffold 不再双算底部 inset）。应用 `versionName` / `versionCode` → 1.10.1 / 11001。
-- **v1.11.0** — *已发布（2026-06-30）* — **Motion 与视觉系统大改**：App 根改用 `MaterialExpressiveTheme`（**material3 1.5.0-alpha22**）+ `MotionScheme.expressive()`，新增 `ui/theme/Motion.kt` token 层把官方物理弹簧（spatial / effects × 默认 / 快 / 慢）包在**全局动画速度**之下（设置 → 动画速度：关闭 / 慢 / 标准 / 快，持久化于 DataStore；「关闭」即 reduce-motion，且始终尊重系统 animator-duration-scale）。在此地基上：MD3 导航转场（tab fade-through + push/pop shared-axis）、**predictive-back** 手势、列表增删/重排动画（`animateItem`）、服务页连接头部的 spatial-spring 高度形变、floating toolbar 迁到官方 `HorizontalFloatingToolbar`、内联 tween/spring 字面量全部 token 化。**Color**：4 套暖调预设替换为 **8 套自定义 MTB 主题**（淡曙红 / 丹紫红 / 橙皮黄 / 秋葵黄 / 安安蓝 / 珠母灰 / 鹦鹉绿 / 芥花紫），每套含完整 light/dark × 标准/中/高对比度 role 映射，新增**对比度档**设置（跟随系统 / 标准 / 中 / 高，系统对比度经 `UiModeManager` 读取），并实现**双端配色对齐**——手机当前主题的 seed + 深浅推给浏览器，浏览器重算出同色相的 mdui 调色板（同一 Material Color Utilities seed → 同色相）。**Lists**：设置 / 传输 / 收藏列表迁到官方 M3 Expressive `SegmentedListItem`（`segmentedShapes` 角形 + `SegmentedGap`），多选带官方内建的选中弹簧，容器色统一 `surfaceContainer`，终于让设置列表在亮色下有层次。待连接的三个动作（复制地址 + 两个停止服务）改为 filled-tonal 底色。应用 `versionName` / `versionCode` → 1.11.0 / 11100。
-- **v1.12.0** — *已发布（2026-07-02）* — **共享设计 token 与头像系统**：新增单一设计 token 事实源（`tokens.css`，由 App 的 Kotlin token 常量生成）为浏览器端打底——`app.css` 的 shape / spacing / type 字面量全部 token 化为 `var()`，**气泡圆角经 `peer-info` 从手机同步到浏览器**，会话内新增**快捷设置**面板可实时调气泡圆角 + 深色。浏览器前端从手搓标记迁到**官方 mdui / Material Symbols** 组件（inline-SVG 图标与 App 共用同一份 path、`mdui-dialog` 头像选择器、`mdui-menu-item` 撤回菜单）。**头像**端到端重做：字符串 `AvatarKey` 模型（`icon:name:filled|outline` / `char:*`）+ 主题化 `secondaryContainer` 背景、由完整 Material Symbols **可变字体**（`FILL` / `wght` / `GRAD` / `opsz` 轴、两端 bundle）支撑的 **fill** 开关、字符头像、App 端可设置**浏览器**头像（经 WS `peer_avatar_changed` 同步 + `sessions.peerAvatarKey` Room v6 migration 让 History 恢复真实头像）、**头像显示**模式（首条 / 末条 / 每条）实时推送到浏览器并加入会话快捷设置，以及 Web PIN 页在认证**前**经公开的 `/api/web-theme` 同步 App 当前主题。另含修复：进行中会话消息自动滚到最新、服务停止时浏览器默认背景 watermark 跟随连接状态、部分外观 payload 不再重置手机头像、撤回后组内头像重排、头像选择描边 + 移动 UA 输入行不再裁切。应用 `versionName` / `versionCode` → 1.12.0 / 11200。
-- **v1.13.0** — *已发布（2026-07-05）* — **可选 PIN 认证 & 本地收藏**：**连接需要 PIN 码**设置现可关闭——关闭后内嵌服务器撤掉鉴权门槛，同一 Wi-Fi 内任意设备直接访问地址即连（仍只绑 Wi-Fi IPv4，绝不 `0.0.0.0`）；保持开启则单次 6 位 PIN 行为与此前完全一致。鉴权集中到全新 `AuthGate`（`required` 标志 + token 校验），每条路由统一查询，因此实时开关会一次性给所有 endpoint 重新加/撤门。收藏新增**脱离会话的本地创建**：一个「添加收藏」sheet 可把手打的文本片段（`addLocalText`）或选中的本地文件（`addLocalFile`，复制进收藏专属目录）直接入库到某个合集，用保留的本地 source-session id 与会话来源的收藏共存、各自独立留存。另含 UI 打磨：添加收藏 sheet 精简、设置行的尾部控件居中、PIN 行改用 `ic_fiber_pin` 图标。应用 `versionName` / `versionCode` → 1.13.0 / 11300。
+| 通道 | 版本 | 状态 |
+| --- | --- | --- |
+| 稳定版源码 | [`v1.13.0`](https://github.com/Lifky/Flikky/tree/v1.13.0) · 2026-07-05 | 支持可选 PIN 认证、本地添加收藏，以及下文所述的完整传输与 History 体验。 |
+| `main` | [未发布改动](https://github.com/Lifky/Flikky/compare/v1.13.0...main) | 完整 ZIP 备份 scope、本机或浏览器导出目的地、页面上下文归档入口，以及当前 UI 修正。 |
 
-设计文档与复盘/验收清单保存在本地的 `docs/others/`（已 gitignored），公开仓库仅含源码。
+需要可复现构建时使用稳定版 tag；需要评估最新但尚未发布的工作时使用 `main`。历史版本可在仓库的 [tags](https://github.com/Lifky/Flikky/tags) 中查看。
 
-## 进度
+## 使用 Flikky
 
-### feat
+1. 在 Android 13 或更高版本的手机上安装 Flikky。
+2. 让手机与接收设备连接到同一 Wi-Fi。
+3. 在 Flikky 中启动传输服务。App 会展示本地 URL，并默认生成一次性 6 位 PIN。
+4. 在浏览器中打开 URL，按提示输入 PIN。
+5. 双向发送文本或文件。进度、连接状态与失败反馈会实时更新。
+6. 完成后停止服务。已结束会话会按照当前 History 保留策略存储在本机。
 
-- [x] 内嵌 HTTP server，仅绑定当前 WiFi IPv4 接口 *(v1.0)*
-- [x] URL + 单次 PIN 配对，错 3 次锁 IP 30 秒，错 5 次终止服务 *(v1.0)*
-- [x] 双向文本 / 文件实时传输（HTTP + WebSocket） *(v1.0)*
-- [x] 前台服务 + 常驻通知（通知只显示 URL，不显示 PIN） *(v1.0)*
-- [x] 手机端 MD3 聊天气泡（Jetpack Compose） *(v1.0)*
-- [x] 浏览器端原生 JS + 离线打包的 mdui Web Components *(v1.0)*
-- [x] 安全基线：严格 CSP、`X-Frame-Options: DENY`、`nosniff`、`Referrer-Policy: no-referrer`、`HttpOnly` + `SameSite=Strict` Cookie、只用 `textContent`、文件经 Blob URL 下载 *(v1.0)*
-- [x] Room 会话归档：`SessionEntity` + `MessageEntity`（单表 + kind 判别，`FOREIGN KEY ... ON DELETE CASCADE`） *(v1.1)*
-- [x] 主页会话列表 + 长按菜单（置顶 / 重命名 / 删除） *(v1.1)*
-- [x] History 页（单会话只读时间线） *(v1.1)*
-- [x] FIFO 保留最近 20 条非置顶会话；置顶不占配额 *(v1.1)*
-- [x] APP 启动时 crash-recovery：`finalizeOrphans()` 补齐未关闭会话、回滚空会话、清理孤立文件目录 *(v1.1)*
-- [x] 文字消息可复制（长按触发系统复制 / 全选菜单） *(v1.1)*
-- [x] 多会话批量导出到 PC，流式 zip（`messages.txt` + `messages.json` + `files/`） *(v1.2)*
-- [x] `/api/export/info` 概览 endpoint + 浏览器 `/export` 页（mdui 风格） *(v1.2)*
-- [x] 导出完成「保留本地 / 删除本地」二择，删除带 AlertDialog 二次确认 *(v1.2)*
-- [x] 浏览器上传实时进度气泡（XHR `upload.onprogress` + X-Client-Id senderId dedup） *(v1.2)*
-- [x] WiFi 自动重绑：`ConnectivityManager.NetworkCallback` → 停 / 重建 Ktor，banner 报 Lost / Switching / Switched *(v1.2)*
-- [x] 进行中会话主页交互：点击进 ServingScreen 继续 / 行内「停止」按钮 / FAB 切换"继续服务" *(v1.2)*
-- [x] WS 应用层心跳（4 秒 frame 超时）+ `server_stopped` event 区分用户主动停止与网络断开 *(v1.2)*
-- [x] 跨会话消息搜索：FTS4 全文索引 + LIKE fallback（CJK 走 LIKE），搜索屏 debounce 输入 + 命中跳转 History + 滚动高亮 *(v1.3)*
-- [x] 进行中服务消息撤回：长按→确认 AlertDialog→真删 + 两端节点即时消失 + snackbar 提醒；History 单条消息删除 *(v1.3)*
-- [x] 应用层 ping/pong + 2 秒 frame 超时：断网 ~2 秒感知，替代 v1.2 的被动心跳 *(v1.3)*
-- [x] 闭包死引用系统性审计：TransferControllerRebindReferenceTest 回归保护 + CLAUDE.md 规范 *(v1.3)*
-- [x] 导出页健康检测：WS 连接（ping/pong）+ fetch 探测、取消导出 dialog、下载开始清理 *(v1.3)*
-- [x] `senderId` 全链路：手机端 `phone-{ANDROID_ID}` 跨重启不变，浏览器 `X-Client-Id` 按会话；撤回鉴权按 senderId 匹配 *(v1.3)*
-- [x] 文件传输异步化：手机→浏览器、浏览器→手机双向即时 IN_PROGRESS 气泡 + 5% 间隔进度广播 + `file_ready`/`file_removed` 事件；失败态 `传输失败`/`发送失败` 反馈 *(v1.4.0)*
-- [x] 从 zip 导入回 APP：`ZipImporter` 解析 + 向后兼容 v1.2/v1.3（replay `nextUniqueName` 推断路径）、name+startedAt 重复检测、导入后 FIFO sweep、导入入口 + Loading dialog + snackbar 总结 *(v1.4.0)*
-- [x] 底部导航（传输 / 设置），`alwaysShowLabel=false` 让未选中 tab 只显图标；详情页自动隐藏底栏；两 tab 各自保留 back-stack 状态 *(v1.5.0)*
-- [x] 基于 DataStore 的设置体系 + 即时换肤（零重启）：Material You 动态色 + 4 套暖调预设（珊瑚橙 / 蘑菇棕 / 黛尾绿 / 雾霭蓝）、三态深色 + AMOLED 纯黑、CompositionLocal 黄金链 *(v1.5.0)*
-- [x] 长按消息操作栏：复制 / 撤回（Beta）/ 打开 / 删除带撤销，从气泡下方逐个错位 scale-in 弹出 *(v1.5.0)*
-- [x] APP/对端预设头像（12 个）+ 进行中会话背景（默认 / 空白 / 纯色 / 渐变），**两端同步**（`GET /api/peer-info` + WS `client_hello`），浏览器端带头像选择器 *(v1.5.0)*
-- [x] 设置内可配置 History 保存数量（默认 20，`0`=不保存，`-1`=无限制）；对端头像编号持久化，History 正确还原浏览器侧头像 *(v1.5.0)*
-- [x] emoji → Material 图标全量迁移（`material-icons-core` + 离线打包的 Symbols vector）、+1 档圆角 MD3 形状、气泡 CJK 段落折行 *(v1.5.0)*
-- [x] 顶部上下文自适应：配对前 `ConnectionInfoCard`（URL + 复制 + 大号 PIN），连上后 spring 塌缩为纤细对端头部（头像 + 名称 + 已连接 + 停止）；与导出页共用 *(v1.6.0)*
-- [x] 悬浮消息工具栏（默认）：单击气泡召唤、长按起原生选词、单击空白清除；设置开关可切换为气泡旁常驻操作栏；进行中会话与 History 都适用 *(v1.6.0)*
-- [x] 两端统一四角等圆角气泡（默认 18dp）+ 设置内圆角 slider（8–28dp） *(v1.6.0)*
-- [x] 头像显示设置：同来源连续消息组内首条 / 末条 / 每条显示头像 *(v1.6.0)*
-- [x] 输入区重做：输入框 + add 按钮（底部面板含文件 / 图片方卡）+ 圆形上箭头发送，外加第二行统计（运行 / 文件 / 速率）兼作 snackbar 落区 *(v1.6.0)*
-- [x] 会话背景：移除渐变；主题派生纯色预设 + 自定义色相 slider（恒为可读极浅色） *(v1.6.0)*
-- [x] 「允许会话中返回」设置（默认关 → 返回被拦截并弹引导 snackbar）；传输会话运行期间锁定底栏「设置」入口 *(v1.6.0)*
-- [x] 等待连接加载指示；停止服务移入头部 *(v1.6.0)*
-- [x] 主页顶栏改大号 MD3 `SearchBar`（去标题）原地展开为真全屏；同时搜会话名 + 消息内容（FTS），分「会话」「消息」两组；导入迁入 overflow 菜单 *(v1.7.0)*
-- [x] 长按是进多选的唯一入口；无 Checkbox 的纯色三态选中（`primaryContainer` 填充）+ TalkBack 的 `selected` / `stateDescription` 语义 *(v1.7.0)*
-- [x] 自适应多选操作栏——置顶（智能切换）/ 重命名（仅单选）/ 导出 / 删除（批量）；多选时顶替底部导航；退役独立搜索路由 *(v1.7.0)*
-- [x] 设计系统 token：T 恤尺码 Spacing scale + Sizes token、完整 MD3 type scale + 语义 typography 扩展、内联 shape 换成 `MaterialTheme.shapes` *(v1.8.0)*
-- [x] 设置页重组为六大逻辑区 + Large MD3 标题栏 + 每行 leading icon + M3 segmented 列表观感 *(v1.8.0)*
-- [x] 宽屏内容区 600dp 上限，将主页 / 设置 / 历史 / 服务 / 导出居中不破版 *(v1.8.0)*
-- [x] 会话分组系统：文件夹式 filter chip（固定「全部」+ 自定义分组，单选），底层 Room v4 `session_groups` migration；当前分组态持久化于 DataStore，会话归入「启动那一刻所在的分组」；组内 置顶 / 今天 / 昨天 / 更早 分桶 *(v1.9.0)*
-- [x] 长按自定义 chip → 统一管理框（改名 / 上下移排序 / 删除带撤销）；「全部」为虚拟、不可删、不可移的 chip *(v1.9.0)*
-- [x] 多选 floating toolbar（MD3 胶囊、纯图标）+ **移动到分组**动作 → 底部 sheet（自定义分组 + 「全部」移出分组），一次 UPDATE 批量改 `groupId` *(v1.9.0)*
-- [x] 全局动画速度（关闭 / 慢 / 标准 / 快）设置，持久化于 DataStore 并经 `Motion` token 层接到 `MotionScheme.expressive()`；「关闭」即 reduce-motion，且始终尊重系统 animator-duration-scale *(v1.11.0)*
-- [x] MD3 导航转场：tab 切换 fade-through，路由 push/pop 走 shared-axis（前进 / 后退方向相反）；predictive-back 手势接路由 pop + sheet / 多选 dismiss *(v1.11.0)*
-- [x] 列表增删 / 重排动画走官方 `animateItem`（位移 spatial 弹簧、淡入淡出 effects 弹簧），覆盖 home / serving / favorites / history *(v1.11.0)*
-- [x] 8 套自定义 MTB 主题（淡曙红 / 丹紫红 / 橙皮黄 / 秋葵黄 / 安安蓝 / 珠母灰 / 鹦鹉绿 / 芥花紫）替换 4 套暖调预设，每套含完整 light/dark × 标准/中/高对比度 role 映射；新增对比度档设置（跟随系统 / 标准 / 中 / 高，系统对比度经 `UiModeManager` 读取） *(v1.11.0)*
-- [x] 双端配色对齐：手机当前主题 seed + 深浅经 `peer-info` 推给浏览器，浏览器重算出同色相 mdui 调色板（同一 Material Color Utilities seed → 同色相） *(v1.11.0)*
-- [x] 设置 / 传输 / 收藏列表迁到官方 M3 Expressive `SegmentedListItem`（`segmentedShapes` + `SegmentedGap`），多选带官方内建选中弹簧，容器统一 `surfaceContainer` 让亮色有层次 *(v1.11.0)*
-- [ ] HTTPS 自签证书 *(v2)*
-- [ ] 本地归档 at-rest encryption *(v2)*
+局域网必须允许设备之间直接通信。Guest Wi-Fi 或开启 client isolation 的 AP 即使显示相同网络名称，也可能阻止连接。
 
-### opt
+## 主要能力
 
-- [x] 浏览器端从手写 CSS 迁到 mdui Web Components *(v1.0 后期)*
-- [x] 通知栏不显示 PIN——锁屏是物理世界的攻击面 *(v1.0 后期)*
-- [x] 文件按 `sessionId` 分目录（`filesDir/sessions/{id}/files/{fileId}`），FIFO 淘汰即 `rm -rf` *(v1.1)*
-- [x] `SessionEntity` 冗余聚合字段（`messageCount` / `fileCount` / `totalBytes` / `previewText`），主页列表不必反向扫 messages 表 *(v1.1)*
-- [x] Ktor multipart 解除默认 50 MiB 上限（LAN 单用户场景，磁盘空间才是真天花板） *(v1.1)*
-- [x] 浏览器端 native `alert` 替换为 mdui snackbar（`window.flikky.showError/showInfo`） *(v1.2)*
-- [x] 通知栏文案在 WiFi rebind 后刷新到新 IP *(v1.2)*
-- [x] `/api/messages` 返回时间戳合并排序的 `ordered` 视图，刷新后文本/文件按时间顺序混排 *(v1.2)*
-- [x] `MAX_RECONNECT_ATTEMPTS` 上限 + 应用层心跳检测死 WS *(v1.2)*
-- [x] 浏览器断网 UI 即时更新（不等 TCP close），heartbeat 检测到超时立即 disable 按钮 + banner *(v1.3)*
-- [x] 文件下载 `Content-Disposition` 使用原始文件名而非 UUID *(v1.3)*
-- [x] 手机推送文件的 tee 改异步：立即广播 IN_PROGRESS + 后台协程拷贝带进度，消除"选中到可下载"的同步拷贝阻塞 *(v1.4.0)*
-- [x] 设置经 DataStore Preferences 持久化；主题走 `StateFlow<FlikkySettings>`，`MaterialTheme` 观察它——主题 / 深色 / AMOLED 切换原地重组，不重建 Activity *(v1.5.0)*
-- [x] `peerInfoProvider` 在调用时读 `@Volatile` settings 快照，跨 WiFi rebind 仍正确（KtorServer 被重建，lambda 存活于 TransferService field） *(v1.5.0)*
-- [x] `SessionState.addMessage` 把内存列表保持时间戳有序（二分插入），撤销恢复的消息回到原位置，而单调递增的新消息仍追加末尾 *(v1.5.0)*
-- [x] 正确的 edge-to-edge IME 处理：`adjustResize` + `padding(innerPadding)` + `consumeWindowInsets(innerPadding)` + `imePadding()`，ime inset 只生效一次，输入行紧贴键盘上方 *(v1.6.0)*
-- [x] 应用 `versionName` / `versionCode` 纳入维护（1.6.0 / 10600，公式 `major*10000+minor*100+patch`）——此前从项目之初一直冻结在 `1.0` / `1`，导致安装器永远显示 1.0 *(v1.6.0)*
-- [x] 搜索的会话名组与消息组由同一 debounce 后的 query 驱动，两组锁步更新，无匹配提示不再在 debounce 中途闪烁 *(v1.7.0)*
-- [x] 真全屏搜索（逐目的地 padding：主页目的地 escape 顶部 status bar inset、展开时隐藏 FAB + 底栏），SearchBar 铺到状态栏/导航栏之下、无侧缝 *(v1.7.0)*
-- [x] 应用 `versionName` / `versionCode` 1.7.0 / 10700 *(v1.7.0)*
-- [x] 设置对话框 Radio 整行可点（整行套 `selectable(role=RadioButton)` 并置于 `selectableGroup` 内），不再只有圆点是命中区 *(v1.9.0)*
-- [x] `SettingItem` 新增可选整宽 content 槽；气泡圆角 Slider 移过去铺满整行（取代局促的 160dp）；去掉「主题 / 深色模式」与 leading icon 重复的右侧图标 *(v1.9.0)*
-- [x] material3 1.4.0 stable 把 `HorizontalFloatingToolbar` 关在 internal 的 `ExperimentalMaterial3ExpressiveApi` 后，floating toolbar 改用稳定组件按同一 MD3 规格手搓（胶囊 `Surface` + `IconButton`） *(v1.9.0)*
-- [x] 应用 `versionName` / `versionCode` 1.9.0 / 10900 *(v1.9.0)*
-- [x] 收藏 / 弹药库：底部导航新增「收藏」tab，底层走 Room v5 migration；给 TEXT 或已完成 FILE 气泡点收藏会留一份**独立快照副本**（不与源建外键、文件复制进收藏专属目录、经 FileProvider 打开），源消息 / 源会话被删及 FIFO 淘汰后副本仍在 *(v1.10.0)*
-- [x] 星标可逆，经 `(sourceSessionId, sourceMessageId)` 在进行中会话 + history 两端同步；点收藏弹底部 sheet 选合集（全部 + 已有 + 内联新建） *(v1.10.0)*
-- [x] 收藏合集（chip 行、长按管理框、隔离的搜索 + 多选）与会话分组完全独立；删合集只把其下收藏 re-home 到「全部」，不级联删除 *(v1.10.0)*
-- [x] 共用 `FlikkyFloatingToolbar` 胶囊把首页 / 收藏 / 消息三处 floating toolbar 统一到同一 MD3 规格 *(v1.10.0)*
-- [x] 启动时用持久化最大 id 给消息 id 计数器播种，重启后 id 不再相撞 *(v1.10.0)*
-- [x] 应用 `versionName` / `versionCode` 1.10.0 / 11000 *(v1.10.0)*
-- [x] 收藏快速发送：每条收藏（收藏页行内 + 会话页 `★` 拉起的弹药箱底部 sheet）一键把快照推进进行中会话（文本 → `sendText`、文件 → 新增 `offerStoredFile` 重载），门槛 `clientConnected`；带一行「最近使用」持久化 id 到 DataStore *(v1.10.1)*
-- [x] 全部 32 个 vector drawable 迁移到官方 Material Symbols（opsz24 / wght400，经 `translateY(960)` group 逐字保留官方 path）——取代旧版 Material Icons + 手搓的 `ic_send_outline` *(v1.10.1)*
-- [x] 应用 `versionName` / `versionCode` 1.10.1 / 11001 *(v1.10.1)*
-- [x] `ui/theme/Motion.kt` 是官方 `MaterialTheme.motionScheme`（spatial / effects × 默认 / 快 / 慢）的薄适配层，经 `LocalMotionScale` = min(用户速度, 系统 animator-duration-scale) 缩放；内联 tween/spring 字面量 token 化；`LocalClipboardManager` → `LocalClipboard` *(v1.11.0)*
-- [x] floating toolbar 从手搓 `Surface` + `Row` 迁到官方 `HorizontalFloatingToolbar`（material3 1.5.0-alpha22，`ExperimentalMaterial3ExpressiveApi`）；服务页连接头部高度走 spatial 弹簧形变 *(v1.11.0)*
-- [x] 待连接的三个动作（复制地址 + 两个停止服务）改 filled-tonal 底色；停止服务用 errorContainer tonal 配色保留危险语义 *(v1.11.0)*
-- [x] 应用 `versionName` / `versionCode` 1.11.0 / 11100 *(v1.11.0)*
+- **双向传输**：Android 与浏览器通过 HTTP + WebSocket 互传文本和文件，两端都有进度与失败状态。
+- **会话历史**：基于 Room 的会话支持搜索、置顶、重命名、分组、单条消息操作、可配置保留数量和 crash recovery。
+- **撤回与清理**：进行中会话可以撤回消息；History 消息与整个会话可按场景二次确认或撤销删除。
+- **收藏**：把文本或文件保留为独立快照，按合集管理；也可脱离会话添加本地内容、搜索，并快速发回进行中的会话。
+- **可迁移归档**：会话、收藏、设置或全部数据均可导出为 ZIP；当前 `main` 支持保存到 Android 本机或交给浏览器下载，并可在之后重新导入。
+- **自适应外观**：Material 3 Expressive 主题、深色模式、对比度、动画速度、头像、气泡形状与头像分组等设置可在手机与浏览器之间保持一致。
+- **离线浏览器端**：HTML、CSS、JavaScript、mdui 组件、Material Symbols font 与 design token 全部打包进 APK，不使用 CDN。
 
-### fix
+## 安全模型与边界
 
-- [x] v1.0-rc1：`staticResources` 从 JVM classpath 而不是 Android assets 读；缺 `POST_NOTIFICATIONS` runtime 请求；登录页 JS 没加载导致表单默认提交
-- [x] v1.1 T8：AGP 9 + 内置 Kotlin 封禁 `kotlin.sourceSets` DSL → 加 `android.disallowKotlinSourceSets=false`
-- [x] v1.1 T9 / T10：Robolectric 4.14 最高只支持 SDK 33 且不再传递 `androidx.test:core`
-- [x] v1.1 T11：`HomeViewModel(app, repo = ServiceLocator.repository)` 让 `AndroidViewModelFactory` 反射构造失败 → 加 `@JvmOverloads`
-- [x] v1.1 T12：v1.1 改了文件路径但 `file_paths.xml` 还是 v1.0 的 `transfer/` → `FileProvider.getUriForFile` 抛异常；同时给 `openFile` 加 try/catch 兜底
-- [x] v1.1 T13：`FileRoutes` POST 只更新内存 session、漏调 DB 持久化 → `endSession` 把"浏览器只发文件"的会话当空会话回滚，文件一起删 → 给 `fileRoutes` 加 `onPersist`，从 `KtorServer` 串进来
-- [x] v1.1 T14：Ktor 3.0 默认 `receiveMultipart()` 静默上限 50 MiB → 改 `formFieldLimit = Long.MAX_VALUE`；浏览器 `fetch` 失败时 alert 暴露非 2xx 响应
-- [x] v1.2 ServiceLocator.reset 替换 instance → HomeViewModel 缓存死引用 → 二次导出崩溃 + 停服后 UI 仍认为传输在跑。reset 现在复用 instance + clearExport 由具体调用方控制
-- [x] v1.2 `ForegroundServiceDidNotStartInTime`：early-return 路径漏调 startForeground。`onStartCommand` 顶端无条件 startForeground 占槽位，业务路径决定保留或 stopForeground + stopSelf
-- [x] v1.2 浏览器 PIN 登录后在 Export mode 也跳 `/app`：`AuthResponse.redirectTo` 按 ServiceMode 返回
-- [x] v1.2 浏览器上传成功后双消息泡（uploader 收到自己的 WS 广播）：POST 透传 `X-Client-Id` header，broadcast payload 携带 senderId；浏览器 WS 收到 senderId == myClientId 跳过
-- [x] v1.2 闭包死引用一族 bug：`statusBroadcastJob` / `TransferController.wsHub` 在 startTransfer 时 capture 局部 `server.wsHub`，rebind 后还朝旧 hub 广播。两处改为 lambda 从 field-level 取 `ktor?.wsHub`
-- [x] v1.2 浏览器拿着死的 half-open WS（OS 没立即撕 TCP，`readyState` 仍 OPEN）：应用层 4 秒 frame 超时主动 close 触发重连
-- [x] v1.2 用户主动停止后浏览器死循环重连：服务端 close WS 前发 `server_stopped` event，浏览器 set flag 跳过 reconnect timer；兜底 `MAX_RECONNECT_ATTEMPTS = 6`
-- [x] v1.3 FTS4 `categories='L* N* Co'` 在 Android SQLite（无 ICU）崩溃。回退到 `remove_diacritics=1`；CJK 搜索走 LIKE fallback
-- [x] v1.3 撤回功能从 History 软删 + 占位符 → ServingScreen 真删 + 即时消失 + 双端二次确认 dialog（验收反馈驱动的大返工）
-- [x] v1.3 `ws.close()` 在 TCP 半开时阻塞 30-60 秒才触发 onclose，UI 反馈严重滞后。heartbeat 检测到超时后立即更新 UI + 丢弃旧 WS + 启动重连
-- [x] v1.3 导出页 WS 用 frame 超时但 export mode 无 status broadcast → 即时断开循环。改为 ping/pong
-- [x] v1.3 导出页下载/取消后没关 WS → server 停掉触发重连循环。下载和 `server_stopped` 现在关 WS + 停探测
-- [x] v1.3 文件下载保存名是 UUID 而非原始文件名。`Content-Disposition` 从 session 内存查原始文件名
-- [x] v1.4.0 浏览器上传大文件期间手机端看不到气泡：`FileRoutes` POST 收到 file part header 即建 IN_PROGRESS 消息广播，边收边报进度，完成再转 COMPLETED
-- [x] v1.4.0 上传中断（浏览器刷新 / WiFi 断）残留 IN_PROGRESS 消息：multipart 接收包 try-catch，断开时标 FAILED + 删残留文件 + 广播 `file_removed`
-- [x] v1.4.0 WiFi 断开浏览器上传反馈滞后：浏览器维护 `activeUploads[]`，`enterDisconnected` 立即 abort 所有在飞 XHR，不等 TCP 超时
-- [x] v1.4.0 History 中手机发送的文件无法打开：去掉 `origin==BROWSER` 限制，所有 COMPLETED 文件统一可点击打开
-- [x] v1.4.0 导出 `messages.json` 的 `relativePath` 与实际 zip entry 名不一致（v1.2 遗留）：`ZipExporter` 先算去重名再传给 formatter
-- [x] v1.4.0 WiFi 断开手机端「附件」按钮仍可点：与发送按钮一致受 `ui.clientConnected` 控制
-- [x] v1.5.0 装机导入卡死：`importSessions` 在 `withContext(Dispatchers.IO)` 内读取保留上限（DataStore `first()`），把 DataStore 1.1 的单线程 actor 拖死锁。改为进入 IO 上下文前先读上限
-- [x] v1.5.0 完成会话后 History 数量闪现 N+1——FIFO sweep 只在下次启服时跑。现在 `endSession` 后立即 sweep，且设置内调小保留数量会立刻清理
-- [x] v1.5.0 己方消息因冗余 `senderId` 校验无法撤回（"只能撤回自己发的消息"）；既然 UI 只在己方消息上显示撤回按钮，服务端校验属多余，已去掉（单 PIN 单用户模型）
-- [x] v1.5.0 进行中会话的删除→撤销把消息丢到列表末尾；`addMessage` 改时间戳有序插入，撤销后回到原位置
-- [x] v1.5.0 History 显示错误的浏览器侧头像（对端头像编号只在内存）——新增 `peerAvatarId` 列（DB v2→3 migration），`endSession` 时持久化、History 读回
-- [x] v1.5.0 删除 / 撤回 snackbar 占位挤动会话内容、可能挡住输入框；现在两端都改为悬浮在输入框上方（手机端 Compose overlay，浏览器端 mdui 偏移）
-- [x] v1.5.1 浏览器对话页无法滚动：mdui 固定 top-app-bar 给 `<body>` 注入 `padding-top`，与 `100vh` flex 外壳冲突 → 作用域化 `body.chat-page` 覆盖 + `100dvh`
-- [x] v1.6.0 IME inset 双重计算：未设 `windowSoftInputMode` 时 Activity 用 adjustPan 平移窗口，而列又应用了一次 ime inset，导致输入行被顶到顶部、留出键盘高度空白；改用规范的 `adjustResize` + `consumeWindowInsets` 写法（只生效一次）
-- [x] v1.6.0 未连接时禁用消息输入框（与 add / 发送一致），无连接态不可编辑、不弹键盘
-- [x] v1.6.0 背景选择面板：点选项不再关闭面板、自定义色相 slider 从当前背景回读、主题派生重复色块去重（如珊瑚 / 蘑菇）
-- [x] v1.6.0 连接卡片 URL 改为整行居中 + 下方独立复制按钮，长 URL 不再与图标错位
-- [x] v1.7.0 搜索展开非真全屏（FAB / 底部导航透出、状态栏背景不变、左右有缝）；修为真 edge-to-edge 全屏
-- [x] v1.7.0 系统导航栏 / 手势线背景与 App 颜色不一致（对比度浮层）；用 `isNavigationBarContrastEnforced=false` + `isAppearanceLightNavigationBars` 修复
-- [x] v1.7.0 搜索文件命中图标统一为 `ic_description`，与消息文件气泡一致
-- [x] v1.10.1 收藏发送图标误用纸飞机（导航栏「传输」tab glyph）；改用会话发送键的 `ic_arrow_upward`，且收藏页发送门槛统一为 `clientConnected`（原 `currentSessionId != null`）
-- [x] v1.10.1 首页 / 收藏多选工具栏改为内容区悬浮（更轻的胶囊）；内层 Scaffold 不再双算底部 inset
+Flikky 会减少暴露面，但不会把不可信局域网变成安全传输通道。
 
-## 亮点
+- Server 只绑定当前 Wi-Fi IPv4，绝不监听 `0.0.0.0`，也不依赖 cloud backend。
+- PIN 认证默认开启。PIN 成功使用一次后立即作废；连续错 3 次会锁定来源 IP 30 秒，错 5 次会停止服务。
+- 可在设置中关闭 PIN。关闭后，只要同一 LAN 内的设备能访问手机地址，就能直接打开服务。
+- 浏览器响应使用严格 CSP、`X-Frame-Options: DENY`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: no-referrer`、HttpOnly/SameSite Cookie、`textContent` 渲染和短生命周期 Blob 下载 URL。
+- 通知栏只展示连接 URL，不会在锁屏上暴露 PIN 或 token。
 
-- **电脑端零安装**：一个浏览器就够。不用装应用、不用装插件、不用注册账号。
-- **只走局域网**：服务器仅绑定当前 WiFi IPv4 接口，绝不绑 `0.0.0.0`，不发任何外网请求。
-- **PIN 单次使用（可关）**：默认认证成功即作废，后续必须换新 PIN。错 3 次锁该 IP 30 秒，错 5 次终止服务。也可在设置里关闭 PIN 门槛（**连接需要 PIN 码**），换取同一 Wi-Fi 内任意设备直接访问 *(v1.13.0)*。
-- **浏览器端加固**：严格 CSP、`X-Frame-Options: DENY`、`nosniff`、`Referrer-Policy: no-referrer`、`HttpOnly` + `SameSite=Strict` Cookie、只用 `textContent`（禁 `innerHTML`）、文件经 Blob URL 下载。
-- **原生 MD3 视觉**：手机端 Jetpack Compose，浏览器端 [mdui](https://github.com/zdhxiong/mdui) Web Components 组件库——离线打包进 APK，不走 CDN。
-- **锁屏感知的通知**：通知栏只显示 URL，绝不显示 PIN——锁屏是物理世界的攻击面。
+已知边界：
 
-## 已知限制（设计内取舍，非缺陷）
+- **传输使用 HTTP 明文。** 能监听局域网流量的第三方可以读取传输内容，不要在不可信或共享网络中传输敏感数据。
+- **浏览器扩展不在信任边界内。** 拥有页面访问权限的 extension 即使面对 CSP 也能读取 DOM。敏感传输应使用干净的浏览器 profile，或在禁用扩展的隐私窗口中进行。
+- **本地数据没有 at-rest encryption。** Room 数据、落盘文件、收藏与导出的 ZIP 依赖 Android 设备保护和目标存储提供方。
+- 切换到不同 IP 的 Wi-Fi 后，当前浏览器连接会结束，需要重新打开 App 展示的新 URL。
 
-- HTTP 明文传输（HTTPS 自签证书在 v2 里加）。
-- WiFi 切换（IP 变了）会断开在飞的 WS，浏览器需打开 banner 提示的新 URL；同 IP 恢复几秒内自动重连。 *(v1.2)*
-- 头像支持 Material Symbol 图标（实心 / 空心）与单字符，均带主题化背景；自定义图片不在范围内。会话背景支持主题派生纯色 + 自定义色相（恒为可读极浅色）；渐变已在 v1.6.0 移除。 *(v1.12.0)*
-- 气泡圆角与头像显示模式现已从手机同步到浏览器（v1.12.0）；双端**配色**对齐（seed + 深浅）已在 v1.11.0 落地。 *(v1.12.0)*
-- 双端配色对齐仅覆盖色相 + 深浅：浏览器拿不到对比度档，且 Material You 动态色下（无壁纸访问权）回落 mdui 默认调色板、仅跟随深浅；导出快照页未接主题。 *(v1.11.0)*
+HTTPS 与加密本地归档仍属于未来大版本工作。
 
-## 技术栈
+## 从源码构建
 
-| 层        | 选型                                                          |
-| --------- | ------------------------------------------------------------- |
-| 语言      | Kotlin 2.2                                                    |
-| 构建      | AGP 9 + KSP2（`2.2.10-2.0.2`）                                |
-| 手机 UI   | Jetpack Compose + Material 3 Expressive（material3 1.5.0-alpha22，`MaterialExpressiveTheme` + `MotionScheme`） |
-| HTTP 服务 | Ktor 3（CIO engine），内嵌于前台服务                          |
-| WebSocket | Ktor WebSockets（`pingPeriodMillis = 15_000`）                |
-| 持久化    | Room 2.7（+ KSP2 代码生成）                                   |
-| 设置存储  | DataStore Preferences（经 `StateFlow` 即时换肤）             |
-| 浏览器 UI | 原生 HTML/CSS/JS + mdui Web Components                        |
-| 测试      | JUnit 4 + MockK + Turbine + ktor-server-test-host + Robolectric 4.14（`@Config(sdk = [33])`） |
-| 最低/目标 | SDK 33 / 36                                                   |
-| 模块结构  | 单 `:app` 模块，不过度拆分                                    |
+前置条件：
 
-每一项选择的「为什么」见 `docs/others/notes/decisions.md`。
-
-## 构建
+- JDK 17
+- Android SDK Platform 37
+- 用于安装和 instrumented tests 的 Android 13+ 设备或 emulator
 
 ```bash
-./gradlew assembleDebug          # Debug APK
-./gradlew testDebugUnitTest      # JVM 单元测试
-./gradlew connectedAndroidTest   # 仪器测试（需连接设备）
-./gradlew installDebug           # 安装到已连接设备
+# 构建 Debug APK 并运行 JVM tests
+./gradlew assembleDebug testDebugUnitTest
+
+# 安装到已连接设备
+./gradlew installDebug
+
+# 在已连接设备或 emulator 上运行 instrumented tests
+./gradlew connectedAndroidTest
 ```
 
-## 目录结构
+Windows PowerShell 需要把 `JAVA_HOME` 指向 JDK 17，并使用 Gradle Wrapper 的 batch 文件：
 
+```powershell
+$env:JAVA_HOME = '<path-to-jdk-17>'
+.\gradlew.bat assembleDebug testDebugUnitTest
 ```
-app/src/main/java/com/example/flikky/
-├── ui/          Compose Screen 与 ViewModel（home、serving、history、exporting、settings、components）
-├── service/     前台服务、controller、通知、export notification text
-├── server/      Ktor server、routes（含 ExportRoutes、PeerInfoRoutes）、DTO、PIN 认证、ServiceMode
-├── session/     内存状态、Message 模型、NetworkStatus（+ peerAvatarId）
-├── data/        Room DB、Entity、DAO、SessionRepository、SessionFileStore、settings（DataStore）
-├── export/      ExportSession / ExportMode / ExportSnapshot / ZipExporter / formatters
-├── network/     WiFi IPv4 获取、NetworkRebinder（rebind intent 状态机）
-├── util/        纯 Kotlin 工具（不依赖 Android 框架）
-└── di/          ServiceLocator
-app/src/main/assets/web/   浏览器前端（含离线打包的 mdui、export.html、snackbar.js）
-docs/others/               本地设计/复盘/验收清单目录（gitignored）
+
+Debug APK 输出到 `app/build/outputs/apk/debug/app-debug.apk`。
+
+浏览器端回归检查只依赖 Node.js，不需要第三方 package：
+
+```bash
+node --check app/src/main/assets/web/app.js
+node --test app/src/test/web/app-avatar-default.test.js
+node scripts/test-web-avatar-reflow.js
+node scripts/test-web-login-theme.js
 ```
+
+## 架构
+
+```text
+Android App
+├── Jetpack Compose UI
+├── TransferService（前台服务生命周期）
+│   └── Ktor CIO server ── HTTP/WebSocket ── 浏览器端
+├── Room + App 私有文件（会话与收藏）
+└── DataStore Preferences（设置）
+```
+
+| 路径 | 职责 |
+| --- | --- |
+| `ui/` | Compose Screen、ViewModel、共享组件与主题 |
+| `service/` | 前台服务、TransferController 与通知 |
+| `server/` | Ktor server、route、DTO、认证与 WebSocket hub |
+| `session/` | 会话内存状态与 Message model |
+| `data/` | Room database、Repository、file store 与设置持久化 |
+| `export/` | ZIP schema、importer/exporter、snapshot 与文件命名 |
+| `network/` | Wi-Fi IPv4 获取与 network rebind |
+| `util/`、`di/` | 纯逻辑 helper 与依赖装配 |
+| `app/src/main/assets/web/` | 打包进 APK 的浏览器应用 |
+
+项目刻意保持单 Android `:app` module。Android 平台依赖不会穿透到 `server/` 和纯逻辑边界，因此核心行为可以在 JVM 上测试。
+
+## 参与开发
+
+- 保持改动聚焦；任何行为变化都应补对应 regression coverage。
+- Commit 前运行 `assembleDebug` 与 `testDebugUnitTest`；修改 web assets 时同时运行相关浏览器检查。
+- 保持上文的 network 与 browser 安全约束。不得提交 secret，也不得为了让测试通过而削弱安全边界。
+- 不把 Android `Context` 穿透到 `server/`；通过 interface 或 provider 注入平台行为。
+- 生命周期跨越 Wi-Fi rebind 的对象，必须在调用时解析当前 Ktor 依赖，不能持有已经失效的 server instance。
 
 ## 致谢
 
-- [Ktor](https://ktor.io/) —— 内嵌的 HTTP/WebSocket 引擎
-- [mdui](https://github.com/zdhxiong/mdui) —— Material Design 3 Web Components，以 MIT 许可离线打包
+- [Ktor](https://ktor.io/)：内嵌 HTTP/WebSocket server
+- [mdui](https://github.com/zdhxiong/mdui)：以离线方式打包的 Material Design 3 Web Components
 
 ## 许可证
 
-MIT —— 见 [LICENSE](./LICENSE)。
+MIT，见 [LICENSE](./LICENSE)。
