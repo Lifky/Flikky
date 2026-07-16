@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
@@ -591,7 +592,10 @@ private fun EmptyFavorites(text: String, modifier: Modifier = Modifier) {
                 text = text,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = Spacing.sm),
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .padding(top = Spacing.sm)
+                    .widthIn(max = 360.dp),
             )
         }
     }

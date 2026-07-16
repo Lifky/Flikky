@@ -68,6 +68,7 @@
     <string name="settings_version">Version</string>
     <string name="settings_open_source">Open source</string>
     <string name="settings_open_source_summary">Ktor · mdui · Apache/MIT</string>
+    <string name="settings_open_source_open_failed">Couldn\'t open the link. Install a browser and try again.</string>
 
     <string name="settings_device_name_limit">Up to 20 characters</string>
     <string name="settings_history_custom">Custom</string>

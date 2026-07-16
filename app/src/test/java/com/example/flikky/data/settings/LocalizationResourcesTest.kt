@@ -24,6 +24,10 @@ class LocalizationResourcesTest {
         assertEquals("跟随系统", localized.getString(R.string.language_system))
         assertEquals("简体中文", localized.getString(R.string.language_simplified_chinese))
         assertEquals("English", localized.getString(R.string.language_english))
+        assertEquals(
+            "无法打开链接，请安装浏览器后重试",
+            localized.getString(R.string.settings_open_source_open_failed),
+        )
     }
 
     @Test
@@ -34,6 +38,10 @@ class LocalizationResourcesTest {
         assertEquals("Follow system", localized.getString(R.string.language_system))
         assertEquals("Simplified Chinese", localized.getString(R.string.language_simplified_chinese))
         assertEquals("English", localized.getString(R.string.language_english))
+        assertEquals(
+            "Couldn't open the link. Install a browser and try again.",
+            localized.getString(R.string.settings_open_source_open_failed),
+        )
     }
 
     private fun Context.forLanguage(languageTag: String): Context {

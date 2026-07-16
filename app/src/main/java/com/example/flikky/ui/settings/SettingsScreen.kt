@@ -1,6 +1,10 @@
 package com.example.flikky.ui.settings
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -93,6 +97,15 @@ import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+
+internal const val OPEN_SOURCE_REPOSITORY_URL = "https://github.com/Lifky/Flikky"
+
+internal fun openExternalLink(context: Context, url: String): Boolean = try {
+    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    true
+} catch (_: ActivityNotFoundException) {
+    false
+}
 
 // Which sheet / dialog is open
 private sealed interface ActiveSheet {
@@ -613,6 +626,22 @@ fun SettingsScreen(
                         title = stringResource(R.string.settings_open_source),
                         leadingIcon = painterResource(R.drawable.ic_code),
                         subtitle = stringResource(R.string.settings_open_source_summary),
+                        trailing = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_open_in_new),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        onClick = {
+                            if (!openExternalLink(context, OPEN_SOURCE_REPOSITORY_URL)) {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(R.string.settings_open_source_open_failed)
+                                    )
+                                }
+                            }
+                        },
                         index = 1, total = sectionItems,
                     )
                 }
