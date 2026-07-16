@@ -127,6 +127,8 @@ fun HistoryScreen(
     val copyPainter = painterResource(R.drawable.ic_content_copy)
     val downloadPainter = painterResource(R.drawable.ic_file_download)
     val deletePainter = painterResource(R.drawable.ic_delete)
+    val pinPainter = painterResource(R.drawable.ic_push_pin)
+    val editPainter = painterResource(R.drawable.ic_edit)
     val starPainter = painterResource(R.drawable.ic_star)
     val starBorderPainter = painterResource(R.drawable.ic_star_border)
     val favoriteGroups by if (settings.favoriteBetaEnabled) {
@@ -236,14 +238,17 @@ fun HistoryScreen(
                         DropdownMenuItem(
                             text = { Text(if (pinned) "取消置顶" else "置顶") },
                             onClick = { menuExpanded = false; viewModel.setPinned(!pinned) },
+                            leadingIcon = { Icon(pinPainter, contentDescription = null) },
                         )
                         DropdownMenuItem(
                             text = { Text("重命名") },
                             onClick = { menuExpanded = false; showRename = true },
+                            leadingIcon = { Icon(editPainter, contentDescription = null) },
                         )
                         DropdownMenuItem(
                             text = { Text("删除") },
                             onClick = { menuExpanded = false; showDelete = true },
+                            leadingIcon = { Icon(deletePainter, contentDescription = null) },
                         )
                     }
                 },

@@ -421,7 +421,7 @@ fun SettingsScreen(
                         index = 1, total = sectionItems,
                     )
                     SettingItem(
-                        title = "消息撤回（Beta）",
+                        title = "消息撤回",
                         leadingIcon = painterResource(R.drawable.ic_undo),
                         subtitle = "允许撤回已发送的消息",
                         trailing = {
@@ -433,7 +433,7 @@ fun SettingsScreen(
                         index = 2, total = sectionItems,
                     )
                     SettingItem(
-                        title = "收藏功能（Beta）",
+                        title = "收藏功能",
                         leadingIcon = painterResource(R.drawable.ic_star_border),
                         subtitle = "开启后显示收藏入口，并允许收藏消息",
                         trailing = {

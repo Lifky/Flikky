@@ -168,7 +168,10 @@
     function readMyAvatarKey() {
         const stored = localStorage.getItem('flikky_avatar_key');
         if (stored) return normalizeAvatarKey(stored, AVATAR_DEFAULT_BROWSER);
-        return legacyAvatarKey(Number(localStorage.getItem('flikky_avatar')), AVATAR_DEFAULT_BROWSER);
+        const legacy = localStorage.getItem('flikky_avatar');
+        return legacy === null
+            ? AVATAR_DEFAULT_BROWSER
+            : legacyAvatarKey(legacy, AVATAR_DEFAULT_BROWSER);
     }
 
     let myAvatarKey = readMyAvatarKey();
