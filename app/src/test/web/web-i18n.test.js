@@ -53,6 +53,15 @@ test('translations never use innerHTML', () => {
     assert.equal(source.includes('innerHTML'), false);
 });
 
+test('PIN login card does not render the phone PIN location hint', () => {
+    const html = fs.readFileSync(
+        path.resolve(__dirname, '../../main/assets/web/login.html'),
+        'utf8',
+    );
+
+    assert.equal(html.includes('data-i18n="login.description"'), false);
+});
+
 test('polling the same language does not overwrite dynamic page state', () => {
     let writes = 0;
     let value = '';

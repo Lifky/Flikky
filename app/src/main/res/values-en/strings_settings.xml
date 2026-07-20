@@ -114,7 +114,7 @@
     <string name="theme_preset_zhumu_gray">Nacre gray</string>
     <string name="theme_preset_yingwu_green">Parrot green</string>
     <string name="theme_preset_jiehua_purple">Mustard purple</string>
-    <string name="theme_contrast_system">Follow system</string>
+    <string name="theme_contrast_system">System</string>
     <string name="theme_contrast_standard">Standard</string>
     <string name="theme_contrast_medium">Medium</string>
     <string name="theme_contrast_high">High</string>
