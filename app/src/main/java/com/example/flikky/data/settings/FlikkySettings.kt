@@ -63,7 +63,7 @@ const val BUBBLE_CORNER_MAX = 28
 const val BUBBLE_CORNER_DEFAULT = 18
 
 data class FlikkySettings(
-    val themeMode: ThemeMode = ThemeMode.DYNAMIC,
+    val themeMode: ThemeMode = ThemeMode.PRESET,
     val presetTheme: PresetTheme = PresetTheme.DANSHU_RED,
     val contrastLevel: ContrastLevel = ContrastLevel.SYSTEM,
     val darkMode: DarkMode = DarkMode.SYSTEM,

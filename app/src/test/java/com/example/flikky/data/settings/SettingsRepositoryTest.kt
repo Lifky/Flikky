@@ -29,10 +29,18 @@ class SettingsRepositoryTest {
         return SettingsRepository(ds)
     }
 
+    @Test fun in_memory_defaults_use_danshu_red_preset_theme() {
+        val s = FlikkySettings()
+
+        assertEquals(ThemeMode.PRESET, s.themeMode)
+        assertEquals(PresetTheme.DANSHU_RED, s.presetTheme)
+    }
+
     @Test fun defaults_emitted_when_empty() = runTest {
         val repo = makeRepo(this)
         val s = repo.settings.first()
-        assertEquals(ThemeMode.DYNAMIC, s.themeMode)
+        assertEquals(ThemeMode.PRESET, s.themeMode)
+        assertEquals(PresetTheme.DANSHU_RED, s.presetTheme)
         assertEquals(20, s.historyRetainLimit)
         assertEquals(false, s.recallBetaEnabled)
         assertEquals(false, s.favoriteBetaEnabled)
