@@ -24,6 +24,12 @@ class MainActivityManifestTest {
             "MainActivity must handle layout direction changes together with locale changes.",
             "layoutDirection" in configChanges,
         )
+        assertTrue(
+            "MainActivity must also handle screenLayout: the first switch away from the system " +
+                "language flips the layout-direction bit inside screenLayout, and any undeclared " +
+                "config bit makes the system relaunch the activity (black flash).",
+            "screenLayout" in configChanges,
+        )
     }
 
     private fun mainActivity(): Element {
