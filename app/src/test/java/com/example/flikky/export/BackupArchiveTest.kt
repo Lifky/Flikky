@@ -5,9 +5,13 @@ import java.io.File
 import java.util.zip.ZipFile
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -58,6 +62,8 @@ class BackupArchiveTest {
                 contrastLevel = "HIGH",
                 darkMode = "DARK",
                 deviceName = "Backup phone",
+                recallEnabled = true,
+                favoriteEnabled = false,
                 requirePin = false,
                 historyRetainLimit = -1,
             ),
@@ -84,11 +90,22 @@ class BackupArchiveTest {
             }
             assertEquals(true, readme.contains("Total bytes: ${favoriteFile.length()}"))
 
+            val settingsJson = zip.getInputStream(zip.getEntry("settings/settings.json")).use {
+                it.readBytes().toString(Charsets.UTF_8)
+            }
+            val settingsKeys = Json.parseToJsonElement(settingsJson).jsonObject.keys
+            assertTrue("recallEnabled" in settingsKeys)
+            assertTrue("favoriteEnabled" in settingsKeys)
+            assertFalse("recallBetaEnabled" in settingsKeys)
+            assertFalse("favoriteBetaEnabled" in settingsKeys)
+
             val parsed = ZipImporter.parseBackup(zip)
             assertEquals(ExportScope.ALL, parsed.scope)
             assertEquals("Work", parsed.favoriteGroups.single().name)
             assertEquals("remember", parsed.favorites.first().textContent)
             assertEquals("Backup phone", parsed.settings?.deviceName)
+            assertEquals(true, parsed.settings?.recallEnabled)
+            assertEquals(false, parsed.settings?.favoriteEnabled)
 
             val entry = ZipImporter.resolveFavoriteFileEntry(parsed.favorites[1], zip)
             assertNotNull(entry)
@@ -96,6 +113,25 @@ class BackupArchiveTest {
                 "favorite payload".toByteArray(),
                 zip.getInputStream(entry).use { it.readBytes() },
             )
+        }
+    }
+
+    @Test
+    fun `legacy beta setting names remain import compatible`() {
+        val zipFile = tmp.newFile("legacy-settings.zip")
+        ZipOutputStream(zipFile.outputStream()).use { zip ->
+            zip.putNextEntry(ZipEntry("settings/settings.json"))
+            zip.write(
+                """{"recallBetaEnabled":true,"favoriteBetaEnabled":false}"""
+                    .toByteArray(),
+            )
+            zip.closeEntry()
+        }
+
+        ZipFile(zipFile).use { zip ->
+            val settings = ZipImporter.parseBackup(zip).settings
+            assertEquals(true, settings?.recallEnabled)
+            assertEquals(false, settings?.favoriteEnabled)
         }
     }
 

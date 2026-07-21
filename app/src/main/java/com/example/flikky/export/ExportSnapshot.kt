@@ -1,7 +1,9 @@
 package com.example.flikky.export
 
 import com.example.flikky.session.Origin
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 
 @Serializable
 enum class ExportScope {
@@ -46,6 +48,7 @@ data class FavoriteExport(
     val relativePath: String? = null,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class SettingsExport(
     val themeMode: String? = null,
@@ -58,8 +61,10 @@ data class SettingsExport(
     val backgroundMode: String? = null,
     val backgroundValue: String? = null,
     val deviceName: String? = null,
-    val recallBetaEnabled: Boolean? = null,
-    val favoriteBetaEnabled: Boolean? = null,
+    @JsonNames("recallBetaEnabled")
+    val recallEnabled: Boolean? = null,
+    @JsonNames("favoriteBetaEnabled")
+    val favoriteEnabled: Boolean? = null,
     val requirePin: Boolean? = null,
     val historyRetainLimit: Int? = null,
     val bubbleCornerRadius: Int? = null,

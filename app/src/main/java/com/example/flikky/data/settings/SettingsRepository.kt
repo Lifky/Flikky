@@ -146,8 +146,8 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             backgroundMode = backgroundMode,
             backgroundValue = backgroundValue,
             deviceName = s.deviceName,
-            recallBetaEnabled = s.recallBetaEnabled,
-            favoriteBetaEnabled = s.favoriteBetaEnabled,
+            recallEnabled = s.recallBetaEnabled,
+            favoriteEnabled = s.favoriteBetaEnabled,
             requirePin = s.requirePin,
             historyRetainLimit = s.historyRetainLimit,
             bubbleCornerRadius = s.bubbleCornerRadius,
@@ -173,8 +173,8 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             if (normalized.isEmpty()) prefs.remove(Keys.deviceName)
             else prefs[Keys.deviceName] = normalized
         }
-        backup.recallBetaEnabled?.let { prefs[Keys.recallBeta] = it }
-        backup.favoriteBetaEnabled?.let { prefs[Keys.favoriteBeta] = it }
+        backup.recallEnabled?.let { prefs[Keys.recallBeta] = it }
+        backup.favoriteEnabled?.let { prefs[Keys.favoriteBeta] = it }
         backup.requirePin?.let { prefs[Keys.requirePin] = it }
         backup.historyRetainLimit?.let { prefs[Keys.retainLimit] = it.coerceAtLeast(-1) }
         backup.bubbleCornerRadius?.let {
