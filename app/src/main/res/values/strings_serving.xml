@@ -37,6 +37,7 @@
     <string name="quick_settings_avatar_last">末条</string>
     <string name="quick_settings_avatar_each">每条</string>
     <string name="quick_settings_dark_mode">深色模式</string>
+    <string name="quick_settings_dark_system">跟随系统</string>
 
     <string name="favorite_quick_title">收藏</string>
     <string name="favorite_quick_recent">最近使用</string>

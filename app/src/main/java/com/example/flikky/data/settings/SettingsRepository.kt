@@ -63,7 +63,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
                 ?: MessageActionStyle.FLOATING,
             avatarGrouping = p[Keys.avatarGrouping]
                 ?.let { runCatching { AvatarGroupingMode.valueOf(it) }.getOrNull() }
-                ?: AvatarGroupingMode.FIRST,
+                ?: AvatarGroupingMode.EACH,
             allowBackDuringSession = p[Keys.allowBackDuringSession] ?: false,
             sortMode = p[Keys.sortMode]
                 ?.let { runCatching { SortMode.valueOf(it) }.getOrNull() }

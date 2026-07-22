@@ -273,6 +273,7 @@ class TransferService : Service() {
             stopSelf()
             return
         }
+        latestSettings = runBlocking { ServiceLocator.settingsRepository.settings.first() }
         currentRequirePin = armed.session.requirePin
 
         val ip = ServiceLocator.networkInfo.currentWifiIpv4()
@@ -456,6 +457,12 @@ class TransferService : Service() {
         onZipSent = { handleZipSent() },
         favoriteFileResolver = { fileId ->
             ServiceLocator.favoriteFileStore.resolve(fileId).takeIf { it.exists() && it.isFile }
+        },
+        peerInfoProvider = {
+            latestSettings.toPeerInfoDto(
+                systemDark = isSystemDark(),
+                defaultDeviceName = getString(R.string.settings_default_device_name),
+            )
         },
         webLanguageTagProvider = { AppLanguageManager.effectiveLanguageTag(this) },
     )

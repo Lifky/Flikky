@@ -37,6 +37,7 @@
     <string name="quick_settings_avatar_last">Last</string>
     <string name="quick_settings_avatar_each">Every</string>
     <string name="quick_settings_dark_mode">Dark mode</string>
+    <string name="quick_settings_dark_system">System</string>
 
     <string name="favorite_quick_title">Favorites</string>
     <string name="favorite_quick_recent">Recently used</string>

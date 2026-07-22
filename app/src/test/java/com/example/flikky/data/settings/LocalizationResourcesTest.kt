@@ -37,6 +37,7 @@ class LocalizationResourcesTest {
         assertEquals("Settings", localized.getString(R.string.settings_title))
         assertEquals("Follow system", localized.getString(R.string.language_system))
         assertEquals("System", localized.getString(R.string.theme_contrast_system))
+        assertEquals("System", localized.getString(R.string.quick_settings_dark_system))
         assertEquals("Simplified Chinese", localized.getString(R.string.language_simplified_chinese))
         assertEquals("English", localized.getString(R.string.language_english))
         assertEquals(

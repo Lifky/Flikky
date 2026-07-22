@@ -181,7 +181,7 @@
     let myAvatarKey = readMyAvatarKey();
     let phoneAvatarKey = AVATAR_DEFAULT_PHONE;
     let avatarPickerFilled = avatarIconSpec(normalizeAvatarKey(myAvatarKey, AVATAR_DEFAULT_BROWSER)).filled;
-    let avatarGrouping = 'FIRST';
+    let avatarGrouping = 'EACH';
     let recallEnabled = false;
 
     // Track last rendered origin for consecutive same-origin suppression.
@@ -243,7 +243,7 @@
     }
 
     function normalizeAvatarGrouping(value) {
-        return value === 'LAST' || value === 'EACH' ? value : 'FIRST';
+        return value === 'FIRST' || value === 'LAST' || value === 'EACH' ? value : 'EACH';
     }
 
     function shouldShowAvatarForRow(origin, previousOrigin, nextOrigin) {

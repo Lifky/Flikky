@@ -34,6 +34,7 @@ class SettingsRepositoryTest {
 
         assertEquals(ThemeMode.PRESET, s.themeMode)
         assertEquals(PresetTheme.DANSHU_RED, s.presetTheme)
+        assertEquals(AvatarGroupingMode.EACH, s.avatarGrouping)
     }
 
     @Test fun defaults_emitted_when_empty() = runTest {
@@ -46,6 +47,7 @@ class SettingsRepositoryTest {
         assertEquals(false, s.favoriteBetaEnabled)
         assertEquals(true, s.requirePin)
         assertEquals("", s.deviceName)
+        assertEquals(AvatarGroupingMode.EACH, s.avatarGrouping)
     }
 
     @Test fun blank_device_name_restores_localized_default_sentinel() = runTest {
@@ -116,7 +118,7 @@ class SettingsRepositoryTest {
 
     @Test fun avatar_grouping_roundtrips() = runTest {
         val repo = makeRepo(this)
-        assertEquals(AvatarGroupingMode.FIRST, repo.settings.first().avatarGrouping)
+        assertEquals(AvatarGroupingMode.EACH, repo.settings.first().avatarGrouping)
         repo.setAvatarGrouping(AvatarGroupingMode.LAST)
         assertEquals(AvatarGroupingMode.LAST, repo.settings.first().avatarGrouping)
         repo.setAvatarGrouping(AvatarGroupingMode.EACH)

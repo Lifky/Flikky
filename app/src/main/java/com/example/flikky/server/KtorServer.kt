@@ -181,6 +181,7 @@ class KtorServer(
             now = nowMs,
             favoriteFileResolver = favoriteFileResolver,
         )
+        peerInfoRoutes(authGate, peerInfoProvider)
         // v1.3 test2 修订：export 页也挂 WS，让浏览器通过 WS onclose 立即
         // 感知断网（不再依赖 fetch 探测的 3 秒延迟）。WS 复用同一 cookie 鉴权。
         wsRoutes(authGate, session, wsHub)

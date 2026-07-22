@@ -126,7 +126,13 @@ fun QuickSettingsSheet(
                         onClick = { onSetDarkMode(mode) },
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
                     ) {
-                        Text(mode.localizedLabel())
+                        Text(
+                            if (mode == DarkMode.SYSTEM) {
+                                stringResource(R.string.quick_settings_dark_system)
+                            } else {
+                                mode.localizedLabel()
+                            },
+                        )
                     }
                 }
             }

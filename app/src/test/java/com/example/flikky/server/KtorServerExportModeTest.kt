@@ -4,6 +4,7 @@ import com.example.flikky.export.ExportSession
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.export.MessageExport
 import com.example.flikky.export.SessionExport
+import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.routes.FileStore
 import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
@@ -16,10 +17,15 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsBytes
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -60,6 +66,14 @@ class KtorServerExportModeTest {
         session: SessionState,
         pin: PinAuth,
         onZipSent: suspend () -> Unit = {},
+        peerInfoProvider: () -> PeerInfoDto = {
+            PeerInfoDto(
+                deviceName = "Flikky",
+                phoneAvatarId = 0,
+                backgroundMode = "DEFAULT",
+                recallEnabled = false,
+            )
+        },
     ): KtorServer {
         val stats = TransferStats(nowMs = { 0L })
         val store = FakeStore()
@@ -77,6 +91,7 @@ class KtorServerExportModeTest {
             nowMs = { 1_700_000_000_000L },
             mode = mode,
             onZipSent = onZipSent,
+            peerInfoProvider = peerInfoProvider,
         )
     }
 
@@ -187,6 +202,39 @@ class KtorServerExportModeTest {
             resp.bodyAsBytes()
         }
         assertEquals(1, zipCalls)
+    }
+
+    @Test
+    fun `export mode exposes peer info for authenticated export page theme sync`() = runBlocking {
+        val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
+        val session = SessionState(nowMs = { 0L })
+        val s = buildServer(
+            mode = ServiceMode.Export,
+            session = session,
+            pin = pin,
+            peerInfoProvider = {
+                PeerInfoDto(
+                    deviceName = "Theme phone",
+                    phoneAvatarId = 0,
+                    backgroundMode = "DEFAULT",
+                    themeSeed = "#33618D",
+                    themeDark = true,
+                    recallEnabled = false,
+                )
+            },
+        )
+        server = s
+        val port = s.start()
+
+        HttpClient(CIO) { install(HttpCookies) }.use { http ->
+            authenticate(http, port)
+            val resp: HttpResponse = http.get("http://127.0.0.1:$port/api/peer-info")
+            assertEquals(HttpStatusCode.OK, resp.status)
+
+            val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
+            assertEquals("#33618D", body["themeSeed"]!!.jsonPrimitive.content)
+            assertEquals(true, body["themeDark"]!!.jsonPrimitive.boolean)
+        }
     }
 
     @Test

@@ -13,6 +13,13 @@ assert.notEqual(avatarBootstrapStart, -1, 'avatar bootstrap start marker must ex
 assert.notEqual(avatarBootstrapEnd, -1, 'avatar bootstrap end marker must exist');
 
 const avatarBootstrap = appJs.slice(avatarBootstrapStart, avatarBootstrapEnd);
+const avatarGroupingStart = appJs.indexOf("let avatarGrouping =");
+const avatarGroupingEnd = appJs.indexOf('function shouldShowAvatarForRow');
+
+assert.notEqual(avatarGroupingStart, -1, 'avatar grouping start marker must exist');
+assert.notEqual(avatarGroupingEnd, -1, 'avatar grouping end marker must exist');
+
+const avatarGroupingBootstrap = appJs.slice(avatarGroupingStart, avatarGroupingEnd);
 
 function readMyAvatarKey(entries = {}) {
     const values = new Map(Object.entries(entries));
@@ -37,4 +44,17 @@ test('new browser defaults to the desktop avatar', () => {
 
 test('explicit legacy avatar zero is still migrated', () => {
     assert.equal(readMyAvatarKey({ flikky_avatar: '0' }), 'icon:person');
+});
+
+test('browser avatar grouping fallback defaults to every message', () => {
+    const context = {};
+    vm.runInNewContext(
+        `${avatarGroupingBootstrap}
+        globalThis.initialAvatarGrouping = avatarGrouping;
+        globalThis.invalidAvatarGrouping = normalizeAvatarGrouping('unknown');`,
+        context,
+    );
+
+    assert.equal(context.initialAvatarGrouping, 'EACH');
+    assert.equal(context.invalidAvatarGrouping, 'EACH');
 });

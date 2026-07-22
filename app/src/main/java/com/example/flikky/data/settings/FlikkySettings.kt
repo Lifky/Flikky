@@ -78,7 +78,7 @@ data class FlikkySettings(
     val historyRetainLimit: Int = 20,   // 0=不保存, -1=无限制
     val bubbleCornerRadius: Int = BUBBLE_CORNER_DEFAULT,   // dp，钳制 8..28
     val messageActionStyle: MessageActionStyle = MessageActionStyle.FLOATING,
-    val avatarGrouping: AvatarGroupingMode = AvatarGroupingMode.FIRST,
+    val avatarGrouping: AvatarGroupingMode = AvatarGroupingMode.EACH,
     /** 允许会话进行中按返回键退出到主页（默认 false：拦截返回，保护会话稳定）。 */
     val allowBackDuringSession: Boolean = false,
     val sortMode: SortMode = SortMode.TIME,

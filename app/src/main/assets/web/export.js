@@ -22,6 +22,48 @@
         if (window.flikky && window.flikky.showInfo) window.flikky.showInfo(msg);
     };
 
+    let lastThemeKey = null;
+    function applyTheme(seed, dark) {
+        const key = (dark ? 'd' : 'l') + '|' + (seed || '');
+        if (key === lastThemeKey) return;
+        lastThemeKey = key;
+        const mduiApi = window.mdui;
+        if (!mduiApi) return;
+        try {
+            if (typeof mduiApi.setTheme === 'function') mduiApi.setTheme(dark ? 'dark' : 'light');
+            if (typeof seed === 'string' && /^#[0-9a-fA-F]{6}$/.test(seed)) {
+                if (typeof mduiApi.setColorScheme === 'function') mduiApi.setColorScheme(seed);
+            } else if (typeof mduiApi.removeColorScheme === 'function') {
+                mduiApi.removeColorScheme();
+            }
+        } catch (_) {
+            // Theme sync is best-effort; export must remain usable if mdui changes.
+        }
+    }
+
+    async function fetchExportTheme() {
+        let resp;
+        try {
+            resp = await fetch('/api/peer-info', {
+                cache: 'no-store',
+                credentials: 'same-origin',
+            });
+        } catch (_) {
+            return;
+        }
+        if (resp.status === 401) {
+            window.location.href = '/?next=/export';
+            return;
+        }
+        if (!resp.ok) return;
+        try {
+            const data = await resp.json();
+            applyTheme(data.themeSeed, !!data.themeDark);
+        } catch (_) {
+            // Ignore malformed appearance data; the export content still matters more.
+        }
+    }
+
     function formatSize(b) {
         if (b == null || Number.isNaN(b)) return '0 B';
         if (b >= 1024 * 1024 * 1024) return (b / 1073741824).toFixed(2) + ' GB';
@@ -389,6 +431,7 @@
         }
     });
 
+    fetchExportTheme();
     loadInfo();
     startHealthProbe();
     openExportWs();
