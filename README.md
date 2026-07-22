@@ -27,11 +27,9 @@ Use the stable tag for a reproducible build. Use `main` when evaluating the late
 
 ## Screenshots
 
-<p align="center">
-  <img src="./docs/screenshot/en-US/screenshot_phone_en-US.png" width="260" alt="Android app">
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="./docs/screenshot/en-US/screenshot_browser_en-US.png" width="460" alt="Browser client">
-</p>
+![Android app](./docs/screenshot/en-US/screenshot_phone_en-US.png)
+
+![Browser client](./docs/screenshot/en-US/screenshot_browser_en-US.png)
 
 ## Use Flikky
 
