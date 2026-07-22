@@ -20,17 +20,25 @@ Flikky is designed for trusted local networks and keeps the operational complexi
 
 | Channel | Revision | State |
 | --- | --- | --- |
-| Stable source | [`v1.14.0`](https://github.com/Lifky/Flikky/tree/v1.14.0) · 2026-07-16 | Optional PIN authentication, local favorites, full ZIP backup scopes, local or browser export destinations, contextual archive actions, and the complete transfer/history experience described below. |
-| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.14.0...main) | No unreleased changes beyond the stable tag. |
+| Stable source | [`v1.15.0`](https://github.com/Lifky/Flikky/tree/v1.15.0) · 2026-07-22 | English localization (app and browser), web language sync, and assorted UI polish. Includes optional PIN authentication, local favorites, full ZIP backup scopes, local or browser export destinations, contextual archive actions, and the complete transfer/history experience described below. |
+| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.15.0...main) | No unreleased changes beyond the stable tag. |
 
 Use the stable tag for a reproducible build. Use `main` when evaluating the latest unreleased work. Version history is available from the repository's [tags](https://github.com/Lifky/Flikky/tags).
+
+## Screenshots
+
+<p align="center">
+  <img src="./docs/screenshot/en-US/screenshot_phone_en-US.png" width="260" alt="Android app">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="./docs/screenshot/en-US/screenshot_browser_en-US.png" width="460" alt="Browser client">
+</p>
 
 ## Use Flikky
 
 1. Install Flikky on a phone running Android 13 or newer.
 2. Connect the phone and the receiving device to the same Wi-Fi network.
-3. Start the transfer service in Flikky. The app shows a local URL and, by default, a one-time six-digit PIN.
-4. Open the URL in the browser and enter the PIN when prompted.
+3. Start the transfer service in Flikky. The app shows a local URL and, by default, a one-time six-digit PIN. (Configurable in Settings.)
+4. Open the URL in the browser and enter the PIN when prompted (if one is required).
 5. Send text or files in either direction. Progress, connection state, and failures update in real time.
 6. Stop the service when finished. The completed session remains available in History according to the configured retention policy.
 
@@ -42,9 +50,65 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 - **Session history:** Room-backed sessions support search, pin, rename, grouping, per-message actions, configurable retention, and crash recovery.
 - **Recall and cleanup:** messages can be recalled during an active session; local history items and sessions can be deleted with confirmation or undo where appropriate.
 - **Favorites:** keep independent text or file snapshots in collections, add local items without a session, search them, and send them back into an active transfer.
-- **Portable archives:** export sessions, favorites, settings, or all data to a ZIP archive; current `main` can save it on Android or serve it to a browser, then import it later.
+- **Portable archives:** export sessions, favorites, settings, or all data to a ZIP archive; save it on Android or serve it to a browser, then import it later.
 - **Adaptive appearance:** Material 3 Expressive themes, dark mode, contrast, motion speed, avatars, bubble shape, grouping, and selected appearance settings stay aligned across phone and browser.
+- **Multilingual:** both the app and the browser client support Chinese and English, and the language setting stays in sync across both ends.
 - **Offline browser client:** the HTML, CSS, JavaScript, mdui components, Material Symbols font, and design tokens are bundled in the APK; no CDN is used.
+
+## Feature Progress ● Overview
+
+- [x] Two-way text transfer
+- [x] Two-way file transfer
+- [x] Session archiving
+- [x] Session name search
+- [x] Session message search
+- [x] Jump to searched message
+- [x] Session grouping
+- [x] Session pinning
+- [x] Session renaming
+- [x] Session deletion
+- [x] Session time titles
+- [x] Favorites (codename: Ammo Box)
+  - [x] Favorite messages
+  - [x] Favorite files
+  - [x] Search favorites
+  - [x] Quick text copy
+  - [x] Favorite collections (grouping)
+  - [x] Add local text/file favorites
+  - [x] Quick-send button on favorite items (requires "return to active session" enabled)
+  - [x] Quick-send favorites inside a session
+    - [x] Recently used (5 items)
+    - [x] Quick search
+    - [x] Switch collections
+- [x] Quick settings inside a session
+- [x] Language switching
+- [x] Dynamic color
+- [x] Preset themes
+- [x] Custom contrast
+- [x] Dark mode
+- [x] AMOLED pure black
+- [x] Animation speed control
+- [x] Custom app-side name
+- [x] Custom avatars
+- [x] Preset icon avatars
+- [x] Preset filled icon avatars
+- [x] Single-character custom avatars
+- [x] In-session avatar settings on both ends
+- [x] Avatar display rules
+- [x] Custom bubble corner radius
+- [x] Session backgrounds
+- [x] PIN configuration
+- [x] Message action styles
+- [x] Message recall
+- [x] Message deletion
+- [x] Return to active session
+- [x] Configurable session history retention
+- [x] Export sessions/favorites
+- [x] Import sessions/favorites
+- [x] Export settings
+- [x] Import settings
+- [x] Export/import everything
+- [ ] More... iterating...
 
 ## Security Model and Limits
 
