@@ -1,8 +1,16 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
+}
+
+// 发布签名配置存放在 local.properties（不入库）：flikky.keystore.path / flikky.keystore.password / flikky.key.alias / flikky.key.password
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
 }
 
 android {
@@ -22,6 +30,18 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        val keystorePath = localProperties.getProperty("flikky.keystore.path")
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = localProperties.getProperty("flikky.keystore.password")
+                keyAlias = localProperties.getProperty("flikky.key.alias")
+                keyPassword = localProperties.getProperty("flikky.key.password")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -29,6 +49,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // 无 keystore 的机器仍可构建（产物为 unsigned），签名机自动出正式签名包。
+            signingConfig = signingConfigs.findByName("release")
         }
     }
     compileOptions {
