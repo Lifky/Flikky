@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./app/src/main/ic_launcher-playstore.png" width="128" alt="Flikky logo">
+  <img src="./docs/flikky_logo.png" width="128" alt="Flikky logo">
 </p>
 
 <h1 align="center">Flikky</h1>
@@ -20,12 +20,14 @@ Flikky is designed for trusted local networks and keeps the operational complexi
 
 | Channel | Revision | State |
 | --- | --- | --- |
-| Stable source | [`v1.15.0`](https://github.com/Lifky/Flikky/tree/v1.15.0) · 2026-07-22 | English localization (app and browser), web language sync, and assorted UI polish. Includes optional PIN authentication, local favorites, full ZIP backup scopes, local or browser export destinations, contextual archive actions, and the complete transfer/history experience described below. |
+| Stable source | [`v1.15.0`](https://github.com/Lifky/Flikky/tree/v1.15.0) · 2026-07-22 | English localization (app and browser), web language sync, and assorted UI polish. |
 | `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.15.0...main) | No unreleased changes beyond the stable tag. |
 
 Use the stable tag for a reproducible build. Use `main` when evaluating the latest unreleased work. Version history is available from the repository's [tags](https://github.com/Lifky/Flikky/tags).
 
 ## Screenshots
+
+![Flikky overview](./docs/screenshot/en-US/flikky_screenshot_overview_en-US.png)
 
 ![Android app](./docs/screenshot/en-US/screenshot_phone_en-US.png)
 
