@@ -23,7 +23,7 @@ Flikky 面向可信局域网使用，并把配对、会话状态、历史记录�
 | 稳定版源码 | [`v1.15.0`](https://github.com/Lifky/Flikky/tree/v1.15.0) · 2026-07-22 | 英文本地化（App 与浏览器端）、网页端语言同步，以及若干 UI 细节打磨。 |
 | `main` | [未发布改动](https://github.com/Lifky/Flikky/compare/v1.15.0...main) | 稳定 tag 之外暂无未发布改动。 |
 
-需要可复现构建时使用稳定版 tag；需要评估最新但尚未发布的工作时使用 `main`。历史版本可在仓库的 [tags](https://github.com/Lifky/Flikky/tags) 中查看。
+需要可复现构建时使用稳定版 tag；需要评估最新但尚未发布的工作时使用 `main`。各版本变更详见 [更新日志](./docs/CHANGELOG.zh-CN.md)，历史版本可在仓库的 [tags](https://github.com/Lifky/Flikky/tags) 中查看。
 
 ## 截图
 

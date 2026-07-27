@@ -23,7 +23,7 @@ Flikky is designed for trusted local networks and keeps the operational complexi
 | Stable source | [`v1.15.0`](https://github.com/Lifky/Flikky/tree/v1.15.0) · 2026-07-22 | English localization (app and browser), web language sync, and assorted UI polish. |
 | `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.15.0...main) | No unreleased changes beyond the stable tag. |
 
-Use the stable tag for a reproducible build. Use `main` when evaluating the latest unreleased work. Version history is available from the repository's [tags](https://github.com/Lifky/Flikky/tags).
+Use the stable tag for a reproducible build. Use `main` when evaluating the latest unreleased work. Per-release changes are documented in the [changelog](./docs/CHANGELOG.md); version history is available from the repository's [tags](https://github.com/Lifky/Flikky/tags).
 
 ## Screenshots
 
