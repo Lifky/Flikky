@@ -61,7 +61,7 @@
         <item quantity="other">%1$d 文件</item>
     </plurals>
 
-    <string name="home_search_placeholder">搜索会话与消息</string>
+    <string name="home_search_placeholder">搜索</string>
     <string name="home_search_collapse">收起搜索</string>
     <string name="home_search">搜索</string>
     <string name="home_search_clear">清空</string>
