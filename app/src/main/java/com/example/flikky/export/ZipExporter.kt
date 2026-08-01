@@ -186,6 +186,7 @@ object ZipExporter {
             MessagesJsonFormatter.format(session, fileIdToRelativePath = fileIdToRelativePath))
 
         for (fm in fileMessages) {
+            if (fm.status == "DELETED") continue
             val entryName = fileIdToEntryName[fm.fileId] ?: fm.name
             val path = dir + "files/" + entryName
             val resolved = fileResolver(session.id, fm.fileId)

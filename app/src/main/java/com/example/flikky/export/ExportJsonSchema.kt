@@ -61,5 +61,6 @@ internal sealed class MessageDto {
         val mime: String,
         val sizeBytes: Long,
         val relativePath: String,
+        val status: String? = null,
     ) : MessageDto()
 }

@@ -102,5 +102,6 @@ sealed class MessageExport {
         val name: String,
         val mime: String,
         val sizeBytes: Long,
+        val status: String? = null,
     ) : MessageExport()
 }

@@ -292,6 +292,7 @@ class SessionRepository(
             name = fileName ?: "",
             mime = fileMime ?: "application/octet-stream",
             sizeBytes = fileSize ?: 0L,
+            status = fileStatus,
         )
         else -> error("Unknown message kind: $kind")
     }
@@ -513,14 +514,17 @@ class SessionRepository(
                             ))
                             is ParsedMessage.File -> {
                                 val newFileId = UUID.randomUUID().toString()
-                                val entry = ZipImporter.resolveFileEntry(
-                                    parsed.version, fileMessages, msg.fileId,
-                                    parsed.sessionDir, zipFile,
-                                )
-                                if (entry != null) {
-                                    val targetFile = File(fileStore.fileDir(newSessionId), newFileId)
-                                    ZipImporter.getEntryStream(zipFile, entry).use { input ->
-                                        targetFile.outputStream().use { out -> input.copyTo(out) }
+                                val isDeleted = msg.status == "DELETED"
+                                if (!isDeleted) {
+                                    val entry = ZipImporter.resolveFileEntry(
+                                        parsed.version, fileMessages, msg.fileId,
+                                        parsed.sessionDir, zipFile,
+                                    )
+                                    if (entry != null) {
+                                        val targetFile = File(fileStore.fileDir(newSessionId), newFileId)
+                                        ZipImporter.getEntryStream(zipFile, entry).use { input ->
+                                            targetFile.outputStream().use { out -> input.copyTo(out) }
+                                        }
                                     }
                                 }
                                 importedFileCount++
@@ -535,7 +539,7 @@ class SessionRepository(
                                     fileName = msg.name,
                                     fileSize = msg.sizeBytes,
                                     fileMime = msg.mime,
-                                    fileStatus = "COMPLETED",
+                                    fileStatus = if (isDeleted) "DELETED" else "COMPLETED",
                                 ))
                             }
                         }

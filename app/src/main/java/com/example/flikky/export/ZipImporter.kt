@@ -42,6 +42,7 @@ sealed class ParsedMessage {
         val mime: String,
         val sizeBytes: Long,
         val relativePath: String,
+        val status: String? = null,
     ) : ParsedMessage()
 }
 
@@ -177,6 +178,7 @@ object ZipImporter {
             ts = ts, origin = origin, fileId = fileId,
             name = name, mime = mime, sizeBytes = sizeBytes,
             relativePath = relativePath,
+            status = status,
         )
     }
 }

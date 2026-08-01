@@ -44,6 +44,7 @@ object MessagesJsonFormatter {
                 mime = mime,
                 sizeBytes = sizeBytes,
                 relativePath = fileIdToRelativePath?.get(fileId) ?: "files/$name",
+                status = status,
             )
         }
 }

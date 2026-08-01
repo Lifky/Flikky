@@ -34,7 +34,6 @@ class SessionRepositoryImportTest {
     private lateinit var repo: SessionRepository
     private lateinit var store: SessionFileStore
 
-    private val json = Json { prettyPrint = true; encodeDefaults = true }
     private var zipSeq = 0
 
     @Before fun setup() {
@@ -62,9 +61,15 @@ class SessionRepositoryImportTest {
         val pinned: Boolean = false,
         val texts: List<String> = emptyList(),
         val files: List<Pair<String, ByteArray>> = emptyList(), // name → content
+        val deletedFiles: List<String> = emptyList(),
     )
 
-    private fun buildZip(sessions: List<TestSession>, version: String = "1.4"): File {
+    private fun buildZip(
+        sessions: List<TestSession>,
+        version: String = "1.4",
+        encodeDefaults: Boolean = true,
+    ): File {
+        val archiveJson = Json { prettyPrint = true; this.encodeDefaults = encodeDefaults }
         val f = tmp.newFile("import-${zipSeq++}.zip")
         ZipOutputStream(f.outputStream()).use { zip ->
             zip.putNextEntry(ZipEntry("README.txt"))
@@ -85,12 +90,19 @@ class SessionRepositoryImportTest {
                         sizeBytes = content.size.toLong(), relativePath = "files/$fname",
                     ))
                 }
+                for (fname in s.deletedFiles) {
+                    messages.add(MessageDto.FileDto(
+                        ts = ts++, origin = "BROWSER", fileId = "orig-$fname",
+                        name = fname, mime = "application/octet-stream",
+                        sizeBytes = 10L, relativePath = "files/$fname", status = "DELETED",
+                    ))
+                }
                 val dto = SessionDto(
                     sessionId = s.id, name = s.name, startedAt = s.startedAt,
                     endedAt = s.startedAt + 100, pinned = s.pinned, messages = messages,
                 )
                 zip.putNextEntry(ZipEntry("${dir}messages.json"))
-                zip.write(json.encodeToString(SessionDto.serializer(), dto).toByteArray())
+                zip.write(archiveJson.encodeToString(SessionDto.serializer(), dto).toByteArray())
                 zip.closeEntry()
 
                 for ((fname, content) in s.files) {
@@ -142,6 +154,44 @@ class SessionRepositoryImportTest {
         assertTrue("extracted file should exist", onDisk.exists())
         assertEquals("file body", onDisk.readText())
         assertEquals("COMPLETED", fileMsg.fileStatus)
+    }
+
+    @Test fun deleted_file_import_keeps_message_without_blob_and_old_archive_defaults_completed() = runTest {
+        val deletedZip = buildZip(listOf(
+            TestSession(
+                id = 1L,
+                name = "Deleted",
+                startedAt = 500L,
+                deletedFiles = listOf("gone.bin"),
+            ),
+        ))
+
+        val deletedResult = repo.importSessions(deletedZip)
+
+        val deletedSessionId = deletedResult.imported.single().newId
+        val deletedMessage = db.messageDao().listBySession(deletedSessionId).single()
+        assertEquals("DELETED", deletedMessage.fileStatus)
+        assertTrue(!File(store.fileDir(deletedSessionId), deletedMessage.fileId!!).exists())
+
+        val legacyContent = "legacy".toByteArray()
+        val legacyZip = buildZip(
+            sessions = listOf(
+                TestSession(
+                    id = 2L,
+                    name = "Legacy",
+                    startedAt = 700L,
+                    files = listOf("old.bin" to legacyContent),
+                ),
+            ),
+            encodeDefaults = false,
+        )
+
+        val legacyResult = repo.importSessions(legacyZip)
+
+        val legacySessionId = legacyResult.imported.single().newId
+        val legacyMessage = db.messageDao().listBySession(legacySessionId).single()
+        assertEquals("COMPLETED", legacyMessage.fileStatus)
+        assertTrue(File(store.fileDir(legacySessionId), legacyMessage.fileId!!).exists())
     }
 
     @Test fun duplicate_import_skips_existing_sessions() = runTest {

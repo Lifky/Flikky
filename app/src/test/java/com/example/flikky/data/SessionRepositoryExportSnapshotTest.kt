@@ -8,8 +8,12 @@ import com.example.flikky.data.db.entities.MessageEntity
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.export.MessageExport
 import com.example.flikky.export.ExportScope
+import com.example.flikky.export.MessageDto
+import com.example.flikky.export.SessionDto
+import com.example.flikky.export.ZipExporter
 import com.example.flikky.session.Origin
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -21,6 +25,11 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.util.TimeZone
+import java.util.zip.ZipInputStream
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
@@ -152,6 +161,46 @@ class SessionRepositoryExportSnapshotTest {
         val snap = repo.exportSnapshot(listOf(sid))
         assertEquals(1, snap.sessions.size)
         assertEquals(emptyList<MessageExport>(), snap.sessions[0].messages)
+    }
+
+    @Test fun deleted_file_keeps_status_in_json_without_blob_or_missing_placeholder() = runTest {
+        val sid = insertSession(startedAt = 100L, endedAt = 1_000L, name = "deleted")
+        insertFile(
+            sid, id = 1L, ts = 200L, fileId = "kept-id", fileName = "kept.bin",
+            size = 4L, mime = "application/octet-stream",
+        )
+        insertFile(
+            sid, id = 2L, ts = 300L, fileId = "deleted-id", fileName = "deleted.bin",
+            size = 8L, mime = "application/octet-stream", status = "DELETED",
+        )
+        File(store.fileDir(sid), "kept-id").writeText("keep")
+
+        val snapshot = repo.exportSnapshot(listOf(sid))
+        val out = ByteArrayOutputStream()
+        ZipExporter.write(
+            out = out,
+            snapshot = snapshot,
+            fileResolver = { sessionId, fileId -> File(store.fileDir(sessionId), fileId) },
+            timeZone = TimeZone.getTimeZone("UTC"),
+        )
+
+        val entries = mutableMapOf<String, ByteArray>()
+        ZipInputStream(ByteArrayInputStream(out.toByteArray())).use { zip ->
+            while (true) {
+                val entry = zip.nextEntry ?: break
+                entries[entry.name] = zip.readBytes()
+                zip.closeEntry()
+            }
+        }
+        assertTrue(entries.containsKey("sessions/${sid}_deleted/files/kept.bin"))
+        assertTrue(entries.keys.none { it.endsWith("/files/deleted.bin") })
+        assertTrue(entries.keys.none { it.contains("MISSING_deleted-id") })
+
+        val messagesJson = entries.getValue("sessions/${sid}_deleted/messages.json")
+            .toString(Charsets.UTF_8)
+        val dto = Json { ignoreUnknownKeys = true }.decodeFromString<SessionDto>(messagesJson)
+        val files = dto.messages.filterIsInstance<MessageDto.FileDto>()
+        assertEquals(listOf("COMPLETED", "DELETED"), files.map { it.status })
     }
 
     @Test fun exportedAt_uses_injected_now() = runTest {

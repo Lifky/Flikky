@@ -221,10 +221,11 @@ class MessagesJsonFormatterTest {
         assertEquals(
             setOf(
                 "type", "ts", "origin",
-                "fileId", "name", "mime", "sizeBytes", "relativePath",
+                "fileId", "name", "mime", "sizeBytes", "relativePath", "status",
             ),
             fileKeys,
         )
+        assertEquals(JsonNull, msgs[1].jsonObject["status"])
     }
 
     @Test
