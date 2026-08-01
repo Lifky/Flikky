@@ -262,7 +262,7 @@ fun FilesScreen(
                         Box {
                             IconButton(onClick = { sortExpanded = true }) {
                                 Icon(
-                                    painterResource(R.drawable.ic_swap_vert),
+                                    painterResource(R.drawable.ic_filter_list),
                                     contentDescription = stringResource(R.string.files_sort),
                                 )
                             }
