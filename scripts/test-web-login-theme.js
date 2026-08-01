@@ -59,8 +59,16 @@ async function runLoginThemeTest() {
       getElementById(id) {
         return elements[id] || null;
       },
+      addEventListener() {},
     },
-    window: { location: { href: '' }, mdui },
+    window: {
+      location: { href: '' },
+      mdui,
+      flikkyI18n: {
+        t(key) { return key; },
+        onChange() {},
+      },
+    },
     mdui,
     fetch(url) {
       calls.push(['fetch', url]);

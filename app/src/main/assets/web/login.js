@@ -89,3 +89,7 @@
 
     setTimeout(() => pinField.focus(), 0);
 })();
+
+['dragover', 'drop'].forEach((type) => {
+    document.addEventListener(type, (event) => event.preventDefault());
+});

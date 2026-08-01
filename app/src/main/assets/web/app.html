@@ -63,6 +63,10 @@
 
     <mdui-snackbar id="snackbar" placement="bottom"></mdui-snackbar>
 
+    <div id="drop-overlay" class="drop-overlay" hidden>
+        <div class="drop-overlay-card" data-i18n="app.drop_hint">松开以发送文件</div>
+    </div>
+
     <!-- v1.3 D26: 撤回二次确认 dialog。两端一致：手机端 AlertDialog ⇄ 浏览器 mdui-dialog -->
     <mdui-dialog id="recall-confirm-dialog" close-on-overlay-click="true" close-on-esc="true" headline="撤回这条消息？" data-i18n-headline="app.recall_title">
         <div data-i18n="app.recall_body" style="padding: 0 24px 8px;">撤回后两端都会消失，不可恢复。</div>

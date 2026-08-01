@@ -436,3 +436,7 @@
     startHealthProbe();
     openExportWs();
 })();
+
+['dragover', 'drop'].forEach((type) => {
+    document.addEventListener(type, (event) => event.preventDefault());
+});

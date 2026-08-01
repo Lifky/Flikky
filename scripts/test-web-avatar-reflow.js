@@ -190,6 +190,7 @@ function createDocument() {
     'send-btn',
     'file-btn',
     'file-picker',
+    'drop-overlay',
     'conn',
     'uptime',
     'count',
@@ -219,12 +220,24 @@ function loadAppForTest() {
 
   const document = createDocument();
   const localStorageData = new Map();
+  const flikkyI18n = {
+    t(key, values = {}) {
+      if (key === 'app.phone') return '手机';
+      if (key === 'app.connected') return '已连接';
+      if (key === 'app.disconnected') return '已断开';
+      if (key === 'app.watermark') return `${values.status} · ${values.device}`;
+      return key;
+    },
+    count(key, count) { return `${count} ${key}`; },
+    onChange() {},
+  };
   const context = {
     document,
     navigator: { userAgent: '' },
     location: { protocol: 'http:', host: 'localhost' },
     window: {
       flikky: {},
+      flikkyI18n,
       addEventListener() {},
       removeEventListener() {},
     },
@@ -274,6 +287,7 @@ function assertDeepEqual(actual, expected, message) {
 
 function runFirstRowPromotionTest(mine) {
   const app = loadAppForTest();
+  app.onWsEvent({ type: 'settings_changed', payload: { avatarGrouping: 'FIRST' } });
   app.renderText({ id: 1, content: 'first' }, mine);
   app.renderText({ id: 2, content: 'second' }, mine);
   app.renderText({ id: 3, content: 'third' }, mine);

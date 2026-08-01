@@ -483,3 +483,24 @@ body.mobile-ua .chat-input-row mdui-button {
     z-index: 9999;
     min-width: 96px;
 }
+
+/* v1.16.0 drag and drop upload overlay: body-level fixed layer, pointer-events
+ * none so the drop event lands on document, not on the overlay itself. */
+.drop-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+}
+.drop-overlay-card {
+    padding: var(--flikky-space-xl) var(--flikky-space-xxxl);
+    border-radius: var(--flikky-shape-lg);
+    border: 2px dashed rgb(var(--mdui-color-primary));
+    background: rgb(var(--mdui-color-surface-container-high));
+    color: rgb(var(--mdui-color-on-surface));
+    font: var(--flikky-font-title-medium);
+}

@@ -1384,6 +1384,69 @@
         xhr.send(form);
     }
 
+    // ---- drag and drop upload (v1.16.0) ----
+    const dropOverlay = document.getElementById('drop-overlay');
+    let dragDepth = 0;
+
+    function isDirectoryItem(item) {
+        if (typeof item.webkitGetAsEntry !== 'function') return false;
+        const entry = item.webkitGetAsEntry();
+        return !!(entry && entry.isDirectory);
+    }
+
+    function splitDropItems(dataTransfer) {
+        const files = [];
+        let hadFolder = false;
+        const items = dataTransfer && dataTransfer.items ? Array.from(dataTransfer.items) : [];
+        for (const item of items) {
+            if (item.kind !== 'file') continue;
+            if (isDirectoryItem(item)) {
+                hadFolder = true;
+                continue;
+            }
+            const file = item.getAsFile();
+            if (file) files.push(file);
+        }
+        return { files, hadFolder };
+    }
+
+    function setDropOverlayVisible(visible) {
+        if (dropOverlay) dropOverlay.hidden = !visible;
+    }
+
+    function dragHasFiles(event) {
+        const types = event.dataTransfer && event.dataTransfer.types;
+        return !!types && Array.from(types).includes('Files');
+    }
+
+    document.addEventListener('dragenter', (event) => {
+        if (!dragHasFiles(event)) return;
+        event.preventDefault();
+        dragDepth += 1;
+        if (wsConnected) setDropOverlayVisible(true);
+    });
+    document.addEventListener('dragover', (event) => {
+        if (dragHasFiles(event)) event.preventDefault();
+    });
+    document.addEventListener('dragleave', (event) => {
+        if (!dragHasFiles(event)) return;
+        dragDepth = Math.max(0, dragDepth - 1);
+        if (dragDepth === 0) setDropOverlayVisible(false);
+    });
+    document.addEventListener('drop', (event) => {
+        if (!dragHasFiles(event)) return;
+        event.preventDefault();
+        dragDepth = 0;
+        setDropOverlayVisible(false);
+        if (!wsConnected) {
+            window.flikky.showError(t('app.wait_reconnect'));
+            return;
+        }
+        const { files, hadFolder } = splitDropItems(event.dataTransfer);
+        if (hadFolder) window.flikky.showError(t('app.drop_folder_unsupported'));
+        for (const file of files) sendFile(file);
+    });
+
     sendBtn.addEventListener('click', sendText);
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }

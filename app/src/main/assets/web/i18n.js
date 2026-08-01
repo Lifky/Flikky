@@ -52,6 +52,8 @@
             'app.reconnected': '已重新连接',
             'app.reconnecting_attempt': '连接已断开，正在尝试重连…（{attempt}/{max}）',
             'app.wait_reconnect': '连接已断开，请稍候',
+            'app.drop_hint': '松开以发送文件',
+            'app.drop_folder_unsupported': '不支持发送文件夹',
             'app.send_failed': '发送失败',
             'app.processing': '处理中…',
 
@@ -139,6 +141,8 @@
             'app.reconnected': 'Reconnected',
             'app.reconnecting_attempt': 'Connection lost. Reconnecting… ({attempt}/{max})',
             'app.wait_reconnect': 'Connection lost. Please wait.',
+            'app.drop_hint': 'Release to send files',
+            'app.drop_folder_unsupported': 'Folders cannot be sent',
             'app.send_failed': 'Send failed',
             'app.processing': 'Processing…',
 
