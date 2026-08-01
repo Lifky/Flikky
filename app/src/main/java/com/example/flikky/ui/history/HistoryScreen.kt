@@ -314,7 +314,9 @@ fun HistoryScreen(
                         MessageBubble(
                             msg = msg,
                             onTap = {
-                                if (floating) {
+                                if (msg is Message.File && msg.status == Message.File.Status.DELETED) {
+                                    openFile(ctx, sessionId, msg)
+                                } else if (floating) {
                                     actionTarget = if (isActionTarget) null else msg.id
                                 } else if (msg is Message.File) {
                                     openFile(ctx, sessionId, msg) {
