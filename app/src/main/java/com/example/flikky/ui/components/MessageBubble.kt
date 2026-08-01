@@ -143,18 +143,20 @@ private fun FileBubbleContent(
     transferProgress: Float? = null,
 ) {
     val isTransferring = msg.status == Message.File.Status.IN_PROGRESS
+    val isDeleted = msg.status == Message.File.Status.DELETED
+    val contentColor = if (isDeleted) fg.copy(alpha = 0.38f) else fg
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             painter = painterResource(R.drawable.ic_description),
             contentDescription = null,
             modifier = Modifier.size(28.dp),
-            tint = fg,
+            tint = contentColor,
         )
         Spacer(Modifier.width(Spacing.md))
         Column {
             Text(
                 text = msg.name,
-                color = fg,
+                color = contentColor,
                 style = MaterialTheme.typography.bodyLarge,
                 // File names need deliberate emphasis inside the metadata block.
                 fontWeight = FontWeight.Medium,
@@ -171,8 +173,12 @@ private fun FileBubbleContent(
                 else -> null
             }
             Text(
-                text = listOfNotNull(formatSize(msg.sizeBytes), status).joinToString("  ·  "),
-                color = fg.copy(alpha = 0.75f),
+                text = if (isDeleted) {
+                    stringResource(R.string.file_deleted)
+                } else {
+                    listOfNotNull(formatSize(msg.sizeBytes), status).joinToString("  ·  ")
+                },
+                color = if (isDeleted) contentColor else fg.copy(alpha = 0.75f),
                 style = MaterialTheme.typography.bodySmall,
             )
             if (isTransferring && transferProgress != null) {
