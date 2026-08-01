@@ -1,8 +1,6 @@
 package com.example.flikky.ui.history
 
-import android.content.ActivityNotFoundException
 import android.content.Context
-import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -53,7 +51,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.settings.FlikkySettings
@@ -67,6 +64,7 @@ import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
 import com.example.flikky.ui.components.FlikkyFloatingToolbarHeight
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.components.openStoredFile
 import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.theme.Motion
@@ -74,7 +72,6 @@ import com.example.flikky.ui.theme.Spacing
 import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -186,7 +183,9 @@ fun HistoryScreen(
                 icon = downloadPainter,
                 label = openLabel,
                 onClick = {
-                    openFile(ctx, sessionId, msg)
+                    openFile(ctx, sessionId, msg) {
+                        scope.launch { ServiceLocator.repository.markFileDeleted(msg.id) }
+                    }
                     actionTarget = null
                 },
             ))
@@ -318,7 +317,9 @@ fun HistoryScreen(
                                 if (floating) {
                                     actionTarget = if (isActionTarget) null else msg.id
                                 } else if (msg is Message.File) {
-                                    openFile(ctx, sessionId, msg)
+                                    openFile(ctx, sessionId, msg) {
+                                        scope.launch { ServiceLocator.repository.markFileDeleted(msg.id) }
+                                    }
                                 }
                             },
                             // 两种模式长按都让给 SelectionContainer 起划词选择：
@@ -437,28 +438,16 @@ private suspend fun favoriteHistoryMessage(sessionId: Long, sessionName: String?
     }
 }
 
-private fun openFile(ctx: Context, sessionId: Long, msg: Message.File) {
-    if (msg.status != Message.File.Status.COMPLETED) return
-    val f = File(File(File(ctx.filesDir, "sessions/$sessionId"), "files"), msg.fileId)
-    if (!f.exists()) {
-        Toast.makeText(ctx, R.string.file_missing, Toast.LENGTH_SHORT).show(); return
-    }
-    val authority = "${ctx.packageName}.fileprovider"
-    val uri = try {
-        FileProvider.getUriForFile(ctx, authority, f, msg.name)
-    } catch (e: IllegalArgumentException) {
-        Toast.makeText(ctx, R.string.file_provider_unavailable, Toast.LENGTH_SHORT).show()
+private fun openFile(
+    ctx: Context,
+    sessionId: Long,
+    msg: Message.File,
+    onMissing: () -> Unit = {},
+) {
+    if (msg.status == Message.File.Status.DELETED) {
+        Toast.makeText(ctx, R.string.file_deleted_hint, Toast.LENGTH_SHORT).show()
         return
     }
-    val intent = Intent(Intent.ACTION_VIEW).apply {
-        setDataAndType(uri, msg.mime.ifBlank { "application/octet-stream" })
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-    }
-    try {
-        ctx.startActivity(Intent.createChooser(intent, ctx.getString(R.string.file_open_chooser)).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        })
-    } catch (_: ActivityNotFoundException) {
-        Toast.makeText(ctx, R.string.file_no_handler, Toast.LENGTH_SHORT).show()
-    }
+    if (msg.status != Message.File.Status.COMPLETED) return
+    openStoredFile(ctx, sessionId, msg.fileId, msg.name, msg.mime, onMissing)
 }
