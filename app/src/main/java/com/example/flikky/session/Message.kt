@@ -40,6 +40,6 @@ sealed class Message {
         val status: Status,
         override val senderId: String? = null,
     ) : Message() {
-        enum class Status { OFFERED, IN_PROGRESS, COMPLETED, FAILED }
+        enum class Status { OFFERED, IN_PROGRESS, COMPLETED, FAILED, DELETED }
     }
 }
