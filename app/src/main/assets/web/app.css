@@ -486,6 +486,10 @@ body.mobile-ua .chat-input-row mdui-button {
 
 /* v1.16.0 drag and drop upload overlay: body-level fixed layer, pointer-events
  * none so the drop event lands on document, not on the overlay itself. */
+/* display:flex below outranks the UA sheet's [hidden] rule; keep this explicit. */
+.drop-overlay[hidden] {
+    display: none;
+}
 .drop-overlay {
     position: fixed;
     inset: 0;

@@ -5,6 +5,8 @@ const test = require('node:test');
 const vm = require('node:vm');
 
 const appJs = fs.readFileSync(path.join(__dirname, '../../main/assets/web/app.js'), 'utf8');
+const appCss = fs.readFileSync(path.join(__dirname, '../../main/assets/web/app.css'), 'utf8');
+const appHtml = fs.readFileSync(path.join(__dirname, '../../main/assets/web/app.html'), 'utf8');
 const start = appJs.indexOf('function isDirectoryItem');
 const end = appJs.indexOf('function setDropOverlayVisible');
 assert.ok(start >= 0 && end > start, 'drop helpers not found in app.js');
@@ -43,4 +45,11 @@ test('skips non-file kinds and null files and tolerates a missing entry API', ()
     const result = run([stringItem, nullFile, noEntryApi]);
     assert.deepEqual(Array.from(result.files, (file) => file.name), ['c.bin']);
     assert.equal(result.hadFolder, false);
+});
+
+test('overlay starts hidden and its CSS keeps the hidden attribute effective', () => {
+    // .drop-overlay sets display:flex, which outranks the UA sheet's
+    // [hidden] { display: none } — an explicit [hidden] rule is required.
+    assert.match(appHtml, /<div id="drop-overlay"[^>]*\bhidden\b/);
+    assert.match(appCss, /\.drop-overlay\[hidden\]\s*\{\s*display:\s*none\s*;?\s*\}/);
 });
