@@ -106,6 +106,7 @@ fun HomeScreen(
     onStartService: () -> Unit,
     onStartExport: () -> Unit = {},
     onOpenSearchHit: (Long, Long) -> Unit = { _, _ -> },
+    onOpenFiles: () -> Unit = {},
     onSelectingChange: (Boolean) -> Unit = {},
     onSearchExpandedChange: (Boolean) -> Unit = {},
     startSelecting: Boolean = false,
@@ -271,6 +272,7 @@ fun HomeScreen(
                     onOpenSession = onOpenSession,
                     onResume = { resumeNavigate() },
                     onOpenMessageHit = onOpenSearchHit,
+                    onOpenFiles = onOpenFiles,
                     onImport = { importLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed")) },
                     onExport = viewModel::enterSelecting,
                 )

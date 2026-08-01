@@ -119,6 +119,7 @@ private sealed interface ActiveSheet {
 fun SettingsScreen(
     onExportSessions: () -> Unit,
     onExportReady: () -> Unit,
+    onOpenFiles: () -> Unit,
     viewModel: SettingsViewModel = viewModel(),
     archiveViewModel: ArchiveViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
 ) {
@@ -493,7 +494,7 @@ fun SettingsScreen(
 
             // ─── 数据 ─────────────────────────────────────────────────────────
             item {
-                val sectionItems = if (importExportExpanded) 7 else 2
+                val sectionItems = if (importExportExpanded) 8 else 3
                 SettingSection(title = stringResource(R.string.settings_section_data)) {
                     val historySubtitle = when (s.historyRetainLimit) {
                         -1 -> stringResource(R.string.settings_history_unlimited)
@@ -506,11 +507,18 @@ fun SettingsScreen(
                         )
                     }
                     SettingItem(
+                        title = stringResource(R.string.files_entry),
+                        leadingIcon = painterResource(R.drawable.ic_folder_open),
+                        subtitle = stringResource(R.string.files_entry_summary),
+                        onClick = onOpenFiles,
+                        index = 0, total = sectionItems,
+                    )
+                    SettingItem(
                         title = stringResource(R.string.settings_history_limit),
                         leadingIcon = painterResource(R.drawable.ic_history),
                         subtitle = historySubtitle,
                         onClick = { showHistoryLimitDialog = true },
-                        index = 0, total = sectionItems,
+                        index = 1, total = sectionItems,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_import_export),
@@ -551,7 +559,7 @@ fun SettingsScreen(
                                 )
                             )
                         },
-                        index = 1, total = sectionItems,
+                        index = 2, total = sectionItems,
                     )
                     AnimatedVisibility(
                         visible = importExportExpanded,
@@ -571,35 +579,35 @@ fun SettingsScreen(
                                         arrayOf("application/zip", "application/x-zip-compressed")
                                     )
                                 },
-                                index = 2, total = sectionItems,
+                                index = 3, total = sectionItems,
                             )
                             SettingItem(
                                 title = stringResource(R.string.settings_export_sessions),
                                 leadingIcon = painterResource(R.drawable.ic_upload),
                                 subtitle = stringResource(R.string.settings_export_sessions_summary),
                                 onClick = onExportSessions,
-                                index = 3, total = sectionItems,
+                                index = 4, total = sectionItems,
                             )
                             SettingItem(
                                 title = stringResource(R.string.settings_export_favorites),
                                 leadingIcon = painterResource(R.drawable.ic_star_border),
                                 subtitle = stringResource(R.string.settings_export_favorites_summary),
                                 onClick = { exportDestinationScope = ExportScope.FAVORITES },
-                                index = 4, total = sectionItems,
+                                index = 5, total = sectionItems,
                             )
                             SettingItem(
                                 title = stringResource(R.string.settings_export_settings),
                                 leadingIcon = painterResource(R.drawable.ic_settings_outline),
                                 subtitle = stringResource(R.string.settings_export_settings_summary),
                                 onClick = { exportDestinationScope = ExportScope.SETTINGS },
-                                index = 5, total = sectionItems,
+                                index = 6, total = sectionItems,
                             )
                             SettingItem(
                                 title = stringResource(R.string.settings_export_all),
                                 leadingIcon = painterResource(R.drawable.ic_swap_vert),
                                 subtitle = stringResource(R.string.settings_export_all_summary),
                                 onClick = { exportDestinationScope = ExportScope.ALL },
-                                index = 6, total = sectionItems,
+                                index = 7, total = sectionItems,
                             )
                         }
                     }

@@ -69,6 +69,7 @@ fun HomeSearchBar(
     onOpenSession: (Long) -> Unit,
     onResume: () -> Unit,
     onOpenMessageHit: (sessionId: Long, messageId: Long) -> Unit,
+    onOpenFiles: () -> Unit,
     onImport: () -> Unit,
     onExport: () -> Unit,
     modifier: Modifier = Modifier,
@@ -145,12 +146,20 @@ fun HomeSearchBar(
                             }
                         }
                     } else {
-                        ImportExportOverflowMenu(
-                            importLabel = stringResource(R.string.home_import_sessions),
-                            exportLabel = stringResource(R.string.home_export_sessions),
-                            onImport = onImport,
-                            onExport = onExport,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = onOpenFiles) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_folder_open),
+                                    contentDescription = stringResource(R.string.files_entry),
+                                )
+                            }
+                            ImportExportOverflowMenu(
+                                importLabel = stringResource(R.string.home_import_sessions),
+                                exportLabel = stringResource(R.string.home_export_sessions),
+                                onImport = onImport,
+                                onExport = onExport,
+                            )
+                        }
                     }
                 },
             )

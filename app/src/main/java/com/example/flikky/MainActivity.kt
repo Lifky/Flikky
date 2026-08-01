@@ -35,6 +35,7 @@ import com.example.flikky.ui.components.FlikkyNavBar
 import com.example.flikky.ui.components.flikkyNavTransitions
 import com.example.flikky.ui.exporting.ExportingScreen
 import com.example.flikky.ui.favorites.FavoritesScreen
+import com.example.flikky.ui.files.FilesScreen
 import com.example.flikky.ui.history.HistoryScreen
 import com.example.flikky.ui.home.HomeScreen
 import com.example.flikky.ui.serving.ServingScreen
@@ -129,6 +130,7 @@ class MainActivity : ComponentActivity() {
                                         onOpenSession = { id -> nav.navigate("history/$id") },
                                         onStartService = { nav.navigate("serving") },
                                         onStartExport = { nav.navigate("exporting") },
+                                        onOpenFiles = { nav.navigate("files") },
                                         onSelectingChange = { homeSelecting = it },
                                         onSearchExpandedChange = { homeSearchExpanded = it },
                                         onOpenSearchHit = { sessionId, messageId ->
@@ -154,6 +156,7 @@ class MainActivity : ComponentActivity() {
                                             }
                                         },
                                         onExportReady = { nav.navigate("exporting") },
+                                        onOpenFiles = { nav.navigate("files") },
                                     )
                                 }
                             }
@@ -184,6 +187,16 @@ class MainActivity : ComponentActivity() {
                                 Box(Modifier.padding(innerPadding)) {
                                     ExportingScreen(
                                         onBack = { nav.popBackStack("transfer", inclusive = false) },
+                                    )
+                                }
+                            }
+                            composable("files") {
+                                Box(Modifier.padding(innerPadding)) {
+                                    FilesScreen(
+                                        onBack = { nav.popBackStack() },
+                                        onOpenMessage = { sessionId, messageId ->
+                                            nav.navigate("history/$sessionId?highlight=$messageId")
+                                        },
                                     )
                                 }
                             }

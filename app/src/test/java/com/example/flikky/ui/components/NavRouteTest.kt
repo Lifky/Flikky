@@ -21,6 +21,7 @@ class NavRouteTest {
     fun `detail destinations are not top level`() {
         assertFalse(isTopLevelRoute("serving"))
         assertFalse(isTopLevelRoute("exporting"))
+        assertFalse(isTopLevelRoute("files"))
         assertFalse(isTopLevelRoute("history/{id}?highlight={messageId}"))
     }
 
