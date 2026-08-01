@@ -12,14 +12,17 @@ import androidx.compose.ui.unit.dp
  *
  * 已迁到官方 Expressive 组件 [HorizontalFloatingToolbar]（material3 1.5.0-alpha，
  * `@OptIn(ExperimentalMaterial3ExpressiveApi)`）——原手搓的 `Surface + Row` 实现已删除。
- * 容器色 / 全圆胶囊 / 内边距 / **海拔阴影**全走官方 standard 默认规格；首页多选栏 / 收藏页多选栏 /
+ * 容器色 / 全圆胶囊 / 内边距走官方 standard 默认规格；首页多选栏 / 收藏页多选栏 /
  * 消息操作栏共用。
  *
  * - `expanded = true`：常显（不接 scroll-collapse 折叠行为）。
- * - 阴影用官方默认 elevation（手搓版当初去阴影是因为自建阴影观感差；官方阴影规格 OK，保留）。
+ * - 海拔：组件库 standard 默认是 Level 0（无阴影），按 MD3 floating toolbar spec
+ *   显式给 Elevation Level 3（6dp）；`FloatingToolbarDefaults` 无 Level 3 公开常量，故写值。
  *
  * 调用方只传 [content]（一串 IconButton）。
  */
+private val FloatingToolbarElevation = 6.dp // MD3 Elevation Level 3
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FlikkyFloatingToolbar(
@@ -29,6 +32,8 @@ fun FlikkyFloatingToolbar(
     HorizontalFloatingToolbar(
         expanded = true,
         modifier = modifier,
+        expandedShadowElevation = FloatingToolbarElevation,
+        collapsedShadowElevation = FloatingToolbarElevation,
         content = content,
     )
 }
