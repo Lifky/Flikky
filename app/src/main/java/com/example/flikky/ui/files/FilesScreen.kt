@@ -72,7 +72,7 @@ import com.example.flikky.session.Origin
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.EmptyStateContent
 import com.example.flikky.ui.components.FlikkyFloatingToolbar
-import com.example.flikky.ui.components.FlikkyFloatingToolbarHeight
+import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.formatSize
@@ -120,14 +120,11 @@ fun FilesScreen(
     }
     val singleSelected = selectedRows.singleOrNull()
     val deletableRows = selectedRows.filter { it.sessionEndedAt != null }
-    val snackbarLift by animateDpAsState(
-        targetValue = if (selecting) {
-            FlikkyFloatingToolbarHeight + Spacing.md + Spacing.sm
-        } else {
-            0.dp
-        },
+    // 多选浮动工具栏可见时，snackbar 与列表底部都要为它让位（共用同一抬升量）。
+    val toolbarLift by animateDpAsState(
+        targetValue = if (selecting) FlikkyFloatingToolbarLift else 0.dp,
         animationSpec = Motion.effects(),
-        label = "filesSnackbarLift",
+        label = "filesToolbarLift",
     )
     fun closeSearch() {
         searchActive = false
@@ -169,7 +166,7 @@ fun FilesScreen(
         snackbarHost = {
             SnackbarHost(
                 hostState = snackbarHostState,
-                modifier = Modifier.padding(bottom = snackbarLift),
+                modifier = Modifier.padding(bottom = toolbarLift),
             )
         },
         topBar = {
@@ -326,7 +323,7 @@ fun FilesScreen(
                             .weight(1f),
                         contentPadding = PaddingValues(
                             top = Spacing.sm,
-                            bottom = Spacing.xxl,
+                            bottom = Spacing.xxl + toolbarLift,
                         ),
                         verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                     ) {

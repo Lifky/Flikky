@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -61,7 +62,7 @@ import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
-import com.example.flikky.ui.components.FlikkyFloatingToolbarHeight
+import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.openStoredFile
@@ -213,16 +214,18 @@ fun HistoryScreen(
         ))
     }
 
+    // floating 浮动操作栏可见时，snackbar 与消息列表底部都要为它让位。
+    val floatingToolbarShown = settings.messageActionStyle ==
+        com.example.flikky.data.settings.MessageActionStyle.FLOATING &&
+        messages.any { it.id == actionTarget }
+
     Scaffold(
         snackbarHost = {
             // floating 浮动操作栏与 snackbar 都锚在底部中央，会相互遮挡（snackbar 盖住操作栏挡点击）。
             // 浮动栏可见时把 snackbar 抬到栏上方（栏高 + 栏自身 bottom 间距 + 一档间隙），让 snackbar
             // 浮于栏之上、两者都可见且不挡操作；用 effects 平滑升降避免 snackbar 与栏同现时跳变。
-            val toolbarShown = settings.messageActionStyle ==
-                com.example.flikky.data.settings.MessageActionStyle.FLOATING &&
-                messages.any { it.id == actionTarget }
             val snackbarLift by animateDpAsState(
-                targetValue = if (toolbarShown) FlikkyFloatingToolbarHeight + Spacing.md + Spacing.sm else 0.dp,
+                targetValue = if (floatingToolbarShown) FlikkyFloatingToolbarLift else 0.dp,
                 animationSpec = Motion.effects(),
                 label = "snackbarLift",
             )
@@ -275,9 +278,16 @@ fun HistoryScreen(
           modifier = Modifier.padding(pad).fillMaxSize(),
           contentAlignment = Alignment.TopCenter,
       ) {
+        // 浮动操作栏悬浮在消息之上，抬升底部 padding 让末条消息可滚出栏上方。
+        val listBottomLift by animateDpAsState(
+            targetValue = if (floatingToolbarShown) FlikkyFloatingToolbarLift else 0.dp,
+            animationSpec = Motion.effects(),
+            label = "historyListBottomLift",
+        )
         SelectionContainer {
         LazyColumn(
             modifier = Modifier.fillMaxSize().maxContentWidth().padding(horizontal = Spacing.md),
+            contentPadding = PaddingValues(bottom = listBottomLift),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             state = listState,
         ) {

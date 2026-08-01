@@ -6,6 +6,7 @@ import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.flikky.ui.theme.Spacing
 
 /**
  * 共用的 MD3 floating toolbar 容器（胶囊浮动操作栏）。
@@ -43,3 +44,10 @@ fun FlikkyFloatingToolbar(
  * 浮动栏上方，避免底部中央的 snackbar 与同样底部中央的浮动操作栏相互遮挡。
  */
 val FlikkyFloatingToolbarHeight = 64.dp
+
+/**
+ * 浮动工具栏可见时，底部锚定内容需要抬升的总量：胶囊高度 + 栏自身 bottom 间距 + 一档呼吸间隙。
+ * 两类消费方共用同一值：滚动列表把它加进 contentPadding bottom（末行可滚出工具栏之上），
+ * snackbar 用它上移（不与工具栏互相遮挡）。
+ */
+val FlikkyFloatingToolbarLift = FlikkyFloatingToolbarHeight + Spacing.md + Spacing.sm

@@ -9,6 +9,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -87,6 +88,7 @@ import com.example.flikky.export.ExportScope
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.EmptyStateContent
 import com.example.flikky.ui.components.FlikkyFloatingToolbar
+import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.RenameDialog
 import com.example.flikky.ui.components.flikkyItemAnimation
@@ -378,9 +380,18 @@ fun HomeScreen(
                             val segPositions = remember(homeItems) {
                                 HomeListBuilder.segmentPositions(homeItems)
                             }
+                            // 多选浮动工具栏悬浮在列表之上，抬升底部 padding 让末行可滚出栏上方。
+                            val listBottomLift by animateDpAsState(
+                                targetValue = if (selecting) FlikkyFloatingToolbarLift else 0.dp,
+                                animationSpec = Motion.effects(),
+                                label = "homeListBottomLift",
+                            )
                             LazyColumn(
                                 modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(vertical = Spacing.sm),
+                                contentPadding = PaddingValues(
+                                    top = Spacing.sm,
+                                    bottom = Spacing.sm + listBottomLift,
+                                ),
                                 verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                             ) {
                                 itemsIndexed(

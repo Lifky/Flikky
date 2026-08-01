@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,6 +66,7 @@ import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.EmptyStateContent
+import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.ImportExportOverflowMenu
 import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
@@ -76,6 +78,7 @@ import com.example.flikky.ui.exporting.ExportDestinationSheet
 import com.example.flikky.ui.home.GroupChips
 import com.example.flikky.ui.home.GroupManageDialog
 import com.example.flikky.ui.home.MoveToGroupSheet
+import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -334,9 +337,18 @@ fun FavoritesScreen(
                             modifier = Modifier.fillMaxSize(),
                         )
                     } else {
+                        // 多选浮动工具栏悬浮在列表之上，抬升底部 padding 让末行可滚出栏上方。
+                        val listBottomLift by animateDpAsState(
+                            targetValue = if (selecting) FlikkyFloatingToolbarLift else 0.dp,
+                            animationSpec = Motion.effects(),
+                            label = "favoritesListBottomLift",
+                        )
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = Spacing.sm),
+                            contentPadding = PaddingValues(
+                                top = Spacing.sm,
+                                bottom = Spacing.sm + listBottomLift,
+                            ),
                             verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                         ) {
                             itemsIndexed(items, key = { _, it -> it.id }) { index, favorite ->
