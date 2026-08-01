@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -33,9 +32,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SearchBar
-import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -131,12 +129,6 @@ fun FilesScreen(
         animationSpec = Motion.effects(),
         label = "filesSnackbarLift",
     )
-    val searchSidePadding by animateDpAsState(
-        targetValue = if (searchActive) 0.dp else Spacing.screenEdge,
-        animationSpec = Motion.effects(),
-        label = "filesSearchSidePadding",
-    )
-
     fun closeSearch() {
         searchActive = false
         viewModel.setQuery("")
@@ -204,27 +196,15 @@ fun FilesScreen(
                     },
                 )
             } else if (searchActive) {
-                SearchBar(
-                    modifier = Modifier
-                        .statusBarsPadding()
-                        .fillMaxWidth()
-                        .padding(horizontal = searchSidePadding.coerceAtLeast(0.dp)),
-                    inputField = {
-                        SearchBarDefaults.InputField(
-                            query = query,
-                            onQueryChange = viewModel::setQuery,
-                            onSearch = {},
-                            expanded = false,
-                            onExpandedChange = {},
+                TopAppBar(
+                    title = {
+                        OutlinedTextField(
+                            value = query,
+                            onValueChange = viewModel::setQuery,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester),
                             placeholder = { Text(stringResource(R.string.files_search_hint)) },
-                            leadingIcon = {
-                                IconButton(onClick = ::closeSearch) {
-                                    Icon(
-                                        Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = stringResource(R.string.history_back),
-                                    )
-                                }
-                            },
                             trailingIcon = {
                                 if (query.isNotEmpty()) {
                                     IconButton(onClick = { viewModel.setQuery("") }) {
@@ -233,14 +213,30 @@ fun FilesScreen(
                                             contentDescription = stringResource(R.string.home_search_clear),
                                         )
                                     }
+                                } else {
+                                    Icon(Icons.Filled.Search, contentDescription = null)
                                 }
                             },
-                            modifier = Modifier.focusRequester(focusRequester),
+                            singleLine = true,
                         )
                     },
-                    expanded = false,
-                    onExpandedChange = {},
-                ) {}
+                    navigationIcon = {
+                        IconButton(onClick = ::closeSearch) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.history_back),
+                            )
+                        }
+                    },
+                    actions = {
+                        SortMenuAction(
+                            sort = sort,
+                            expanded = sortExpanded,
+                            onExpandedChange = { sortExpanded = it },
+                            onSelect = viewModel::setSort,
+                        )
+                    },
+                )
             } else {
                 TopAppBar(
                     title = { Text(stringResource(R.string.files_title)) },
@@ -259,43 +255,12 @@ fun FilesScreen(
                                 contentDescription = stringResource(R.string.files_search_hint),
                             )
                         }
-                        Box {
-                            IconButton(onClick = { sortExpanded = true }) {
-                                Icon(
-                                    painterResource(R.drawable.ic_filter_list),
-                                    contentDescription = stringResource(R.string.files_sort),
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = sortExpanded,
-                                onDismissRequest = { sortExpanded = false },
-                            ) {
-                                FileSort.entries.forEach { option ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                stringResource(
-                                                    if (option == FileSort.TIME) {
-                                                        R.string.files_sort_time
-                                                    } else {
-                                                        R.string.files_sort_size
-                                                    },
-                                                ),
-                                            )
-                                        },
-                                        leadingIcon = if (sort == option) {
-                                            { Icon(Icons.Filled.Done, contentDescription = null) }
-                                        } else {
-                                            null
-                                        },
-                                        onClick = {
-                                            viewModel.setSort(option)
-                                            sortExpanded = false
-                                        },
-                                    )
-                                }
-                            }
-                        }
+                        SortMenuAction(
+                            sort = sort,
+                            expanded = sortExpanded,
+                            onExpandedChange = { sortExpanded = it },
+                            onSelect = viewModel::setSort,
+                        )
                     },
                 )
             }
@@ -560,6 +525,52 @@ fun FilesScreen(
             },
             onDismiss = { showDeleteDialog = false },
         )
+    }
+}
+
+@Composable
+private fun SortMenuAction(
+    sort: FileSort,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    onSelect: (FileSort) -> Unit,
+) {
+    Box {
+        IconButton(onClick = { onExpandedChange(true) }) {
+            Icon(
+                painterResource(R.drawable.ic_filter_list),
+                contentDescription = stringResource(R.string.files_sort),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { onExpandedChange(false) },
+        ) {
+            FileSort.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(
+                                if (option == FileSort.TIME) {
+                                    R.string.files_sort_time
+                                } else {
+                                    R.string.files_sort_size
+                                },
+                            ),
+                        )
+                    },
+                    leadingIcon = if (sort == option) {
+                        { Icon(Icons.Filled.Done, contentDescription = null) }
+                    } else {
+                        null
+                    },
+                    onClick = {
+                        onSelect(option)
+                        onExpandedChange(false)
+                    },
+                )
+            }
+        }
     }
 }
 
