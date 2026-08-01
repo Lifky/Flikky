@@ -22,6 +22,20 @@ data class MessageSearchResult(
     val timestamp: Long,
 )
 
+/** Cross-session file row with enough session context for the files overview. */
+data class FileOverviewRow(
+    val messageId: Long,
+    val sessionId: Long,
+    val sessionName: String,
+    val sessionEndedAt: Long?,
+    val origin: String,
+    val fileId: String,
+    val fileName: String?,
+    val fileSize: Long?,
+    val fileMime: String?,
+    val timestamp: Long,
+)
+
 @Dao
 interface MessageDao {
     @Insert suspend fun insert(message: MessageEntity)
@@ -70,6 +84,28 @@ interface MessageDao {
      */
     @Query("SELECT COALESCE(MAX(id), 0) FROM messages")
     suspend fun maxId(): Long
+
+    /**
+     * Files whose complete blob should exist. A null status is legacy data that
+     * maps to COMPLETED; partial, failed, and deleted transfers stay hidden.
+     */
+    @Query(
+        """
+        SELECT m.id AS messageId, m.sessionId AS sessionId, s.name AS sessionName,
+               s.endedAt AS sessionEndedAt, m.origin AS origin, m.fileId AS fileId,
+               m.fileName AS fileName, m.fileSize AS fileSize, m.fileMime AS fileMime,
+               m.timestamp AS timestamp
+        FROM messages m JOIN sessions s ON m.sessionId = s.id
+        WHERE m.kind = 'FILE' AND m.fileId IS NOT NULL
+          AND (m.fileStatus IS NULL OR m.fileStatus = 'COMPLETED')
+        ORDER BY m.timestamp DESC
+        """,
+    )
+    fun observeAllFiles(): Flow<List<FileOverviewRow>>
+
+    /** Keep historical metadata while marking the on-disk blob unavailable. */
+    @Query("UPDATE messages SET fileStatus = 'DELETED' WHERE id = :id")
+    suspend fun markFileDeleted(id: Long)
 
     @Query("""
         SELECT content FROM messages
