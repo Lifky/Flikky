@@ -1,6 +1,8 @@
 package com.example.flikky.ui.files
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +31,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
@@ -37,6 +40,7 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,29 +48,48 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.db.FileOverviewRow
+import com.example.flikky.di.ServiceLocator
+import com.example.flikky.session.Message
+import com.example.flikky.session.Origin
+import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.EmptyStateContent
+import com.example.flikky.ui.components.FlikkyFloatingToolbar
+import com.example.flikky.ui.components.FlikkyFloatingToolbarHeight
+import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.formatSize
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.openStoredFile
+import com.example.flikky.ui.components.sessionFile
+import com.example.flikky.ui.components.shareStoredFile
+import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -81,10 +104,33 @@ fun FilesScreen(
     val category by viewModel.category.collectAsState()
     val query by viewModel.query.collectAsState()
     val sort by viewModel.sort.collectAsState()
+    val selection by viewModel.selection.collectAsState()
+    val selecting by viewModel.selecting.collectAsState()
+    val favoriteGroups by ServiceLocator.favoritesRepository.observeGroups()
+        .collectAsState(initial = emptyList())
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     var searchActive by rememberSaveable { mutableStateOf(false) }
     var sortExpanded by remember { mutableStateOf(false) }
+    var showFavoriteSheet by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var saveTarget by remember { mutableStateOf<FileOverviewRow?>(null) }
     val focusRequester = remember { FocusRequester() }
+    val selectedIds = selection.orEmpty()
+    val selectedRows = remember(rows, selectedIds) {
+        rows.filter { it.messageId in selectedIds }
+    }
+    val singleSelected = selectedRows.singleOrNull()
+    val deletableRows = selectedRows.filter { it.sessionEndedAt != null }
+    val snackbarLift by animateDpAsState(
+        targetValue = if (selecting) {
+            FlikkyFloatingToolbarHeight + Spacing.md + Spacing.sm
+        } else {
+            0.dp
+        },
+        animationSpec = Motion.effects(),
+        label = "filesSnackbarLift",
+    )
     val searchSidePadding by animateDpAsState(
         targetValue = if (searchActive) 0.dp else Spacing.screenEdge,
         animationSpec = Motion.effects(),
@@ -96,15 +142,68 @@ fun FilesScreen(
         viewModel.setQuery("")
     }
 
-    BackHandler(enabled = searchActive) { closeSearch() }
+    val saveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream"),
+    ) { uri ->
+        val target = saveTarget
+        saveTarget = null
+        if (uri != null && target != null) {
+            scope.launch {
+                val saved = withContext(Dispatchers.IO) {
+                    runCatching {
+                        requireNotNull(context.contentResolver.openOutputStream(uri)).use { output ->
+                            sessionFile(context, target.sessionId, target.fileId)
+                                .inputStream()
+                                .use { input -> input.copyTo(output) }
+                        }
+                    }.isSuccess
+                }
+                snackbarHostState.showSnackbar(
+                    context.getString(
+                        if (saved) R.string.files_save_done else R.string.files_save_failed,
+                    ),
+                )
+            }
+        }
+    }
+
+    BackHandler(enabled = searchActive && !selecting) { closeSearch() }
+    BackHandler(enabled = selecting) { viewModel.exitSelecting() }
     LaunchedEffect(searchActive) {
         if (searchActive) focusRequester.requestFocus()
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.padding(bottom = snackbarLift),
+            )
+        },
         topBar = {
-            if (searchActive) {
+            if (selecting) {
+                TopAppBar(
+                    title = {
+                        Text(stringResource(R.string.files_selected_count, selectedIds.size))
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = viewModel::exitSelecting) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.home_close),
+                            )
+                        }
+                    },
+                    actions = {
+                        TextButton(
+                            onClick = { viewModel.selectAll(rows.map { it.messageId }) },
+                            enabled = rows.isNotEmpty(),
+                        ) {
+                            Text(stringResource(R.string.home_select_all))
+                        }
+                    },
+                )
+            } else if (searchActive) {
                 SearchBar(
                     modifier = Modifier
                         .statusBarsPadding()
@@ -226,10 +325,12 @@ fun FilesScreen(
                         vertical = Spacing.sm,
                     ),
                 )
-                FileCategoryChips(
-                    selected = category,
-                    onSelected = viewModel::setCategory,
-                )
+                if (!selecting) {
+                    FileCategoryChips(
+                        selected = category,
+                        onSelected = viewModel::setCategory,
+                    )
+                }
                 if (rows.isEmpty()) {
                     if (query.isEmpty() && category == FileCategory.ALL) {
                         EmptyStateContent(
@@ -269,8 +370,10 @@ fun FilesScreen(
                                 row = row,
                                 index = index,
                                 count = rows.size,
+                                selecting = selecting,
+                                selected = row.messageId in selectedIds,
                                 modifier = flikkyItemAnimation(),
-                                onClick = {
+                                onNormalClick = {
                                     openStoredFile(
                                         context = context,
                                         sessionId = row.sessionId,
@@ -280,12 +383,183 @@ fun FilesScreen(
                                         onMissing = { viewModel.markMissing(row.messageId) },
                                     )
                                 },
+                                onEnterSelecting = {
+                                    viewModel.toggleSelection(row.messageId)
+                                },
+                                onToggleSelection = {
+                                    viewModel.toggleSelection(row.messageId)
+                                },
                             )
                         }
                     }
                 }
             }
+
+            FlikkySelectingToolbarOverlay(
+                visible = selecting,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
+                FlikkyFloatingToolbar {
+                    IconButton(
+                        onClick = { showFavoriteSheet = true },
+                        enabled = selectedRows.isNotEmpty(),
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.ic_star_border),
+                            contentDescription = stringResource(R.string.files_action_favorite),
+                        )
+                    }
+                    singleSelected?.let { single ->
+                        IconButton(
+                            onClick = {
+                                saveTarget = single
+                                saveLauncher.launch(single.fileName ?: single.fileId)
+                            },
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_file_download),
+                                contentDescription = stringResource(R.string.files_action_save),
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                shareStoredFile(
+                                    context,
+                                    single.sessionId,
+                                    single.fileId,
+                                    single.fileName ?: single.fileId,
+                                    single.fileMime,
+                                )
+                            },
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_share),
+                                contentDescription = stringResource(R.string.files_action_share),
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                viewModel.exitSelecting()
+                                onOpenMessage(single.sessionId, single.messageId)
+                            },
+                            enabled = single.sessionEndedAt != null,
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_history),
+                                contentDescription = stringResource(
+                                    R.string.files_action_open_in_session,
+                                ),
+                            )
+                        }
+                    }
+                    IconButton(
+                        onClick = { showDeleteDialog = true },
+                        enabled = deletableRows.isNotEmpty(),
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.ic_delete),
+                            contentDescription = stringResource(R.string.files_action_delete),
+                            tint = if (deletableRows.isNotEmpty()) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                LocalContentColor.current
+                            },
+                        )
+                    }
+                }
+            }
         }
+    }
+
+    if (showFavoriteSheet) {
+        FavoriteGroupPickerSheet(
+            groups = favoriteGroups,
+            onSelect = { groupId ->
+                showFavoriteSheet = false
+                scope.launch {
+                    selectedRows.forEach { row ->
+                        runCatching {
+                            ServiceLocator.favoritesRepository.favoriteFile(
+                                row.sessionId,
+                                row.sessionName,
+                                row.toFileMessage(),
+                                groupId,
+                            )
+                        }
+                    }
+                    snackbarHostState.showSnackbar(
+                        context.getString(R.string.files_favorite_done),
+                    )
+                    viewModel.exitSelecting()
+                }
+            },
+            onCreateGroup = { name ->
+                showFavoriteSheet = false
+                scope.launch {
+                    val groupId = ServiceLocator.favoritesRepository.createGroup(name)
+                    selectedRows.forEach { row ->
+                        runCatching {
+                            ServiceLocator.favoritesRepository.favoriteFile(
+                                row.sessionId,
+                                row.sessionName,
+                                row.toFileMessage(),
+                                groupId,
+                            )
+                        }
+                    }
+                    snackbarHostState.showSnackbar(
+                        context.getString(R.string.files_favorite_done),
+                    )
+                    viewModel.exitSelecting()
+                }
+            },
+            onDismiss = { showFavoriteSheet = false },
+        )
+    }
+
+    if (showDeleteDialog) {
+        val selectedSize = deletableRows.sumOf { it.fileSize ?: 0L }
+        val hasActive = selectedRows.any { it.sessionEndedAt == null }
+        val message = if (selectedRows.size == 1) {
+            context.getString(R.string.files_delete_text_single, formatSize(selectedSize))
+        } else {
+            context.getString(R.string.files_delete_text_batch, formatSize(selectedSize))
+        } + if (hasActive) {
+            "\n\n${context.getString(R.string.files_delete_in_progress_hint)}"
+        } else {
+            ""
+        }
+        ConfirmDialog(
+            title = if (selectedRows.size == 1) {
+                stringResource(R.string.files_delete_title)
+            } else {
+                stringResource(R.string.files_delete_title_batch, selectedRows.size)
+            },
+            text = message,
+            confirmLabel = stringResource(R.string.files_action_delete),
+            danger = true,
+            onConfirm = {
+                showDeleteDialog = false
+                scope.launch {
+                    val (deleted, requested) = viewModel.deleteRows(selectedRows)
+                    snackbarHostState.showSnackbar(
+                        if (deleted == requested) {
+                            context.getString(
+                                R.string.files_delete_done,
+                                formatSize(selectedSize),
+                            )
+                        } else {
+                            context.getString(
+                                R.string.files_delete_partial,
+                                deleted,
+                                requested,
+                            )
+                        },
+                    )
+                }
+            },
+            onDismiss = { showDeleteDialog = false },
+        )
     }
 }
 
@@ -327,10 +601,17 @@ private fun FileOverviewItem(
     row: FileOverviewRow,
     index: Int,
     count: Int,
-    onClick: () -> Unit,
+    selecting: Boolean,
+    selected: Boolean,
+    onNormalClick: () -> Unit,
+    onEnterSelecting: () -> Unit,
+    onToggleSelection: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val category = FilesListBuilder.categoryOf(row.fileMime)
+    val haptic = LocalHapticFeedback.current
+    val selectedDescription = stringResource(R.string.home_selected)
+    val notSelectedDescription = stringResource(R.string.home_not_selected)
     val direction = stringResource(
         if (row.origin == "BROWSER") {
             R.string.files_direction_received
@@ -345,38 +626,83 @@ private fun FileOverviewItem(
         formatFileDate(row.timestamp),
     ).joinToString(" · ")
 
-    SegmentedListItem(
-        onClick = onClick,
-        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
-        colors = ListItemDefaults.segmentedColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = Spacing.screenEdge),
-        leadingContent = {
-            Icon(
-                painter = painterResource(category.iconResource()),
-                contentDescription = null,
-            )
-        },
-        supportingContent = {
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        content = {
-            Text(
-                text = row.fileName ?: row.fileId,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
+    val shapes = ListItemDefaults.segmentedShapes(index = index, count = count)
+    val colors = ListItemDefaults.segmentedColors(
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        leadingContentColor = MaterialTheme.colorScheme.primary,
+        selectedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        selectedSupportingContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        selectedLeadingContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     )
+    val rowModifier = modifier
+        .fillMaxWidth()
+        .padding(horizontal = Spacing.screenEdge)
+        .then(
+            if (selecting) {
+                Modifier.semantics {
+                    this.selected = selected
+                    stateDescription = if (selected) {
+                        selectedDescription
+                    } else {
+                        notSelectedDescription
+                    }
+                }
+            } else {
+                Modifier
+            },
+        )
+    val leading: @Composable () -> Unit = {
+        Icon(
+            painter = painterResource(category.iconResource()),
+            contentDescription = null,
+        )
+    }
+    val supporting: @Composable () -> Unit = {
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+    val headline: @Composable () -> Unit = {
+        Text(
+            text = row.fileName ?: row.fileId,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+
+    if (selecting) {
+        SegmentedListItem(
+            selected = selected,
+            onClick = onToggleSelection,
+            shapes = shapes,
+            colors = colors,
+            modifier = rowModifier,
+            leadingContent = leading,
+            supportingContent = supporting,
+            content = headline,
+        )
+    } else {
+        SegmentedListItem(
+            onClick = onNormalClick,
+            onLongClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onEnterSelecting()
+            },
+            shapes = shapes,
+            colors = colors,
+            modifier = rowModifier,
+            leadingContent = leading,
+            supportingContent = supporting,
+            content = headline,
+        )
+    }
 }
 
 private fun FileCategory.labelResource(): Int = when (this) {
@@ -400,3 +726,14 @@ private fun FileCategory.iconResource(): Int = when (this) {
 
 private fun formatFileDate(timestamp: Long): String =
     DateFormat.getDateInstance(DateFormat.SHORT).format(Date(timestamp))
+
+private fun FileOverviewRow.toFileMessage(): Message.File = Message.File(
+    id = messageId,
+    origin = Origin.valueOf(origin),
+    timestamp = timestamp,
+    fileId = fileId,
+    name = fileName ?: fileId,
+    sizeBytes = fileSize ?: 0L,
+    mime = fileMime ?: "",
+    status = Message.File.Status.COMPLETED,
+)
