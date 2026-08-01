@@ -1,5 +1,6 @@
 package com.example.flikky.data
 
+import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.data.db.MessageDao
 import com.example.flikky.data.db.GroupDao
 import com.example.flikky.data.db.SessionDao
@@ -584,6 +585,20 @@ class SessionRepository(
 
     suspend fun updateFileStatus(messageId: Long, status: String, sizeBytes: Long) {
         messageDao.updateFileStatus(messageId, status, sizeBytes)
+    }
+
+    fun observeAllFiles(): Flow<List<FileOverviewRow>> = messageDao.observeAllFiles()
+
+    /** Delete the blob before making the retained history row inert. */
+    suspend fun deleteFileBlob(sessionId: Long, messageId: Long, fileId: String): Boolean {
+        if (!fileStore.deleteMessageFile(sessionId, fileId)) return false
+        messageDao.markFileDeleted(messageId)
+        return true
+    }
+
+    /** Repair the DB state when opening discovers that a completed blob is missing. */
+    suspend fun markFileDeleted(messageId: Long) {
+        messageDao.markFileDeleted(messageId)
     }
 
     suspend fun deleteMessageAndFile(messageId: Long, sessionId: Long, fileId: String) {
