@@ -15,4 +15,6 @@
     <string name="history_delete_session_title">删除会话</string>
     <string name="history_delete_session_message">将删除此会话的所有消息与文件。该操作不可撤销。</string>
     <string name="history_favorite_source_missing">收藏失败：源文件不存在</string>
+    <string name="file_deleted">文件已删除</string>
+    <string name="file_deleted_hint">文件已删除，无法打开</string>
 </resources>

@@ -15,4 +15,6 @@
     <string name="history_delete_session_title">Delete session</string>
     <string name="history_delete_session_message">This will delete every message and file in this session. This can\'t be undone.</string>
     <string name="history_favorite_source_missing">Couldn\'t add favorite: source file is missing</string>
+    <string name="file_deleted">File deleted</string>
+    <string name="file_deleted_hint">This file was deleted and can no longer be opened</string>
 </resources>

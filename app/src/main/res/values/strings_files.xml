@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="files_title">文件</string>
+    <string name="files_entry">文件总览</string>
+    <string name="files_entry_summary">查看并管理所有会话文件</string>
+    <string name="files_stats">%1$d 个文件 · 共 %2$s</string>
+    <string name="files_search_hint">搜索文件名</string>
+    <string name="files_filter_all">全部</string>
+    <string name="files_filter_image">图片</string>
+    <string name="files_filter_video">视频</string>
+    <string name="files_filter_audio">音频</string>
+    <string name="files_filter_document">文档</string>
+    <string name="files_filter_other">其他</string>
+    <string name="files_sort">排序</string>
+    <string name="files_sort_time">按时间</string>
+    <string name="files_sort_size">按大小</string>
+    <string name="files_direction_received">接收</string>
+    <string name="files_direction_sent">发送</string>
+    <string name="files_action_favorite">收藏</string>
+    <string name="files_action_save">另存到本机</string>
+    <string name="files_action_share">分享</string>
+    <string name="files_action_open_in_session">在会话中查看</string>
+    <string name="files_action_delete">删除</string>
+    <string name="files_delete_title">删除文件？</string>
+    <string name="files_delete_text_single">将释放 %1$s。会话记录会保留，但文件无法再打开。</string>
+    <string name="files_delete_title_batch">删除 %1$d 个文件？</string>
+    <string name="files_delete_text_batch">共释放 %1$s。会话记录会保留，但文件无法再打开。</string>
+    <string name="files_delete_partial">已删除 %1$d/%2$d 个文件</string>
+    <string name="files_delete_done">已删除并释放 %1$s</string>
+    <string name="files_delete_in_progress_hint">进行中会话的文件不可删除</string>
+    <string name="files_save_done">已保存到所选位置</string>
+    <string name="files_save_failed">保存失败</string>
+    <string name="files_favorite_done">已加入收藏</string>
+    <string name="files_empty_title">还没有文件</string>
+    <string name="files_empty_desc">会话中收发的文件\n会在这里汇总显示</string>
+    <string name="files_selected_count">已选 %1$d 项</string>
+</resources>
