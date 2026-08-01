@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class FilesViewModel @JvmOverloads constructor(
     app: Application,
@@ -86,6 +87,10 @@ class FilesViewModel @JvmOverloads constructor(
 
     fun selectAll(ids: List<Long>) {
         _selection.value = ids.toSet()
+    }
+
+    fun markMissing(messageId: Long) = viewModelScope.launch {
+        repository.markFileDeleted(messageId)
     }
 
     suspend fun deleteRows(rows: List<FileOverviewRow>): Pair<Int, Int> {

@@ -136,4 +136,14 @@ class FilesViewModelTest {
         assertNull(viewModel.selection.value)
         assertFalse(viewModel.selecting.value)
     }
+
+    @Test
+    fun `markMissing delegates deleted marker to repository`() = runTest(dispatcher) {
+        coEvery { repository.markFileDeleted(9L) } returns Unit
+        val viewModel = FilesViewModel(app, repository)
+
+        viewModel.markMissing(9L).join()
+
+        coVerify(exactly = 1) { repository.markFileDeleted(9L) }
+    }
 }
