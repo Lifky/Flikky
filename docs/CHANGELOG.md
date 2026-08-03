@@ -4,6 +4,27 @@
 
 This file records user-facing changes for each Flikky release, loosely following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow `x.y.z`: x for major architectural changes, y for new features, z for bug fixes. Dates are tag creation dates.
 
+## [v1.16.0](https://github.com/Lifky/Flikky/releases/tag/v1.16.0) · 2026-08-03
+
+### Added
+- Files overview: browse files across all sessions with direction/category filters, search, and sorting; multi-select supports favorite, save, share, jump to message, and delete
+- File deletion: remove a file's on-disk copy while History keeps an inert "deleted" record; the deleted state carries through export archives, and deleted blobs are skipped on export
+- Drag-and-drop file upload in the browser client, with an overlay and a folder guard
+- Import conflict handling: when imported sessions already exist locally, choose to skip them or overwrite them with the archive version
+
+### Changed
+- File list subtitles drop the session name so size and date stay visible
+- File bubble tap hint follows the message action style ("Tap for actions" under the floating toolbar)
+- Files screen search moved into an outlined field in the top bar; sorting uses the filter-list icon; shorter home search placeholder
+
+### Fixed
+- Floating toolbar: shadow is no longer clipped during the show/hide animation, elevation matches MD3 level 3, and the list lifts its bottom padding while the toolbar is shown
+- Deleting a message is now always committed to the database; previously, leaving the screen within the undo window could resurrect it in History
+- Deleted file messages can summon the floating toolbar in History
+- Inline action buttons stay visible after their label changes (favorite → unfavorite, multi-file completion)
+- Browser drop overlay stays hidden until a drag actually enters the page
+- Search bar container color aligned with list items and the nav bar
+
 ## [v1.15.0](https://github.com/Lifky/Flikky/releases/tag/v1.15.0) · 2026-07-23
 
 ### Added

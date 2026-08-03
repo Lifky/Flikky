@@ -20,8 +20,8 @@ Flikky is designed for trusted local networks and keeps the operational complexi
 
 | Channel | Revision | State |
 | --- | --- | --- |
-| Stable source | [`v1.15.0`](https://github.com/Lifky/Flikky/tree/v1.15.0) · 2026-07-22 | English localization (app and browser), web language sync, and assorted UI polish. |
-| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.15.0...main) | No unreleased changes beyond the stable tag. |
+| Stable source | [`v1.16.0`](https://github.com/Lifky/Flikky/tree/v1.16.0) · 2026-08-03 | Cross-session files overview, file deletion with inert history records, browser drag-and-drop upload, and import conflict handling. |
+| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.16.0...main) | No unreleased changes beyond the stable tag. |
 
 Use the stable tag for a reproducible build. Use `main` when evaluating the latest unreleased work. Per-release changes are documented in the [changelog](./docs/CHANGELOG.md); version history is available from the repository's [tags](https://github.com/Lifky/Flikky/tags).
 
@@ -46,11 +46,12 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 
 ## Capabilities
 
-- **Two-way transfer:** text and files move between Android and the browser over HTTP and WebSocket, with progress and failure states for both directions.
+- **Two-way transfer:** text and files move between Android and the browser over HTTP and WebSocket, with progress and failure states for both directions. The browser accepts drag-and-drop file uploads.
 - **Session history:** Room-backed sessions support search, pin, rename, grouping, per-message actions, configurable retention, and crash recovery.
-- **Recall and cleanup:** messages can be recalled during an active session; local history items and sessions can be deleted with confirmation or undo where appropriate.
+- **Recall and cleanup:** messages can be recalled during an active session; local history items and sessions can be deleted with confirmation or undo where appropriate. Deleting a file frees its on-disk copy while History keeps an inert record.
+- **Files overview:** browse files from all sessions in one place with direction/category filters, search, sorting, and multi-select actions (favorite, save, share, jump to message, delete).
 - **Favorites:** keep independent text or file snapshots in collections, add local items without a session, search them, and send them back into an active transfer.
-- **Portable archives:** export sessions, favorites, settings, or all data to a ZIP archive; save it on Android or serve it to a browser, then import it later.
+- **Portable archives:** export sessions, favorites, settings, or all data to a ZIP archive; save it on Android or serve it to a browser, then import it later. When imported sessions already exist locally, choose to skip or overwrite them.
 - **Adaptive appearance:** Material 3 Expressive themes, dark mode, contrast, motion speed, avatars, bubble shape, grouping, and selected appearance settings stay aligned across phone and browser.
 - **Multilingual:** both the app and the browser client support Chinese and English, and the language setting stays in sync across both ends.
 - **Offline browser client:** the HTML, CSS, JavaScript, mdui components, Material Symbols font, and design tokens are bundled in the APK; no CDN is used.
@@ -101,6 +102,9 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 - [x] Message action styles
 - [x] Message recall
 - [x] Message deletion
+- [x] File deletion (frees storage, keeps an inert history record)
+- [x] Files overview (cross-session file list with filter/search/sort and batch actions)
+- [x] Browser drag-and-drop upload
 - [x] Return to active session
 - [x] Configurable session history retention
 - [x] Export sessions/favorites
@@ -108,6 +112,7 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 - [x] Export settings
 - [x] Import settings
 - [x] Export/import everything
+- [x] Import conflict skip/overwrite
 - [ ] More... iterating...
 
 ## Security Model and Limits
