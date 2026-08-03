@@ -1,11 +1,14 @@
 package com.example.flikky.ui.components
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.example.flikky.ui.theme.Motion
+import com.example.flikky.ui.theme.Spacing
 
 /**
  * 悬浮消息操作工具栏：一行 icon button，对选中消息的可用操作。复用 [MessageAction]。
@@ -41,6 +44,11 @@ fun MessageFloatingToolbar(
  * 顶层 wrapper 让 AnimatedVisibility 解析到非 scoped 重载——调用方常把此 overlay
  * 放在 Box（嵌于 Column）内，BoxScope/ColumnScope 同时作为隐式 receiver 会让裸
  * AnimatedVisibility 调用产生歧义；提到这里消除歧义。
+ *
+ * 内层 padding 是功能性的，不是排版：fade 期间 alpha < 1 触发离屏合成，离屏层
+ * 会把绘制裁剪到自身边界，胶囊阴影画在边界外就被切成直线。四周留出 Spacing.md
+ * 让阴影落在动画层内。bottom 这一档同时充当胶囊与屏幕底部的间距——调用方不要
+ * 再叠加 bottom padding。
  */
 @Composable
 fun MessageFloatingToolbarOverlay(
@@ -55,6 +63,8 @@ fun MessageFloatingToolbarOverlay(
             androidx.compose.animation.fadeIn(Motion.effects()),
         exit = androidx.compose.animation.fadeOut(Motion.effectsFast()),
     ) {
-        MessageFloatingToolbar(actions = actions)
+        Box(Modifier.padding(Spacing.md)) {
+            MessageFloatingToolbar(actions = actions)
+        }
     }
 }

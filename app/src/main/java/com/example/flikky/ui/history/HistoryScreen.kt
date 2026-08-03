@@ -373,10 +373,11 @@ fun HistoryScreen(
             val target = messages.firstOrNull { it.id == actionTarget }
             var lastActions by remember { mutableStateOf<List<MessageAction>>(emptyList()) }
             if (target != null) lastActions = buildActionsFor(target)
+            // bottom 间距由 overlay 内部的阴影内衬承担，这里不再叠加。
             MessageFloatingToolbarOverlay(
                 visible = target != null,
                 actions = lastActions,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = Spacing.md),
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
       }
