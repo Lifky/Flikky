@@ -6,10 +6,11 @@ import android.content.Intent
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.example.flikky.R
+import com.example.flikky.di.ServiceLocator
 import java.io.File
 
-fun sessionFile(context: Context, sessionId: Long, fileId: String): File =
-    File(File(File(context.filesDir, "sessions/$sessionId"), "files"), fileId)
+fun sessionFile(sessionId: Long, fileId: String): File =
+    ServiceLocator.fileStore.messageFile(sessionId, fileId)
 
 fun openStoredFile(
     context: Context,
@@ -19,7 +20,7 @@ fun openStoredFile(
     mime: String?,
     onMissing: () -> Unit = {},
 ): Boolean {
-    val file = sessionFile(context, sessionId, fileId)
+    val file = sessionFile(sessionId, fileId)
     if (!file.exists()) {
         Toast.makeText(context, R.string.file_missing, Toast.LENGTH_SHORT).show()
         onMissing()
@@ -60,7 +61,7 @@ fun shareStoredFile(
     displayName: String,
     mime: String?,
 ): Boolean {
-    val file = sessionFile(context, sessionId, fileId)
+    val file = sessionFile(sessionId, fileId)
     if (!file.exists()) {
         Toast.makeText(context, R.string.file_missing, Toast.LENGTH_SHORT).show()
         return false

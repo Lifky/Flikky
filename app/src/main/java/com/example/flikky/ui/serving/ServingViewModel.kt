@@ -231,7 +231,7 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
             Toast.makeText(ctx, R.string.serving_no_session_context, Toast.LENGTH_SHORT).show()
             return
         }
-        val f = File(File(File(ctx.filesDir, "sessions/$sid"), "files"), msg.fileId)
+        val f = ServiceLocator.fileStore.messageFile(sid, msg.fileId)
         if (!f.exists()) {
             Toast.makeText(ctx, R.string.serving_uploaded_file_missing, Toast.LENGTH_SHORT).show()
             return

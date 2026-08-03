@@ -16,6 +16,13 @@ class SessionFileStore(
         File(File(filesDir, "sessions/$sessionId"), "files").apply { mkdirs() }
 
     /**
+     * sessions/{sessionId}/files/{fileId} 的唯一路径解析入口。
+     * 目录结构调整只改本类；其他代码禁止手拼该路径（守卫见 SessionPathConventionTest）。
+     */
+    fun messageFile(sessionId: Long, fileId: String): File =
+        File(fileDir(sessionId), fileId)
+
+    /**
      * 从 InputStream 同步拷贝到 sessions/{sessionId}/files/{fileId}。
      * 流会被 close；抛异常时目标文件可能不完整，调用方需决定是否删除。
      */
@@ -37,7 +44,7 @@ class SessionFileStore(
      * 返回 true 表示调用结束后文件已不存在；false 表示删除失败（例如权限问题）。
      */
     fun deleteMessageFile(sessionId: Long, fileId: String): Boolean {
-        val file = File(fileDir(sessionId), fileId)
+        val file = messageFile(sessionId, fileId)
         if (!file.exists()) return true
         return file.delete()
     }

@@ -141,7 +141,7 @@ fun FilesScreen(
                 val saved = withContext(Dispatchers.IO) {
                     runCatching {
                         requireNotNull(context.contentResolver.openOutputStream(uri)).use { output ->
-                            sessionFile(context, target.sessionId, target.fileId)
+                            sessionFile(target.sessionId, target.fileId)
                                 .inputStream()
                                 .use { input -> input.copyTo(output) }
                         }

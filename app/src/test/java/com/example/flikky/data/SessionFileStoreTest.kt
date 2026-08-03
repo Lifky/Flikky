@@ -29,6 +29,12 @@ class SessionFileStoreTest {
         assertArrayEquals(payload, target.readBytes())
     }
 
+    @Test fun messageFile_resolves_same_path_as_fileDir() {
+        val s = store()
+        val f = s.messageFile(sessionId = 42L, fileId = "abc")
+        assertTrue(f.absolutePath == File(s.fileDir(42L), "abc").absolutePath)
+    }
+
     @Test fun deleteSessionDir_removes_files_recursively() {
         val s = store()
         val f = s.archiveFromStream(sessionId = 1L, fileId = "x",
