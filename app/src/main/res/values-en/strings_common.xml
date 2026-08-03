@@ -37,6 +37,7 @@
     <string name="file_transferring">Transferring %1$d%%</string>
     <string name="file_transfer_failed">Transfer failed</string>
     <string name="file_tap_to_open">Tap to open</string>
+    <string name="file_tap_for_actions">Tap for actions</string>
     <string name="file_missing">File not found</string>
     <string name="file_provider_unavailable">This file can\'t be shared because its FileProvider path isn\'t configured.</string>
     <string name="file_open_chooser">Open file</string>

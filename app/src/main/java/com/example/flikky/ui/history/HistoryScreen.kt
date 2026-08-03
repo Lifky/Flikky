@@ -337,6 +337,7 @@ fun HistoryScreen(
                             // 两种模式长按都让给 SelectionContainer 起划词选择：
                             // floating 单击召唤工具栏；inline 操作栏常驻显示，无需长按。
                             onLongPress = null,
+                            tapOpensFile = !floating,
                             showAvatar = showAvatar,
                             avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
                                        else (session?.peerAvatarId ?: 0),

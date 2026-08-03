@@ -36,6 +36,7 @@
     <string name="file_transferring">传输中 %1$d%%</string>
     <string name="file_transfer_failed">传输失败</string>
     <string name="file_tap_to_open">点击打开</string>
+    <string name="file_tap_for_actions">点击查看操作</string>
     <string name="file_missing">文件不存在</string>
     <string name="file_provider_unavailable">无法暴露此文件（FileProvider 路径未配置）</string>
     <string name="file_open_chooser">打开文件</string>

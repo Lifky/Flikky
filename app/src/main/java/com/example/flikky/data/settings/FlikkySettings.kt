@@ -45,7 +45,7 @@ enum class AnimationSpeed(val multiplier: Float) {
     FAST(0.7f),
 }
 
-/** 消息操作交互样式：FLOATING=长按弹底部悬浮工具栏；INLINE=气泡旁常驻按钮（旧行为）。 */
+/** 消息操作交互样式：FLOATING=单击气泡弹底部悬浮工具栏；INLINE=气泡旁常驻按钮（旧行为）。 */
 enum class MessageActionStyle { FLOATING, INLINE }
 
 /** 头像显示模式：FIRST=同来源组内首条；LAST=同来源组内末条；EACH=每条都显示。 */

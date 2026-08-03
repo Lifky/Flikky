@@ -48,6 +48,9 @@ fun MessageBubble(
     msg: Message,
     onTap: () -> Unit = {},
     onLongPress: (() -> Unit)? = null,
+    // FLOATING 操作样式下单击弹工具栏而非打开文件，状态行提示要跟着换（「点击查看操作」），
+    // 否则文案与实际行为脱节。
+    tapOpensFile: Boolean = true,
     transferProgress: Float? = null,
     showAvatar: Boolean = true,
     avatarId: Int? = null,
@@ -124,6 +127,7 @@ fun MessageBubble(
                 )
                 is Message.File -> FileBubbleContent(
                     msg = msg, fg = fg, mine = mine,
+                    tapOpensFile = tapOpensFile,
                     transferProgress = transferProgress,
                 )
             }
@@ -140,6 +144,7 @@ private fun FileBubbleContent(
     msg: Message.File,
     fg: Color,
     mine: Boolean,
+    tapOpensFile: Boolean,
     transferProgress: Float? = null,
 ) {
     val isTransferring = msg.status == Message.File.Status.IN_PROGRESS
@@ -168,8 +173,10 @@ private fun FileBubbleContent(
                 )
                 msg.status == Message.File.Status.FAILED ->
                     stringResource(R.string.file_transfer_failed)
-                msg.status == Message.File.Status.COMPLETED ->
-                    stringResource(R.string.file_tap_to_open)
+                msg.status == Message.File.Status.COMPLETED -> stringResource(
+                    if (tapOpensFile) R.string.file_tap_to_open
+                    else R.string.file_tap_for_actions,
+                )
                 else -> null
             }
             Text(
