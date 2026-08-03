@@ -56,30 +56,34 @@ fun Route.fileRoutes(
         val senderId = call.request.headers["X-Client-Id"]
         val declaredSize = call.request.headers["X-File-Size"]?.toLongOrNull() ?: 0L
         val multipart = call.receiveMultipart(formFieldLimit = Long.MAX_VALUE)
-        var savedName: String? = null
-        var savedSize: Long = 0L
-        var savedMime: String = "application/octet-stream"
-        val fileId = UUID.randomUUID().toString()
-        val target = File(store.fileDir(sid), fileId)
-        var msgId: Long = 0L
-        var inProgressBroadcasted = false
+
+        // B16：每个 file part 独立走完整的消息创建 + 落盘 + 状态机 + 落库流程。
+        // 异常时只回滚尚未完成的 in-flight part，已完成的 part 保持有效。
+        val completed = mutableListOf<Message.File>()
+        var inFlightMsgId = 0L
+        var inFlightTarget: File? = null
 
         try {
             multipart.forEachPart { part ->
                 if (part is PartData.FileItem) {
-                    savedName = part.originalFileName ?: "unnamed"
-                    savedMime = part.contentType?.toString() ?: savedMime
-                    val totalSize = if (declaredSize > 0) declaredSize else 0L
+                    val fileId = UUID.randomUUID().toString()
+                    val target = File(store.fileDir(sid), fileId)
+                    val name = part.originalFileName ?: "unnamed"
+                    val mime = part.contentType?.toString() ?: "application/octet-stream"
+                    // X-File-Size 是请求级声明，只能作为首个 file part 的进度基准
+                    val totalSize = if (completed.isEmpty() && declaredSize > 0) declaredSize else 0L
 
-                    msgId = IdGen.newMessageId()
+                    val msgId = IdGen.newMessageId()
+                    inFlightMsgId = msgId
+                    inFlightTarget = target
                     val inProgressMsg = Message.File(
                         id = msgId,
                         origin = Origin.BROWSER,
                         timestamp = nowMs(),
                         fileId = fileId,
-                        name = savedName ?: "unnamed",
+                        name = name,
                         sizeBytes = totalSize,
-                        mime = savedMime,
+                        mime = mime,
                         status = Message.File.Status.IN_PROGRESS,
                         senderId = senderId,
                     )
@@ -93,7 +97,6 @@ fun Route.fileRoutes(
                     )
                     broadcastEvent("file_added",
                         Json.encodeToString(FileMessageDto.serializer(), inProgressDto))
-                    inProgressBroadcasted = true
 
                     val input = part.provider()
                     var totalCopied = 0L
@@ -118,19 +121,35 @@ fun Route.fileRoutes(
                             }
                         }
                     }
-                    savedSize = totalCopied
+
+                    val completedMsg = inProgressMsg.copy(
+                        timestamp = nowMs(),
+                        sizeBytes = totalCopied,
+                        status = Message.File.Status.COMPLETED,
+                    )
+                    session.updateMessage(msgId) { completedMsg }
+                    session.clearProgress(msgId)
+                    runCatching { onPersist(completedMsg) }
+
+                    val readyDto = FileReadyDto(msgId, fileId, name, totalCopied)
+                    broadcastEvent("file_ready",
+                        Json.encodeToString(FileReadyDto.serializer(), readyDto))
+
+                    completed += completedMsg
+                    inFlightMsgId = 0L
+                    inFlightTarget = null
                 }
                 part.dispose()
             }
         } catch (e: Exception) {
-            if (inProgressBroadcasted && msgId > 0) {
-                session.updateMessage(msgId) { msg ->
+            if (inFlightMsgId > 0L) {
+                session.updateMessage(inFlightMsgId) { msg ->
                     (msg as Message.File).copy(status = Message.File.Status.FAILED)
                 }
-                session.clearProgress(msgId)
+                session.clearProgress(inFlightMsgId)
                 stats.decrementFileCount()
-                target.delete()
-                val removedDto = FileRemovedDto(msgId)
+                inFlightTarget?.delete()
+                val removedDto = FileRemovedDto(inFlightMsgId)
                 runCatching {
                     broadcastEvent("file_removed",
                         Json.encodeToString(FileRemovedDto.serializer(), removedDto))
@@ -139,29 +158,14 @@ fun Route.fileRoutes(
             return@post
         }
 
-        val completedMsg = Message.File(
-            id = msgId,
-            origin = Origin.BROWSER,
-            timestamp = nowMs(),
-            fileId = fileId,
-            name = savedName ?: "unnamed",
-            sizeBytes = savedSize,
-            mime = savedMime,
-            status = Message.File.Status.COMPLETED,
-            senderId = senderId,
-        )
-        session.updateMessage(msgId) { completedMsg }
-        session.clearProgress(msgId)
-        runCatching { onPersist(completedMsg) }
+        if (completed.isEmpty()) { call.respond(HttpStatusCode.BadRequest); return@post }
 
-        val readyDto = FileReadyDto(msgId, fileId, savedName ?: "unnamed", savedSize)
-        broadcastEvent("file_ready",
-            Json.encodeToString(FileReadyDto.serializer(), readyDto))
-
+        // 响应保持单对象契约（当前 Web 端一请求一文件）；多 part 时返回最后一个
+        val last = completed.last()
         val responseDto = FileMessageDto(
-            completedMsg.id, completedMsg.origin.name, completedMsg.timestamp,
-            completedMsg.fileId, completedMsg.name, completedMsg.sizeBytes,
-            completedMsg.mime, completedMsg.status.name,
+            last.id, last.origin.name, last.timestamp,
+            last.fileId, last.name, last.sizeBytes,
+            last.mime, last.status.name,
         )
         call.respond(responseDto)
     }
