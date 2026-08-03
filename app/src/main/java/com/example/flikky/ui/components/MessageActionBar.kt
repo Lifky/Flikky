@@ -43,7 +43,10 @@ fun MessageActionBar(
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             actions.forEachIndexed { i, a ->
-                var shown by remember(i, a.label) { mutableStateOf(false) }
+                // key 只认槽位 i，必须与下面 LaunchedEffect 的 key 一致：若把 label 也作 key，
+                // label 变化（收藏→取消收藏、传输完成后槽位换按钮）会把 shown 复位成 false，
+                // 而 LaunchedEffect(i) 不重跑，按钮就永久消失。
+                var shown by remember(i) { mutableStateOf(false) }
                 // 错峰入场：主元素先动、次元素逐项延后一步（受全局速度档统辖，关闭=0 → 同时出现）。
                 LaunchedEffect(i) { delay((i * Motion.StaggerStepMillis * motionScale).toLong()); shown = true }
                 AnimatedVisibility(
