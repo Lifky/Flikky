@@ -15,6 +15,12 @@
         <item quantity="other">%1$d 个失败</item>
     </plurals>
     <string name="home_import_empty">未找到可导入的会话</string>
+    <string name="home_import_conflict_title">会话已存在</string>
+    <plurals name="home_import_conflict_message">
+        <item quantity="other">%1$d 个会话在历史记录中已存在。覆盖将用归档内容替换本地同名会话；跳过则只导入其余会话。</item>
+    </plurals>
+    <string name="home_import_overwrite">覆盖</string>
+    <string name="home_import_skip">跳过</string>
     <string name="home_export_saved">已保存到所选位置</string>
     <string name="home_export_ineligible">所选会话无法导出（可能都在进行中）</string>
     <string name="home_select_sessions_first">请先勾选会话</string>

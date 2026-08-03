@@ -451,17 +451,43 @@ class SessionRepository(
     )
     data class ImportError(val name: String, val error: String)
 
-    suspend fun importSessions(tempZipFile: File): ImportResult {
+    /**
+     * 导入前的只读预检：返回归档中与本地会话冲突（同名 + 同 startedAt）的会话名。
+     * UI 用它决定要不要弹「跳过 / 覆盖」对话框——无冲突就直接导，不打扰用户。
+     * ZIP schema 无消息级唯一标识，冲突粒度只能是整个会话。
+     */
+    suspend fun peekImportConflicts(tempZipFile: File): List<String> =
+        withContext(Dispatchers.IO) {
+            val zipFile = try { ZipFile(tempZipFile) } catch (e: Exception) { return@withContext emptyList() }
+            try {
+                ZipImporter.parse(zipFile)
+                    .filter { sessionDao.findByNameAndStartedAt(it.name, it.startedAt) != null }
+                    .map { it.name }
+            } catch (e: Exception) {
+                // 解析失败交给 importSessions 正式报错，预检不拦路。
+                emptyList()
+            } finally {
+                runCatching { zipFile.close() }
+            }
+        }
+
+    suspend fun importSessions(tempZipFile: File, overwriteExisting: Boolean = false): ImportResult {
         // Read the retain limit BEFORE withContext(Dispatchers.IO). retainLimitProvider may
         // suspend on a DataStore flow (DataStore 1.1 uses a SingleThreadExecutor-backed actor
         // internally); calling data.first() from inside withContext(Dispatchers.IO) can
         // deadlock when that executor thread happens to be the same IO thread the coroutine
         // is pinned to.
         val retainLimit = retainLimitProvider()
-        return withContext(Dispatchers.IO) { importSessionsInIo(tempZipFile, retainLimit) }
+        return withContext(Dispatchers.IO) {
+            importSessionsInIo(tempZipFile, retainLimit, overwriteExisting)
+        }
     }
 
-    private suspend fun importSessionsInIo(tempZipFile: File, retainLimit: Int): ImportResult {
+    private suspend fun importSessionsInIo(
+        tempZipFile: File,
+        retainLimit: Int,
+        overwriteExisting: Boolean,
+    ): ImportResult {
         val imported = mutableListOf<ImportedSession>()
         val skipped = mutableListOf<SkippedSession>()
         val errors = mutableListOf<ImportError>()
@@ -478,15 +504,21 @@ class SessionRepository(
                 try {
                     val existing = sessionDao.findByNameAndStartedAt(parsed.name, parsed.startedAt)
                     if (existing != null) {
-                        skipped.add(
-                            SkippedSession(
-                                name = parsed.name,
-                                reason = "已存在",
-                                originalId = parsed.originalId,
-                                existingId = existing.id,
+                        if (overwriteExisting) {
+                            // 覆盖 = 删本地同键会话（行级 CASCADE 清消息 + 删文件目录）后按
+                            // 归档内容重建。收藏不受影响——收藏库有独立的文件副本。
+                            deleteSession(existing.id)
+                        } else {
+                            skipped.add(
+                                SkippedSession(
+                                    name = parsed.name,
+                                    reason = "已存在",
+                                    originalId = parsed.originalId,
+                                    existingId = existing.id,
+                                )
                             )
-                        )
-                        continue
+                            continue
+                        }
                     }
 
                     val newSessionId = sessionDao.insert(SessionEntity(

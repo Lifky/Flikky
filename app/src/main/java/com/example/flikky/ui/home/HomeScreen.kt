@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
+import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.export.ExportFileName
@@ -144,40 +145,65 @@ fun HomeScreen(
     var showExportDestination by rememberSaveable { mutableStateOf(false) }
     var showLocalExportProgress by remember { mutableStateOf(false) }
 
+    // 非空 = 冲突对话框可见（值为已存在的会话数）。选择结果交给 resolveImport。
+    var importConflictCount by remember { mutableStateOf<Int?>(null) }
+
+    suspend fun showImportResult(result: SessionRepository.ImportResult) {
+        val msg = buildList {
+            if (result.imported.isNotEmpty()) {
+                add(context.resources.getQuantityString(
+                    R.plurals.home_imported_sessions,
+                    result.imported.size,
+                    result.imported.size,
+                ))
+            }
+            if (result.skipped.isNotEmpty()) {
+                add(context.resources.getQuantityString(
+                    R.plurals.home_import_skipped,
+                    result.skipped.size,
+                    result.skipped.size,
+                ))
+            }
+            if (result.errors.isNotEmpty()) {
+                add(context.resources.getQuantityString(
+                    R.plurals.home_import_failed_count,
+                    result.errors.size,
+                    result.errors.size,
+                ))
+            }
+        }.ifEmpty {
+            listOf(context.getString(R.string.home_import_empty))
+        }.joinToString(context.getString(R.string.common_list_separator))
+        snackbarHostState.showSnackbar(msg)
+    }
+
+    // 冲突对话框二择后的收尾：正式导入 + 结果 snackbar。
+    fun finishImport(overwriteExisting: Boolean) {
+        importConflictCount = null
+        showImportDialog = true
+        scope.launch {
+            val result = viewModel.resolveImport(overwriteExisting)
+            showImportDialog = false
+            showImportResult(result)
+        }
+    }
+
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
             showImportDialog = true
             scope.launch {
-                val result = viewModel.importFromZip(uri)
-                showImportDialog = false
-                val msg = buildList {
-                    if (result.imported.isNotEmpty()) {
-                        add(context.resources.getQuantityString(
-                            R.plurals.home_imported_sessions,
-                            result.imported.size,
-                            result.imported.size,
-                        ))
+                when (val start = viewModel.beginImport(uri)) {
+                    is HomeViewModel.ImportStart.Done -> {
+                        showImportDialog = false
+                        showImportResult(start.result)
                     }
-                    if (result.skipped.isNotEmpty()) {
-                        add(context.resources.getQuantityString(
-                            R.plurals.home_import_skipped,
-                            result.skipped.size,
-                            result.skipped.size,
-                        ))
+                    is HomeViewModel.ImportStart.NeedsDecision -> {
+                        showImportDialog = false
+                        importConflictCount = start.conflictCount
                     }
-                    if (result.errors.isNotEmpty()) {
-                        add(context.resources.getQuantityString(
-                            R.plurals.home_import_failed_count,
-                            result.errors.size,
-                            result.errors.size,
-                        ))
-                    }
-                }.ifEmpty {
-                    listOf(context.getString(R.string.home_import_empty))
-                }.joinToString(context.getString(R.string.common_list_separator))
-                snackbarHostState.showSnackbar(msg)
+                }
             }
         }
     }
@@ -458,6 +484,34 @@ fun HomeScreen(
             text = {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
+                }
+            },
+        )
+    }
+
+    importConflictCount?.let { conflictCount ->
+        AlertDialog(
+            // 对话框外点击 / 返回 = 放弃整次导入（冲突与否的会话都不导）。
+            onDismissRequest = {
+                importConflictCount = null
+                viewModel.cancelImport()
+            },
+            title = { Text(stringResource(R.string.home_import_conflict_title)) },
+            text = {
+                Text(pluralStringResource(
+                    R.plurals.home_import_conflict_message,
+                    conflictCount,
+                    conflictCount,
+                ))
+            },
+            confirmButton = {
+                TextButton(onClick = { finishImport(overwriteExisting = true) }) {
+                    Text(stringResource(R.string.home_import_overwrite))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { finishImport(overwriteExisting = false) }) {
+                    Text(stringResource(R.string.home_import_skip))
                 }
             },
         )

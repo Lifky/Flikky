@@ -289,24 +289,75 @@ class HomeViewModel @JvmOverloads constructor(
         ids.forEach { repository.deleteSession(it) }
     }
 
-    suspend fun importFromZip(uri: Uri): SessionRepository.ImportResult {
+    // ── 两阶段导入（v1.16 ⑥）─────────────────────────────────────────────────
+    // 先落临时文件做只读冲突预检；有冲突时挂起等 UI 弹「跳过 / 覆盖」，用户选完
+    // 再正式导入。临时文件在 begin→resolve/cancel 之间存活，三个出口都负责清理。
+
+    sealed class ImportStart {
+        /** 无冲突（或读取失败），已直接完成导入。 */
+        data class Done(val result: SessionRepository.ImportResult) : ImportStart()
+
+        /** 有同名+同开始时间的既有会话，等 UI 询问用户后调 [resolveImport]。 */
+        data class NeedsDecision(val conflictCount: Int) : ImportStart()
+    }
+
+    private var stagedImportFile: java.io.File? = null
+
+    suspend fun beginImport(uri: Uri): ImportStart {
         val ctx = getApplication<Application>()
+        cancelImport()
         val tempFile = java.io.File(ctx.filesDir, "import_temp.zip")
-        try {
+        val copied = runCatching {
             ctx.contentResolver.openInputStream(uri)?.use { input ->
                 tempFile.outputStream().use { out -> input.copyTo(out) }
-            } ?: return SessionRepository.ImportResult(
-                emptyList(), emptyList(),
-                listOf(
-                    SessionRepository.ImportError(
-                        "zip",
-                        ctx.getString(R.string.archive_read_failed),
-                    )
-                ),
+            } != null
+        }.getOrDefault(false)
+        if (!copied) {
+            tempFile.delete()
+            return ImportStart.Done(
+                SessionRepository.ImportResult(
+                    emptyList(), emptyList(),
+                    listOf(
+                        SessionRepository.ImportError(
+                            "zip",
+                            ctx.getString(R.string.archive_read_failed),
+                        )
+                    ),
+                )
             )
-            return repository.importSessions(tempFile)
+        }
+        val conflicts = repository.peekImportConflicts(tempFile)
+        if (conflicts.isEmpty()) {
+            return try {
+                ImportStart.Done(repository.importSessions(tempFile))
+            } finally {
+                tempFile.delete()
+            }
+        }
+        stagedImportFile = tempFile
+        return ImportStart.NeedsDecision(conflicts.size)
+    }
+
+    /** 用户在冲突对话框选择后完成导入：skip=只导其余会话，overwrite=同键会话整包替换。 */
+    suspend fun resolveImport(overwriteExisting: Boolean): SessionRepository.ImportResult {
+        val tempFile = stagedImportFile ?: return SessionRepository.ImportResult(
+            emptyList(), emptyList(), emptyList(),
+        )
+        stagedImportFile = null
+        return try {
+            repository.importSessions(tempFile, overwriteExisting)
         } finally {
             tempFile.delete()
         }
+    }
+
+    /** 用户在冲突对话框外点击/返回：整次导入作废。 */
+    fun cancelImport() {
+        stagedImportFile?.delete()
+        stagedImportFile = null
+    }
+
+    override fun onCleared() {
+        cancelImport()
     }
 }

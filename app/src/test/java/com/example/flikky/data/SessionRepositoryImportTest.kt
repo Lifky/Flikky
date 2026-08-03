@@ -219,6 +219,75 @@ class SessionRepositoryImportTest {
         assertEquals(1, count)
     }
 
+    @Test fun peek_import_conflicts_reports_existing_sessions_without_importing() = runTest {
+        repo.importSessions(buildZip(listOf(
+            TestSession(id = 1, name = "Dup", startedAt = 500L, texts = listOf("x")),
+        )))
+
+        val zip = buildZip(listOf(
+            TestSession(id = 1, name = "Dup", startedAt = 500L, texts = listOf("x")),
+            TestSession(id = 2, name = "Fresh", startedAt = 600L, texts = listOf("y")),
+        ))
+        assertEquals(listOf("Dup"), repo.peekImportConflicts(zip))
+
+        // 纯只读预检：Fresh 不应被导入。
+        assertTrue(db.sessionDao().nonPinnedOldestFirst().none { it.name == "Fresh" })
+    }
+
+    @Test fun peek_import_conflicts_empty_when_nothing_matches() = runTest {
+        val zip = buildZip(listOf(
+            TestSession(id = 1, name = "Solo", startedAt = 500L, texts = listOf("x")),
+        ))
+        assertTrue(repo.peekImportConflicts(zip).isEmpty())
+    }
+
+    @Test fun overwrite_import_replaces_existing_session_rows_and_files() = runTest {
+        val first = repo.importSessions(buildZip(listOf(
+            TestSession(
+                id = 1, name = "Dup", startedAt = 500L,
+                texts = listOf("old"), files = listOf("a.bin" to "old body".toByteArray()),
+            ),
+        )))
+        val oldId = first.imported.single().newId
+        val oldFileId = db.messageDao().listBySession(oldId).single { it.kind == "FILE" }.fileId!!
+
+        // 模拟用户删掉一条消息后重新导入并选择覆盖。
+        db.messageDao().deleteById(db.messageDao().listBySession(oldId).first { it.kind == "TEXT" }.id)
+
+        val second = repo.importSessions(
+            buildZip(listOf(
+                TestSession(
+                    id = 1, name = "Dup", startedAt = 500L,
+                    texts = listOf("old"), files = listOf("a.bin" to "old body".toByteArray()),
+                ),
+            )),
+            overwriteExisting = true,
+        )
+
+        assertEquals(1, second.imported.size)
+        assertEquals(0, second.skipped.size)
+
+        // 旧会话（行 + 文件目录）被替换为归档内容：被删的消息补回来了。
+        val rows = db.sessionDao().nonPinnedOldestFirst().filter { it.name == "Dup" }
+        assertEquals(1, rows.size)
+        val newId = second.imported.single().newId
+        assertTrue(newId != oldId)
+        assertEquals(2, db.messageDao().listBySession(newId).size)
+        assertTrue(db.messageDao().listBySession(oldId).isEmpty())
+        assertTrue(!File(store.fileDir(oldId), oldFileId).exists())
+    }
+
+    @Test fun default_import_still_skips_existing_sessions() = runTest {
+        repo.importSessions(buildZip(listOf(
+            TestSession(id = 1, name = "Dup", startedAt = 500L, texts = listOf("x")),
+        )))
+        val second = repo.importSessions(buildZip(listOf(
+            TestSession(id = 1, name = "Dup", startedAt = 500L, texts = listOf("x")),
+        )))
+        assertEquals(0, second.imported.size)
+        assertEquals(1, second.skipped.size)
+    }
+
     @Test fun fifo_sweep_runs_after_import_keeping_retain_limit() = runTest {
         // Import 25 distinct non-pinned sessions; retainLimit = 20 → 5 oldest swept.
         val sessions = (1..25).map {

@@ -18,6 +18,13 @@
         <item quantity="other">%1$d failed</item>
     </plurals>
     <string name="home_import_empty">No importable sessions found</string>
+    <string name="home_import_conflict_title">Sessions already exist</string>
+    <plurals name="home_import_conflict_message">
+        <item quantity="one">%1$d session already exists in history. Overwrite replaces the local copy with the archive version; skip imports only the rest.</item>
+        <item quantity="other">%1$d sessions already exist in history. Overwrite replaces the local copies with the archive versions; skip imports only the rest.</item>
+    </plurals>
+    <string name="home_import_overwrite">Overwrite</string>
+    <string name="home_import_skip">Skip</string>
     <string name="home_export_saved">Saved to the selected location</string>
     <string name="home_export_ineligible">The selected sessions can\'t be exported. They may still be active.</string>
     <string name="home_select_sessions_first">Select at least one session</string>
