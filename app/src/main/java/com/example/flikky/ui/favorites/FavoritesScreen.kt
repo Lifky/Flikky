@@ -253,6 +253,10 @@ fun FavoritesScreen(
                         .padding(horizontal = Spacing.screenEdge),
                     expanded = false,
                     onExpandedChange = {},
+                    // 与主页 SearchBar 同规格：surfaceContainer，和 listitem/NavigationBar 一致。
+                    colors = SearchBarDefaults.colors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
                     inputField = {
                         SearchBarDefaults.InputField(
                             query = query,

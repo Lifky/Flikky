@@ -112,6 +112,11 @@ fun HomeSearchBar(
             .padding(horizontal = sidePadding.coerceAtLeast(0.dp)),
         expanded = expanded,
         onExpandedChange = onExpandedChange,
+        // 默认 surfaceContainerHigh 会比同屏 listitem/NavigationBar（surfaceContainer）深一档，
+        // 顶底两栏色不一致；统一取 surfaceContainer。收藏页 SearchBar 同规格。
+        colors = SearchBarDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
         inputField = {
             SearchBarDefaults.InputField(
                 query = query,
