@@ -627,9 +627,9 @@ private fun FileOverviewItem(
             R.string.files_direction_sent
         },
     )
+    // 不含会话名：单行副标题放不下四段，会话名最长且可从会话上下文获知，优先保大小/日期可见。
     val subtitle = listOf(
         direction,
-        row.sessionName,
         formatSize(row.fileSize ?: 0L),
         formatFileDate(row.timestamp),
     ).joinToString(" · ")
