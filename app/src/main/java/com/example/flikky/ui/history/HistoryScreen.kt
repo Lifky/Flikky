@@ -324,11 +324,12 @@ fun HistoryScreen(
                         MessageBubble(
                             msg = msg,
                             onTap = {
-                                if (msg is Message.File && msg.status == Message.File.Status.DELETED) {
-                                    openFile(ctx, sessionId, msg)
-                                } else if (floating) {
+                                // floating 必须最先判：已删除消息也要能召出工具栏（剩「删除」
+                                // 可清掉残留记录），否则单击只会走 openFile 的 Toast 短路。
+                                if (floating) {
                                     actionTarget = if (isActionTarget) null else msg.id
                                 } else if (msg is Message.File) {
+                                    // DELETED 的「文件已删除」Toast 由 openFile 内部兜底。
                                     openFile(ctx, sessionId, msg) {
                                         scope.launch { ServiceLocator.repository.markFileDeleted(msg.id) }
                                     }
