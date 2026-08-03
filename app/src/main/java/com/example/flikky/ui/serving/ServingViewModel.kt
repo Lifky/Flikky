@@ -24,6 +24,7 @@ import com.example.flikky.service.TransferService
 import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
 import com.example.flikky.session.Origin
+import com.example.flikky.session.PendingMessageDeletes
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -267,14 +268,16 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     // ── Soft-delete + undo (M8) ──────────────────────────────────────────────
 
     /**
-     * 本地软删除：从内存消息列表移除消息，保留快照用于撤销。
-     * 不广播浏览器，不写 DB（提交由 [commitDelete] 完成）。
-     * 撤销由 [undoDelete] 完成。
+     * 本地软删除：从内存消息列表移除消息，快照入台账用于撤销。
+     * 不广播浏览器，不写 DB（提交由 [commitDelete] 或 [onCleared] 兜底完成）。
      */
-    private var pendingDelete: Message? = null
+    private val pendingDeletes = PendingMessageDeletes()
 
     fun deleteLocalWithUndo(id: Long) {
-        pendingDelete = ServiceLocator.session.snapshot.value.messages.firstOrNull { it.id == id }
+        pendingDeletes.stage(
+            id,
+            ServiceLocator.session.snapshot.value.messages.firstOrNull { it.id == id },
+        )
         ServiceLocator.session.removeMessage(id)
     }
 
@@ -284,17 +287,17 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
      * LazyColumn key={it.id} 保证动画平滑。
      */
     fun undoDelete() {
-        pendingDelete?.let { ServiceLocator.session.addMessage(it) }
-        pendingDelete = null
+        pendingDeletes.undoLatest()?.let { ServiceLocator.session.addMessage(it) }
     }
 
     /**
      * 提交软删除到 DB。若消息是文件，repository.deleteMessage 会同时删盘。
-     * runCatching 保证 DB 写失败不会崩溃——内存已移除，下次启动 finalizeOrphans 会清理。
+     * 走 appScope 而非 viewModelScope：提交一旦决定就必须执行到底，不随页面销毁取消。
+     * runCatching 保证 DB 写失败不会崩溃。
      */
     fun commitDelete(id: Long) {
-        pendingDelete = null
-        viewModelScope.launch {
+        pendingDeletes.commit(id)
+        ServiceLocator.appScope.launch {
             runCatching { ServiceLocator.repository.deleteMessage(id) }
         }
     }
@@ -305,6 +308,15 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() {
+        // Snackbar 撤销窗口的等待协程随 Screen composition 取消，超时提交可能永远
+        // 不来；撤销窗口内离开页面 = 视同确认删除，这里把台账里剩余的全部落库。
+        // 修复 v1.16 验收缺陷：删除不落库 → History 复活 + 磁盘泄漏。
+        val ids = pendingDeletes.drainIds()
+        if (ids.isNotEmpty()) {
+            ServiceLocator.appScope.launch {
+                ids.forEach { runCatching { ServiceLocator.repository.deleteMessage(it) } }
+            }
+        }
         runCatching { getApplication<Application>().unbindService(conn) }
     }
 }

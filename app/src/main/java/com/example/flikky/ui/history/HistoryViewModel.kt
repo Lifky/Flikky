@@ -9,6 +9,7 @@ import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.session.Message
+import com.example.flikky.session.PendingMessageDeletes
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,18 +45,15 @@ class HistoryViewModel(
 
     // ── Soft-delete + undo ──────────────────────────────────────────────────
 
-    /**
-     * The message captured just before soft-delete, used for undo.
-     * Holds the most recent target; cleared on commit or undo.
-     */
-    private var pendingDeleteMsg: Message? = null
+    /** Snapshots staged for undo plus the ids still awaiting a DB commit. */
+    private val pendingDeletes = PendingMessageDeletes()
 
     /**
      * Soft-delete: hide the message immediately in the UI by adding its ID to
      * the exclusion set. Does NOT write to DB yet. Captures the message for undo.
      */
     fun deleteLocalWithUndo(id: Long) {
-        pendingDeleteMsg = messages.value.firstOrNull { it.id == id }
+        pendingDeletes.stage(id, messages.value.firstOrNull { it.id == id })
         _pendingDeleteIds.value = _pendingDeleteIds.value + id
     }
 
@@ -64,19 +62,30 @@ class HistoryViewModel(
      * The Room flow still has it — no DB insert needed.
      */
     fun undoDelete() {
-        val msg = pendingDeleteMsg ?: return
+        val msg = pendingDeletes.undoLatest() ?: return
         _pendingDeleteIds.value = _pendingDeleteIds.value - msg.id
-        pendingDeleteMsg = null
     }
 
     /**
      * Commit: remove the exclusion (no longer needed once DB row is gone) and
-     * delete from DB. Room flow re-emits without the row.
+     * delete from DB. Runs on appScope — once decided, the delete must land
+     * even if this ViewModel dies first.
      */
     fun commitDelete(id: Long) {
-        pendingDeleteMsg = null
+        pendingDeletes.commit(id)
         _pendingDeleteIds.value = _pendingDeleteIds.value - id
-        viewModelScope.launch { runCatching { repository.deleteMessage(id) } }
+        ServiceLocator.appScope.launch { runCatching { repository.deleteMessage(id) } }
+    }
+
+    override fun onCleared() {
+        // Snackbar 撤销窗口的等待协程随 Screen composition 取消，超时提交可能
+        // 永远不来；窗口内离开页面 = 视同确认删除，剩余台账全部落库。
+        val ids = pendingDeletes.drainIds()
+        if (ids.isNotEmpty()) {
+            ServiceLocator.appScope.launch {
+                ids.forEach { runCatching { repository.deleteMessage(it) } }
+            }
+        }
     }
 
     fun rename(newName: String): Job =

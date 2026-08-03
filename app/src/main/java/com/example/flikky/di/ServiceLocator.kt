@@ -12,6 +12,9 @@ import com.example.flikky.network.NetworkInfo
 import com.example.flikky.service.TransferController
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -21,6 +24,13 @@ private val Context.settingsDataStore by preferencesDataStore(name = "flikky_set
 
 object ServiceLocator {
     private lateinit var appContext: Context
+
+    /**
+     * 应用级后台作业 scope：给"必须完成、不随页面/ViewModel 取消"的收尾写库用
+     * （如软删除的提交落库——viewModelScope 在 onCleared 后已死，Screen 的
+     * rememberCoroutineScope 随 composition 取消，两者都保证不了执行）。
+     */
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     lateinit var session: SessionState
         private set
     lateinit var stats: TransferStats
