@@ -56,6 +56,7 @@
             'app.drop_folder_unsupported': '不支持发送文件夹',
             'app.send_failed': '发送失败',
             'app.processing': '处理中…',
+            'app.close_preview': '关闭预览',
 
             'export.title': 'Flikky 导出',
             'export.pending': '即将下载',
@@ -145,6 +146,7 @@
             'app.drop_folder_unsupported': 'Folders cannot be sent',
             'app.send_failed': 'Send failed',
             'app.processing': 'Processing…',
+            'app.close_preview': 'Close preview',
 
             'export.title': 'Flikky export',
             'export.pending': 'Ready to download',

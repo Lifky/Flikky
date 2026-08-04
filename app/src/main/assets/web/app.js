@@ -608,6 +608,67 @@
         return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
     }
 
+    function mediaKind(mime) {
+        const m = (mime || '').toLowerCase();
+        if (m.startsWith('image/')) return 'image';
+        if (m.startsWith('video/')) return 'video';
+        return null;
+    }
+
+    function buildClassicFileContent(bubble, fileId, name, sizeBytes) {
+        bubble.classList.remove('media');
+        while (bubble.firstChild) bubble.removeChild(bubble.firstChild);
+        const a = document.createElement('a');
+        if (fileId) { a.href = `/api/files/${fileId}`; a.download = name; }
+        a.textContent = name;
+        const size = document.createElement('span');
+        size.className = 'size';
+        size.textContent = formatSize(sizeBytes);
+        // 文件图标（与 App 文件气泡同款 Material Symbols description）。
+        bubble.appendChild(materialSymbolEl('description', false));
+        bubble.appendChild(a);
+        bubble.appendChild(size);
+    }
+
+    function applyMediaBubble(bubble, fileId, name, sizeBytes, kind) {
+        while (bubble.firstChild) bubble.removeChild(bubble.firstChild);
+        bubble.classList.add('media');
+        const wrap = document.createElement('div');
+        wrap.className = 'thumb-wrap';
+        const img = document.createElement('img');
+        img.className = 'thumb';
+        img.src = `/api/files/${fileId}/thumb`;
+        img.alt = name;
+        img.loading = 'lazy';
+        img.addEventListener('error', () => {
+            buildClassicFileContent(bubble, fileId, name, sizeBytes);
+        });
+        wrap.appendChild(img);
+        if (kind === 'video') {
+            const badge = materialSymbolEl('play_circle', true);
+            badge.classList.add('thumb-play');
+            wrap.appendChild(badge);
+        }
+        wrap.addEventListener('click', () => {
+            if (bubble.classList.contains('failed')) return;
+            openLightbox(fileId, kind);
+        });
+        bubble.appendChild(wrap);
+
+        const caption = document.createElement('div');
+        caption.className = 'thumb-caption';
+        const a = document.createElement('a');
+        a.href = `/api/files/${fileId}`;
+        a.download = name;
+        a.textContent = name;
+        const size = document.createElement('span');
+        size.className = 'size';
+        size.textContent = formatSize(sizeBytes);
+        caption.appendChild(a);
+        caption.appendChild(size);
+        bubble.appendChild(caption);
+    }
+
     function renderText(msg, mine) {
         const div = document.createElement('div');
         div.className = 'bubble ' + (mine ? 'me' : 'them');
@@ -624,17 +685,14 @@
         div.className = 'file-bubble ' + (mine ? 'me' : 'them');
         div.dataset.messageId = msg.id;
         div.dataset.kind = 'file';
-        const a = document.createElement('a');
-        a.href = `/api/files/${msg.fileId}`;
-        a.download = msg.name;
-        a.textContent = msg.name;
-        const size = document.createElement('span');
-        size.className = 'size';
-        size.textContent = formatSize(msg.sizeBytes);
-        // 文件图标（与 App 文件气泡同款 Material Symbols description）。
-        div.appendChild(materialSymbolEl('description', false));
-        div.appendChild(a);
-        div.appendChild(size);
+        div.dataset.mime = msg.mime || '';
+        const kind = mediaKind(msg.mime);
+        const completed = msg.status == null || msg.status === 'COMPLETED';
+        if (kind && completed) {
+            applyMediaBubble(div, msg.fileId, msg.name, msg.sizeBytes, kind);
+        } else {
+            buildClassicFileContent(div, msg.fileId, msg.name, msg.sizeBytes);
+        }
         appendBubbleRow(div, mine ? 'BROWSER' : 'PHONE');
         if (mine) attachRecallHandler(div, msg.id);
         return div;
@@ -797,6 +855,7 @@
         div.className = 'file-bubble ' + (mine ? 'me' : 'them') + ' transferring';
         div.dataset.messageId = msg.id;
         div.dataset.kind = 'file';
+        div.dataset.mime = msg.mime || '';
         if (msg.fileId) div.dataset.fileId = msg.fileId;
 
         const a = document.createElement('a');
@@ -830,6 +889,7 @@
         const div = document.createElement('div');
         div.className = 'file-bubble me uploading';
         div.dataset.localId = opts.localId;
+        div.dataset.mime = opts.mime || '';
 
         const a = document.createElement('a');
         a.textContent = opts.name;
@@ -893,6 +953,8 @@
         }
         const size = bubble.querySelector('.size');
         if (size) size.textContent = formatSize(dto.sizeBytes);
+        const kind = mediaKind(bubble.dataset.mime);
+        if (kind) applyMediaBubble(bubble, dto.fileId, dto.name, dto.sizeBytes, kind);
     }
 
     function markBubbleFailed(bubble, file, status) {
@@ -1338,7 +1400,12 @@
 
     function sendFile(file) {
         const localId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const bubble = renderUploadingBubble({ localId, name: file.name, total: file.size });
+        const bubble = renderUploadingBubble({
+            localId,
+            name: file.name,
+            total: file.size,
+            mime: file.type,
+        });
         const form = new FormData();
         form.append('file', file, file.name);
 
@@ -1446,6 +1513,55 @@
         if (hadFolder) window.flikky.showError(t('app.drop_folder_unsupported'));
         for (const file of files) sendFile(file);
     });
+
+    // ---- lightbox fullscreen preview (v1.17.0) ----
+    const lightbox = document.getElementById('lightbox');
+    const lightboxContent = document.getElementById('lightbox-content');
+
+    function onLightboxKeydown(e) {
+        if (e.key === 'Escape') closeLightbox();
+    }
+
+    function openLightbox(fileId, kind) {
+        if (!lightbox || !lightboxContent) return;
+        closeLightbox();
+        let el;
+        if (kind === 'video') {
+            el = document.createElement('video');
+            el.controls = true;
+            el.autoplay = true;
+            el.src = `/api/files/${fileId}?inline=1`;
+        } else {
+            el = document.createElement('img');
+            el.src = `/api/files/${fileId}?inline=1`;
+            el.alt = '';
+        }
+        el.className = 'lightbox-media';
+        lightboxContent.appendChild(el);
+        lightbox.hidden = false;
+        document.addEventListener('keydown', onLightboxKeydown);
+    }
+
+    function closeLightbox() {
+        if (!lightbox || !lightboxContent) return;
+        document.removeEventListener('keydown', onLightboxKeydown);
+        const video = lightboxContent.querySelector('video');
+        if (video) {
+            video.pause();
+            video.removeAttribute('src');
+            video.load();
+        }
+        while (lightboxContent.firstChild) lightboxContent.removeChild(lightboxContent.firstChild);
+        lightbox.hidden = true;
+    }
+
+    if (lightbox) {
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox) closeLightbox();
+        });
+        const lightboxClose = document.getElementById('lightbox-close');
+        if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
+    }
 
     sendBtn.addEventListener('click', sendText);
     input.addEventListener('keydown', (e) => {
