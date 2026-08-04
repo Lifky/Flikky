@@ -42,5 +42,6 @@
     <string name="file_provider_unavailable">This file can\'t be shared because its FileProvider path isn\'t configured.</string>
     <string name="file_open_chooser">Open file</string>
     <string name="file_no_handler">No app can open this file type</string>
+    <string name="preview_close">Close preview</string>
     <string name="common_list_separator">, </string>
 </resources>

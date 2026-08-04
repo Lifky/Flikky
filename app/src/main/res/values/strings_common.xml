@@ -41,5 +41,6 @@
     <string name="file_provider_unavailable">无法暴露此文件（FileProvider 路径未配置）</string>
     <string name="file_open_chooser">打开文件</string>
     <string name="file_no_handler">没有可以打开此类型文件的应用</string>
+    <string name="preview_close">关闭预览</string>
     <string name="common_list_separator">，</string>
 </resources>

@@ -73,11 +73,14 @@ import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
+import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.components.sessionFile
 import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
+import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.settings.sheets.AvatarPickerSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
@@ -102,6 +105,7 @@ fun ServingScreen(
     var showFavoriteQuickSheet by remember { mutableStateOf(false) }
     var showQuickSettings by remember { mutableStateOf(false) }
     var showPeerAvatarPicker by remember { mutableStateOf(false) }
+    var previewImage by remember { mutableStateOf<java.io.File?>(null) }
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val favoriteLabel = stringResource(R.string.serving_favorite)
@@ -132,6 +136,18 @@ fun ServingScreen(
     val starPainter = painterResource(R.drawable.ic_star)
     val starBorderPainter = painterResource(R.drawable.ic_star_border)
     val currentSessionId = ServiceLocator.session.snapshot.collectAsState().value.currentSessionId
+
+    fun openOrPreview(msg: Message.File) {
+        val file = currentSessionId?.let { sessionFile(it, msg.fileId) }
+        if (msg.status == Message.File.Status.COMPLETED &&
+            msg.mime.startsWith("image/") && file?.exists() == true
+        ) {
+            previewImage = file
+        } else {
+            viewModel.openFile(msg)
+        }
+    }
+
     val favoriteGroups by if (settings.favoriteBetaEnabled) {
         ServiceLocator.favoritesRepository.observeGroups().collectAsState(initial = emptyList())
     } else {
@@ -189,7 +205,7 @@ fun ServingScreen(
                 icon = downloadPainter,
                 label = openLabel,
                 onClick = {
-                    viewModel.openFile(msg)
+                    openOrPreview(msg)
                     actionTarget = null
                 },
             ))
@@ -401,7 +417,7 @@ fun ServingScreen(
                                         if (floating) {
                                             actionTarget = if (isActionTarget) null else msg.id
                                         } else if (msg is Message.File) {
-                                            viewModel.openFile(msg)
+                                            openOrPreview(msg)
                                         }
                                     },
                                     // 两种模式长按都让给 SelectionContainer 起划词选择：
@@ -416,6 +432,16 @@ fun ServingScreen(
                                                 else peerAvatarKey,
                                     cornerRadius = settings.bubbleCornerRadius.dp,
                                     selected = floating && isActionTarget,
+                                    thumbnailFile = (msg as? Message.File)
+                                        ?.takeIf {
+                                            it.status == Message.File.Status.COMPLETED &&
+                                                FilesListBuilder.isMedia(it.mime)
+                                        }
+                                        ?.let { fileMsg ->
+                                            currentSessionId?.let { sid ->
+                                                sessionFile(sid, fileMsg.fileId).takeIf { it.exists() }
+                                            }
+                                        },
                                 )
                                 if (!floating) {
                                     // 常驻模式：每条气泡下方固定显示操作栏，按 origin 与气泡同侧边缘对齐。
@@ -597,6 +623,10 @@ fun ServingScreen(
             },
             onDismiss = { pendingFavoriteMsg = null },
         )
+    }
+
+    previewImage?.let { file ->
+        ImagePreviewDialog(file = file, onDismiss = { previewImage = null })
     }
 }
 

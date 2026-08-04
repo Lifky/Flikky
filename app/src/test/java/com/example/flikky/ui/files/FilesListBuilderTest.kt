@@ -2,6 +2,8 @@ package com.example.flikky.ui.files
 
 import com.example.flikky.data.db.FileOverviewRow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FilesListBuilderTest {
@@ -34,6 +36,16 @@ class FilesListBuilderTest {
         assertEquals(FileCategory.OTHER, FilesListBuilder.categoryOf("application/zip"))
         assertEquals(FileCategory.OTHER, FilesListBuilder.categoryOf(null))
         assertEquals(FileCategory.OTHER, FilesListBuilder.categoryOf(""))
+    }
+
+    @Test
+    fun `isMedia is true only for image and video`() {
+        assertTrue(FilesListBuilder.isMedia("image/jpeg"))
+        assertTrue(FilesListBuilder.isMedia("video/mp4"))
+        assertFalse(FilesListBuilder.isMedia("application/pdf"))
+        assertFalse(FilesListBuilder.isMedia("audio/mpeg"))
+        assertFalse(FilesListBuilder.isMedia(null))
+        assertFalse(FilesListBuilder.isMedia(""))
     }
 
     @Test

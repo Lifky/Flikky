@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -35,12 +37,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.example.flikky.R
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.ui.theme.Spacing
+import java.io.File
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -57,6 +62,7 @@ fun MessageBubble(
     avatarKey: String? = null,
     cornerRadius: Dp = 18.dp,
     selected: Boolean = false,
+    thumbnailFile: File? = null,
 ) {
     val mine = msg.origin == Origin.PHONE
     val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.8f).dp
@@ -110,23 +116,35 @@ fun MessageBubble(
                 onClick = onTap,
             )
         }
+        val fileMsg = msg as? Message.File
+        val isMediaThumb = fileMsg != null &&
+            fileMsg.status == Message.File.Status.COMPLETED &&
+            thumbnailFile != null
         Box(
             modifier = Modifier
                 .widthIn(max = maxWidth)
                 .clip(shape)
                 .background(bg)
                 .then(clickModifier)
-                .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                .then(
+                    if (isMediaThumb) Modifier
+                    else Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md)
+                ),
         ) {
-            when (msg) {
-                is Message.Text -> Text(
+            when {
+                msg is Message.Text -> Text(
                     text = msg.content, color = fg,
                     style = MaterialTheme.typography.bodyLarge.merge(
                         TextStyle(lineBreak = LineBreak.Paragraph)
                     ),
                 )
-                is Message.File -> FileBubbleContent(
-                    msg = msg, fg = fg, mine = mine,
+                isMediaThumb -> MediaBubbleContent(
+                    msg = fileMsg!!,
+                    fg = fg,
+                    thumbnail = thumbnailFile!!,
+                )
+                else -> FileBubbleContent(
+                    msg = fileMsg!!, fg = fg, mine = mine,
                     tapOpensFile = tapOpensFile,
                     transferProgress = transferProgress,
                 )
@@ -136,6 +154,43 @@ fun MessageBubble(
             Spacer(Modifier.width(Spacing.sm))
             avatarSlot()
         }
+    }
+}
+
+@Composable
+private fun MediaBubbleContent(
+    msg: Message.File,
+    fg: Color,
+    thumbnail: File,
+) {
+    val isVideo = msg.mime.startsWith("video/")
+    Column {
+        Box(contentAlignment = Alignment.Center) {
+            AsyncImage(
+                model = thumbnail,
+                contentDescription = msg.name,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .widthIn(max = 220.dp)
+                    .heightIn(max = 280.dp),
+            )
+            if (isVideo) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_play_circle),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(48.dp),
+                )
+            }
+        }
+        Text(
+            text = "${msg.name}  ·  ${formatSize(msg.sizeBytes)}",
+            color = fg.copy(alpha = 0.85f),
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
+        )
     }
 }
 

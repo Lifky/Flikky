@@ -63,11 +63,14 @@ import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
+import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.openStoredFile
+import com.example.flikky.ui.components.sessionFile
 import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
+import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -97,6 +100,7 @@ fun HistoryScreen(
     val inProgress = session?.endedAt == null && session != null
     var actionTarget by remember { mutableStateOf<Long?>(null) }
     var pendingFavoriteMsg by remember { mutableStateOf<Message?>(null) }
+    var previewImage by remember { mutableStateOf<java.io.File?>(null) }
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -149,6 +153,19 @@ fun HistoryScreen(
         remember { mutableStateOf(emptyList<Long>()) }
     }
 
+    fun openOrPreview(msg: Message.File) {
+        val file = sessionFile(sessionId, msg.fileId)
+        if (msg.status == Message.File.Status.COMPLETED &&
+            msg.mime.startsWith("image/") && file.exists()
+        ) {
+            previewImage = file
+        } else {
+            openFile(ctx, sessionId, msg) {
+                scope.launch { ServiceLocator.repository.markFileDeleted(msg.id) }
+            }
+        }
+    }
+
     // Single source of truth for a message's available actions (History has no
     // recall): 复制（text）/ 打开（completed file）/ 删除. Each onClick clears the target.
     fun buildActionsFor(msg: Message): List<MessageAction> = buildList {
@@ -184,9 +201,7 @@ fun HistoryScreen(
                 icon = downloadPainter,
                 label = openLabel,
                 onClick = {
-                    openFile(ctx, sessionId, msg) {
-                        scope.launch { ServiceLocator.repository.markFileDeleted(msg.id) }
-                    }
+                    openOrPreview(msg)
                     actionTarget = null
                 },
             ))
@@ -330,9 +345,7 @@ fun HistoryScreen(
                                     actionTarget = if (isActionTarget) null else msg.id
                                 } else if (msg is Message.File) {
                                     // DELETED 的「文件已删除」Toast 由 openFile 内部兜底。
-                                    openFile(ctx, sessionId, msg) {
-                                        scope.launch { ServiceLocator.repository.markFileDeleted(msg.id) }
-                                    }
+                                    openOrPreview(msg)
                                 }
                             },
                             // 两种模式长按都让给 SelectionContainer 起划词选择：
@@ -346,6 +359,14 @@ fun HistoryScreen(
                                         else session?.peerAvatarKey,
                             cornerRadius = settings.bubbleCornerRadius.dp,
                             selected = floating && isActionTarget,
+                            thumbnailFile = (msg as? Message.File)
+                                ?.takeIf {
+                                    it.status == Message.File.Status.COMPLETED &&
+                                        FilesListBuilder.isMedia(it.mime)
+                                }
+                                ?.let { fileMsg ->
+                                    sessionFile(sessionId, fileMsg.fileId).takeIf { it.exists() }
+                                },
                         )
                         if (!floating) {
                             // 常驻模式：每条气泡下方固定显示操作栏，按 origin 与气泡同侧边缘对齐。
@@ -443,6 +464,10 @@ fun HistoryScreen(
             },
             onDismiss = { pendingFavoriteMsg = null },
         )
+    }
+
+    previewImage?.let { file ->
+        ImagePreviewDialog(file = file, onDismiss = { previewImage = null })
     }
 }
 

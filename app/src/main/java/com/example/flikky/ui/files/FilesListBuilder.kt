@@ -34,6 +34,10 @@ object FilesListBuilder {
         }
     }
 
+    /** Shared thumbnail and gallery predicate. */
+    fun isMedia(mime: String?): Boolean =
+        categoryOf(mime).let { it == FileCategory.IMAGE || it == FileCategory.VIDEO }
+
     fun build(
         rows: List<FileOverviewRow>,
         category: FileCategory,
