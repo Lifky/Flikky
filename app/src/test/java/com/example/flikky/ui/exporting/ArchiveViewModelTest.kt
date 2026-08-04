@@ -204,7 +204,7 @@ class ArchiveViewModelTest {
     @Test fun invalid_zip_error_is_reported_once() = runTest {
         val invalidZip = File(app.cacheDir, "invalid.zip").apply { writeText("not a zip") }
         val uri = Uri.fromFile(invalidZip)
-        coEvery { sessionRepo.importSessions(any()) } returns SessionRepository.ImportResult(
+        coEvery { sessionRepo.importSessions(any(), any()) } returns SessionRepository.ImportResult(
             imported = emptyList(),
             skipped = emptyList(),
             errors = listOf(SessionRepository.ImportError("zip", "无法打开 zip")),
@@ -213,6 +213,63 @@ class ArchiveViewModelTest {
         val result = buildVm().importFromZip(uri)
 
         assertEquals(listOf("无法打开 zip"), result.errors)
+    }
+
+    @Test fun begin_import_without_conflicts_completes_and_cleans_temp() = runTest {
+        val zip = File(app.cacheDir, "plain.zip").apply { writeText("not a real zip") }
+        coEvery { sessionRepo.peekImportConflicts(any()) } returns emptyList()
+        coEvery { sessionRepo.importSessions(any(), any()) } returns SessionRepository.ImportResult(
+            imported = emptyList(),
+            skipped = emptyList(),
+            errors = emptyList(),
+        )
+
+        val start = buildVm().beginImport(Uri.fromFile(zip))
+
+        assertTrue(start is ArchiveViewModel.ImportStart.Done)
+        assertTrue(!File(app.filesDir, "archive_import_temp.zip").exists())
+        coVerify { sessionRepo.importSessions(any(), false) }
+    }
+
+    @Test fun begin_import_with_conflicts_stages_temp_and_defers() = runTest {
+        val zip = File(app.cacheDir, "dup.zip").apply { writeText("zip") }
+        coEvery { sessionRepo.peekImportConflicts(any()) } returns listOf("Dup")
+
+        val start = buildVm().beginImport(Uri.fromFile(zip))
+
+        assertEquals(ArchiveViewModel.ImportStart.NeedsDecision(1), start)
+        assertTrue(File(app.filesDir, "archive_import_temp.zip").exists())
+        coVerify(exactly = 0) { sessionRepo.importSessions(any(), any()) }
+    }
+
+    @Test fun resolve_import_passes_overwrite_and_cleans_temp() = runTest {
+        val zip = File(app.cacheDir, "dup2.zip").apply { writeText("zip") }
+        coEvery { sessionRepo.peekImportConflicts(any()) } returns listOf("Dup")
+        coEvery { sessionRepo.importSessions(any(), true) } returns SessionRepository.ImportResult(
+            imported = emptyList(),
+            skipped = emptyList(),
+            errors = emptyList(),
+        )
+        val vm = buildVm()
+        vm.beginImport(Uri.fromFile(zip))
+
+        vm.resolveImport(overwriteExisting = true)
+
+        coVerify { sessionRepo.importSessions(any(), true) }
+        assertTrue(!File(app.filesDir, "archive_import_temp.zip").exists())
+    }
+
+    @Test fun cancel_import_deletes_staged_temp_file() = runTest {
+        val zip = File(app.cacheDir, "dup3.zip").apply { writeText("zip") }
+        coEvery { sessionRepo.peekImportConflicts(any()) } returns listOf("Dup")
+        val vm = buildVm()
+        vm.beginImport(Uri.fromFile(zip))
+        assertTrue(File(app.filesDir, "archive_import_temp.zip").exists())
+
+        vm.cancelImport()
+
+        assertTrue(!File(app.filesDir, "archive_import_temp.zip").exists())
+        coVerify(exactly = 0) { sessionRepo.importSessions(any(), any()) }
     }
 
     @Test fun favorites_import_does_not_restore_sessions_or_settings() = runTest {
@@ -245,7 +302,7 @@ class ArchiveViewModelTest {
         assertEquals(1, result.importedFavorites)
         assertEquals(0, result.importedSessions)
         assertEquals(false, result.settingsImported)
-        coVerify(exactly = 0) { sessionRepo.importSessions(any()) }
+        coVerify(exactly = 0) { sessionRepo.importSessions(any(), any()) }
         coVerify(exactly = 0) { settingsRepo.importBackup(any()) }
     }
 }

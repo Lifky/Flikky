@@ -154,6 +154,7 @@ fun SettingsScreen(
     var showAnimSpeedDialog by remember { mutableStateOf(false) }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
     var showImportProgress by remember { mutableStateOf(false) }
+    var importConflictCount by remember { mutableStateOf<Int?>(null) }
     var showExportProgress by remember { mutableStateOf(false) }
     var exportProgressTitle by remember(context) {
         mutableStateOf(context.getString(R.string.settings_preparing_export))
@@ -161,6 +162,60 @@ fun SettingsScreen(
     var importExportExpanded by rememberSaveable { mutableStateOf(false) }
     var exportDestinationScope by rememberSaveable { mutableStateOf<ExportScope?>(null) }
     var pendingLocalExportScope by rememberSaveable { mutableStateOf<ExportScope?>(null) }
+
+    fun importResultMessage(result: ArchiveViewModel.ImportResult): String = buildList {
+        if (result.importedSessions > 0) {
+            add(context.resources.getQuantityString(
+                R.plurals.settings_imported_sessions,
+                result.importedSessions,
+                result.importedSessions,
+            ))
+        }
+        if (result.importedFavorites > 0) {
+            add(context.resources.getQuantityString(
+                R.plurals.settings_imported_favorites,
+                result.importedFavorites,
+                result.importedFavorites,
+            ))
+        }
+        if (result.settingsImported) {
+            add(context.getString(R.string.settings_imported_settings))
+        }
+        val skipped = result.skippedSessions + result.skippedFavorites
+        if (skipped > 0) {
+            add(context.resources.getQuantityString(
+                R.plurals.settings_import_skipped,
+                skipped,
+                skipped,
+            ))
+        }
+        if (result.errors.isNotEmpty()) {
+            add(context.resources.getQuantityString(
+                R.plurals.settings_import_failed_count,
+                result.errors.size,
+                result.errors.size,
+            ))
+        }
+    }.ifEmpty {
+        listOf(context.getString(R.string.settings_import_empty))
+    }.joinToString(context.getString(R.string.common_list_separator))
+
+    fun finishSettingsImport(overwriteExisting: Boolean) {
+        importConflictCount = null
+        showImportProgress = true
+        scope.launch {
+            val message = try {
+                importResultMessage(archiveViewModel.resolveImport(overwriteExisting))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                context.getString(R.string.settings_import_failed)
+            } finally {
+                showImportProgress = false
+            }
+            snackbarHostState.showSnackbar(message)
+        }
+    }
 
     // Import launcher
     val importLauncher = rememberLauncherForActivityResult(
@@ -170,43 +225,13 @@ fun SettingsScreen(
             showImportProgress = true
             scope.launch {
                 val message = try {
-                    val result = archiveViewModel.importFromZip(uri)
-                    buildList {
-                        if (result.importedSessions > 0) {
-                            add(context.resources.getQuantityString(
-                                R.plurals.settings_imported_sessions,
-                                result.importedSessions,
-                                result.importedSessions,
-                            ))
+                    when (val start = archiveViewModel.beginImport(uri)) {
+                        is ArchiveViewModel.ImportStart.Done -> importResultMessage(start.result)
+                        is ArchiveViewModel.ImportStart.NeedsDecision -> {
+                            importConflictCount = start.conflictCount
+                            null
                         }
-                        if (result.importedFavorites > 0) {
-                            add(context.resources.getQuantityString(
-                                R.plurals.settings_imported_favorites,
-                                result.importedFavorites,
-                                result.importedFavorites,
-                            ))
-                        }
-                        if (result.settingsImported) {
-                            add(context.getString(R.string.settings_imported_settings))
-                        }
-                        val skipped = result.skippedSessions + result.skippedFavorites
-                        if (skipped > 0) {
-                            add(context.resources.getQuantityString(
-                                R.plurals.settings_import_skipped,
-                                skipped,
-                                skipped,
-                            ))
-                        }
-                        if (result.errors.isNotEmpty()) {
-                            add(context.resources.getQuantityString(
-                                R.plurals.settings_import_failed_count,
-                                result.errors.size,
-                                result.errors.size,
-                            ))
-                        }
-                    }.ifEmpty {
-                        listOf(context.getString(R.string.settings_import_empty))
-                    }.joinToString(context.getString(R.string.common_list_separator))
+                    }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
@@ -214,7 +239,7 @@ fun SettingsScreen(
                 } finally {
                     showImportProgress = false
                 }
-                snackbarHostState.showSnackbar(message)
+                if (message != null) snackbarHostState.showSnackbar(message)
             }
         }
     }
@@ -908,6 +933,35 @@ fun SettingsScreen(
             dismissButton = {
                 TextButton(onClick = { showDeleteAllDialog = false }) {
                     Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
+
+    importConflictCount?.let { conflictCount ->
+        AlertDialog(
+            onDismissRequest = {
+                importConflictCount = null
+                archiveViewModel.cancelImport()
+            },
+            title = { Text(stringResource(R.string.home_import_conflict_title)) },
+            text = {
+                Text(
+                    pluralStringResource(
+                        R.plurals.home_import_conflict_message,
+                        conflictCount,
+                        conflictCount,
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { finishSettingsImport(overwriteExisting = true) }) {
+                    Text(stringResource(R.string.home_import_overwrite))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { finishSettingsImport(overwriteExisting = false) }) {
+                    Text(stringResource(R.string.home_import_skip))
                 }
             },
         )

@@ -131,12 +131,12 @@ class ArchiveViewModel @JvmOverloads constructor(
         }
     }
 
-    suspend fun importFromZip(uri: Uri): ImportResult = importFromZip(uri, favoritesOnly = false)
+    suspend fun importFromZip(uri: Uri): ImportResult = copyAndImport(uri, favoritesOnly = false)
 
     suspend fun importFavoritesFromZip(uri: Uri): ImportResult =
-        importFromZip(uri, favoritesOnly = true)
+        copyAndImport(uri, favoritesOnly = true)
 
-    private suspend fun importFromZip(uri: Uri, favoritesOnly: Boolean): ImportResult {
+    private suspend fun copyAndImport(uri: Uri, favoritesOnly: Boolean): ImportResult {
         val context = getApplication<Application>()
         val tempFile = java.io.File(context.filesDir, "archive_import_temp.zip")
         try {
@@ -150,58 +150,136 @@ class ArchiveViewModel @JvmOverloads constructor(
                 false,
                 listOf(context.getString(R.string.archive_read_failed)),
             )
-
-            val sessionResult = if (favoritesOnly) null else sessionRepository.importSessions(tempFile)
-            if (sessionResult?.errors?.any { it.name == "zip" } == true) {
-                return ImportResult(
-                    importedSessions = 0,
-                    skippedSessions = 0,
-                    importedFavorites = 0,
-                    skippedFavorites = 0,
-                    settingsImported = false,
-                    errors = sessionResult.errors.map { it.error },
-                )
-            }
-            val sessionIdMap = buildMap {
-                sessionResult?.imported.orEmpty().forEach { imported ->
-                    imported.originalId?.let { put(it, imported.newId) }
-                }
-                sessionResult?.skipped.orEmpty().forEach { skipped ->
-                    val originalId = skipped.originalId
-                    val existingId = skipped.existingId
-                    if (originalId != null && existingId != null) put(originalId, existingId)
-                }
-            }
-
-            var favoritesResult = FavoritesRepository.ImportResult(0, 0, emptyList())
-            var settingsImported = false
-            val archiveErrors = mutableListOf<String>()
-            runCatching {
-                ZipFile(tempFile).use { zip ->
-                    val backup = ZipImporter.parseBackup(zip)
-                    if (backup.favorites.isNotEmpty() || backup.favoriteGroups.isNotEmpty()) {
-                        favoritesResult = favoritesRepository.importBackup(backup, zip, sessionIdMap)
-                    }
-                    backup.settings?.takeUnless { favoritesOnly }?.let { settings ->
-                        settingsRepository.importBackup(settings)
-                        settingsImported = true
-                    }
-                }
-            }.onFailure {
-                archiveErrors += it.message ?: context.getString(R.string.archive_parse_failed)
-            }
-
-            return ImportResult(
-                importedSessions = sessionResult?.imported?.size ?: 0,
-                skippedSessions = sessionResult?.skipped?.size ?: 0,
-                importedFavorites = favoritesResult.imported,
-                skippedFavorites = favoritesResult.skipped,
-                settingsImported = settingsImported,
-                errors = sessionResult?.errors.orEmpty().map { it.error } +
-                    favoritesResult.errors + archiveErrors,
-            )
+            return runImport(tempFile, overwriteExisting = false, favoritesOnly = favoritesOnly)
         } finally {
             tempFile.delete()
         }
+    }
+
+    private suspend fun runImport(
+        tempFile: java.io.File,
+        overwriteExisting: Boolean,
+        favoritesOnly: Boolean,
+    ): ImportResult {
+        val context = getApplication<Application>()
+        val sessionResult = if (favoritesOnly) null else
+            sessionRepository.importSessions(tempFile, overwriteExisting)
+        if (sessionResult?.errors?.any { it.name == "zip" } == true) {
+            return ImportResult(
+                importedSessions = 0,
+                skippedSessions = 0,
+                importedFavorites = 0,
+                skippedFavorites = 0,
+                settingsImported = false,
+                errors = sessionResult.errors.map { it.error },
+            )
+        }
+        val sessionIdMap = buildMap {
+            sessionResult?.imported.orEmpty().forEach { imported ->
+                imported.originalId?.let { put(it, imported.newId) }
+            }
+            sessionResult?.skipped.orEmpty().forEach { skipped ->
+                val originalId = skipped.originalId
+                val existingId = skipped.existingId
+                if (originalId != null && existingId != null) put(originalId, existingId)
+            }
+        }
+
+        var favoritesResult = FavoritesRepository.ImportResult(0, 0, emptyList())
+        var settingsImported = false
+        val archiveErrors = mutableListOf<String>()
+        runCatching {
+            ZipFile(tempFile).use { zip ->
+                val backup = ZipImporter.parseBackup(zip)
+                if (backup.favorites.isNotEmpty() || backup.favoriteGroups.isNotEmpty()) {
+                    favoritesResult = favoritesRepository.importBackup(backup, zip, sessionIdMap)
+                }
+                backup.settings?.takeUnless { favoritesOnly }?.let { settings ->
+                    settingsRepository.importBackup(settings)
+                    settingsImported = true
+                }
+            }
+        }.onFailure {
+            archiveErrors += it.message ?: context.getString(R.string.archive_parse_failed)
+        }
+
+        return ImportResult(
+            importedSessions = sessionResult?.imported?.size ?: 0,
+            skippedSessions = sessionResult?.skipped?.size ?: 0,
+            importedFavorites = favoritesResult.imported,
+            skippedFavorites = favoritesResult.skipped,
+            settingsImported = settingsImported,
+            errors = sessionResult?.errors.orEmpty().map { it.error } +
+                favoritesResult.errors + archiveErrors,
+        )
+    }
+
+    sealed class ImportStart {
+        data class Done(val result: ImportResult) : ImportStart()
+        data class NeedsDecision(val conflictCount: Int) : ImportStart()
+    }
+
+    private var stagedImportFile: java.io.File? = null
+
+    suspend fun beginImport(uri: Uri): ImportStart {
+        val context = getApplication<Application>()
+        cancelImport()
+        val tempFile = java.io.File(context.filesDir, "archive_import_temp.zip")
+        val copied = runCatching {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                tempFile.outputStream().use { output -> input.copyTo(output) }
+            } != null
+        }.getOrDefault(false)
+        if (!copied) {
+            tempFile.delete()
+            return ImportStart.Done(
+                ImportResult(
+                    0,
+                    0,
+                    0,
+                    0,
+                    false,
+                    listOf(context.getString(R.string.archive_read_failed)),
+                )
+            )
+        }
+        val conflicts = sessionRepository.peekImportConflicts(tempFile)
+        if (conflicts.isEmpty()) {
+            return try {
+                ImportStart.Done(
+                    runImport(tempFile, overwriteExisting = false, favoritesOnly = false)
+                )
+            } finally {
+                tempFile.delete()
+            }
+        }
+        stagedImportFile = tempFile
+        return ImportStart.NeedsDecision(conflicts.size)
+    }
+
+    suspend fun resolveImport(overwriteExisting: Boolean): ImportResult {
+        val tempFile = stagedImportFile ?: return ImportResult(
+            0,
+            0,
+            0,
+            0,
+            false,
+            emptyList(),
+        )
+        stagedImportFile = null
+        return try {
+            runImport(tempFile, overwriteExisting, favoritesOnly = false)
+        } finally {
+            tempFile.delete()
+        }
+    }
+
+    fun cancelImport() {
+        stagedImportFile?.delete()
+        stagedImportFile = null
+    }
+
+    override fun onCleared() {
+        cancelImport()
     }
 }
