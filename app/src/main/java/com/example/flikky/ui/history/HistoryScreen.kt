@@ -67,6 +67,7 @@ import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.openStoredFile
+import com.example.flikky.ui.components.saveToGallery
 import com.example.flikky.ui.components.sessionFile
 import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
@@ -74,8 +75,10 @@ import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import androidx.compose.foundation.text.selection.SelectionContainer
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,6 +111,7 @@ fun HistoryScreen(
     val unfavoriteLabel = stringResource(R.string.history_unfavorite)
     val copyLabel = stringResource(R.string.history_copy)
     val openLabel = stringResource(R.string.history_open)
+    val galleryLabel = stringResource(R.string.files_action_gallery)
     val deleteLabel = stringResource(R.string.history_delete)
     val deletedMessage = stringResource(R.string.history_deleted)
     val undoLabel = stringResource(R.string.history_undo)
@@ -137,6 +141,7 @@ fun HistoryScreen(
     // shared by both the inline bar and the floating toolbar.
     val copyPainter = painterResource(R.drawable.ic_content_copy)
     val downloadPainter = painterResource(R.drawable.ic_file_download)
+    val galleryPainter = painterResource(R.drawable.ic_photo_library)
     val deletePainter = painterResource(R.drawable.ic_delete)
     val pinPainter = painterResource(R.drawable.ic_push_pin)
     val editPainter = painterResource(R.drawable.ic_edit)
@@ -203,6 +208,33 @@ fun HistoryScreen(
                 onClick = {
                     openOrPreview(msg)
                     actionTarget = null
+                },
+            ))
+        }
+        if (msg is Message.File && msg.status == Message.File.Status.COMPLETED &&
+            FilesListBuilder.isMedia(msg.mime)
+        ) {
+            add(MessageAction(
+                icon = galleryPainter,
+                label = galleryLabel,
+                onClick = {
+                    actionTarget = null
+                    scope.launch {
+                        val saved = withContext(Dispatchers.IO) {
+                            saveToGallery(
+                                ctx,
+                                sessionFile(sessionId, msg.fileId),
+                                msg.name,
+                                msg.mime,
+                            )
+                        }
+                        snackbarHostState.showSnackbar(
+                            ctx.getString(
+                                if (saved) R.string.files_gallery_done
+                                else R.string.files_gallery_failed,
+                            ),
+                        )
+                    }
                 },
             ))
         }

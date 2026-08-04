@@ -1,8 +1,12 @@
 package com.example.flikky.ui.files
 
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -51,9 +56,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -64,6 +71,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil3.compose.AsyncImage
 import com.example.flikky.R
 import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.di.ServiceLocator
@@ -78,6 +86,7 @@ import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.formatSize
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.openStoredFile
+import com.example.flikky.ui.components.saveToGallery
 import com.example.flikky.ui.components.sessionFile
 import com.example.flikky.ui.components.shareStoredFile
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
@@ -88,6 +97,19 @@ import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+internal class CreateDocumentDynamicMime :
+    ActivityResultContract<Pair<String, String>, Uri?>() {
+    override fun createIntent(context: Context, input: Pair<String, String>): Intent =
+        Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = input.first
+            putExtra(Intent.EXTRA_TITLE, input.second)
+        }
+
+    override fun parseResult(resultCode: Int, intent: Intent?): Uri? =
+        intent?.data.takeIf { resultCode == Activity.RESULT_OK }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -132,7 +154,7 @@ fun FilesScreen(
     }
 
     val saveLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/octet-stream"),
+        CreateDocumentDynamicMime(),
     ) { uri ->
         val target = saveTarget
         saveTarget = null
@@ -371,20 +393,9 @@ fun FilesScreen(
                             contentDescription = stringResource(R.string.files_action_favorite),
                         )
                     }
-                    singleSelected?.let { single ->
-                        IconButton(
-                            onClick = {
-                                saveTarget = single
-                                saveLauncher.launch(single.fileName ?: single.fileId)
-                            },
-                        ) {
-                            Icon(
-                                painterResource(R.drawable.ic_file_download),
-                                contentDescription = stringResource(R.string.files_action_save),
-                            )
-                        }
-                        IconButton(
-                            onClick = {
+                    IconButton(
+                        onClick = {
+                            singleSelected?.let { single ->
                                 shareStoredFile(
                                     context,
                                     single.sessionId,
@@ -392,27 +403,45 @@ fun FilesScreen(
                                     single.fileName ?: single.fileId,
                                     single.fileMime,
                                 )
-                            },
-                        ) {
-                            Icon(
-                                painterResource(R.drawable.ic_share),
-                                contentDescription = stringResource(R.string.files_action_share),
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                viewModel.exitSelecting()
-                                onOpenMessage(single.sessionId, single.messageId)
-                            },
-                            enabled = single.sessionEndedAt != null,
-                        ) {
-                            Icon(
-                                painterResource(R.drawable.ic_history),
-                                contentDescription = stringResource(
-                                    R.string.files_action_open_in_session,
-                                ),
-                            )
-                        }
+                            }
+                        },
+                        enabled = singleSelected != null,
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.ic_share),
+                            contentDescription = stringResource(R.string.files_action_share),
+                        )
+                    }
+                    val gallerySelected = singleSelected?.takeIf {
+                        FilesListBuilder.isMedia(it.fileMime)
+                    }
+                    IconButton(
+                        onClick = {
+                            gallerySelected?.let { row ->
+                                scope.launch {
+                                    val saved = withContext(Dispatchers.IO) {
+                                        saveToGallery(
+                                            context,
+                                            sessionFile(row.sessionId, row.fileId),
+                                            row.fileName ?: row.fileId,
+                                            row.fileMime.orEmpty(),
+                                        )
+                                    }
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(
+                                            if (saved) R.string.files_gallery_done
+                                            else R.string.files_gallery_failed,
+                                        ),
+                                    )
+                                }
+                            }
+                        },
+                        enabled = gallerySelected != null,
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.ic_photo_library),
+                            contentDescription = stringResource(R.string.files_action_gallery),
+                        )
                     }
                     IconButton(
                         onClick = { showDeleteDialog = true },
@@ -427,6 +456,62 @@ fun FilesScreen(
                                 LocalContentColor.current
                             },
                         )
+                    }
+                    Box {
+                        var moreExpanded by remember { mutableStateOf(false) }
+                        IconButton(
+                            onClick = { moreExpanded = true },
+                            enabled = singleSelected != null,
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_more_vert),
+                                contentDescription = stringResource(R.string.files_more_actions),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = moreExpanded,
+                            onDismissRequest = { moreExpanded = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.files_action_save_as)) },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.ic_file_download),
+                                        contentDescription = null,
+                                    )
+                                },
+                                enabled = singleSelected != null,
+                                onClick = {
+                                    moreExpanded = false
+                                    singleSelected?.let { single ->
+                                        saveTarget = single
+                                        saveLauncher.launch(
+                                            (single.fileMime ?: "application/octet-stream") to
+                                                (single.fileName ?: single.fileId),
+                                        )
+                                    }
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(stringResource(R.string.files_action_open_in_session))
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        painterResource(R.drawable.ic_history),
+                                        contentDescription = null,
+                                    )
+                                },
+                                enabled = singleSelected?.sessionEndedAt != null,
+                                onClick = {
+                                    moreExpanded = false
+                                    singleSelected?.let { single ->
+                                        viewModel.exitSelecting()
+                                        onOpenMessage(single.sessionId, single.messageId)
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -662,12 +747,29 @@ private fun FileOverviewItem(
                 Modifier
             },
         )
-    val leading: @Composable () -> Unit = {
-        Icon(
-            painter = painterResource(category.iconResource()),
-            contentDescription = null,
-        )
-    }
+    val leading: @Composable () -> Unit =
+        if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
+            {
+                AsyncImage(
+                    model = remember(row.sessionId, row.fileId) {
+                        sessionFile(row.sessionId, row.fileId)
+                    },
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(category.iconResource()),
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                )
+            }
+        } else {
+            {
+                Icon(
+                    painter = painterResource(category.iconResource()),
+                    contentDescription = null,
+                )
+            }
+        }
     val supporting: @Composable () -> Unit = {
         Text(
             text = subtitle,

@@ -17,10 +17,14 @@
     <string name="files_direction_received">Received</string>
     <string name="files_direction_sent">Sent</string>
     <string name="files_action_favorite">Favorite</string>
-    <string name="files_action_save">Save to device</string>
+    <string name="files_action_gallery">Save to gallery</string>
+    <string name="files_action_save_as">Save as</string>
     <string name="files_action_share">Share</string>
     <string name="files_action_open_in_session">View in session</string>
     <string name="files_action_delete">Delete</string>
+    <string name="files_gallery_done">Saved to gallery</string>
+    <string name="files_gallery_failed">Couldn\'t save to gallery</string>
+    <string name="files_more_actions">More actions</string>
     <string name="files_delete_title">Delete this file?</string>
     <string name="files_delete_text_single">Frees %1$s. The session record stays, but the file can no longer be opened.</string>
     <string name="files_delete_title_batch">Delete %1$d files?</string>

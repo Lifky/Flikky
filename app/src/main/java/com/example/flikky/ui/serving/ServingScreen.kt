@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -78,19 +79,23 @@ import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.sessionFile
+import com.example.flikky.ui.components.saveToGallery
 import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.settings.sheets.AvatarPickerSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ServingScreen(
     onStopped: () -> Unit,
     viewModel: ServingViewModel = viewModel(),
 ) {
+    val ctx = LocalContext.current
     val ui by viewModel.ui.collectAsState()
     val progressMap by viewModel.fileTransferProgress.collectAsState()
     val settings by viewModel.settings.collectAsState()
@@ -112,6 +117,7 @@ fun ServingScreen(
     val unfavoriteLabel = stringResource(R.string.serving_unfavorite)
     val copyLabel = stringResource(R.string.serving_copy)
     val openLabel = stringResource(R.string.serving_open)
+    val galleryLabel = stringResource(R.string.files_action_gallery)
     val recallLabel = stringResource(R.string.serving_recall)
     val deleteLabel = stringResource(R.string.serving_delete)
     val deletedMessage = stringResource(R.string.serving_deleted)
@@ -131,6 +137,7 @@ fun ServingScreen(
     // shared by both inline and floating action paths.
     val undoPainter = painterResource(R.drawable.ic_undo)
     val downloadPainter = painterResource(R.drawable.ic_file_download)
+    val galleryPainter = painterResource(R.drawable.ic_photo_library)
     val copyPainter = painterResource(R.drawable.ic_content_copy)
     val deletePainter = painterResource(R.drawable.ic_delete)
     val starPainter = painterResource(R.drawable.ic_star)
@@ -209,6 +216,36 @@ fun ServingScreen(
                     actionTarget = null
                 },
             ))
+        }
+        if (msg is Message.File && msg.status == Message.File.Status.COMPLETED &&
+            FilesListBuilder.isMedia(msg.mime)
+        ) {
+            val sid = currentSessionId
+            if (sid != null) {
+                add(MessageAction(
+                    icon = galleryPainter,
+                    label = galleryLabel,
+                    onClick = {
+                        actionTarget = null
+                        scope.launch {
+                            val saved = withContext(Dispatchers.IO) {
+                                saveToGallery(
+                                    ctx,
+                                    sessionFile(sid, msg.fileId),
+                                    msg.name,
+                                    msg.mime,
+                                )
+                            }
+                            snackbarHostState.showSnackbar(
+                                ctx.getString(
+                                    if (saved) R.string.files_gallery_done
+                                    else R.string.files_gallery_failed,
+                                ),
+                            )
+                        }
+                    },
+                ))
+            }
         }
         // 撤回 — phone origin, beta enabled, not failed
         if (settings.recallBetaEnabled && msg.origin == Origin.PHONE && !isFailed) {

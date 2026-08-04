@@ -221,7 +221,7 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * 打开浏览器上传的文件。
      * 只对 origin=BROWSER & status=COMPLETED 的 Message.File 有效：
-     * 文件在 context.filesDir/transfer/{fileId}，通过 FileProvider 以 msg.name 暴露给第三方 APP。
+     * 文件路径由 SessionFileStore.messageFile 解析（唯一事实源），通过 FileProvider 以 msg.name 暴露给第三方 APP。
      * 手机自己发送的文件（origin=PHONE）不走这条路径——那是用户从手机选出去的，自己已有。
      */
     fun openFile(msg: Message.File) {

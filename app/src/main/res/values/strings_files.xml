@@ -17,10 +17,14 @@
     <string name="files_direction_received">接收</string>
     <string name="files_direction_sent">发送</string>
     <string name="files_action_favorite">收藏</string>
-    <string name="files_action_save">另存到本机</string>
+    <string name="files_action_gallery">存相册</string>
+    <string name="files_action_save_as">另存为</string>
     <string name="files_action_share">分享</string>
     <string name="files_action_open_in_session">在会话中查看</string>
     <string name="files_action_delete">删除</string>
+    <string name="files_gallery_done">已保存到相册</string>
+    <string name="files_gallery_failed">保存到相册失败</string>
+    <string name="files_more_actions">更多操作</string>
     <string name="files_delete_title">删除文件？</string>
     <string name="files_delete_text_single">将释放 %1$s。会话记录会保留，但文件无法再打开。</string>
     <string name="files_delete_title_batch">删除 %1$d 个文件？</string>

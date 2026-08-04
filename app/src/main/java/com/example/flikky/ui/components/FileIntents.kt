@@ -1,8 +1,11 @@
 package com.example.flikky.ui.components
 
 import android.content.ActivityNotFoundException
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.os.Environment
+import android.provider.MediaStore
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.example.flikky.R
@@ -50,6 +53,53 @@ fun openStoredFile(
         true
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(context, R.string.file_no_handler, Toast.LENGTH_SHORT).show()
+        false
+    }
+}
+
+/**
+ * Saves a local image or video into the system gallery. Call from an IO dispatcher.
+ * Pending MediaStore rows are published only after the full payload is written.
+ */
+fun saveToGallery(
+    context: Context,
+    file: File,
+    displayName: String,
+    mime: String,
+): Boolean {
+    if (!file.exists()) return false
+    val isImage = mime.startsWith("image/")
+    val isVideo = mime.startsWith("video/")
+    if (!isImage && !isVideo) return false
+
+    val collection = if (isImage) {
+        MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+    } else {
+        MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+    }
+    val relativePath = if (isImage) {
+        Environment.DIRECTORY_PICTURES + "/Flikky"
+    } else {
+        Environment.DIRECTORY_MOVIES + "/Flikky"
+    }
+    val values = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+        put(MediaStore.MediaColumns.MIME_TYPE, mime)
+        put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+        put(MediaStore.MediaColumns.IS_PENDING, 1)
+    }
+    val resolver = context.contentResolver
+    val uri = runCatching { resolver.insert(collection, values) }.getOrNull() ?: return false
+    return runCatching {
+        resolver.openOutputStream(uri)?.use { output ->
+            file.inputStream().use { input -> input.copyTo(output) }
+        } ?: error("openOutputStream returned null")
+        values.clear()
+        values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+        resolver.update(uri, values, null, null)
+        true
+    }.getOrElse {
+        runCatching { resolver.delete(uri, null, null) }
         false
     }
 }
