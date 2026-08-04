@@ -469,7 +469,7 @@ fun SettingsScreen(
                     SettingItem(
                         title = stringResource(R.string.settings_require_pin),
                         leadingIcon = painterResource(R.drawable.ic_fiber_pin),
-                        subtitle = stringResource(R.string.settings_require_pin_summary),
+                        infoText = stringResource(R.string.settings_require_pin_summary),
                         trailing = {
                             Switch(
                                 checked = s.requirePin,
@@ -513,7 +513,7 @@ fun SettingsScreen(
                     SettingItem(
                         title = stringResource(R.string.settings_allow_back),
                         leadingIcon = rememberVectorPainter(Icons.AutoMirrored.Filled.ArrowBack),
-                        subtitle = stringResource(R.string.settings_allow_back_summary),
+                        infoText = stringResource(R.string.settings_allow_back_summary),
                         trailing = {
                             Switch(
                                 checked = s.allowBackDuringSession,

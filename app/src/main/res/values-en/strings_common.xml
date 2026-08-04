@@ -44,4 +44,6 @@
     <string name="file_no_handler">No app can open this file type</string>
     <string name="preview_close">Close preview</string>
     <string name="common_list_separator">, </string>
+    <string name="common_got_it">Got it</string>
+    <string name="settings_show_info">Show details</string>
 </resources>

@@ -43,4 +43,6 @@
     <string name="file_no_handler">没有可以打开此类型文件的应用</string>
     <string name="preview_close">关闭预览</string>
     <string name="common_list_separator">，</string>
+    <string name="common_got_it">知道了</string>
+    <string name="settings_show_info">查看说明</string>
 </resources>

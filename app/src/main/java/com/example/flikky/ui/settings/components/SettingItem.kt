@@ -6,16 +6,26 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import com.example.flikky.R
 import com.example.flikky.ui.theme.Spacing
 
 /**
@@ -42,6 +52,7 @@ fun SettingItem(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    infoText: String? = null,
     leadingIcon: Painter? = null,
     trailing: @Composable (() -> Unit)? = null,
     content: @Composable (() -> Unit)? = null,
@@ -50,6 +61,27 @@ fun SettingItem(
     index: Int = 0,
     total: Int = 1,
 ) {
+    var showInfo by remember { mutableStateOf(false) }
+    val trailingGroup: (@Composable () -> Unit)? =
+        if (infoText != null || trailing != null) {
+            {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (infoText != null) {
+                        IconButton(onClick = { showInfo = true }) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_info),
+                                contentDescription = stringResource(R.string.settings_show_info),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    trailing?.invoke()
+                }
+            }
+        } else {
+            null
+        }
+
     SegmentedListItem(
         onClick = onClick ?: {},
         shapes = ListItemDefaults.segmentedShapes(index = index, count = total),
@@ -87,9 +119,9 @@ fun SettingItem(
                                 color = if (danger) MaterialTheme.colorScheme.error else Color.Unspecified,
                                 modifier = Modifier.weight(1f),
                             )
-                            if (trailing != null) {
+                            if (trailingGroup != null) {
                                 Spacer(Modifier.width(Spacing.md))
-                                trailing()
+                                trailingGroup()
                             }
                         }
                         if (subtitle != null) {
@@ -116,12 +148,25 @@ fun SettingItem(
                             )
                         }
                     }
-                    if (trailing != null) {
+                    if (trailingGroup != null) {
                         Spacer(Modifier.width(Spacing.md))
-                        trailing()
+                        trailingGroup()
                     }
                 }
             }
         },
     )
+
+    if (showInfo && infoText != null) {
+        AlertDialog(
+            onDismissRequest = { showInfo = false },
+            title = { Text(title) },
+            text = { Text(infoText) },
+            confirmButton = {
+                TextButton(onClick = { showInfo = false }) {
+                    Text(stringResource(R.string.common_got_it))
+                }
+            },
+        )
+    }
 }
