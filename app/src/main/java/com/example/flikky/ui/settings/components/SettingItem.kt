@@ -21,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -56,7 +55,6 @@ fun SettingItem(
     leadingIcon: Painter? = null,
     trailing: @Composable (() -> Unit)? = null,
     content: @Composable (() -> Unit)? = null,
-    danger: Boolean = false,
     onClick: (() -> Unit)? = null,
     index: Int = 0,
     total: Int = 1,
@@ -98,11 +96,7 @@ fun SettingItem(
                     Icon(
                         painter = leadingIcon,
                         contentDescription = null,
-                        tint = if (danger) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.width(Spacing.lg))
                 }
@@ -116,7 +110,6 @@ fun SettingItem(
                             Text(
                                 text = title,
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = if (danger) MaterialTheme.colorScheme.error else Color.Unspecified,
                                 modifier = Modifier.weight(1f),
                             )
                             if (trailingGroup != null) {
@@ -138,7 +131,6 @@ fun SettingItem(
                         Text(
                             text = title,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = if (danger) MaterialTheme.colorScheme.error else Color.Unspecified,
                         )
                         if (subtitle != null) {
                             Text(

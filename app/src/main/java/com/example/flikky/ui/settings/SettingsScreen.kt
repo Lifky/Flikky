@@ -646,8 +646,7 @@ fun SettingsScreen(
                     }
                     SettingItem(
                         title = stringResource(R.string.settings_delete_all),
-                        leadingIcon = painterResource(R.drawable.ic_delete),
-                        danger = true,
+                        leadingIcon = painterResource(R.drawable.ic_delete_forever),
                         onClick = { showDeleteAllDialog = true },
                         index = sectionItems - 1, total = sectionItems,
                     )
