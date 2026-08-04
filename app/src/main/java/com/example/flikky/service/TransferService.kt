@@ -14,6 +14,7 @@ import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
 import com.example.flikky.R
+import com.example.flikky.data.AndroidThumbnailGenerator
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.AppLanguageManager
@@ -422,6 +423,7 @@ class TransferService : Service() {
             }
         },
         recallEnabled = { latestSettings.recallBetaEnabled },
+        thumbnailGenerator = AndroidThumbnailGenerator(),
         mode = ServiceMode.Transfer,
         requirePin = currentRequirePin,
         // M9: lambda reads the @Volatile field (not a closure-captured local) so

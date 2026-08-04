@@ -23,6 +23,16 @@ class SessionFileStore(
         File(fileDir(sessionId), fileId)
 
     /**
+     * sessions/{sessionId}/thumbs/{fileId}.jpg: Web thumbnail disk cache.
+     * Keeping it below the session directory makes deleteSessionDir clean it automatically.
+     */
+    override fun thumbFile(sessionId: Long, fileId: String): File =
+        File(thumbDir(sessionId), "$fileId.jpg")
+
+    private fun thumbDir(sessionId: Long): File =
+        File(File(filesDir, "sessions/$sessionId"), "thumbs").apply { mkdirs() }
+
+    /**
      * 从 InputStream 同步拷贝到 sessions/{sessionId}/files/{fileId}。
      * 流会被 close；抛异常时目标文件可能不完整，调用方需决定是否删除。
      */
@@ -44,6 +54,7 @@ class SessionFileStore(
      * 返回 true 表示调用结束后文件已不存在；false 表示删除失败（例如权限问题）。
      */
     fun deleteMessageFile(sessionId: Long, fileId: String): Boolean {
+        thumbFile(sessionId, fileId).delete()
         val file = messageFile(sessionId, fileId)
         if (!file.exists()) return true
         return file.delete()

@@ -41,6 +41,8 @@ class FileRoutesTest {
         val filesDir: File = File(root, "files").apply { mkdirs() }
         val store = object : FileStore {
             override fun fileDir(sessionId: Long): File = filesDir
+            override fun thumbFile(sessionId: Long, fileId: String): File =
+                File(filesDir, "$fileId.thumb.jpg")
         }
     }
 
@@ -57,6 +59,7 @@ class FileRoutesTest {
             onPersist = { h.persisted += it },
             broadcastEvent = { type, payload -> h.events += type to payload },
             nowMs = { 0L },
+            thumbnailer = ThumbnailGenerator { _, _, _ -> false },
         )
     }
 

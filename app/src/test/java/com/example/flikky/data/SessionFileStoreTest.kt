@@ -35,6 +35,17 @@ class SessionFileStoreTest {
         assertTrue(f.absolutePath == File(s.fileDir(42L), "abc").absolutePath)
     }
 
+    @Test fun thumbFile_resolves_under_session_thumbs_dir() {
+        val f = store().thumbFile(sessionId = 42L, fileId = "abc")
+        assertTrue(
+            f.absolutePath.endsWith(
+                File.separator + "sessions" + File.separator + "42" +
+                    File.separator + "thumbs" + File.separator + "abc.jpg"
+            )
+        )
+        assertTrue(f.parentFile!!.isDirectory)
+    }
+
     @Test fun deleteSessionDir_removes_files_recursively() {
         val s = store()
         val f = s.archiveFromStream(sessionId = 1L, fileId = "x",
@@ -43,5 +54,20 @@ class SessionFileStoreTest {
         s.deleteSessionDir(sessionId = 1L)
         assertTrue(!f.exists())
         assertTrue(!(f.parentFile?.exists() ?: false))
+    }
+
+    @Test fun deleteMessageFile_also_removes_thumb() {
+        val s = store()
+        s.archiveFromStream(1L, "x", ByteArrayInputStream(byteArrayOf(1)))
+        val thumb = s.thumbFile(1L, "x").apply { writeBytes(byteArrayOf(9)) }
+        assertTrue(s.deleteMessageFile(1L, "x"))
+        assertTrue(!thumb.exists())
+    }
+
+    @Test fun deleteSessionDir_removes_thumbs_too() {
+        val s = store()
+        val thumb = s.thumbFile(7L, "y").apply { writeBytes(byteArrayOf(9)) }
+        s.deleteSessionDir(7L)
+        assertTrue(!thumb.exists())
     }
 }

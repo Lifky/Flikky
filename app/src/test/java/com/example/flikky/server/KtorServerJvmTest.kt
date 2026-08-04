@@ -39,6 +39,8 @@ class KtorServerJvmTest {
             sessDir.mkdirs()
             return sessDir
         }
+        override fun thumbFile(sessionId: Long, fileId: String): File =
+            File(File(dir, "sessions/$sessionId/thumbs"), "$fileId.jpg")
     }
 
     @Test

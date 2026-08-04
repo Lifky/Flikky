@@ -20,6 +20,7 @@ import io.ktor.server.application.call
 import io.ktor.server.request.receiveMultipart
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondBytesWriter
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -33,7 +34,19 @@ import java.util.UUID
 interface FileStore {
     /** filesDir/sessions/$sessionId/files/, auto-created. */
     fun fileDir(sessionId: Long): File
+
+    /** Thumbnail cache path for this file. The parent directory is auto-created. */
+    fun thumbFile(sessionId: Long, fileId: String): File
 }
+
+/** Only these media types may be rendered inline. SVG stays excluded because it can execute script. */
+internal val INLINE_MIME_WHITELIST = setOf(
+    "image/jpeg", "image/png", "image/gif", "image/webp",
+    "video/mp4", "video/webm", "video/3gpp", "video/quicktime", "video/x-matroska",
+)
+
+internal fun isMediaMime(mime: String): Boolean =
+    mime.startsWith("image/") || mime.startsWith("video/")
 
 fun Route.fileRoutes(
     session: SessionState,
@@ -44,6 +57,7 @@ fun Route.fileRoutes(
     onPersist: suspend (Message) -> Unit,
     broadcastEvent: suspend (type: String, payload: String) -> Unit,
     nowMs: () -> Long,
+    thumbnailer: ThumbnailGenerator,
 ) {
     fun authed(call: ApplicationCall): Boolean {
         val token = call.request.cookies[AUTH_COOKIE]
@@ -170,6 +184,36 @@ fun Route.fileRoutes(
         call.respond(responseDto)
     }
 
+    get("/api/files/{id}/thumb") {
+        if (!authed(call)) { call.respond(HttpStatusCode.Unauthorized); return@get }
+        val id = call.parameters["id"] ?: run { call.respond(HttpStatusCode.BadRequest); return@get }
+        val sid = currentSessionId()
+
+        val fileMsg = session.snapshot.value.messages
+            .filterIsInstance<Message.File>()
+            .firstOrNull { it.fileId == id }
+            ?: run { call.respond(HttpStatusCode.NotFound); return@get }
+        if (!isMediaMime(fileMsg.mime)) { call.respond(HttpStatusCode.NotFound); return@get }
+        if (fileMsg.status == Message.File.Status.IN_PROGRESS) {
+            call.respond(HttpStatusCode(409, "Conflict"), "File transfer in progress")
+            return@get
+        }
+        val source = File(store.fileDir(sid), id)
+        if (!source.exists()) { call.respond(HttpStatusCode.NotFound); return@get }
+
+        val thumb = store.thumbFile(sid, id)
+        if (!thumb.exists()) {
+            val generated = runCatching { thumbnailer.generate(source, fileMsg.mime, thumb) }
+                .getOrDefault(false)
+            if (!generated || !thumb.exists() || thumb.length() == 0L) {
+                thumb.delete()
+                call.respond(HttpStatusCode.NotFound)
+                return@get
+            }
+        }
+        call.respondBytes(thumb.readBytes(), ContentType.Image.JPEG)
+    }
+
     get("/api/files/{id}") {
         if (!authed(call)) { call.respond(HttpStatusCode.Unauthorized); return@get }
         val id = call.parameters["id"] ?: run { call.respond(HttpStatusCode.BadRequest); return@get }
@@ -185,15 +229,21 @@ fun Route.fileRoutes(
 
         val file = File(store.fileDir(sid), id)
         if (!file.exists()) { call.respond(HttpStatusCode.NotFound); return@get }
+        val inline = call.request.queryParameters["inline"] == "1" &&
+            fileMsg != null && fileMsg.mime in INLINE_MIME_WHITELIST
         val originalName = session.snapshot.value.messages
             .filterIsInstance<com.example.flikky.session.Message.File>()
             .firstOrNull { it.fileId == id }?.name ?: id
         call.response.header(
             HttpHeaders.ContentDisposition,
-            ContentDisposition.Attachment.withParameter("filename", originalName).toString(),
+            (if (inline) ContentDisposition.Inline else ContentDisposition.Attachment)
+                .withParameter("filename", originalName).toString(),
         )
         call.response.header(HttpHeaders.ContentLength, file.length().toString())
-        call.respondBytesWriter(contentType = ContentType.Application.OctetStream, status = HttpStatusCode.OK) {
+        call.respondBytesWriter(
+            contentType = if (inline) ContentType.parse(fileMsg!!.mime) else ContentType.Application.OctetStream,
+            status = HttpStatusCode.OK,
+        ) {
             file.inputStream().use { input ->
                 val buf = ByteArray(64 * 1024)
                 while (true) {

@@ -6,6 +6,7 @@ import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.dto.WebThemeDto
 import com.example.flikky.server.routes.FileStore
+import com.example.flikky.server.routes.ThumbnailGenerator
 import com.example.flikky.server.routes.AuthGate
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.server.routes.authRoutes
@@ -57,6 +58,8 @@ class KtorServer(
     private val requirePin: Boolean = true,
     private val onZipSent: suspend () -> Unit = {},
     private val favoriteFileResolver: (String) -> java.io.File? = { null },
+    /** Web thumbnail generator. TransferService supplies the Android implementation. */
+    private val thumbnailGenerator: ThumbnailGenerator = ThumbnailGenerator { _, _, _ -> false },
     /**
      * M9: provides the phone's current appearance for GET /api/peer-info.
      * Lambda so the caller can always read the latest settings without
@@ -160,6 +163,7 @@ class KtorServer(
             onPersist = onPersistMessage,
             broadcastEvent = { type, payload -> wsHub.broadcast(type, payload) },
             nowMs = nowMs,
+            thumbnailer = thumbnailGenerator,
         )
         peerInfoRoutes(authGate, peerInfoProvider)
         wsRoutes(authGate, session, wsHub)
