@@ -108,6 +108,7 @@ fun ServingScreen(
     var pendingFavoriteMsg by remember { mutableStateOf<Message?>(null) }
     var showAttachSheet by remember { mutableStateOf(false) }
     var showFavoriteQuickSheet by remember { mutableStateOf(false) }
+    var showFilesQuickSheet by remember { mutableStateOf(false) }
     var showQuickSettings by remember { mutableStateOf(false) }
     var showPeerAvatarPicker by remember { mutableStateOf(false) }
     var previewImage by remember { mutableStateOf<java.io.File?>(null) }
@@ -124,6 +125,7 @@ fun ServingScreen(
     val undoLabel = stringResource(R.string.serving_undo)
     val backBlockedMessage = stringResource(R.string.serving_back_blocked)
     val favoriteSentMessage = stringResource(R.string.serving_favorite_sent)
+    val fileSentMessage = stringResource(R.string.files_quick_sent)
     val favoriteSourceMissingMessage = stringResource(R.string.serving_favorite_source_missing)
     val activeSessionName = stringResource(R.string.serving_active_session)
     val pickFile = rememberLauncherForActivityResult(
@@ -143,6 +145,7 @@ fun ServingScreen(
     val starPainter = painterResource(R.drawable.ic_star)
     val starBorderPainter = painterResource(R.drawable.ic_star_border)
     val currentSessionId = ServiceLocator.session.snapshot.collectAsState().value.currentSessionId
+    val allFiles by ServiceLocator.repository.observeAllFiles().collectAsState(initial = emptyList())
 
     fun openOrPreview(msg: Message.File) {
         val file = currentSessionId?.let { sessionFile(it, msg.fileId) }
@@ -370,6 +373,14 @@ fun ServingScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                             ) {
+                                FilledTonalIconButton(onClick = { showFilesQuickSheet = true }) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_folder_open),
+                                        contentDescription = stringResource(
+                                            R.string.serving_files_quick
+                                        ),
+                                    )
+                                }
                                 // 快捷设置：会话期间「设置」tab 被锁，这里就近调气泡圆角 / 深色模式。
                                 FilledTonalIconButton(onClick = { showQuickSettings = true }) {
                                     Icon(
@@ -631,6 +642,17 @@ fun ServingScreen(
                 scope.launch { snackbarHostState.showSnackbar(favoriteSentMessage) }
             },
             onDismiss = { showFavoriteQuickSheet = false },
+        )
+    }
+
+    if (showFilesQuickSheet) {
+        FilesQuickSheet(
+            rows = allFiles,
+            onSend = { row ->
+                viewModel.sendStoredFile(row)
+                scope.launch { snackbarHostState.showSnackbar(fileSentMessage) }
+            },
+            onDismiss = { showFilesQuickSheet = false },
         )
     }
 

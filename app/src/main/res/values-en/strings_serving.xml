@@ -47,6 +47,12 @@
     <string name="favorite_quick_empty">No favorites yet</string>
     <string name="favorite_quick_no_match">No matching favorites</string>
 
+    <string name="serving_files_quick">All files</string>
+    <string name="files_quick_title">Send an existing file</string>
+    <string name="files_quick_no_match">No matching files</string>
+    <string name="files_quick_sent">Sent</string>
+    <string name="files_quick_missing">The file is missing and can\'t be sent</string>
+
     <string name="attach_title">Add</string>
     <string name="attach_file">File</string>
     <string name="attach_file_summary">Any file type</string>

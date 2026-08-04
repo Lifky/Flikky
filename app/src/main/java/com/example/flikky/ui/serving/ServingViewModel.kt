@@ -13,6 +13,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flikky.R
+import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.settings.AvatarGroupingMode
@@ -146,6 +147,25 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     fun recordRecentFavorite(favoriteId: Long) {
         viewModelScope.launch { ServiceLocator.settingsRepository.recordRecentFavorite(favoriteId) }
+    }
+
+    fun sendStoredFile(row: FileOverviewRow) {
+        val source = ServiceLocator.fileStore.messageFile(row.sessionId, row.fileId)
+        val name = row.fileName ?: "unnamed"
+        val mime = row.fileMime ?: "application/octet-stream"
+        viewModelScope.launch {
+            val sent = controller?.offerStoredFile(
+                source,
+                name,
+                row.fileSize ?: source.length(),
+                mime,
+            ) == true
+            if (!sent) {
+                _events.trySend(
+                    getApplication<Application>().getString(R.string.files_quick_missing)
+                )
+            }
+        }
     }
 
     // 进行中会话的快捷设置：会话期间「设置」tab 被锁，用户改不了这些常调项。

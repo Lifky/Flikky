@@ -815,25 +815,6 @@ private fun FileOverviewItem(
     }
 }
 
-private fun FileCategory.labelResource(): Int = when (this) {
-    FileCategory.ALL -> R.string.files_filter_all
-    FileCategory.IMAGE -> R.string.files_filter_image
-    FileCategory.VIDEO -> R.string.files_filter_video
-    FileCategory.AUDIO -> R.string.files_filter_audio
-    FileCategory.DOCUMENT -> R.string.files_filter_document
-    FileCategory.OTHER -> R.string.files_filter_other
-}
-
-private fun FileCategory.iconResource(): Int = when (this) {
-    FileCategory.IMAGE -> R.drawable.ic_image
-    FileCategory.VIDEO -> R.drawable.ic_movie
-    FileCategory.AUDIO -> R.drawable.ic_music_note
-    FileCategory.DOCUMENT -> R.drawable.ic_description
-    FileCategory.ALL,
-    FileCategory.OTHER,
-    -> R.drawable.ic_draft
-}
-
 private fun formatFileDate(timestamp: Long): String =
     DateFormat.getDateInstance(DateFormat.SHORT).format(Date(timestamp))
 

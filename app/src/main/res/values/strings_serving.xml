@@ -47,6 +47,12 @@
     <string name="favorite_quick_empty">暂无收藏</string>
     <string name="favorite_quick_no_match">没有匹配的收藏</string>
 
+    <string name="serving_files_quick">文件总览</string>
+    <string name="files_quick_title">发送已有文件</string>
+    <string name="files_quick_no_match">没有匹配的文件</string>
+    <string name="files_quick_sent">已发送</string>
+    <string name="files_quick_missing">文件不存在，无法发送</string>
+
     <string name="attach_title">添加</string>
     <string name="attach_file">文件</string>
     <string name="attach_file_summary">任意类型</string>

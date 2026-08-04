@@ -79,6 +79,19 @@ class FilesListBuilderTest {
     }
 
     @Test
+    fun `build combines category and query for quick sheet`() {
+        val rows = listOf(
+            row(1, "cat.jpg", "image/jpeg", size = 10, timestamp = 1),
+            row(2, "cat.mp4", "video/mp4", size = 20, timestamp = 2),
+            row(3, "dog.jpg", "image/jpeg", size = 30, timestamp = 3),
+        )
+
+        val out = FilesListBuilder.build(rows, FileCategory.IMAGE, "cat", FileSort.TIME)
+
+        assertEquals(listOf(1L), out.map { it.messageId })
+    }
+
+    @Test
     fun `stats sums visible rows treating null size as zero`() {
         val rows = listOf(
             row(1, "a", null, size = 10, timestamp = 1),
