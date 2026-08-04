@@ -46,6 +46,7 @@
     <string name="favorites_delete">删除</string>
     <string name="favorites_text_added">已添加文本收藏</string>
     <string name="favorites_move_to_group">移动到合集</string>
+    <string name="favorites_share">分享</string>
     <string name="favorites_send">发送收藏</string>
     <string name="favorites_unnamed_file">未命名文件</string>
     <string name="favorites_empty_text">空文本</string>

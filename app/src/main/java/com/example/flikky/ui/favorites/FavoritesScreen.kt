@@ -73,6 +73,7 @@ import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.setPlainText
+import com.example.flikky.ui.components.shareFile
 import com.example.flikky.ui.exporting.ArchiveViewModel
 import com.example.flikky.ui.exporting.ExportDestinationSheet
 import com.example.flikky.ui.home.GroupChips
@@ -101,6 +102,9 @@ fun FavoritesScreen(
     val query by viewModel.searchQuery.collectAsState()
     val sessionSnap by ServiceLocator.session.snapshot.collectAsState()
     val selectedIds = selection ?: emptySet()
+    val selectedFavorites = remember(items, selectedIds) { items.filter { it.id in selectedIds } }
+    val shareTarget = selectedFavorites.singleOrNull()
+        ?.takeIf { it.kind == "FILE" && it.fileId != null }
     val canSendFavorites = sessionSnap.clientConnected
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -404,6 +408,17 @@ fun FavoritesScreen(
             ) {
                 FavoritesSelectingToolbar(
                     selectedCount = selectedIds.size,
+                    shareEnabled = shareTarget != null,
+                    onShare = {
+                        shareTarget?.let { favorite ->
+                            shareFile(
+                                context,
+                                ServiceLocator.favoriteFileStore.resolve(favorite.fileId!!),
+                                favorite.fileName ?: favorite.fileId!!,
+                                favorite.fileMime,
+                            )
+                        }
+                    },
                     onMove = { showMoveSheet = true },
                     onDelete = { if (selectedIds.isNotEmpty()) showDeleteConfirm = true },
                 )

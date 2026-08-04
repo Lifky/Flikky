@@ -51,6 +51,7 @@
     <string name="favorites_delete">Delete</string>
     <string name="favorites_text_added">Text added to favorites</string>
     <string name="favorites_move_to_group">Move to collection</string>
+    <string name="favorites_share">Share</string>
     <string name="favorites_send">Send favorite</string>
     <string name="favorites_unnamed_file">Unnamed file</string>
     <string name="favorites_empty_text">Empty text</string>

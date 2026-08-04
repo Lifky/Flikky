@@ -13,6 +13,8 @@ import com.example.flikky.ui.components.FlikkyFloatingToolbar
 @Composable
 fun FavoritesSelectingToolbar(
     selectedCount: Int,
+    shareEnabled: Boolean,
+    onShare: () -> Unit,
     onMove: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -22,6 +24,12 @@ fun FavoritesSelectingToolbar(
             Icon(
                 painterResource(R.drawable.ic_drive_file_move),
                 contentDescription = stringResource(R.string.favorites_move_to_group),
+            )
+        }
+        IconButton(onClick = onShare, enabled = shareEnabled) {
+            Icon(
+                painterResource(R.drawable.ic_share),
+                contentDescription = stringResource(R.string.favorites_share),
             )
         }
         IconButton(onClick = onDelete, enabled = enabled) {

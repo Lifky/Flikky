@@ -104,14 +104,11 @@ fun saveToGallery(
     }
 }
 
-fun shareStoredFile(
-    context: Context,
-    sessionId: Long,
-    fileId: String,
-    displayName: String,
-    mime: String?,
-): Boolean {
-    val file = sessionFile(sessionId, fileId)
+/**
+ * FileProvider + ACTION_SEND sharing shared by session and favorite file stores.
+ * Callers resolve the file from the appropriate storage root.
+ */
+fun shareFile(context: Context, file: File, displayName: String, mime: String?): Boolean {
     if (!file.exists()) {
         Toast.makeText(context, R.string.file_missing, Toast.LENGTH_SHORT).show()
         return false
@@ -144,3 +141,11 @@ fun shareStoredFile(
         false
     }
 }
+
+fun shareStoredFile(
+    context: Context,
+    sessionId: Long,
+    fileId: String,
+    displayName: String,
+    mime: String?,
+): Boolean = shareFile(context, sessionFile(sessionId, fileId), displayName, mime)
