@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import com.example.flikky.ui.theme.Spacing
 
@@ -44,6 +45,7 @@ fun SettingItem(
     leadingIcon: Painter? = null,
     trailing: @Composable (() -> Unit)? = null,
     content: @Composable (() -> Unit)? = null,
+    danger: Boolean = false,
     onClick: (() -> Unit)? = null,
     index: Int = 0,
     total: Int = 1,
@@ -64,7 +66,11 @@ fun SettingItem(
                     Icon(
                         painter = leadingIcon,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (danger) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                     Spacer(Modifier.width(Spacing.lg))
                 }
@@ -78,6 +84,7 @@ fun SettingItem(
                             Text(
                                 text = title,
                                 style = MaterialTheme.typography.bodyLarge,
+                                color = if (danger) MaterialTheme.colorScheme.error else Color.Unspecified,
                                 modifier = Modifier.weight(1f),
                             )
                             if (trailing != null) {
@@ -96,7 +103,11 @@ fun SettingItem(
                     }
                 } else {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = title, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (danger) MaterialTheme.colorScheme.error else Color.Unspecified,
+                        )
                         if (subtitle != null) {
                             Text(
                                 text = subtitle,

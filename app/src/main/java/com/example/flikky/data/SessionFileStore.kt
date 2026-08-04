@@ -49,6 +49,12 @@ class SessionFileStore(
         return !dir.exists() || dir.deleteRecursively()
     }
 
+    /** Deletes every session file and thumbnail directory. Missing storage is already clean. */
+    fun deleteAllSessionDirs(): Boolean {
+        val root = File(filesDir, "sessions")
+        return !root.exists() || root.deleteRecursively()
+    }
+
     /**
      * 删除特定 message 的文件（v1.3 撤回流程调用）。幂等：文件本来就不存在也返回 true。
      * 返回 true 表示调用结束后文件已不存在；false 表示删除失败（例如权限问题）。

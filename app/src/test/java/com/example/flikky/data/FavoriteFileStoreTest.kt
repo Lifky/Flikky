@@ -5,6 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.ByteArrayInputStream
 import java.io.File
 
 class FavoriteFileStoreTest {
@@ -23,13 +24,22 @@ class FavoriteFileStoreTest {
     }
 
     @Test fun delete_is_idempotent() {
-        val s = store()
+        val store = store()
         val source = tmp.newFile("source.bin").apply { writeBytes(byteArrayOf(1)) }
-        val target = s.copyIn("depot-id", source)
+        val target = store.copyIn("depot-id", source)
 
         assertTrue(target.exists())
-        assertTrue(s.delete("depot-id"))
+        assertTrue(store.delete("depot-id"))
         assertTrue(!target.exists())
-        assertTrue(s.delete("depot-id"))
+        assertTrue(store.delete("depot-id"))
+    }
+
+    @Test fun deleteAll_removes_whole_favorites_tree() {
+        val store = store()
+        store.copyIn("d1", ByteArrayInputStream(byteArrayOf(1)))
+        store.copyIn("d2", ByteArrayInputStream(byteArrayOf(2)))
+
+        assertTrue(store.deleteAll())
+        assertTrue(!File(tmp.root, "favorites").exists())
     }
 }

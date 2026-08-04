@@ -70,4 +70,13 @@ class SessionFileStoreTest {
         s.deleteSessionDir(7L)
         assertTrue(!thumb.exists())
     }
+
+    @Test fun deleteAllSessionDirs_removes_whole_sessions_tree() {
+        val s = store()
+        s.archiveFromStream(1L, "a", ByteArrayInputStream(byteArrayOf(1)))
+        s.archiveFromStream(2L, "b", ByteArrayInputStream(byteArrayOf(2)))
+
+        assertTrue(s.deleteAllSessionDirs())
+        assertTrue(!File(tmp.root, "sessions").exists())
+    }
 }

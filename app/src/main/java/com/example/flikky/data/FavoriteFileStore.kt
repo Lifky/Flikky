@@ -32,4 +32,10 @@ class FavoriteFileStore(
         if (!file.exists()) return true
         return file.delete()
     }
+
+    /** Deletes the complete favorites file tree. Missing storage is already clean. */
+    fun deleteAll(): Boolean {
+        val root = File(filesDir, "favorites")
+        return !root.exists() || root.deleteRecursively()
+    }
 }

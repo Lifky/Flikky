@@ -128,6 +128,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         }
     }
 
+    /** Clears every persisted preference so all flow defaults become active again. */
+    suspend fun clearAll() = ds.edit { it.clear() }
+
     suspend fun exportBackup(): SettingsExport {
         val s = settings.first()
         val (backgroundMode, backgroundValue) = when (val background = s.background) {

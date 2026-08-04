@@ -121,4 +121,12 @@
     <string name="background_title">会话背景</string>
     <string name="background_theme_solid">纯色（跟随主题）</string>
     <string name="background_custom_hue">自定义（色相）</string>
+
+    <string name="settings_delete_all">删除全部数据</string>
+    <string name="settings_delete_all_title">删除全部数据？</string>
+    <string name="settings_delete_all_body">全部会话与消息、全部收藏、全部已接收文件将被永久删除，无法恢复。</string>
+    <string name="settings_delete_all_reset">同时重置设置</string>
+    <string name="settings_delete_all_confirm">全部删除</string>
+    <string name="settings_delete_all_done">已删除全部数据</string>
+    <string name="settings_delete_all_blocked">会话进行中，无法删除</string>
 </resources>

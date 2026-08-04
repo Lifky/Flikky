@@ -13,6 +13,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Slider
@@ -30,6 +32,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -47,6 +50,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -129,6 +133,9 @@ fun SettingsScreen(
     val defaultDeviceName = stringResource(R.string.settings_default_device_name)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { snackbarHostState.showSnackbar(it) }
+    }
     val versionName = remember(context) {
         context.packageManager
             .getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
@@ -145,6 +152,7 @@ fun SettingsScreen(
     var showActionStyleDialog by remember { mutableStateOf(false) }
     var showAvatarGroupingDialog by remember { mutableStateOf(false) }
     var showAnimSpeedDialog by remember { mutableStateOf(false) }
+    var showDeleteAllDialog by remember { mutableStateOf(false) }
     var showImportProgress by remember { mutableStateOf(false) }
     var showExportProgress by remember { mutableStateOf(false) }
     var exportProgressTitle by remember(context) {
@@ -494,7 +502,7 @@ fun SettingsScreen(
 
             // ─── 数据 ─────────────────────────────────────────────────────────
             item {
-                val sectionItems = if (importExportExpanded) 8 else 3
+                val sectionItems = if (importExportExpanded) 9 else 4
                 SettingSection(title = stringResource(R.string.settings_section_data)) {
                     val historySubtitle = when (s.historyRetainLimit) {
                         -1 -> stringResource(R.string.settings_history_unlimited)
@@ -611,6 +619,13 @@ fun SettingsScreen(
                             )
                         }
                     }
+                    SettingItem(
+                        title = stringResource(R.string.settings_delete_all),
+                        leadingIcon = painterResource(R.drawable.ic_delete),
+                        danger = true,
+                        onClick = { showDeleteAllDialog = true },
+                        index = sectionItems - 1, total = sectionItems,
+                    )
                 }
             }
 
@@ -852,6 +867,50 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+
+    if (showDeleteAllDialog) {
+        var resetSettings by remember { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = { showDeleteAllDialog = false },
+            title = { Text(stringResource(R.string.settings_delete_all_title)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.settings_delete_all_body))
+                    Spacer(Modifier.height(Spacing.md))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { resetSettings = !resetSettings },
+                    ) {
+                        Checkbox(
+                            checked = resetSettings,
+                            onCheckedChange = { resetSettings = it },
+                        )
+                        Text(stringResource(R.string.settings_delete_all_reset))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteAllDialog = false
+                        viewModel.deleteAllData(resetSettings)
+                    },
+                ) {
+                    Text(
+                        stringResource(R.string.settings_delete_all_confirm),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAllDialog = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
     }
 
     // ─── Import progress dialog ───────────────────────────────────────────────

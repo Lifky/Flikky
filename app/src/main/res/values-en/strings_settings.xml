@@ -126,4 +126,12 @@
     <string name="background_title">Session background</string>
     <string name="background_theme_solid">Solid colors from theme</string>
     <string name="background_custom_hue">Custom hue</string>
+
+    <string name="settings_delete_all">Delete all data</string>
+    <string name="settings_delete_all_title">Delete all data?</string>
+    <string name="settings_delete_all_body">All sessions and messages, all favorites, and all received files will be permanently deleted. This cannot be undone.</string>
+    <string name="settings_delete_all_reset">Also reset settings</string>
+    <string name="settings_delete_all_confirm">Delete everything</string>
+    <string name="settings_delete_all_done">All data deleted</string>
+    <string name="settings_delete_all_blocked">A session is running; deletion is blocked</string>
 </resources>
