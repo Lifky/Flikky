@@ -23,7 +23,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import com.example.flikky.R
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
@@ -117,9 +121,12 @@ fun MessageBubble(
             )
         }
         val fileMsg = msg as? Message.File
+        // 抽帧/解码失败（损坏文件、不支持的编码）时回退经典文件气泡，而不是留一块空白。
+        var thumbLoadFailed by remember(fileMsg?.id, thumbnailFile) { mutableStateOf(false) }
         val isMediaThumb = fileMsg != null &&
             fileMsg.status == Message.File.Status.COMPLETED &&
-            thumbnailFile != null
+            thumbnailFile != null &&
+            !thumbLoadFailed
         Box(
             modifier = Modifier
                 .widthIn(max = maxWidth)
@@ -142,6 +149,7 @@ fun MessageBubble(
                     msg = fileMsg!!,
                     fg = fg,
                     thumbnail = thumbnailFile!!,
+                    onLoadFailed = { thumbLoadFailed = true },
                 )
                 else -> FileBubbleContent(
                     msg = fileMsg!!, fg = fg, mine = mine,
@@ -157,22 +165,33 @@ fun MessageBubble(
     }
 }
 
+// 媒体气泡定宽：布局不能跟着缩略图固有像素走（随来源尺寸/屏幕密度漂移），
+// 统一 220dp 宽、高按图片比例推导并封顶 280dp——超高竖图与主流聊天工具一样
+// 中央裁剪，完整内容由全屏预览承担。标题行同宽，气泡因此始终贴合缩略图。
+private val MediaThumbWidth = 220.dp
+private val MediaThumbMaxHeight = 280.dp
+
 @Composable
 private fun MediaBubbleContent(
     msg: Message.File,
     fg: Color,
     thumbnail: File,
+    onLoadFailed: () -> Unit,
 ) {
     val isVideo = msg.mime.startsWith("video/")
-    Column {
+    Column(Modifier.width(MediaThumbWidth)) {
         Box(contentAlignment = Alignment.Center) {
             AsyncImage(
                 model = if (isVideo) StoredVideo(thumbnail) else thumbnail,
                 contentDescription = msg.name,
-                contentScale = ContentScale.Fit,
+                contentScale = ContentScale.Crop,
+                onState = { state ->
+                    if (state is AsyncImagePainter.State.Error) onLoadFailed()
+                },
                 modifier = Modifier
-                    .widthIn(max = 220.dp)
-                    .heightIn(max = 280.dp),
+                    .width(MediaThumbWidth)
+                    .heightIn(min = 96.dp, max = MediaThumbMaxHeight)
+                    .background(fg.copy(alpha = 0.06f)),
             )
             if (isVideo) {
                 Icon(
