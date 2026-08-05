@@ -510,27 +510,39 @@ body.mobile-ua .chat-input-row mdui-button {
 }
 
 /* v1.17.0 media thumbnail bubble.
-   Fixed thumb width + aspect height capped at 280px (tall images crop like mainstream
-   chat apps; the lightbox shows the full image). fit-content keeps the bubble hugging
-   the thumb instead of stretching to max width with dead space. */
+   Mainstream-chat sizing: scale the thumb proportionally into a 240x320 box —
+   no cropping, so tall screenshots become narrow strips and wide ones flat strips
+   (Screenshot_17/18 reference). The 96px min edge only bites on extreme ratios,
+   where object-fit:cover center-crops instead of collapsing to a sliver.
+   The bubble is a column flex hugging the image; the caption must not contribute
+   to intrinsic width (see .thumb-caption). */
 .file-bubble.media {
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
     padding: 6px;
     width: fit-content;
-    max-width: min(320px, 70%);
+    max-width: min(280px, 70%);
 }
 .file-bubble.media .thumb-wrap {
     position: relative;
-    flex-basis: 100%;
     cursor: zoom-in;
 }
 .file-bubble.media .thumb {
     display: block;
-    width: 240px;
-    max-width: 100%;
-    max-height: 280px;
+    max-width: 240px;
+    max-height: 320px;
+    min-width: 96px;
+    min-height: 96px;
     object-fit: cover;
     border-radius: calc(var(--flikky-bubble-radius) - 4px);
+}
+/* Narrow viewports: keep the 240px thumb inside the bubble cap. Must come after
+   the base .thumb rule — equal specificity, so source order decides the winner. */
+@media (max-width: 480px) {
+    .file-bubble.media .thumb {
+        max-width: calc(100vw - 120px);
+    }
 }
 .file-bubble.media .thumb-play {
     position: absolute;
@@ -543,11 +555,12 @@ body.mobile-ua .chat-input-row mdui-button {
     pointer-events: none;
 }
 .file-bubble.media .thumb-caption {
-    /* Same fixed width as the thumb so a long filename can't widen the bubble. */
-    width: 240px;
-    max-width: 100%;
+    /* width:0 + min-width:100%: the caption contributes nothing to the bubble's
+       intrinsic (fit-content) width — a long filename can't widen the bubble past
+       the image — yet lays out stretched to the image width and ellipsizes. */
+    width: 0;
+    min-width: 100%;
     box-sizing: border-box;
-    flex-basis: 100%;
     display: flex;
     align-items: center;
     gap: 10px;

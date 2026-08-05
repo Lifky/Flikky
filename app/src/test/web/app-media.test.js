@@ -41,13 +41,28 @@ test('all upload and transfer render paths stash mime on the bubble dataset', ()
     assert.match(appJs, /div\.dataset\.mime = msg\.mime \|\| ''/);
 });
 
-test('media bubbles hug a fixed-width thumb instead of stretching to max width', () => {
-    // 竖图曾被 width:100% + cover 裁成放大的横带；改为固定宽 + 比例高（封顶裁剪），
-    // 气泡用 fit-content 贴合图宽，杜绝死空间。
-    assert.match(appCss, /\.file-bubble\.media\s*\{[^}]*width:\s*fit-content/);
-    assert.match(appCss, /\.file-bubble\.media \.thumb\s*\{[^}]*width:\s*240px/);
-    assert.match(appCss, /\.file-bubble\.media \.thumb\s*\{[^}]*max-height:\s*280px/);
-    assert.match(appCss, /\.file-bubble\.media \.thumb-caption\s*\{[^}]*width:\s*240px/);
+test('media thumbs scale proportionally inside a max box, bubble hugs the image', () => {
+    // 主流聊天方案：等比缩放放进 240x320 边界框，不裁剪（极端比例才由 96px 最小边
+    // + cover 兜底）。气泡是纵向 flex + fit-content，宽度由缩略图决定；caption 用
+    // width:0 + min-width:100% 不参与固有宽度计算，长文件名不会撑宽气泡。
+    const media = appCss.match(/\.file-bubble\.media\s*\{[^}]*\}/);
+    assert.ok(media, '.file-bubble.media rule missing');
+    assert.match(media[0], /flex-direction:\s*column/);
+    assert.match(media[0], /width:\s*fit-content/);
+
+    const thumb = appCss.match(/\.file-bubble\.media \.thumb\s*\{[^}]*\}/);
+    assert.ok(thumb, '.file-bubble.media .thumb rule missing');
+    assert.match(thumb[0], /max-width:\s*240px/);
+    assert.match(thumb[0], /max-height:\s*320px/);
+    assert.match(thumb[0], /min-width:\s*96px/);
+    assert.match(thumb[0], /min-height:\s*96px/);
+    // 固定宽是旧方案（裁剪 + 死空间）——绝不允许回潮。
+    assert.doesNotMatch(thumb[0], /[^-]width:\s*240px/);
+
+    const caption = appCss.match(/\.file-bubble\.media \.thumb-caption\s*\{[^}]*\}/);
+    assert.ok(caption, '.file-bubble.media .thumb-caption rule missing');
+    assert.match(caption[0], /[^-]width:\s*0/);
+    assert.match(caption[0], /min-width:\s*100%/);
 });
 
 test('lightbox media loads via the authenticated inline url', () => {
