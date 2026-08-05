@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,11 +42,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.example.flikky.R
 import com.example.flikky.session.Message
+import com.example.flikky.util.MediaThumbLayout
 import com.example.flikky.session.Origin
 import com.example.flikky.ui.theme.Spacing
 import java.io.File
@@ -165,11 +167,14 @@ fun MessageBubble(
     }
 }
 
-// 媒体气泡定宽：布局不能跟着缩略图固有像素走（随来源尺寸/屏幕密度漂移），
-// 统一 220dp 宽、高按图片比例推导并封顶 280dp——超高竖图与主流聊天工具一样
-// 中央裁剪，完整内容由全屏预览承担。标题行同宽，气泡因此始终贴合缩略图。
-private val MediaThumbWidth = 220.dp
-private val MediaThumbMaxHeight = 280.dp
+// 媒体气泡按主流聊天方案定尺寸：先读出媒体真实宽高（MediaDimensionsCache，
+// 布局绝不跟随 painter 固有像素——会随来源与解码时机漂移），再由
+// MediaThumbLayout.fit 等比缩放进 220x300dp 边界框完整显示；只有极端比例
+// 长图触发 96dp 最小边并由 Crop 中央裁剪兜底。容器与图片精确同尺寸，
+// 气泡因此始终贴合图片，标题行同宽。
+private val MediaThumbMaxWidth = 220.dp
+private val MediaThumbMaxHeight = 300.dp
+private val MediaThumbMinEdge = 96.dp
 
 @Composable
 private fun MediaBubbleContent(
@@ -179,7 +184,20 @@ private fun MediaBubbleContent(
     onLoadFailed: () -> Unit,
 ) {
     val isVideo = msg.mime.startsWith("video/")
-    Column(Modifier.width(MediaThumbWidth)) {
+    val dims by produceState(MediaDimensionsCache.peek(thumbnail), thumbnail) {
+        value = MediaDimensionsCache.read(thumbnail, isVideo)
+    }
+    val thumbSize = dims?.let {
+        MediaThumbLayout.fit(
+            srcWidth = it.width, srcHeight = it.height,
+            maxWidth = MediaThumbMaxWidth.value,
+            maxHeight = MediaThumbMaxHeight.value,
+            minEdge = MediaThumbMinEdge.value,
+        )
+    }?.let { (w, h) -> DpSize(w.dp, h.dp) }
+        // 尺寸读取中（首帧一瞬）或元数据损坏时的固定占位框。
+        ?: DpSize(MediaThumbMaxWidth, 160.dp)
+    Column(Modifier.width(thumbSize.width)) {
         Box(contentAlignment = Alignment.Center) {
             AsyncImage(
                 model = if (isVideo) StoredVideo(thumbnail) else thumbnail,
@@ -189,8 +207,7 @@ private fun MediaBubbleContent(
                     if (state is AsyncImagePainter.State.Error) onLoadFailed()
                 },
                 modifier = Modifier
-                    .width(MediaThumbWidth)
-                    .heightIn(min = 96.dp, max = MediaThumbMaxHeight)
+                    .size(thumbSize)
                     .background(fg.copy(alpha = 0.06f)),
             )
             if (isVideo) {
