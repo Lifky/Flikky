@@ -15,7 +15,7 @@ import okio.Path.Companion.toOkioPath
  * Coil model for stored video blobs. Session and favorite files are persisted without a
  * file extension, so Coil cannot infer a video mime type and VideoFrameDecoder never
  * engages; wrapping the file in [StoredVideo] routes it through [StoredVideoFetcher],
- * which stamps a video/* mime so frame extraction works on extensionless files.
+ * which stamps a video mime so frame extraction works on extensionless files.
  */
 data class StoredVideo(val file: File)
 
