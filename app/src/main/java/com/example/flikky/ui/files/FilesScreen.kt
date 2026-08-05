@@ -7,6 +7,8 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -310,7 +312,11 @@ fun FilesScreen(
                         vertical = Spacing.sm,
                     ),
                 )
-                if (!selecting) {
+                // chip 行显隐动画（与传输页/收藏页一致）：MutableTransitionState 从 false 起步，
+                // 进入/退出多选时播 expand/shrink 过渡，不做硬切。
+                val chipVisible = remember { MutableTransitionState(false) }
+                chipVisible.targetState = !selecting
+                AnimatedVisibility(visibleState = chipVisible) {
                     FileCategoryChips(
                         selected = category,
                         onSelected = viewModel::setCategory,
