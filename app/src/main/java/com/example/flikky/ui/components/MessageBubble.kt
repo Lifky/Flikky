@@ -167,7 +167,7 @@ private fun MediaBubbleContent(
     Column {
         Box(contentAlignment = Alignment.Center) {
             AsyncImage(
-                model = thumbnail,
+                model = if (isVideo) StoredVideo(thumbnail) else thumbnail,
                 contentDescription = msg.name,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier

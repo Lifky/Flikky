@@ -55,6 +55,7 @@ import com.example.flikky.R
 import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.ui.components.formatSize
 import com.example.flikky.ui.components.sessionFile
+import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.FileSort
 import com.example.flikky.ui.files.FilesListBuilder
@@ -231,8 +232,9 @@ private fun FileQuickRow(
     ) {
         if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
             AsyncImage(
-                model = remember(row.sessionId, row.fileId) {
-                    sessionFile(row.sessionId, row.fileId)
+                model = remember(row.sessionId, row.fileId, category) {
+                    val file = sessionFile(row.sessionId, row.fileId)
+                    if (category == FileCategory.VIDEO) StoredVideo(file) else file
                 },
                 contentDescription = null,
                 contentScale = ContentScale.Crop,

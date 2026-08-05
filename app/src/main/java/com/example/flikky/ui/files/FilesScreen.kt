@@ -88,6 +88,7 @@ import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.openStoredFile
 import com.example.flikky.ui.components.saveToGallery
 import com.example.flikky.ui.components.sessionFile
+import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.components.shareStoredFile
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.theme.Motion
@@ -751,8 +752,9 @@ private fun FileOverviewItem(
         if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
             {
                 AsyncImage(
-                    model = remember(row.sessionId, row.fileId) {
-                        sessionFile(row.sessionId, row.fileId)
+                    model = remember(row.sessionId, row.fileId, category) {
+                        val file = sessionFile(row.sessionId, row.fileId)
+                        if (category == FileCategory.VIDEO) StoredVideo(file) else file
                     },
                     contentDescription = null,
                     contentScale = ContentScale.Crop,

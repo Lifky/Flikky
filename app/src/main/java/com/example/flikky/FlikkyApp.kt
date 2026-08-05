@@ -6,6 +6,8 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.video.VideoFrameDecoder
 import com.example.flikky.di.ServiceLocator
+import com.example.flikky.ui.components.StoredVideoFetcher
+import com.example.flikky.ui.components.StoredVideoKeyer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -26,6 +28,10 @@ class FlikkyApp : Application(), SingletonImageLoader.Factory {
 
     override fun newImageLoader(context: PlatformContext): ImageLoader =
         ImageLoader.Builder(context)
-            .components { add(VideoFrameDecoder.Factory()) }
+            .components {
+                add(StoredVideoFetcher.Factory())
+                add(StoredVideoKeyer())
+                add(VideoFrameDecoder.Factory())
+            }
             .build()
 }
