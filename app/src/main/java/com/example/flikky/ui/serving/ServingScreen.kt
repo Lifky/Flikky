@@ -118,6 +118,7 @@ fun ServingScreen(
     val unfavoriteLabel = stringResource(R.string.serving_unfavorite)
     val copyLabel = stringResource(R.string.serving_copy)
     val openLabel = stringResource(R.string.serving_open)
+    val previewLabel = stringResource(R.string.files_action_preview)
     val galleryLabel = stringResource(R.string.files_action_gallery)
     val recallLabel = stringResource(R.string.serving_recall)
     val deleteLabel = stringResource(R.string.serving_delete)
@@ -209,11 +210,13 @@ fun ServingScreen(
                 },
             ))
         }
-        // 打开 — file COMPLETED
+        // 打开/预览 — file COMPLETED。媒体文件的图标语义（用户定死）：
+        // photo_library=预览、file_download=存相册；非媒体维持 download 图标的「打开」。
         if (msg is Message.File && msg.status == Message.File.Status.COMPLETED) {
+            val isMedia = FilesListBuilder.isMedia(msg.mime)
             add(MessageAction(
-                icon = downloadPainter,
-                label = openLabel,
+                icon = if (isMedia) galleryPainter else downloadPainter,
+                label = if (isMedia) previewLabel else openLabel,
                 onClick = {
                     openOrPreview(msg)
                     actionTarget = null
@@ -226,7 +229,7 @@ fun ServingScreen(
             val sid = currentSessionId
             if (sid != null) {
                 add(MessageAction(
-                    icon = galleryPainter,
+                    icon = downloadPainter,
                     label = galleryLabel,
                     onClick = {
                         actionTarget = null

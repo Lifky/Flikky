@@ -111,6 +111,7 @@ fun HistoryScreen(
     val unfavoriteLabel = stringResource(R.string.history_unfavorite)
     val copyLabel = stringResource(R.string.history_copy)
     val openLabel = stringResource(R.string.history_open)
+    val previewLabel = stringResource(R.string.files_action_preview)
     val galleryLabel = stringResource(R.string.files_action_gallery)
     val deleteLabel = stringResource(R.string.history_delete)
     val deletedMessage = stringResource(R.string.history_deleted)
@@ -201,10 +202,13 @@ fun HistoryScreen(
                 },
             ))
         }
+        // 媒体文件的图标语义（用户定死）：photo_library=预览、file_download=存相册；
+        // 非媒体维持 download 图标的「打开」。与 ServingScreen 保持一致。
         if (msg is Message.File && msg.status == Message.File.Status.COMPLETED) {
+            val isMedia = FilesListBuilder.isMedia(msg.mime)
             add(MessageAction(
-                icon = downloadPainter,
-                label = openLabel,
+                icon = if (isMedia) galleryPainter else downloadPainter,
+                label = if (isMedia) previewLabel else openLabel,
                 onClick = {
                     openOrPreview(msg)
                     actionTarget = null
@@ -215,7 +219,7 @@ fun HistoryScreen(
             FilesListBuilder.isMedia(msg.mime)
         ) {
             add(MessageAction(
-                icon = galleryPainter,
+                icon = downloadPainter,
                 label = galleryLabel,
                 onClick = {
                     actionTarget = null

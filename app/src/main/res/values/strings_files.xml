@@ -18,6 +18,7 @@
     <string name="files_direction_sent">发送</string>
     <string name="files_action_favorite">收藏</string>
     <string name="files_action_gallery">存相册</string>
+    <string name="files_action_preview">预览</string>
     <string name="files_action_save_as">另存为</string>
     <string name="files_action_share">分享</string>
     <string name="files_action_open_in_session">在会话中查看</string>

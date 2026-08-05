@@ -18,6 +18,7 @@
     <string name="files_direction_sent">Sent</string>
     <string name="files_action_favorite">Favorite</string>
     <string name="files_action_gallery">Save to gallery</string>
+    <string name="files_action_preview">Preview</string>
     <string name="files_action_save_as">Save as</string>
     <string name="files_action_share">Share</string>
     <string name="files_action_open_in_session">View in session</string>

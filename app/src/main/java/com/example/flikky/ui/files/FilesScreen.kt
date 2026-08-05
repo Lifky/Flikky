@@ -440,7 +440,8 @@ fun FilesScreen(
                         enabled = gallerySelected != null,
                     ) {
                         Icon(
-                            painterResource(R.drawable.ic_photo_library),
+                            // 图标语义与消息操作栏统一：file_download=存相册。
+                            painterResource(R.drawable.ic_file_download),
                             contentDescription = stringResource(R.string.files_action_gallery),
                         )
                     }
@@ -477,7 +478,8 @@ fun FilesScreen(
                                 text = { Text(stringResource(R.string.files_action_save_as)) },
                                 leadingIcon = {
                                     Icon(
-                                        painterResource(R.drawable.ic_file_download),
+                                        // download 让位给「存相册」，另存为改官方 save 图标。
+                                        painterResource(R.drawable.ic_save),
                                         contentDescription = null,
                                     )
                                 },
