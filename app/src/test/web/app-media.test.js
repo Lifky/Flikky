@@ -41,6 +41,15 @@ test('all upload and transfer render paths stash mime on the bubble dataset', ()
     assert.match(appJs, /div\.dataset\.mime = msg\.mime \|\| ''/);
 });
 
+test('media bubbles hug a fixed-width thumb instead of stretching to max width', () => {
+    // 竖图曾被 width:100% + cover 裁成放大的横带；改为固定宽 + 比例高（封顶裁剪），
+    // 气泡用 fit-content 贴合图宽，杜绝死空间。
+    assert.match(appCss, /\.file-bubble\.media\s*\{[^}]*width:\s*fit-content/);
+    assert.match(appCss, /\.file-bubble\.media \.thumb\s*\{[^}]*width:\s*240px/);
+    assert.match(appCss, /\.file-bubble\.media \.thumb\s*\{[^}]*max-height:\s*280px/);
+    assert.match(appCss, /\.file-bubble\.media \.thumb-caption\s*\{[^}]*width:\s*240px/);
+});
+
 test('lightbox media loads via the authenticated inline url', () => {
     assert.match(appJs, /\/api\/files\/\$\{fileId\}\?inline=1/);
     assert.match(appJs, /\/api\/files\/\$\{fileId\}\/thumb/);
