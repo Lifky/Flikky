@@ -158,9 +158,26 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
 }
+#connection-dialog::part(header) {
+    align-items: center;
+    text-align: center;
+}
+#connection-dialog::part(icon) {
+    width: 100%;
+    justify-content: center;
+}
+#connection-dialog::part(headline) {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+}
+#connection-dialog::part(body) {
+    text-align: center;
+}
 #connection-dialog-message {
     color: rgb(var(--mdui-color-on-surface-variant));
     line-height: 1.5;
+    text-align: center;
 }
 
 /* Failed state — paint the entire bubble in error-container so the

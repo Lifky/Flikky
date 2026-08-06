@@ -14,7 +14,12 @@ test('connection loss uses a blurred dialog that users cannot dismiss', () => {
     assert.ok(dialogTag, 'connection dialog must exist');
     assert.doesNotMatch(dialogTag, /close-on-overlay-click/);
     assert.doesNotMatch(dialogTag, /close-on-esc/);
+    assert.match(appHtml, /slot="icon"[^>]*>signal_disconnected<\/span>/);
+    assert.doesNotMatch(appHtml, /slot="icon"[^>]*>wifi_off<\/span>/);
     assert.match(appCss, /#connection-dialog::part\(overlay\)\s*\{[^}]*backdrop-filter:\s*blur\(/);
+    assert.match(appCss, /#connection-dialog::part\(header\)\s*\{[^}]*align-items:\s*center/);
+    assert.match(appCss, /#connection-dialog::part\(headline\)\s*\{[^}]*justify-content:\s*center/);
+    assert.match(appCss, /#connection-dialog::part\(body\)\s*\{[^}]*text-align:\s*center/);
     assert.match(appJs, /function showConnectionDialog[\s\S]*?textContent\s*=\s*t\([\s\S]*?\.open\s*=\s*true/);
     assert.match(appJs, /function hideConnectionDialog[\s\S]*?\.open\s*=\s*false/);
     assert.doesNotMatch(appHtml, /id="conn-banner"/);
