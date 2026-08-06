@@ -33,8 +33,15 @@
             <div class="avatar-picker-grid" id="avatar-picker-grid"></div>
         </mdui-dialog>
 
-        <div id="conn-banner" class="conn-banner" hidden></div>
-        <div id="list" class="chat-list"></div>
+        <mdui-dialog id="connection-dialog">
+            <span slot="icon" class="material-symbols-outlined">wifi_off</span>
+            <div slot="headline" data-i18n="app.disconnected">已断开</div>
+            <div id="connection-dialog-message" role="status" aria-live="assertive"></div>
+        </mdui-dialog>
+
+        <div id="chat-list-shell" class="chat-list-shell">
+            <div id="list" class="chat-list"></div>
+        </div>
 
         <div class="chat-input-row">
             <input type="file" id="file-picker" style="display:none" multiple>

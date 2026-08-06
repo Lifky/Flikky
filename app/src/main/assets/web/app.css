@@ -53,14 +53,25 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     align-items: center;
 }
 
-.chat-list {
+.chat-list-shell {
     flex: 1;
+    min-height: 0;
+    position: relative;
+    overflow: hidden;
+    background: rgb(var(--mdui-color-surface-container-lowest));
+}
+
+.chat-list {
+    height: 100%;
+    box-sizing: border-box;
     overflow-y: auto;
     padding: var(--flikky-space-screen-edge);
     display: flex;
     flex-direction: column;
     gap: var(--flikky-space-list-gap);
-    background: rgb(var(--mdui-color-surface-container-lowest));
+    background: transparent;
+    position: relative;
+    z-index: 1;
 }
 
 .bubble {
@@ -140,29 +151,16 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     margin-top: 2px;
 }
 
-/* Connection banner — sits above the chat list to surface disconnected /
- * reconnected state with a card-like affordance (test3 ask). Hidden by
- * default via the [hidden] attribute. */
-.conn-banner {
-    margin: var(--flikky-space-sm) var(--flikky-space-md);
-    padding: 10px 14px;
-    border-radius: var(--flikky-shape-sm);
-    font-size: var(--flikky-font-body-medium);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+/* Connection loss is modal because no message action can succeed until the
+ * socket returns. The dialog itself is intentionally non-dismissible; only a
+ * successful reconnect closes it. */
+#connection-dialog::part(overlay) {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
-.conn-banner[data-kind="disconnected"] {
-    background: rgb(var(--mdui-color-error-container));
-    color: rgb(var(--mdui-color-on-error-container));
-}
-.conn-banner[data-kind="restored"] {
-    background: rgb(var(--mdui-color-tertiary-container));
-    color: rgb(var(--mdui-color-on-tertiary-container));
-}
-.conn-banner[data-kind="terminated"] {
-    /* 服务端主动停止 — 用户已经知道发生了什么，纯 surface 卡片。MD3 推荐
-     * informational message 使用 surface-container 层级而非 error 色调。 */
-    background: rgb(var(--mdui-color-surface-container-high));
+#connection-dialog-message {
     color: rgb(var(--mdui-color-on-surface-variant));
+    line-height: 1.5;
 }
 
 /* Failed state — paint the entire bubble in error-container so the
@@ -237,11 +235,10 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     text-align: center;
 }
 
-/* v1.3 B9 (T27): export health-probe disconnect banner. Mirrors the
- * chat-side .conn-banner[data-kind="disconnected"] palette (MD3 error
- * container) so users get the same visual language across both pages.
- * No vertical margin — the parent .export-main is a flex column with
- * gap:16px and supplies the spacing. */
+/* v1.3 B9 (T27): export health-probe disconnect banner. This stays local to
+ * the export flow, where progress and cancellation remain visible on-page.
+ * No vertical margin — the parent .export-main is a flex column with gap:16px
+ * and supplies the spacing. */
 .export-banner {
     padding: var(--flikky-space-md) var(--flikky-space-lg);
     border-radius: var(--flikky-shape-sm);
@@ -391,7 +388,8 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     flex-shrink: 0;
 }
 
-/* Chat list background watermark for DEFAULT mode */
+/* DEFAULT-mode watermark belongs to the fixed chat viewport, not the scrolling
+ * list, so it stays centered while messages move beneath it. */
 .chat-list-watermark {
     position: absolute;
     inset: 0;
@@ -404,8 +402,6 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     color: rgb(var(--mdui-color-on-surface-variant));
     opacity: 0.35;
 }
-/* Make list position:relative so the watermark can be absolute inside it */
-.chat-list { position: relative; }
 /* Bubble rows need z-index > 0 to float above the watermark */
 .chat-list > .bubble-row,
 .chat-list > .bubble,

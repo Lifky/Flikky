@@ -1,5 +1,6 @@
 (function () {
     const list = document.getElementById('list');
+    const listShell = document.getElementById('chat-list-shell');
     const input = document.getElementById('text-input');
     const sendBtn = document.getElementById('send-btn');
     const fileBtn = document.getElementById('file-btn');
@@ -380,7 +381,7 @@
         wm.className = 'chat-list-watermark';
         wm.id = 'chat-watermark';
         wm.textContent = text;
-        list.appendChild(wm);
+        listShell.appendChild(wm);
     }
 
     function removeWatermark() {
@@ -1174,7 +1175,7 @@
         if (ev.type === 'server_stopped') {
             serverStopped = true;
             setConnectionWatermarkState('disconnected');
-            showBanner('terminated', 'app.service_stopped');
+            showConnectionDialog('terminated', 'app.service_stopped');
             setSendEnabled(false);
             return;
         }
@@ -1313,20 +1314,20 @@
         rateEl.textContent = formatRate(lastStatus.bytesPerSecond || 0);
     }
 
-    // 断网卡片：醒目位置展示连接状态。
-    const banner = document.getElementById('conn-banner');
-    let bannerState = null;
-    function showBanner(kind, key, values) {
-        if (!banner) return;
-        bannerState = { kind, key, values };
-        banner.textContent = t(key, values);
-        banner.dataset.kind = kind;   // 'disconnected' | 'restored'
-        banner.hidden = false;
+    const connectionDialog = document.getElementById('connection-dialog');
+    const connectionDialogMessage = document.getElementById('connection-dialog-message');
+    let connectionDialogState = null;
+    function showConnectionDialog(kind, key, values) {
+        if (!connectionDialog || !connectionDialogMessage) return;
+        connectionDialogState = { kind, key, values };
+        connectionDialog.dataset.kind = kind;
+        connectionDialogMessage.textContent = t(key, values);
+        connectionDialog.open = true;
     }
-    function hideBanner() {
-        if (!banner) return;
-        bannerState = null;
-        banner.hidden = true;
+    function hideConnectionDialog() {
+        if (!connectionDialog) return;
+        connectionDialogState = null;
+        connectionDialog.open = false;
     }
 
     // WS 重入保护：openWs 在已 connecting/connected 时不再开新连接。
@@ -1383,7 +1384,7 @@
         setConnectionWatermarkState('disconnected');
         setSendEnabled(false);
         setConn('app.disconnected');
-        if (hadConnected) showBanner('disconnected', 'app.reconnecting');
+        if (hadConnected) showConnectionDialog('reconnecting', 'app.reconnecting');
         stopHeartbeat();
         activeUploads.forEach(xhr => { try { xhr.abort(); } catch(_) {} });
         activeUploads = [];
@@ -1394,7 +1395,7 @@
         if (!serverStopped && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
             reconnectTimer = setTimeout(() => { reconnectTimer = null; openWs(); }, 1500);
         } else if (!serverStopped) {
-            showBanner('terminated', 'app.service_maybe_closed');
+            showConnectionDialog('terminated', 'app.service_maybe_closed');
         }
     }
 
@@ -1462,11 +1463,12 @@
             // 重连后追平断开期间手机端发的消息（seen 集合 dedup 防重复渲染）。
             loadHistory().catch(() => {});
             if (hadConnected) {
-                // 仅在"曾经连过又重连"时弹"已恢复"卡片，避免首次连上也弹。
-                showBanner('restored', 'app.reconnected');
-                setTimeout(() => { if (banner && banner.dataset.kind === 'restored') hideBanner(); }, 3000);
+                hideConnectionDialog();
+                if (window.flikky && window.flikky.showInfo) {
+                    window.flikky.showInfo(t('app.reconnected'));
+                }
             } else {
-                hideBanner();
+                hideConnectionDialog();
             }
             hadConnected = true;
         };
@@ -1481,16 +1483,16 @@
             setSendEnabled(false);
             stopHeartbeat();
             if (serverStopped) {
-                showBanner('terminated', 'app.service_stopped');
+                showConnectionDialog('terminated', 'app.service_stopped');
                 return;
             }
             if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-                showBanner('terminated', 'app.service_maybe_closed');
+                showConnectionDialog('terminated', 'app.service_maybe_closed');
                 return;
             }
             reconnectAttempts++;
             if (hadConnected) {
-                showBanner('disconnected', 'app.reconnecting_attempt', {
+                showConnectionDialog('reconnecting', 'app.reconnecting_attempt', {
                     attempt: reconnectAttempts,
                     max: MAX_RECONNECT_ATTEMPTS,
                 });
@@ -1733,8 +1735,8 @@
         document.querySelectorAll('[data-flikky-i18n-title]').forEach((element) => {
             element.title = t(element.dataset.flikkyI18nTitle);
         });
-        if (bannerState && banner) {
-            banner.textContent = t(bannerState.key, bannerState.values);
+        if (connectionDialogState && connectionDialogMessage) {
+            connectionDialogMessage.textContent = t(connectionDialogState.key, connectionDialogState.values);
         }
         refreshAllMessageActions();
         closeRecallMenu();
