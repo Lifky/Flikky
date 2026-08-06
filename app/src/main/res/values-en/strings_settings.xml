@@ -35,7 +35,9 @@
     <string name="settings_message_action_floating">Floating toolbar</string>
     <string name="settings_message_action_inline">Always visible</string>
     <string name="settings_recall">Recall messages</string>
-    <string name="settings_recall_summary">Allow sent messages to be recalled</string>
+    <string name="settings_recall_summary">Allow recalling your own messages</string>
+    <string name="settings_allow_peer_recall">Allow recalling peer messages</string>
+    <string name="settings_allow_peer_recall_summary">Allow both sides to recall messages sent by the other side</string>
     <string name="settings_favorites">Favorites</string>
     <string name="settings_favorites_summary">Show Favorites and allow messages to be saved</string>
     <string name="settings_allow_back">Allow leaving an active session</string>

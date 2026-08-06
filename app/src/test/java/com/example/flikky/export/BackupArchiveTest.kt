@@ -63,6 +63,7 @@ class BackupArchiveTest {
                 darkMode = "DARK",
                 deviceName = "Backup phone",
                 recallEnabled = true,
+                allowPeerRecall = true,
                 favoriteEnabled = false,
                 requirePin = false,
                 historyRetainLimit = -1,
@@ -95,6 +96,7 @@ class BackupArchiveTest {
             }
             val settingsKeys = Json.parseToJsonElement(settingsJson).jsonObject.keys
             assertTrue("recallEnabled" in settingsKeys)
+            assertTrue("allowPeerRecall" in settingsKeys)
             assertTrue("favoriteEnabled" in settingsKeys)
             assertFalse("recallBetaEnabled" in settingsKeys)
             assertFalse("favoriteBetaEnabled" in settingsKeys)
@@ -105,6 +107,7 @@ class BackupArchiveTest {
             assertEquals("remember", parsed.favorites.first().textContent)
             assertEquals("Backup phone", parsed.settings?.deviceName)
             assertEquals(true, parsed.settings?.recallEnabled)
+            assertEquals(true, parsed.settings?.allowPeerRecall)
             assertEquals(false, parsed.settings?.favoriteEnabled)
 
             val entry = ZipImporter.resolveFavoriteFileEntry(parsed.favorites[1], zip)

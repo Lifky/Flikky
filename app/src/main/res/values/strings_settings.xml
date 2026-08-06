@@ -35,7 +35,9 @@
     <string name="settings_message_action_floating">悬浮工具栏</string>
     <string name="settings_message_action_inline">常驻按钮</string>
     <string name="settings_recall">消息撤回</string>
-    <string name="settings_recall_summary">允许撤回已发送的消息</string>
+    <string name="settings_recall_summary">允许撤回自己发送的消息</string>
+    <string name="settings_allow_peer_recall">允许撤回对端消息</string>
+    <string name="settings_allow_peer_recall_summary">开启后双方均可撤回对方发送的消息</string>
     <string name="settings_favorites">收藏功能</string>
     <string name="settings_favorites_summary">开启后显示收藏入口，并允许收藏消息</string>
     <string name="settings_allow_back">允许会话中返回</string>

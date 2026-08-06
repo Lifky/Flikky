@@ -52,6 +52,9 @@ class SettingsViewModel @JvmOverloads constructor(
     fun setBackground(value: BackgroundSetting) = viewModelScope.launch { repository.setBackground(value) }
     fun setDeviceName(value: String) = viewModelScope.launch { repository.setDeviceName(value) }
     fun setRecallBeta(value: Boolean) = viewModelScope.launch { repository.setRecallBeta(value) }
+    fun setAllowPeerRecall(value: Boolean) =
+        viewModelScope.launch { repository.setAllowPeerRecall(value) }
+
     fun setFavoriteBeta(value: Boolean) = viewModelScope.launch { repository.setFavoriteBeta(value) }
     fun setRequirePin(value: Boolean) = viewModelScope.launch { repository.setRequirePin(value) }
     fun setMessageActionStyle(value: MessageActionStyle) =

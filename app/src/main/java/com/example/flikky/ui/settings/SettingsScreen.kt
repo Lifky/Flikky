@@ -464,7 +464,7 @@ fun SettingsScreen(
 
             // ─── 会话行为 ───────────────────────────────────────────────────────
             item {
-                val sectionItems = 5
+                val sectionItems = if (s.recallBetaEnabled) 6 else 5
                 SettingSection(title = stringResource(R.string.settings_section_session_behavior)) {
                     SettingItem(
                         title = stringResource(R.string.settings_require_pin),
@@ -498,6 +498,25 @@ fun SettingsScreen(
                         },
                         index = 2, total = sectionItems,
                     )
+                    AnimatedVisibility(
+                        visible = s.recallBetaEnabled,
+                        enter = expandVertically(Motion.spatial()) + fadeIn(Motion.effects()),
+                        exit = shrinkVertically(Motion.spatialFast()) + fadeOut(Motion.effectsFast()),
+                    ) {
+                        SettingItem(
+                            title = stringResource(R.string.settings_allow_peer_recall),
+                            leadingIcon = painterResource(R.drawable.ic_swap_vert),
+                            subtitle = stringResource(R.string.settings_allow_peer_recall_summary),
+                            trailing = {
+                                Switch(
+                                    checked = s.allowPeerRecall,
+                                    onCheckedChange = { viewModel.setAllowPeerRecall(it) },
+                                )
+                            },
+                            index = 3, total = sectionItems,
+                        )
+                    }
+                    val followingIndexOffset = if (s.recallBetaEnabled) 1 else 0
                     SettingItem(
                         title = stringResource(R.string.settings_favorites),
                         leadingIcon = painterResource(R.drawable.ic_star_border),
@@ -508,7 +527,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setFavoriteBeta(it) },
                             )
                         },
-                        index = 3, total = sectionItems,
+                        index = 3 + followingIndexOffset, total = sectionItems,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_allow_back),
@@ -520,7 +539,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setAllowBackDuringSession(it) },
                             )
                         },
-                        index = 4, total = sectionItems,
+                        index = 4 + followingIndexOffset, total = sectionItems,
                     )
                 }
             }

@@ -63,6 +63,7 @@ data class SettingsExport(
     val deviceName: String? = null,
     @JsonNames("recallBetaEnabled")
     val recallEnabled: Boolean? = null,
+    val allowPeerRecall: Boolean? = null,
     @JsonNames("favoriteBetaEnabled")
     val favoriteEnabled: Boolean? = null,
     val requirePin: Boolean? = null,

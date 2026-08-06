@@ -20,6 +20,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val bgValue = stringPreferencesKey("bg_value")
         val deviceName = stringPreferencesKey("device_name")
         val recallBeta = booleanPreferencesKey("recall_beta")
+        val allowPeerRecall = booleanPreferencesKey("allow_peer_recall")
         val favoriteBeta = booleanPreferencesKey("favorite_beta")
         val requirePin = booleanPreferencesKey("require_pin")
         val retainLimit = intPreferencesKey("retain_limit")
@@ -53,6 +54,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             background = decodeBackground(p[Keys.bgMode], p[Keys.bgValue]),
             deviceName = normalizeDeviceName(p[Keys.deviceName]),
             recallBetaEnabled = p[Keys.recallBeta] ?: false,
+            allowPeerRecall = p[Keys.allowPeerRecall] ?: false,
             favoriteBetaEnabled = p[Keys.favoriteBeta] ?: false,
             requirePin = p[Keys.requirePin] ?: true,
             historyRetainLimit = (p[Keys.retainLimit] ?: 20).coerceAtLeast(-1),
@@ -93,6 +95,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         else prefs[Keys.deviceName] = normalized
     }
     suspend fun setRecallBeta(v: Boolean) = ds.edit { it[Keys.recallBeta] = v }
+    suspend fun setAllowPeerRecall(v: Boolean) = ds.edit { it[Keys.allowPeerRecall] = v }
     suspend fun setFavoriteBeta(v: Boolean) = ds.edit { it[Keys.favoriteBeta] = v }
     suspend fun setRequirePin(v: Boolean) = ds.edit { it[Keys.requirePin] = v }
     suspend fun setHistoryRetainLimit(v: Int) = ds.edit { it[Keys.retainLimit] = v.coerceAtLeast(-1) }
@@ -150,6 +153,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             backgroundValue = backgroundValue,
             deviceName = s.deviceName,
             recallEnabled = s.recallBetaEnabled,
+            allowPeerRecall = s.allowPeerRecall,
             favoriteEnabled = s.favoriteBetaEnabled,
             requirePin = s.requirePin,
             historyRetainLimit = s.historyRetainLimit,
@@ -177,6 +181,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             else prefs[Keys.deviceName] = normalized
         }
         backup.recallEnabled?.let { prefs[Keys.recallBeta] = it }
+        backup.allowPeerRecall?.let { prefs[Keys.allowPeerRecall] = it }
         backup.favoriteEnabled?.let { prefs[Keys.favoriteBeta] = it }
         backup.requirePin?.let { prefs[Keys.requirePin] = it }
         backup.historyRetainLimit?.let { prefs[Keys.retainLimit] = it.coerceAtLeast(-1) }

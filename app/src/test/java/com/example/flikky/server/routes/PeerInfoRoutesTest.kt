@@ -91,12 +91,13 @@ class PeerInfoRoutesTest {
         assertEquals(18, body["bubbleCornerRadius"]!!.jsonPrimitive.int)
         assertEquals("EACH", body["avatarGrouping"]!!.jsonPrimitive.content)
         assertEquals(false, body["recallEnabled"]!!.jsonPrimitive.boolean)
+        assertEquals(false, body["allowPeerRecall"]!!.jsonPrimitive.boolean)
         assertEquals("FLOATING", body["messageActionStyle"]!!.jsonPrimitive.content)
     }
 
     @Test
     fun `peer-info carries recall availability`() = testApplication {
-        application(setupApp { testPeerInfo.copy(recallEnabled = true) })
+        application(setupApp { testPeerInfo.copy(recallEnabled = true, allowPeerRecall = true) })
         val http = createClient { install(HttpCookies) }
         authenticate(http)
 
@@ -105,6 +106,7 @@ class PeerInfoRoutesTest {
 
         val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
         assertEquals(true, body["recallEnabled"]!!.jsonPrimitive.boolean)
+        assertEquals(true, body["allowPeerRecall"]!!.jsonPrimitive.boolean)
     }
 
     @Test

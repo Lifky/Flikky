@@ -689,6 +689,7 @@ class TransferService : Service() {
                 avatarGrouping = avatarGrouping.name,
                 messageActionStyle = messageActionStyle.name,
                 recallEnabled = recallBetaEnabled,
+                allowPeerRecall = allowPeerRecall,
             )
         }
 

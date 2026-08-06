@@ -73,6 +73,7 @@ data class FlikkySettings(
     val background: BackgroundSetting = BackgroundSetting.Default,
     val deviceName: String = "",
     val recallBetaEnabled: Boolean = false,
+    val allowPeerRecall: Boolean = false,
     val favoriteBetaEnabled: Boolean = false,
     val requirePin: Boolean = true,
     val historyRetainLimit: Int = 20,   // 0=不保存, -1=无限制
