@@ -1075,7 +1075,7 @@
             bubble.dataset.kind = 'file';
             attachBubbleGestureHandlers(bubble);
         }
-        bubble.classList.remove('uploading');
+        bubble.classList.remove('uploading', 'transferring');
 
         const bar = bubble.querySelector('.progress-bar');
         if (bar) bar.remove();

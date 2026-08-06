@@ -339,6 +339,41 @@ function runRecallFeatureGateTest() {
 
 runRecallFeatureGateTest();
 
+function runPhoneFileReadyActionsTest() {
+  const app = loadAppForTest();
+  app.onWsEvent({
+    type: 'file_added',
+    payload: {
+      id: 7,
+      origin: 'PHONE',
+      fileId: 'phone-video',
+      name: 'video-test.mp4',
+      sizeBytes: 1024,
+      mime: 'video/mp4',
+      status: 'IN_PROGRESS',
+    },
+  });
+
+  const bubble = app.list.querySelector('[data-message-id="7"]');
+  app.onWsEvent({
+    type: 'file_ready',
+    payload: {
+      messageId: 7,
+      fileId: 'phone-video',
+      name: 'video-test.mp4',
+      sizeBytes: 1024,
+    },
+  });
+
+  assertDeepEqual(
+    Array.from(app.buildMessageActions(bubble, true), (action) => action.kind),
+    ['preview', 'download'],
+    'completed phone-origin media must expose preview and download without recall',
+  );
+}
+
+runPhoneFileReadyActionsTest();
+
 function runPartialSettingsDoesNotResetPhoneAvatarTest() {
   const app = loadAppForTest();
   app.onWsEvent({ type: 'settings_changed', payload: { phoneAvatarKey: 'icon:palette' } });
