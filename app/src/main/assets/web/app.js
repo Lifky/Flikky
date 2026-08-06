@@ -183,6 +183,9 @@
     let avatarPickerFilled = avatarIconSpec(normalizeAvatarKey(myAvatarKey, AVATAR_DEFAULT_BROWSER)).filled;
     let avatarGrouping = 'EACH';
     let recallEnabled = false;
+    // 消息操作样式（§12）：跟随 APP 设置，FLOATING=hover 浮条+右键，INLINE=常驻按钮行。
+    let actionStyle = 'FLOATING';
+    function normalizeActionStyle(value) { return value === 'INLINE' ? 'INLINE' : 'FLOATING'; }
 
     // Track last rendered origin for consecutive same-origin suppression.
     // 'PHONE' | 'BROWSER' | null
@@ -209,6 +212,7 @@
             row.appendChild(avatarEl);
         }
         row.appendChild(bubbleEl);
+        renderMessageActionBar(row, bubbleEl);
 
         list.appendChild(row);
         reflowMessageAvatars();
@@ -433,9 +437,16 @@
 
     function applyPeerAppearance(data, fallbackName) {
         const name = (data.deviceName && typeof data.deviceName === 'string') ? data.deviceName : fallbackName;
+        const prevRecall = recallEnabled;
         if (Object.prototype.hasOwnProperty.call(data, 'recallEnabled')) {
             recallEnabled = data.recallEnabled === true;
             if (!recallEnabled) closeRecallMenu();
+        }
+        const nextStyle = normalizeActionStyle(data.messageActionStyle);
+        if (nextStyle !== actionStyle || recallEnabled !== prevRecall) {
+            actionStyle = nextStyle;
+            document.body.dataset.actionStyle = actionStyle;
+            refreshAllMessageActions();
         }
         phoneAvatarKey = resolvePhoneAvatarKey(data);
         avatarGrouping = normalizeAvatarGrouping(data.avatarGrouping);
@@ -615,6 +626,107 @@
         return null;
     }
 
+    // 操作集唯一事实源（§12.2，纯函数）：浮条/常驻行/右键菜单/长按菜单四个入口共用。
+    // 只依赖 classList.contains 与 dataset，vm 测试用 stub 气泡即可跑。
+    function buildMessageActions(bubble, recallOn) {
+        const kind = bubble.dataset.kind;
+        const mine = bubble.classList.contains('me');
+        const failed = bubble.classList.contains('failed');
+        const uploading = bubble.classList.contains('uploading');
+        const actions = [];
+        if (kind === 'text') {
+            actions.push({ kind: 'copy', icon: 'content_copy', labelKey: 'app.copy' });
+        } else if (kind === 'file') {
+            // 状态门槛：下载/预览仅 COMPLETED（IN_PROGRESS 下载路由返 409）。
+            const completed = !!bubble.dataset.fileId && !failed && !uploading;
+            if (completed) {
+                if (mediaKind(bubble.dataset.mime)) {
+                    actions.push({ kind: 'preview', icon: 'photo_library', labelKey: 'app.preview' });
+                }
+                actions.push({ kind: 'download', icon: 'download', labelKey: 'app.download' });
+            }
+        }
+        // 撤回不受状态限制，但要有 server-side id（上传完成前没有）。
+        if (mine && recallOn && bubble.dataset.messageId) {
+            actions.push({ kind: 'recall', icon: 'undo', labelKey: 'app.recall', danger: true });
+        }
+        return actions;
+    }
+
+    function executeMessageAction(action, bubble) {
+        if (action.kind === 'copy') { copyBubbleText(bubble); return; }
+        if (action.kind === 'preview') { openLightbox(bubble.dataset.fileId, mediaKind(bubble.dataset.mime)); return; }
+        if (action.kind === 'download') { triggerDownload(bubble.dataset.fileId, bubble.dataset.name || ''); return; }
+        if (action.kind === 'recall') { confirmRecallMessage(bubble.dataset.messageId); }
+    }
+
+    function triggerDownload(fileId, name) {
+        if (!fileId) return;
+        const link = document.createElement('a');
+        link.href = `/api/files/${fileId}`;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    }
+
+    async function copyBubbleText(bubble) {
+        const text = bubble.textContent || '';
+        let ok = false;
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                ok = true;
+            }
+        } catch (_) { /* 走下面的兜底 */ }
+        if (!ok) {
+            // 明文 HTTP 模式没有 clipboard API —— execCommand 兜底（§12.2 降级链）。
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+            textarea.remove();
+        }
+        if (ok) window.flikky.showInfo(t('app.copied'));
+        else window.flikky.showError(t('app.copy_failed'));
+    }
+
+    // 把操作条渲染进 bubble-row（一份 DOM，FLOATING/INLINE 两种呈现全由 CSS 决定）。
+    function renderMessageActionBar(row, bubble) {
+        if (!row) return;
+        const old = row.querySelector('.msg-actions');
+        if (old) old.remove();
+        const actions = buildMessageActions(bubble, recallEnabled);
+        if (!actions.length) return;
+        const bar = document.createElement('div');
+        bar.className = 'msg-actions';
+        for (const action of actions) {
+            const button = document.createElement('mdui-button-icon');
+            button.setAttribute('variant', 'tonal');
+            if (action.danger) button.classList.add('danger');
+            const label = t(action.labelKey);
+            button.setAttribute('title', label);
+            button.setAttribute('aria-label', label);
+            button.appendChild(materialSymbolEl(action.icon, false));
+            button.addEventListener('click', (event) => {
+                event.stopPropagation();
+                executeMessageAction(action, bubble);
+            });
+            bar.appendChild(button);
+        }
+        row.appendChild(bar);
+    }
+
+    function refreshAllMessageActions() {
+        for (const row of list.querySelectorAll('.bubble-row')) {
+            const bubble = row.querySelector('.bubble, .file-bubble');
+            if (bubble) renderMessageActionBar(row, bubble);
+        }
+    }
+
     function buildClassicFileContent(bubble, fileId, name, sizeBytes) {
         bubble.classList.remove('media');
         while (bubble.firstChild) bubble.removeChild(bubble.firstChild);
@@ -686,6 +798,8 @@
         div.dataset.messageId = msg.id;
         div.dataset.kind = 'file';
         div.dataset.mime = msg.mime || '';
+        if (msg.fileId) div.dataset.fileId = msg.fileId;
+        div.dataset.name = msg.name || '';
         const kind = mediaKind(msg.mime);
         const completed = msg.status == null || msg.status === 'COMPLETED';
         if (kind && completed) {
@@ -1590,6 +1704,7 @@
         if (bannerState && banner) {
             banner.textContent = t(bannerState.key, bannerState.values);
         }
+        refreshAllMessageActions();
         closeRecallMenu();
         fetchPeerInfo().catch(() => {});
     });

@@ -614,3 +614,43 @@ body.mobile-ua .chat-input-row mdui-button {
 .lightbox-close .material-symbols-outlined {
     font-size: 28px;
 }
+
+/* v1.17.0 §12 message actions. One DOM node (.msg-actions inside each
+   .bubble-row), two CSS presentations switched by body[data-action-style] —
+   style changes from the phone apply instantly with zero re-render.
+   Buttons are official mdui-button-icon variant=tonal sized to the App's
+   CircleActionButton (36dp circle / 22dp icon / secondary-container). */
+.bubble-row {
+    flex-wrap: wrap;
+}
+.msg-actions {
+    display: flex;
+    gap: var(--flikky-space-sm);
+    align-items: center;
+}
+.msg-actions mdui-button-icon {
+    width: 36px;
+    height: 36px;
+}
+.msg-actions .material-symbols-outlined {
+    font-size: 22px;
+}
+/* danger（撤回）：局部把 secondary-container 令牌重映射到 error-container——
+   shadow DOM 从宿主继承 custom property，不需要 ::part 侵入官方组件。 */
+.msg-actions mdui-button-icon.danger {
+    --mdui-color-secondary-container: var(--mdui-color-error-container);
+    --mdui-color-on-secondary-container: var(--mdui-color-on-error-container);
+}
+/* INLINE：常驻行，flex-basis:100% 换行到气泡下方，同侧对齐。
+   44px = 头像 36px + 行内 gap 8px，让按钮与气泡边缘对齐（对齐 APP MessageActionBar）。 */
+body[data-action-style="INLINE"] .msg-actions {
+    flex-basis: 100%;
+    margin-top: 2px;
+}
+body[data-action-style="INLINE"] .bubble-row.them .msg-actions {
+    margin-left: 44px;
+}
+body[data-action-style="INLINE"] .bubble-row.me .msg-actions {
+    justify-content: flex-end;
+    margin-right: 44px;
+}
