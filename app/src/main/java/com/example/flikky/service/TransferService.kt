@@ -687,6 +687,7 @@ class TransferService : Service() {
                 themeDark = resolvedDark,
                 bubbleCornerRadius = bubbleCornerRadius,
                 avatarGrouping = avatarGrouping.name,
+                messageActionStyle = messageActionStyle.name,
                 recallEnabled = recallBetaEnabled,
             )
         }

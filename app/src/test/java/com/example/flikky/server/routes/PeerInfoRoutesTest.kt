@@ -91,6 +91,7 @@ class PeerInfoRoutesTest {
         assertEquals(18, body["bubbleCornerRadius"]!!.jsonPrimitive.int)
         assertEquals("EACH", body["avatarGrouping"]!!.jsonPrimitive.content)
         assertEquals(false, body["recallEnabled"]!!.jsonPrimitive.boolean)
+        assertEquals("FLOATING", body["messageActionStyle"]!!.jsonPrimitive.content)
     }
 
     @Test
@@ -104,6 +105,19 @@ class PeerInfoRoutesTest {
 
         val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
         assertEquals(true, body["recallEnabled"]!!.jsonPrimitive.boolean)
+    }
+
+    @Test
+    fun `peer-info carries messageActionStyle`() = testApplication {
+        application(setupApp { testPeerInfo.copy(messageActionStyle = "INLINE") })
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        val resp: HttpResponse = http.get("/api/peer-info")
+        assertEquals(HttpStatusCode.OK, resp.status)
+
+        val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
+        assertEquals("INLINE", body["messageActionStyle"]!!.jsonPrimitive.content)
     }
 
     @Test

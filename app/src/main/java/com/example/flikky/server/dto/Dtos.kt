@@ -150,6 +150,8 @@ data class PeerInfoDto(
     // 默认 18 与 data.settings.BUBBLE_CORNER_DEFAULT 对齐；DTO 不依赖 data 层，故此处内联。
     val bubbleCornerRadius: Int = 18,
     val avatarGrouping: String = "EACH",
+    // 消息操作样式（FLOATING/INLINE）——Web 端据此切换 hover 浮条 vs 常驻按钮行（§12）。
+    val messageActionStyle: String = "FLOATING",
     val recallEnabled: Boolean,
 )
 
