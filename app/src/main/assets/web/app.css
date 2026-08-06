@@ -514,15 +514,20 @@ body.mobile-ua .chat-input-row mdui-button {
    no cropping, so tall screenshots become narrow strips and wide ones flat strips
    (Screenshot_17/18 reference). The 96px min edge only bites on extreme ratios,
    where object-fit:cover center-crops instead of collapsing to a sliver.
-   The bubble is a column flex hugging the image; the caption must not contribute
-   to intrinsic width (see .thumb-caption). */
+   Frameless like the App: zero padding, the image runs edge-to-edge and the
+   bubble's own radius + overflow:hidden clips its top corners. The image's max
+   constraints are the single source of bubble width — max-width:none kills the
+   base .file-bubble caps (70% / calc(100vw - 96px)), which otherwise squeeze the
+   bubble narrower than the 240px image and let it punch through the right edge.
+   The caption must not contribute to intrinsic width (see .thumb-caption). */
 .file-bubble.media {
     flex-direction: column;
     align-items: flex-start;
     gap: 0;
-    padding: 6px;
+    padding: 0;
+    overflow: hidden;
     width: fit-content;
-    max-width: min(280px, 70%);
+    max-width: none;
 }
 .file-bubble.media .thumb-wrap {
     position: relative;
@@ -535,7 +540,6 @@ body.mobile-ua .chat-input-row mdui-button {
     min-width: 96px;
     min-height: 96px;
     object-fit: cover;
-    border-radius: calc(var(--flikky-bubble-radius) - 4px);
 }
 /* Narrow viewports: keep the 240px thumb inside the bubble cap. Must come after
    the base .thumb rule — equal specificity, so source order decides the winner. */
@@ -557,14 +561,15 @@ body.mobile-ua .chat-input-row mdui-button {
 .file-bubble.media .thumb-caption {
     /* width:0 + min-width:100%: the caption contributes nothing to the bubble's
        intrinsic (fit-content) width — a long filename can't widen the bubble past
-       the image — yet lays out stretched to the image width and ellipsizes. */
+       the image — yet lays out stretched to the image width and ellipsizes.
+       Carries its own inset now that the bubble has zero padding. */
     width: 0;
     min-width: 100%;
     box-sizing: border-box;
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 6px 8px 2px;
+    padding: 6px 10px 8px;
 }
 .file-bubble.media .thumb-caption a {
     flex: 1;

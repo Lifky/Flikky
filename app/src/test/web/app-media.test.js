@@ -65,6 +65,24 @@ test('media thumbs scale proportionally inside a max box, bubble hugs the image'
     assert.match(caption[0], /min-width:\s*100%/);
 });
 
+test('media bubble is frameless like the app: edge-to-edge image, no width fight', () => {
+    // 无边框：气泡零 padding，图片边到边，由气泡自身圆角 + overflow:hidden 裁顶角
+    // （不给图片单独圆角——radius-4px 与 padding 不同心是旧方案的角部瑕疵）。
+    // 宽度唯一事实源 = 图片 max 约束：气泡 max-width:none 压掉 base .file-bubble 的
+    // 70% / calc(100vw-96px)，否则窄窗口下气泡被压得比 240px 图片窄、图片顶穿右缘。
+    const media = appCss.match(/\.file-bubble\.media\s*\{[^}]*\}/);
+    assert.match(media[0], /padding:\s*0\s*;/);
+    assert.match(media[0], /overflow:\s*hidden/);
+    assert.match(media[0], /max-width:\s*none/);
+
+    const thumb = appCss.match(/\.file-bubble\.media \.thumb\s*\{[^}]*\}/);
+    assert.doesNotMatch(thumb[0], /border-radius/);
+
+    // caption 自带内衬（气泡 padding 归零后文字不能贴边）。
+    const caption = appCss.match(/\.file-bubble\.media \.thumb-caption\s*\{[^}]*\}/);
+    assert.match(caption[0], /padding:/);
+});
+
 test('lightbox media loads via the authenticated inline url', () => {
     assert.match(appJs, /\/api\/files\/\$\{fileId\}\?inline=1/);
     assert.match(appJs, /\/api\/files\/\$\{fileId\}\/thumb/);
