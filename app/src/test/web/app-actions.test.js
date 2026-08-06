@@ -28,10 +28,10 @@ function fakeBubble({ kind, mime = '', mine = false, failed = false, uploading =
     };
 }
 
-function actionsOf(bubble, recallOn) {
-    const context = { bubble, recallOn };
+function actionsOf(bubble, recallOn, allowPeerRecall = false) {
+    const context = { bubble, recallOn, allowPeerRecall };
     vm.createContext(context);
-    vm.runInContext(`${slice}\nglobalThis.result = buildMessageActions(bubble, recallOn).map(action => action.kind);`, context);
+    vm.runInContext(`${slice}\nglobalThis.result = buildMessageActions(bubble, recallOn, allowPeerRecall).map(action => action.kind);`, context);
     return Array.from(context.result);
 }
 
@@ -39,6 +39,12 @@ test('text bubbles offer copy; own text adds recall only when enabled', () => {
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'text', messageId: '5' }), true), ['copy']);
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'text', mine: true, messageId: '5' }), true), ['copy', 'recall']);
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'text', mine: true, messageId: '5' }), false), ['copy']);
+});
+
+test('peer messages add recall only when peer recall is enabled', () => {
+    assert.deepEqual(actionsOf(fakeBubble({ kind: 'text', messageId: '5' }), true, false), ['copy']);
+    assert.deepEqual(actionsOf(fakeBubble({ kind: 'text', messageId: '5' }), true, true), ['copy', 'recall']);
+    assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', fileId: '9', mime: 'application/pdf', messageId: '5' }), true, true), ['download', 'recall']);
 });
 
 test('completed classic file offers download; media adds preview first', () => {

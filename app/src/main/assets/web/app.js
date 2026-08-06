@@ -183,6 +183,7 @@
     let avatarPickerFilled = avatarIconSpec(normalizeAvatarKey(myAvatarKey, AVATAR_DEFAULT_BROWSER)).filled;
     let avatarGrouping = 'EACH';
     let recallEnabled = false;
+    let allowPeerRecall = false;
     // 消息操作样式（§12）：跟随 APP 设置，FLOATING=hover 浮条+右键，INLINE=常驻按钮行。
     let actionStyle = 'FLOATING';
     function normalizeActionStyle(value) { return value === 'INLINE' ? 'INLINE' : 'FLOATING'; }
@@ -438,12 +439,16 @@
     function applyPeerAppearance(data, fallbackName) {
         const name = (data.deviceName && typeof data.deviceName === 'string') ? data.deviceName : fallbackName;
         const prevRecall = recallEnabled;
+        const prevAllowPeerRecall = allowPeerRecall;
         if (Object.prototype.hasOwnProperty.call(data, 'recallEnabled')) {
             recallEnabled = data.recallEnabled === true;
             if (!recallEnabled) closeRecallMenu();
         }
+        if (Object.prototype.hasOwnProperty.call(data, 'allowPeerRecall')) {
+            allowPeerRecall = data.allowPeerRecall === true;
+        }
         const nextStyle = normalizeActionStyle(data.messageActionStyle);
-        if (nextStyle !== actionStyle || recallEnabled !== prevRecall) {
+        if (nextStyle !== actionStyle || recallEnabled !== prevRecall || allowPeerRecall !== prevAllowPeerRecall) {
             actionStyle = nextStyle;
             document.body.dataset.actionStyle = actionStyle;
             refreshAllMessageActions();
@@ -628,7 +633,7 @@
 
     // 操作集唯一事实源（§12.2，纯函数）：浮条/常驻行/右键菜单/长按菜单四个入口共用。
     // 只依赖 classList.contains 与 dataset，vm 测试用 stub 气泡即可跑。
-    function buildMessageActions(bubble, recallOn) {
+    function buildMessageActions(bubble, recallOn, allowPeerRecallOn = false) {
         const kind = bubble.dataset.kind;
         const mine = bubble.classList.contains('me');
         const failed = bubble.classList.contains('failed');
@@ -648,7 +653,7 @@
             }
         }
         // 撤回不受状态限制，但要有 server-side id（上传完成前没有）。
-        if (mine && recallOn && bubble.dataset.messageId) {
+        if ((mine || allowPeerRecallOn) && recallOn && bubble.dataset.messageId) {
             actions.push({ kind: 'recall', icon: 'undo', labelKey: 'app.recall', danger: true });
         }
         return actions;
@@ -700,7 +705,7 @@
         if (!row) return;
         const old = row.querySelector('.msg-actions');
         if (old) old.remove();
-        const actions = buildMessageActions(bubble, recallEnabled);
+        const actions = buildMessageActions(bubble, recallEnabled, allowPeerRecall);
         if (!actions.length) return;
         const bar = document.createElement('div');
         bar.className = 'msg-actions';
@@ -825,7 +830,7 @@
         };
         bubble.addEventListener('contextmenu', (event) => {
             if (actionStyle === 'INLINE') return;
-            if (!buildMessageActions(bubble, recallEnabled).length) return;
+            if (!buildMessageActions(bubble, recallEnabled, allowPeerRecall).length) return;
             cancel();
             event.preventDefault();
             showActionsMenu(bubble, event.clientX, event.clientY);
@@ -868,7 +873,7 @@
     // 外层仍是 fixed 定位手写容器（mdui-dropdown 不支持任意屏幕坐标），内部官方 mdui-menu。
     function showActionsMenu(bubble, x, y) {
         closeRecallMenu();
-        const actions = buildMessageActions(bubble, recallEnabled);
+        const actions = buildMessageActions(bubble, recallEnabled, allowPeerRecall);
         if (!actions.length) return;
         const menu = document.createElement('div');
         menu.className = 'recall-menu';
