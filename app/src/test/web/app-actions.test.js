@@ -47,6 +47,11 @@ test('peer messages add recall only when peer recall is enabled', () => {
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', fileId: '9', mime: 'application/pdf', messageId: '5' }), true, true), ['download', 'recall']);
 });
 
+test('preview actions use the Visibility icon', () => {
+    assert.match(appJs, /kind: 'preview', icon: 'visibility'/);
+    assert.doesNotMatch(appJs, /kind: 'preview', icon: 'photo_library'/);
+});
+
 test('completed classic file offers download; media adds preview first', () => {
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', fileId: '9', mime: 'application/pdf', messageId: '5' }), true), ['download']);
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', fileId: '9', mime: 'image/png', messageId: '5' }), true), ['preview', 'download']);

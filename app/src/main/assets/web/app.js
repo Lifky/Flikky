@@ -647,7 +647,7 @@
             const completed = !!bubble.dataset.fileId && !failed && !uploading && !transferring;
             if (completed) {
                 if (mediaKind(bubble.dataset.mime)) {
-                    actions.push({ kind: 'preview', icon: 'photo_library', labelKey: 'app.preview' });
+                    actions.push({ kind: 'preview', icon: 'visibility', labelKey: 'app.preview' });
                 }
                 actions.push({ kind: 'download', icon: 'download', labelKey: 'app.download' });
             }

@@ -505,7 +505,7 @@ fun SettingsScreen(
                     ) {
                         SettingItem(
                             title = stringResource(R.string.settings_allow_peer_recall),
-                            leadingIcon = painterResource(R.drawable.ic_swap_vert),
+                            leadingIcon = painterResource(R.drawable.ic_redo),
                             subtitle = stringResource(R.string.settings_allow_peer_recall_summary),
                             trailing = {
                                 Switch(
@@ -656,7 +656,7 @@ fun SettingsScreen(
                             )
                             SettingItem(
                                 title = stringResource(R.string.settings_export_all),
-                                leadingIcon = painterResource(R.drawable.ic_swap_vert),
+                                leadingIcon = painterResource(R.drawable.ic_publish),
                                 subtitle = stringResource(R.string.settings_export_all_summary),
                                 onClick = { exportDestinationScope = ExportScope.ALL },
                                 index = 7, total = sectionItems,

@@ -142,7 +142,7 @@ fun HistoryScreen(
     // shared by both the inline bar and the floating toolbar.
     val copyPainter = painterResource(R.drawable.ic_content_copy)
     val downloadPainter = painterResource(R.drawable.ic_file_download)
-    val galleryPainter = painterResource(R.drawable.ic_photo_library)
+    val galleryPainter = painterResource(R.drawable.ic_visibility)
     val deletePainter = painterResource(R.drawable.ic_delete)
     val pinPainter = painterResource(R.drawable.ic_push_pin)
     val editPainter = painterResource(R.drawable.ic_edit)
@@ -202,7 +202,7 @@ fun HistoryScreen(
                 },
             ))
         }
-        // 媒体文件的图标语义（用户定死）：photo_library=预览、file_download=存相册；
+        // 媒体文件的图标语义（用户定死）：visibility=预览、file_download=存相册；
         // 非媒体维持 download 图标的「打开」。与 ServingScreen 保持一致。
         if (msg is Message.File && msg.status == Message.File.Status.COMPLETED) {
             val isMedia = FilesListBuilder.isMedia(msg.mime)

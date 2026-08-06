@@ -140,7 +140,7 @@ fun ServingScreen(
     // shared by both inline and floating action paths.
     val undoPainter = painterResource(R.drawable.ic_undo)
     val downloadPainter = painterResource(R.drawable.ic_file_download)
-    val galleryPainter = painterResource(R.drawable.ic_photo_library)
+    val galleryPainter = painterResource(R.drawable.ic_visibility)
     val copyPainter = painterResource(R.drawable.ic_content_copy)
     val deletePainter = painterResource(R.drawable.ic_delete)
     val starPainter = painterResource(R.drawable.ic_star)
@@ -210,7 +210,7 @@ fun ServingScreen(
             ))
         }
         // 打开/预览 — file COMPLETED。媒体文件的图标语义（用户定死）：
-        // photo_library=预览、file_download=存相册；非媒体维持 download 图标的「打开」。
+        // visibility=预览、file_download=存相册；非媒体维持 download 图标的「打开」。
         if (msg is Message.File && msg.status == Message.File.Status.COMPLETED) {
             val isMedia = FilesListBuilder.isMedia(msg.mime)
             add(MessageAction(
