@@ -178,7 +178,6 @@ fun ServingScreen(
     // Single source of truth for a message's available actions; used by both the
     // legacy inline bar and the floating toolbar so the logic never diverges.
     fun buildActionsFor(msg: Message): List<MessageAction> = buildList {
-        val isFailed = msg is Message.File && msg.status == Message.File.Status.FAILED
         if (settings.favoriteBetaEnabled &&
             (msg is Message.Text || (msg is Message.File && msg.status == Message.File.Status.COMPLETED))
         ) {
@@ -253,8 +252,8 @@ fun ServingScreen(
                 ))
             }
         }
-        // 撤回 — phone origin, beta enabled, not failed
-        if (settings.recallBetaEnabled && msg.origin == Origin.PHONE && !isFailed) {
+        // 撤回 — 自己发送，或设置允许撤回对端消息；失败文件不提供撤回。
+        if (canShowServingRecallAction(settings, msg)) {
             add(MessageAction(
                 icon = undoPainter,
                 label = recallLabel,
