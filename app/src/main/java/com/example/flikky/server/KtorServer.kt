@@ -53,6 +53,7 @@ class KtorServer(
     private val onRecallMessage: suspend (messageId: Long, callerSenderId: String) -> ServerRecallOutcome =
         { _, _ -> ServerRecallOutcome.NotFound },
     private val recallEnabled: () -> Boolean = { false },
+    private val allowPeerRecall: () -> Boolean = { false },
     private val nowMs: () -> Long = System::currentTimeMillis,
     private val mode: ServiceMode = ServiceMode.Transfer,
     private val requirePin: Boolean = true,
@@ -153,6 +154,7 @@ class KtorServer(
             nowMs = nowMs,
             recallHandler = onRecallMessage,
             recallEnabled = recallEnabled,
+            allowPeerRecall = allowPeerRecall,
         )
         fileRoutes(
             session = session,

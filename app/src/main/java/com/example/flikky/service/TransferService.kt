@@ -214,6 +214,8 @@ class TransferService : Service() {
             nowMs = System::currentTimeMillis,
             senderId = phoneSenderId(),
             scope = scope,
+            recallEnabled = { latestSettings.recallBetaEnabled },
+            allowPeerRecall = { latestSettings.allowPeerRecall },
         )
         // v1.3：HistoryViewModel 撤回入口通过 ServiceLocator 拿 controller。
         // 见 ServiceLocator.currentController 的 KDoc。
@@ -423,6 +425,7 @@ class TransferService : Service() {
             }
         },
         recallEnabled = { latestSettings.recallBetaEnabled },
+        allowPeerRecall = { latestSettings.allowPeerRecall },
         thumbnailGenerator = AndroidThumbnailGenerator(),
         mode = ServiceMode.Transfer,
         requirePin = currentRequirePin,

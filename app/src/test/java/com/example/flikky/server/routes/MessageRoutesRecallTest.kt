@@ -2,6 +2,8 @@ package com.example.flikky.server.routes
 
 import com.example.flikky.server.PinAuth
 import com.example.flikky.server.dto.ServerRecallOutcome
+import com.example.flikky.session.Message
+import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
 import io.ktor.client.plugins.cookies.HttpCookies
 import io.ktor.client.request.delete
@@ -47,11 +49,18 @@ class MessageRoutesRecallTest {
         recallHandler: suspend (Long, String) -> ServerRecallOutcome,
         captureBroadcast: ((String, String) -> Unit)? = null,
         recallEnabled: () -> Boolean = { true },
+        allowPeerRecall: () -> Boolean = { false },
+        targetOrigin: Origin? = Origin.BROWSER,
     ): io.ktor.server.application.Application.() -> Unit = {
         install(ContentNegotiation) { json() }
         routing {
             val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
-            val session = SessionState(nowMs = { 0L })
+            val session = SessionState(nowMs = { 0L }).apply {
+                startNew(sessionId = 7L)
+                targetOrigin?.let { origin ->
+                    addMessage(Message.Text(123L, origin, 0L, "target"))
+                }
+            }
             val authGate = AuthGate(required = true, pinAuth = pin)
             authRoutes(authGate, readAsset = { byteArrayOf() })
             messageRoutes(
@@ -62,6 +71,7 @@ class MessageRoutesRecallTest {
                 nowMs = { 0L },
                 recallHandler = recallHandler,
                 recallEnabled = recallEnabled,
+                allowPeerRecall = allowPeerRecall,
             )
         }
     }
@@ -127,8 +137,60 @@ class MessageRoutesRecallTest {
     }
 
     @Test
+    fun `DELETE peer message when peer recall is disabled returns 403 without invoking handler`() = testApplication {
+        var handlerInvoked = false
+        application(
+            setupApp(
+                recallHandler = { _, _ ->
+                    handlerInvoked = true
+                    ServerRecallOutcome.Success(messageId = 123L, sessionId = 7L)
+                },
+                targetOrigin = Origin.PHONE,
+            ),
+        )
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        val resp: HttpResponse = http.delete("/api/messages/123") {
+            header("X-Client-Id", "browser-abc")
+        }
+
+        assertEquals(HttpStatusCode.Forbidden, resp.status)
+        val err = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
+        assertEquals("denied", err["error"]!!.jsonPrimitive.content)
+        assertEquals(false, handlerInvoked)
+    }
+
+    @Test
+    fun `DELETE peer message when peer recall is enabled invokes handler`() = testApplication {
+        var handlerInvoked = false
+        application(
+            setupApp(
+                recallHandler = { messageId, _ ->
+                    handlerInvoked = true
+                    ServerRecallOutcome.Success(messageId = messageId, sessionId = 7L)
+                },
+                allowPeerRecall = { true },
+                targetOrigin = Origin.PHONE,
+            ),
+        )
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        val resp: HttpResponse = http.delete("/api/messages/123") {
+            header("X-Client-Id", "browser-abc")
+        }
+
+        assertEquals(HttpStatusCode.OK, resp.status)
+        assertTrue(handlerInvoked)
+    }
+
+    @Test
     fun `DELETE when handler returns NotFound responds 404`() = testApplication {
-        application(setupApp(recallHandler = { _, _ -> ServerRecallOutcome.NotFound }))
+        application(setupApp(
+            recallHandler = { _, _ -> ServerRecallOutcome.NotFound },
+            targetOrigin = null,
+        ))
         val http = createClient { install(HttpCookies) }
         authenticate(http)
 

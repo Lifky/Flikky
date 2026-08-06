@@ -9,6 +9,7 @@ import com.example.flikky.server.dto.TextMessageDto
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
+import com.example.flikky.session.canRecallMessage
 import com.example.flikky.util.IdGen
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -33,6 +34,7 @@ fun Route.messageRoutes(
      */
     recallHandler: suspend (messageId: Long, callerSenderId: String) -> ServerRecallOutcome,
     recallEnabled: () -> Boolean = { false },
+    allowPeerRecall: () -> Boolean = { false },
 ) {
     fun requireAuth(call: ApplicationCall): Boolean {
         val token = call.request.cookies[AUTH_COOKIE]
@@ -97,8 +99,8 @@ fun Route.messageRoutes(
     }
 
     /**
-     * v1.3 D26 修订：浏览器端撤回消息。X-Client-Id 必填——既用于鉴权（必须等于
-     * 消息原始 senderId），也用于让本浏览器自己 dedup 后续 WS 广播。
+     * v1.3 D26 修订：浏览器端撤回消息。X-Client-Id 必填，用于让本浏览器
+     * dedup 后续 WS 广播；消息方向授权由消息 Origin 与当前撤回设置共同决定。
      *
      * 撤回 = 真删（不再有"撤回标记"）。成功后广播 message_recalled，让所有客户端
      * 把对应消息节点完全移除 + snackbar 提醒。失败分支不广播。
@@ -108,7 +110,8 @@ fun Route.messageRoutes(
      */
     delete("/api/messages/{id}") {
         if (!requireAuth(call)) { call.respond(HttpStatusCode.Unauthorized); return@delete }
-        if (!recallEnabled()) {
+        val recallOn = recallEnabled()
+        if (!recallOn) {
             call.respond(HttpStatusCode.Forbidden, mapOf("error" to "recall_disabled"))
             return@delete
         }
@@ -116,6 +119,12 @@ fun Route.messageRoutes(
             ?: run { call.respond(HttpStatusCode.BadRequest, mapOf("error" to "invalid_id")); return@delete }
         val senderId = call.request.headers["X-Client-Id"]
             ?: run { call.respond(HttpStatusCode.BadRequest, mapOf("error" to "missing_client_id")); return@delete }
+        val target = session.snapshot.value.messages.firstOrNull { it.id == id }
+            ?: run { call.respond(HttpStatusCode.NotFound, mapOf("error" to "not_found")); return@delete }
+        if (!canRecallMessage(Origin.BROWSER, target.origin, recallOn, allowPeerRecall())) {
+            call.respond(HttpStatusCode.Forbidden, mapOf("error" to "denied"))
+            return@delete
+        }
 
         when (val outcome = recallHandler(id, senderId)) {
             is ServerRecallOutcome.Success -> {

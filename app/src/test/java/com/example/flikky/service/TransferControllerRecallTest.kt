@@ -3,6 +3,8 @@ package com.example.flikky.service
 import com.example.flikky.data.SessionFileStore
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.server.routes.WsHub
+import com.example.flikky.session.Message
+import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
 import io.mockk.coEvery
@@ -27,8 +29,16 @@ class TransferControllerRecallTest {
     private fun controllerWith(
         repository: SessionRepository,
         hub: WsHub,
+        targetOrigin: Origin? = Origin.PHONE,
+        recallEnabled: () -> Boolean = { true },
+        allowPeerRecall: () -> Boolean = { false },
     ): TransferController {
-        val session = SessionState(nowMs = { 1_000L }).apply { startNew(sessionId = 42L) }
+        val session = SessionState(nowMs = { 1_000L }).apply {
+            startNew(sessionId = 42L)
+            targetOrigin?.let { origin ->
+                addMessage(Message.Text(123L, origin, 1_000L, "target"))
+            }
+        }
         val stats = TransferStats(nowMs = { 1_000L })
         val fileStore = mockk<SessionFileStore>(relaxed = true)
         return TransferController(
@@ -40,6 +50,8 @@ class TransferControllerRecallTest {
             nowMs = { 1_000L },
             senderId = "phone-test",
             scope = TestScope(),
+            recallEnabled = recallEnabled,
+            allowPeerRecall = allowPeerRecall,
         )
     }
 
@@ -72,12 +84,47 @@ class TransferControllerRecallTest {
     }
 
     @Test
+    fun `recallMessage blocks browser message while peer recall is disabled`() = runTest {
+        val hub = mockk<WsHub>(relaxed = true)
+        val repository = mockk<SessionRepository>(relaxed = true)
+
+        val controller = controllerWith(repository, hub, targetOrigin = Origin.BROWSER)
+        val out = controller.recallMessage(123L)
+
+        assertTrue(out is SessionRepository.RecallOutcome.Denied)
+        coVerify(exactly = 0) { repository.recallMessage(any(), any()) }
+        coVerify(exactly = 0) { hub.broadcastRecall(any(), any()) }
+    }
+
+    @Test
+    fun `recallMessage follows the current peer recall setting provider`() = runTest {
+        val hub = mockk<WsHub>(relaxed = true)
+        val repository = mockk<SessionRepository>()
+        coEvery { repository.recallMessage(123L, "phone-test") } returns
+            SessionRepository.RecallOutcome.Success(123L, 42L, false)
+        var allowPeer = false
+        val controller = controllerWith(
+            repository,
+            hub,
+            targetOrigin = Origin.BROWSER,
+            allowPeerRecall = { allowPeer },
+        )
+
+        assertTrue(controller.recallMessage(123L) is SessionRepository.RecallOutcome.Denied)
+        allowPeer = true
+        assertTrue(controller.recallMessage(123L) is SessionRepository.RecallOutcome.Success)
+
+        coVerify(exactly = 1) { repository.recallMessage(123L, "phone-test") }
+        coVerify(exactly = 1) { hub.broadcastRecall(42L, 123L) }
+    }
+
+    @Test
     fun `recallMessage NotFound does not broadcast`() = runTest {
         val hub = mockk<WsHub>(relaxed = true)
         val repository = mockk<SessionRepository>()
         coEvery { repository.recallMessage(999L, "phone-test") } returns SessionRepository.RecallOutcome.NotFound
 
-        val controller = controllerWith(repository, hub)
+        val controller = controllerWith(repository, hub, targetOrigin = null)
         val out = controller.recallMessage(999L)
 
         assertTrue("outcome should be NotFound but was $out", out is SessionRepository.RecallOutcome.NotFound)

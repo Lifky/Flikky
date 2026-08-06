@@ -17,6 +17,7 @@ import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
+import com.example.flikky.session.canRecallMessage
 import com.example.flikky.util.IdGen
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +47,8 @@ class TransferController(
     private val nowMs: () -> Long,
     private val senderId: String,
     private val scope: CoroutineScope,
+    private val recallEnabled: () -> Boolean = { false },
+    private val allowPeerRecall: () -> Boolean = { false },
 ) {
     suspend fun sendText(text: String) {
         if (text.isBlank()) return
@@ -186,7 +189,7 @@ class TransferController(
      * v1.3 撤回入口（D26 修订：从"软删 + 占位符"改为"真删 + 节点消失"）。
      *
      * 流程：
-     * 1) repository.recallMessage 真删 DB 行（鉴权 senderId 匹配）+ 文件删盘
+     * 1) 按当前撤回设置校验消息方向，再由 repository 真删 DB 行 + 文件删盘
      * 2) session.removeMessage 同步 ServingScreen 的 messages flow
      * 3) wsHub 广播 message_recalled，让浏览器收到后移除节点 + snackbar 提醒
      *
@@ -194,6 +197,11 @@ class TransferController(
      * 决定提示文案。
      */
     suspend fun recallMessage(messageId: Long): RecallOutcome {
+        val target = session.snapshot.value.messages.firstOrNull { it.id == messageId }
+            ?: return RecallOutcome.NotFound
+        if (!canRecallMessage(Origin.PHONE, target.origin, recallEnabled(), allowPeerRecall())) {
+            return RecallOutcome.Denied
+        }
         val outcome = repository.recallMessage(messageId, senderId)
         if (outcome is RecallOutcome.Success) {
             session.removeMessage(outcome.messageId)
