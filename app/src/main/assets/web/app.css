@@ -654,3 +654,23 @@ body[data-action-style="INLINE"] .bubble-row.me .msg-actions {
     justify-content: flex-end;
     margin-right: 44px;
 }
+
+/* FLOATING：桌面 hover 浮出，条在气泡旁上缘（flex 行内、气泡之后 → them 在右、me 在左，
+   即"外侧"）。opacity 切换保留占位避免 hover 抖动；触屏无 hover → 完全隐藏，操作走长按菜单。 */
+body[data-action-style="FLOATING"] .msg-actions {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s;
+    align-self: flex-start;
+}
+body[data-action-style="FLOATING"] .bubble-row:hover .msg-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
+    display: none;
+}
+/* 经典文件泡整泡可点下载（§12.2 顺手修）。 */
+.file-bubble:not(.media):not(.uploading):not(.transferring):not(.failed) {
+    cursor: pointer;
+}

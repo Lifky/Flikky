@@ -16,11 +16,12 @@ const end = appJs.indexOf('function executeMessageAction');
 assert.ok(start >= 0 && end > start, 'action helpers not found in app.js');
 const slice = appJs.slice(start, end);
 
-function fakeBubble({ kind, mime = '', mine = false, failed = false, uploading = false, fileId = '', messageId = '' }) {
+function fakeBubble({ kind, mime = '', mine = false, failed = false, uploading = false, transferring = false, fileId = '', messageId = '' }) {
     const classes = [];
     if (mine) classes.push('me');
     if (failed) classes.push('failed');
     if (uploading) classes.push('uploading');
+    if (transferring) classes.push('transferring');
     return {
         classList: { contains: (className) => classes.includes(className) },
         dataset: { kind, mime, fileId, messageId, name: 'f.bin' },
@@ -48,6 +49,7 @@ test('completed classic file offers download; media adds preview first', () => {
 
 test('in-progress and failed bubbles gate download/preview; own keeps recall', () => {
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', uploading: true, mine: true, messageId: '5' }), true), ['recall']);
+    assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', transferring: true, fileId: '9', mime: 'image/png', mine: true, messageId: '5' }), true), ['recall']);
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', failed: true, fileId: '9', mime: 'image/png' }), true), []);
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', failed: true, mine: true, messageId: '5' }), true), ['recall']);
 });
@@ -82,4 +84,26 @@ test('copy has an insecure-context fallback and i18n strings exist in both langu
 
 test('language changes refresh action labels without rebuilding message bubbles', () => {
     assert.match(appJs, /i18n\.onChange\(\(\) => \{[\s\S]*?refreshAllMessageActions\(\)/);
+});
+
+test('FLOATING mode: hover reveal on desktop, hidden on touch, contextmenu opens the actions menu', () => {
+    assert.match(appCss, /body\[data-action-style="FLOATING"\] \.msg-actions\s*\{[^}]*opacity:\s*0/);
+    assert.match(appCss, /body\[data-action-style="FLOATING"\] \.bubble-row:hover \.msg-actions\s*\{[^}]*opacity:\s*1/);
+    assert.match(appCss, /body\.mobile-ua\[data-action-style="FLOATING"\] \.msg-actions\s*\{[^}]*display:\s*none/);
+    assert.match(appJs, /addEventListener\('contextmenu'/);
+    assert.match(appJs, /function showActionsMenu/);
+    assert.match(appJs, /function attachBubbleGestureHandlers/);
+    assert.doesNotMatch(appJs, /function attachRecallHandler/);
+    assert.doesNotMatch(appJs, /function showRecallMenu/);
+});
+
+test('classic file bubble is fully clickable for download', () => {
+    assert.match(appJs, /function triggerDownload/);
+    assert.match(appJs, /dataset\.kind !== 'file'/);
+    assert.match(appJs, /closest\('a'\)/);
+    assert.match(appCss, /\.file-bubble:not\(\.media\):not\(\.uploading\):not\(\.transferring\):not\(\.failed\)\s*\{[^}]*cursor:\s*pointer/);
+});
+
+test('server-side transferring bubbles use the shared gesture path', () => {
+    assert.match(appJs, /function renderTransferringBubble[\s\S]*?appendBubbleRow\(div,[\s\S]*?attachBubbleGestureHandlers\(div\)/);
 });

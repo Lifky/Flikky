@@ -633,12 +633,13 @@
         const mine = bubble.classList.contains('me');
         const failed = bubble.classList.contains('failed');
         const uploading = bubble.classList.contains('uploading');
+        const transferring = bubble.classList.contains('transferring');
         const actions = [];
         if (kind === 'text') {
             actions.push({ kind: 'copy', icon: 'content_copy', labelKey: 'app.copy' });
         } else if (kind === 'file') {
             // 状态门槛：下载/预览仅 COMPLETED（IN_PROGRESS 下载路由返 409）。
-            const completed = !!bubble.dataset.fileId && !failed && !uploading;
+            const completed = !!bubble.dataset.fileId && !failed && !uploading && !transferring;
             if (completed) {
                 if (mediaKind(bubble.dataset.mime)) {
                     actions.push({ kind: 'preview', icon: 'photo_library', labelKey: 'app.preview' });
@@ -788,7 +789,7 @@
         div.dataset.messageId = msg.id;
         div.dataset.kind = 'text';
         appendBubbleRow(div, mine ? 'BROWSER' : 'PHONE');
-        if (mine) attachRecallHandler(div, msg.id);
+        attachBubbleGestureHandlers(div);
         return div;
     }
 
@@ -808,63 +809,84 @@
             buildClassicFileContent(div, msg.fileId, msg.name, msg.sizeBytes);
         }
         appendBubbleRow(div, mine ? 'BROWSER' : 'PHONE');
-        if (mine) attachRecallHandler(div, msg.id);
+        attachBubbleGestureHandlers(div);
         return div;
     }
 
-    // v1.3 B4 撤回 UI：长按自己气泡 → 弹一个简单 floating menu → 撤回。
-    // 不用 mdui-menu 因为它的 anchor 模型对动态创建的 bubble 节点不友好；
-    // 自己的 div 用 pointer 坐标固定定位最直接。
-    function attachRecallHandler(bubble, messageId) {
+    // §12.3 手势通道（仅 FLOATING 模式）：桌面右键 / 触屏长按 → 完整操作菜单。
+    // INLINE 模式按钮常驻，手势全部不启用（§12.4）。挂到所有气泡（含对方的——文本有复制）。
+    function attachBubbleGestureHandlers(bubble) {
+        if (bubble.dataset.gestures === '1') return;
+        bubble.dataset.gestures = '1';
         let longPressTimer = null;
         let pressX = 0, pressY = 0;
-        bubble.addEventListener('pointerdown', (e) => {
-            if (!recallEnabled) return;
-            // 鼠标只接受左键；触摸 / 笔不区分。
-            if (e.pointerType === 'mouse' && e.button !== 0) return;
-            // 文件气泡里的 <a> 点击下载，不要被长按拦截——但移动设备上 <a>
-            // 同样能触发 pointerdown，所以我们改在 pointerup 前看是否到 500ms。
-            pressX = e.clientX; pressY = e.clientY;
-            if (longPressTimer) clearTimeout(longPressTimer);
-            longPressTimer = setTimeout(() => {
-                longPressTimer = null;
-                showRecallMenu(messageId, e.clientX, e.clientY);
-            }, 500);
-        });
         const cancel = () => {
             if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
         };
+        bubble.addEventListener('contextmenu', (event) => {
+            if (actionStyle === 'INLINE') return;
+            if (!buildMessageActions(bubble, recallEnabled).length) return;
+            cancel();
+            event.preventDefault();
+            showActionsMenu(bubble, event.clientX, event.clientY);
+        });
+        bubble.addEventListener('pointerdown', (event) => {
+            if (actionStyle === 'INLINE') return;
+            if (event.pointerType === 'mouse') return;
+            pressX = event.clientX;
+            pressY = event.clientY;
+            if (longPressTimer) clearTimeout(longPressTimer);
+            longPressTimer = setTimeout(() => {
+                longPressTimer = null;
+                showActionsMenu(bubble, event.clientX, event.clientY);
+            }, 500);
+        });
         bubble.addEventListener('pointerup', cancel);
         bubble.addEventListener('pointerleave', cancel);
         bubble.addEventListener('pointercancel', cancel);
-        bubble.addEventListener('pointermove', (e) => {
+        bubble.addEventListener('pointermove', (event) => {
             // 拖动超过 10px 视为非长按。
-            if (Math.abs(e.clientX - pressX) > 10 || Math.abs(e.clientY - pressY) > 10) cancel();
+            if (Math.abs(event.clientX - pressX) > 10 || Math.abs(event.clientY - pressY) > 10) cancel();
+        });
+        // §12.2 顺手修：经典文件泡整泡可点=下载（媒体泡缩略图=lightbox、失败泡=重试、
+        // 上传中无入口；点在原生 <a> 或操作按钮上让它们自己处理）。类型在点击时判定，
+        // 因为 uploading→completed 会原地翻转气泡形态。
+        bubble.addEventListener('click', (event) => {
+            if (bubble.dataset.kind !== 'file') return;
+            if (bubble.classList.contains('failed')) return;
+            if (bubble.classList.contains('media')) return;
+            if (bubble.classList.contains('uploading')) return;
+            if (bubble.classList.contains('transferring')) return;
+            if (event.target.closest('a')) return;
+            if (event.target.closest('.msg-actions')) return;
+            if (!bubble.dataset.fileId) return;
+            triggerDownload(bubble.dataset.fileId, bubble.dataset.name || '');
         });
     }
 
-    function showRecallMenu(messageId, x, y) {
-        if (!recallEnabled) return;
+    // §12.3 操作菜单：右键/长按弹出，内容与浮条/常驻行同源（buildMessageActions）。
+    // 外层仍是 fixed 定位手写容器（mdui-dropdown 不支持任意屏幕坐标），内部官方 mdui-menu。
+    function showActionsMenu(bubble, x, y) {
         closeRecallMenu();
-        // 外层仍是 fixed 定位到指针坐标的手写容器——mdui-dropdown 的 anchor 模型不支持
-        // 任意屏幕坐标 + 动态气泡长按触发，硬换会倒退。内部换成官方 mdui-menu / menu-item，
-        // 带与 App 撤回同款的 undo 图标，拿到视觉一致又保留稳定的坐标/长按逻辑。
+        const actions = buildMessageActions(bubble, recallEnabled);
+        if (!actions.length) return;
         const menu = document.createElement('div');
         menu.className = 'recall-menu';
         menu.id = 'recall-menu';
-        // 避免菜单溢出屏幕右/下边缘——简单偏移即可。
-        menu.style.left = Math.min(x, window.innerWidth - 120) + 'px';
-        menu.style.top = Math.min(y, window.innerHeight - 60) + 'px';
+        menu.style.left = Math.min(x, window.innerWidth - 140) + 'px';
+        menu.style.top = Math.min(y, window.innerHeight - 48 * actions.length - 16) + 'px';
         const mduiMenu = document.createElement('mdui-menu');
-        const item = document.createElement('mdui-menu-item');
-        item.appendChild(materialSymbolEl('undo', false, 'icon'));
-        item.appendChild(document.createTextNode(t('app.recall')));
-        item.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeRecallMenu();
-            confirmRecallMessage(messageId);
-        });
-        mduiMenu.appendChild(item);
+        for (const action of actions) {
+            const item = document.createElement('mdui-menu-item');
+            item.appendChild(materialSymbolEl(action.icon, false, 'icon'));
+            item.appendChild(document.createTextNode(t(action.labelKey)));
+            item.addEventListener('click', (event) => {
+                event.stopPropagation();
+                closeRecallMenu();
+                executeMessageAction(action, bubble);
+            });
+            mduiMenu.appendChild(item);
+        }
         menu.appendChild(mduiMenu);
         document.body.appendChild(menu);
         // 下一帧再装外部点击关闭，避免本次 pointerdown / click 立刻关掉自己。
@@ -971,6 +993,7 @@
         div.dataset.kind = 'file';
         div.dataset.mime = msg.mime || '';
         if (msg.fileId) div.dataset.fileId = msg.fileId;
+        div.dataset.name = msg.name || '';
 
         const a = document.createElement('a');
         a.textContent = msg.name;
@@ -996,6 +1019,7 @@
         div.appendChild(pct);
 
         appendBubbleRow(div, mine ? 'BROWSER' : 'PHONE');
+        attachBubbleGestureHandlers(div);
         return div;
     }
 
@@ -1049,7 +1073,7 @@
         if (dto.id != null) {
             bubble.dataset.messageId = dto.id;
             bubble.dataset.kind = 'file';
-            attachRecallHandler(bubble, dto.id);
+            attachBubbleGestureHandlers(bubble);
         }
         bubble.classList.remove('uploading');
 
@@ -1069,6 +1093,8 @@
         if (size) size.textContent = formatSize(dto.sizeBytes);
         const kind = mediaKind(bubble.dataset.mime);
         if (kind) applyMediaBubble(bubble, dto.fileId, dto.name, dto.sizeBytes, kind);
+        bubble.dataset.name = dto.name;
+        renderMessageActionBar(bubble.closest('.bubble-row'), bubble);
     }
 
     function markBubbleFailed(bubble, file, status) {
@@ -1112,6 +1138,7 @@
                 suffix,
             }));
         }
+        renderMessageActionBar(bubble.closest('.bubble-row'), bubble);
     }
 
     function markBubbleFailedNoRetry(bubble, key) {

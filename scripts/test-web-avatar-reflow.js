@@ -211,7 +211,7 @@ function loadAppForTest() {
   const source = fs.readFileSync(appPath, 'utf8');
   const patched = source.replace(
     /(\s*)setSendEnabled\(false\);\s*loadHistory\(\)\.then\(openWs\);\s*\}\)\(\);/,
-    "$1setSendEnabled(false);\n$1window.__flikkyWebTest = { renderText, removeMessageNode, onWsEvent, showRecallMenu, closeRecallMenu, hasRecallMenu: () => document.body.children.some((child) => child.id === 'recall-menu'), list, peerAvatar: document.getElementById('peer-avatar') };\n})();",
+    "$1setSendEnabled(false);\n$1window.__flikkyWebTest = { renderText, removeMessageNode, onWsEvent, buildMessageActions, list, peerAvatar: document.getElementById('peer-avatar') };\n})();",
   );
 
   if (patched === source) {
@@ -321,14 +321,20 @@ runGroupingModeTest('EACH', ['avatar', 'avatar', 'avatar']);
 
 function runRecallFeatureGateTest() {
   const app = loadAppForTest();
+  const bubble = app.renderText({ id: 1, content: 'copy me' }, true);
 
-  app.showRecallMenu(1, 0, 0);
-  assertDeepEqual(app.hasRecallMenu(), false, 'recall menu must stay hidden when recall is disabled');
+  assertDeepEqual(
+    Array.from(app.buildMessageActions(bubble, false), (action) => action.kind),
+    ['copy'],
+    'recall action must stay hidden when recall is disabled',
+  );
 
   app.onWsEvent({ type: 'settings_changed', payload: { recallEnabled: true } });
-  app.showRecallMenu(1, 0, 0);
-  assertDeepEqual(app.hasRecallMenu(), true, 'recall menu should be available when recall is enabled');
-  app.closeRecallMenu();
+  assertDeepEqual(
+    Array.from(app.buildMessageActions(bubble, true), (action) => action.kind),
+    ['copy', 'recall'],
+    'recall action should be available when recall is enabled',
+  );
 }
 
 runRecallFeatureGateTest();
