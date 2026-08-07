@@ -38,6 +38,7 @@ class SettingsRepositoryTest {
         assertEquals(10, s.bubbleCornerRadius)
         assertEquals(true, s.recallBetaEnabled)
         assertEquals(true, s.allowPeerRecall)
+        assertEquals(true, s.allowBackDuringSession)
         assertEquals(MessageActionStyle.INLINE, s.messageActionStyle)
         assertEquals(AvatarGroupingMode.EACH, s.avatarGrouping)
     }
@@ -52,6 +53,7 @@ class SettingsRepositoryTest {
         assertEquals(10, s.bubbleCornerRadius)
         assertEquals(true, s.recallBetaEnabled)
         assertEquals(true, s.allowPeerRecall)
+        assertEquals(true, s.allowBackDuringSession)
         assertEquals(false, s.favoriteBetaEnabled)
         assertEquals(true, s.requirePin)
         assertEquals("", s.deviceName)
@@ -157,11 +159,10 @@ class SettingsRepositoryTest {
 
     @Test fun allow_back_during_session_roundtrips() = runTest {
         val repo = makeRepo(this)
+        repo.setAllowBackDuringSession(false)
         assertEquals(false, repo.settings.first().allowBackDuringSession)
         repo.setAllowBackDuringSession(true)
         assertTrue(repo.settings.first().allowBackDuringSession)
-        repo.setAllowBackDuringSession(false)
-        assertEquals(false, repo.settings.first().allowBackDuringSession)
     }
 
     @Test fun require_pin_roundtrips() = runTest {

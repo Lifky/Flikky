@@ -71,7 +71,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             avatarGrouping = p[Keys.avatarGrouping]
                 ?.let { runCatching { AvatarGroupingMode.valueOf(it) }.getOrNull() }
                 ?: AvatarGroupingMode.EACH,
-            allowBackDuringSession = p[Keys.allowBackDuringSession] ?: false,
+            allowBackDuringSession = p[Keys.allowBackDuringSession] ?: true,
             sortMode = p[Keys.sortMode]
                 ?.let { runCatching { SortMode.valueOf(it) }.getOrNull() }
                 ?: SortMode.TIME,
