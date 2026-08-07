@@ -186,8 +186,26 @@
     let recallEnabled = false;
     let allowPeerRecall = false;
     // 消息操作样式（§12）：跟随 APP 设置，FLOATING=hover 浮条+右键，INLINE=常驻按钮行。
-    let actionStyle = 'FLOATING';
+    let actionStyle = 'INLINE';
     function normalizeActionStyle(value) { return value === 'INLINE' ? 'INLINE' : 'FLOATING'; }
+
+    const MESSAGE_ENTER_BASE_DURATION_MS = 300;
+    function normalizeAnimationSpeed(value) {
+        return ['OFF', 'SLOW', 'STANDARD', 'FAST'].includes(value) ? value : 'STANDARD';
+    }
+    function animationDurationMs(value) {
+        switch (normalizeAnimationSpeed(value)) {
+            case 'OFF': return 0;
+            case 'SLOW': return 450;
+            case 'FAST': return 210;
+            default: return MESSAGE_ENTER_BASE_DURATION_MS;
+        }
+    }
+    function applyAnimationSpeed(value) {
+        document.documentElement.style.setProperty(
+            '--flikky-message-enter-duration', animationDurationMs(value) + 'ms',
+        );
+    }
 
     // Track last rendered origin for consecutive same-origin suppression.
     // 'PHONE' | 'BROWSER' | null
@@ -448,7 +466,9 @@
         if (Object.prototype.hasOwnProperty.call(data, 'allowPeerRecall')) {
             allowPeerRecall = data.allowPeerRecall === true;
         }
-        const nextStyle = normalizeActionStyle(data.messageActionStyle);
+        const nextStyle = Object.prototype.hasOwnProperty.call(data, 'messageActionStyle')
+            ? normalizeActionStyle(data.messageActionStyle)
+            : actionStyle;
         if (nextStyle !== actionStyle || recallEnabled !== prevRecall || allowPeerRecall !== prevAllowPeerRecall) {
             actionStyle = nextStyle;
             document.body.dataset.actionStyle = actionStyle;
@@ -460,6 +480,9 @@
         applyBackground(data.backgroundMode || 'DEFAULT', data.backgroundValue || '', name);
         applyTheme(typeof data.themeSeed === 'string' ? data.themeSeed : null, !!data.themeDark);
         applyBubbleRadius(data.bubbleCornerRadius);
+        if (Object.prototype.hasOwnProperty.call(data, 'animationSpeed')) {
+            applyAnimationSpeed(data.animationSpeed);
+        }
         reflowMessageAvatars();
     }
 

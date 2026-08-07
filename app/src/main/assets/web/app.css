@@ -1,5 +1,9 @@
 /* 仅覆盖 mdui 未覆盖的自定义布局；主题色 / 字体 / 组件样式交给 mdui */
 
+:root {
+    --flikky-message-enter-duration: 300ms;
+}
+
 @font-face {
     font-family: 'Material Symbols Outlined';
     font-style: normal;
@@ -380,10 +384,25 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
 }
 
 /* Bubble row: wraps avatar + bubble */
+@keyframes flikky-message-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .bubble-row {
     display: flex;
     align-items: flex-end;
     gap: var(--flikky-space-sm);
+    animation-name: flikky-message-enter;
+    animation-duration: var(--flikky-message-enter-duration);
+    animation-timing-function: cubic-bezier(0.05, 0.7, 0.1, 1);
+    animation-fill-mode: both;
 }
 .bubble-row.me {
     flex-direction: row-reverse;
@@ -403,6 +422,12 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     width: 36px;
     min-width: 36px;
     flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bubble-row {
+        animation-duration: 0ms;
+    }
 }
 
 /* DEFAULT-mode watermark belongs to the fixed chat viewport, not the scrolling

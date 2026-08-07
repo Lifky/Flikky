@@ -77,11 +77,21 @@ test('action bar CSS: tonal sizing matches the app, danger remaps to error token
     assert.match(appCss, /\.bubble-row\s*\{[^}]*flex-wrap:\s*wrap/);
 });
 
-test('default action style is FLOATING and settings drive the body attribute idempotently', () => {
-    assert.match(appHtml, /<body[^>]*data-action-style="FLOATING"/);
+test('default action style is INLINE and settings drive the body attribute idempotently', () => {
+    assert.match(appHtml, /<body[^>]*data-action-style="INLINE"/);
+    assert.match(appJs, /let actionStyle = 'INLINE'/);
     assert.match(appJs, /function normalizeActionStyle/);
     assert.match(appJs, /document\.body\.dataset\.actionStyle/);
     assert.match(appJs, /nextStyle !== actionStyle \|\| recallEnabled !== prevRecall/);
+});
+
+test('message rows enter with MD3-style motion controlled by the synced animation speed', () => {
+    assert.match(appCss, /@keyframes flikky-message-enter/);
+    assert.match(appCss, /\.bubble-row\s*\{[^}]*animation-name:\s*flikky-message-enter/);
+    assert.match(appCss, /animation-duration:\s*var\(--flikky-message-enter-duration\)/);
+    assert.match(appCss, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation-duration:\s*0ms/);
+    assert.match(appJs, /function applyAnimationSpeed/);
+    assert.match(appJs, /--flikky-message-enter-duration/);
 });
 
 test('copy has an insecure-context fallback and i18n strings exist in both languages', () => {

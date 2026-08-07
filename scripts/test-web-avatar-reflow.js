@@ -183,6 +183,7 @@ function createDocument() {
     addEventListener() {},
     removeEventListener() {},
   };
+  document.body.dataset.actionStyle = 'INLINE';
 
   [
     'chat-list-shell',
@@ -213,7 +214,7 @@ function loadAppForTest() {
   const source = fs.readFileSync(appPath, 'utf8');
   const patched = source.replace(
     /(\s*)setSendEnabled\(false\);\s*loadHistory\(\)\.then\(openWs\);\s*\}\)\(\);/,
-    "$1setSendEnabled(false);\n$1window.__flikkyWebTest = { renderText, removeMessageNode, onWsEvent, buildMessageActions, list, peerAvatar: document.getElementById('peer-avatar') };\n})();",
+    "$1setSendEnabled(false);\n$1window.__flikkyWebTest = { renderText, removeMessageNode, onWsEvent, buildMessageActions, list, body: document.body, root: document.documentElement, peerAvatar: document.getElementById('peer-avatar') };\n})();",
   );
 
   if (patched === source) {
@@ -390,6 +391,40 @@ function runPartialSettingsDoesNotResetPhoneAvatarTest() {
 }
 
 runPartialSettingsDoesNotResetPhoneAvatarTest();
+
+function runAnimationSpeedSyncTest() {
+  const app = loadAppForTest();
+  app.onWsEvent({ type: 'settings_changed', payload: { animationSpeed: 'SLOW' } });
+  assertDeepEqual(
+    app.root.style['--flikky-message-enter-duration'],
+    '450ms',
+    'slow animation speed must lengthen Web bubble entry motion',
+  );
+
+  app.onWsEvent({ type: 'settings_changed', payload: { animationSpeed: 'OFF' } });
+  assertDeepEqual(
+    app.root.style['--flikky-message-enter-duration'],
+    '0ms',
+    'off animation speed must disable Web bubble entry motion',
+  );
+}
+
+runAnimationSpeedSyncTest();
+
+function runPartialSettingsDoesNotResetActionStyleTest() {
+  const app = loadAppForTest();
+  app.onWsEvent({ type: 'settings_changed', payload: { messageActionStyle: 'INLINE' } });
+  assertDeepEqual(app.body.dataset.actionStyle, 'INLINE', 'initial action style from settings');
+
+  app.onWsEvent({ type: 'settings_changed', payload: { bubbleCornerRadius: 24 } });
+  assertDeepEqual(
+    app.body.dataset.actionStyle,
+    'INLINE',
+    'partial bubble radius update must not reset the action style',
+  );
+}
+
+runPartialSettingsDoesNotResetActionStyleTest();
 
 function runServerStoppedUpdatesDefaultWatermarkTest() {
   const app = loadAppForTest();

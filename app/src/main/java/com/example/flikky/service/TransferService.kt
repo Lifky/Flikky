@@ -696,6 +696,7 @@ class TransferService : Service() {
                 bubbleCornerRadius = bubbleCornerRadius,
                 avatarGrouping = avatarGrouping.name,
                 messageActionStyle = messageActionStyle.name,
+                animationSpeed = animationSpeed.name,
                 recallEnabled = recallBetaEnabled,
                 allowPeerRecall = allowPeerRecall,
             )

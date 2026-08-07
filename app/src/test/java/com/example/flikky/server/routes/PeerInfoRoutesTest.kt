@@ -94,6 +94,7 @@ class PeerInfoRoutesTest {
         assertEquals(true, body["recallEnabled"]!!.jsonPrimitive.boolean)
         assertEquals(true, body["allowPeerRecall"]!!.jsonPrimitive.boolean)
         assertEquals("INLINE", body["messageActionStyle"]!!.jsonPrimitive.content)
+        assertEquals("STANDARD", body["animationSpeed"]!!.jsonPrimitive.content)
     }
 
     @Test
