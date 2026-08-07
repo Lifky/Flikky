@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +29,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -67,6 +69,7 @@ fun ThemePickerSheet(
     var customSeedInput by rememberSaveable(current.customThemeSeedArgb) {
         mutableStateOf(formatThemeSeed(current.customThemeSeedArgb))
     }
+    var showCustomColorDialog by rememberSaveable { mutableStateOf(false) }
     val parsedCustomSeed = remember(customSeedInput) { parseThemeSeed(customSeedInput) }
     val customSeedBodyLength = customSeedInput.trim().removePrefix("#").length
     val showCustomSeedError = parsedCustomSeed == null && customSeedBodyLength >= 6
@@ -132,7 +135,10 @@ fun ThemePickerSheet(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onSelectMode(ThemeMode.CUSTOM) }
+                        .clickable {
+                            customSeedInput = formatThemeSeed(current.customThemeSeedArgb)
+                            showCustomColorDialog = true
+                        }
                         .padding(vertical = Spacing.sm),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
@@ -177,33 +183,6 @@ fun ThemePickerSheet(
                             )
                         }
                     }
-                }
-
-                if (customSelected) {
-                    OutlinedTextField(
-                        value = customSeedInput,
-                        onValueChange = { value ->
-                            if (value.length <= 7) {
-                                customSeedInput = value
-                                parseThemeSeed(value)?.let(onSelectCustomSeed)
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.theme_custom_hex)) },
-                        supportingText = {
-                            Text(
-                                stringResource(
-                                    if (showCustomSeedError) {
-                                        R.string.theme_custom_invalid
-                                    } else {
-                                        R.string.theme_custom_summary
-                                    },
-                                ),
-                            )
-                        },
-                        isError = showCustomSeedError,
-                        singleLine = true,
-                    )
                 }
 
                 Spacer(Modifier.height(Spacing.lg))
@@ -286,5 +265,54 @@ fun ThemePickerSheet(
                 }
             }
         }
+    }
+
+    if (showCustomColorDialog) {
+        AlertDialog(
+            onDismissRequest = { showCustomColorDialog = false },
+            title = { Text(stringResource(R.string.theme_custom)) },
+            text = {
+                OutlinedTextField(
+                    value = customSeedInput,
+                    onValueChange = { value ->
+                        if (value.length <= 7) customSeedInput = value
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.theme_custom_hex)) },
+                    supportingText = {
+                        Text(
+                            stringResource(
+                                if (showCustomSeedError) {
+                                    R.string.theme_custom_invalid
+                                } else {
+                                    R.string.theme_custom_summary
+                                },
+                            ),
+                        )
+                    },
+                    isError = showCustomSeedError,
+                    singleLine = true,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        parsedCustomSeed?.let { seed ->
+                            onSelectCustomSeed(seed)
+                            onSelectMode(ThemeMode.CUSTOM)
+                            showCustomColorDialog = false
+                        }
+                    },
+                    enabled = parsedCustomSeed != null,
+                ) {
+                    Text(stringResource(R.string.common_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomColorDialog = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
     }
 }
