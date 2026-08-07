@@ -5,7 +5,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,7 +17,6 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.dp
 import com.example.flikky.ui.theme.LocalMotionScale
 import com.example.flikky.ui.theme.Motion
-import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.delay
 
 data class MessageAction(
@@ -41,7 +39,9 @@ fun MessageActionBar(
         enter = fadeIn(Motion.effects()),
         exit = fadeOut(Motion.effectsFast()) + scaleOut(Motion.spatialFast(), targetScale = 0.9f),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        // 行距 0：CircleActionButton 外盒自带每边 4dp 触摸余量，贴排后可见圆间隙即 8dp
+        // （与 Web 端 .msg-actions 的 36px 钮 + 8px gap 双端一致）。
+        Row {
             actions.forEachIndexed { i, a ->
                 // key 只认槽位 i，必须与下面 LaunchedEffect 的 key 一致：若把 label 也作 key，
                 // label 变化（收藏→取消收藏、传输完成后槽位换按钮）会把 shown 复位成 false，

@@ -25,12 +25,14 @@ fun CircleActionButton(
              else MaterialTheme.colorScheme.secondaryContainer
     val fg = if (danger) MaterialTheme.colorScheme.onErrorContainer
              else MaterialTheme.colorScheme.onSecondaryContainer
-    Box(Modifier.size(Sizes.touchTarget), Alignment.Center) {
+    // 可见圆 = 气泡头像同 token（36dp）；外盒各边扩 4dp 做触摸余量（44dp），
+    // 相邻按钮贴排（MessageActionBar 行距 0）时视觉间隙恰为 8dp，对齐 Web 端 36px+8px gap。
+    Box(Modifier.size(Sizes.bubbleAvatar + 8.dp), Alignment.Center) {
         Surface(
             onClick = onClick,
             shape = CircleShape,
             color = bg,
-            modifier = Modifier.size(Sizes.avatar),
+            modifier = Modifier.size(Sizes.bubbleAvatar),
         ) {
             Box(Modifier.fillMaxSize(), Alignment.Center) {
                 Icon(icon, contentDescription, tint = fg, modifier = Modifier.size(22.dp))

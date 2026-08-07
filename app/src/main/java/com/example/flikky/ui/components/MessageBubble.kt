@@ -50,6 +50,7 @@ import com.example.flikky.R
 import com.example.flikky.session.Message
 import com.example.flikky.util.MediaThumbLayout
 import com.example.flikky.session.Origin
+import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Spacing
 import java.io.File
 
@@ -82,11 +83,11 @@ fun MessageBubble(
 
     val avatarSlot: @Composable () -> Unit = {
         if (showAvatar && avatarKey != null) {
-            Avatar(avatarKey = avatarKey, size = 36.dp)
+            Avatar(avatarKey = avatarKey, size = Sizes.bubbleAvatar)
         } else if (showAvatar && avatarId != null) {
-            Avatar(avatarId = avatarId, size = 36.dp)
+            Avatar(avatarId = avatarId, size = Sizes.bubbleAvatar)
         } else {
-            Spacer(Modifier.width(36.dp))
+            Spacer(Modifier.width(Sizes.bubbleAvatar))
         }
     }
 
