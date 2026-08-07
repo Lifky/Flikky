@@ -53,6 +53,7 @@
     </plurals>
     <string name="home_close">Close</string>
     <string name="home_select_all">Select all</string>
+    <string name="home_deselect">Deselect</string>
     <string name="home_pin">Pin</string>
     <string name="home_unpin">Unpin</string>
     <string name="home_rename">Rename</string>

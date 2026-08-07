@@ -40,7 +40,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -74,6 +74,7 @@ import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.components.shareFile
+import com.example.flikky.ui.components.selectionToggle
 import com.example.flikky.ui.exporting.ArchiveViewModel
 import com.example.flikky.ui.exporting.ExportDestinationSheet
 import com.example.flikky.ui.home.GroupChips
@@ -103,6 +104,10 @@ fun FavoritesScreen(
     val sessionSnap by ServiceLocator.session.snapshot.collectAsState()
     val selectedIds = selection ?: emptySet()
     val selectedFavorites = remember(items, selectedIds) { items.filter { it.id in selectedIds } }
+    val availableIds = remember(items) { items.map { it.id } }
+    val selectionToggleState = remember(availableIds, selectedIds) {
+        selectionToggle(availableIds, selectedIds)
+    }
     val shareTarget = selectedFavorites.singleOrNull()
         ?.takeIf { it.kind == "FILE" && it.fileId != null }
     val canSendFavorites = sessionSnap.clientConnected
@@ -239,10 +244,27 @@ fun FavoritesScreen(
                         }
                     },
                     actions = {
-                        TextButton(
-                            onClick = { viewModel.selectAll(items.map { it.id }) },
+                        IconButton(
+                            onClick = { viewModel.selectAll(selectionToggleState.targetIds.toList()) },
                             enabled = items.isNotEmpty(),
-                        ) { Text(stringResource(R.string.home_select_all)) }
+                        ) {
+                            Icon(
+                                painterResource(
+                                    if (selectionToggleState.allSelected) {
+                                        R.drawable.ic_deselect
+                                    } else {
+                                        R.drawable.ic_select_all
+                                    },
+                                ),
+                                contentDescription = stringResource(
+                                    if (selectionToggleState.allSelected) {
+                                        R.string.home_deselect
+                                    } else {
+                                        R.string.home_select_all
+                                    },
+                                ),
+                            )
+                        }
                     },
                 )
             } else {

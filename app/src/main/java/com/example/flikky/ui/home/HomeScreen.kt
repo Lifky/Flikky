@@ -94,6 +94,7 @@ import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.RenameDialog
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.components.selectionToggle
 import com.example.flikky.ui.exporting.ExportDestinationSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
@@ -265,6 +266,9 @@ fun HomeScreen(
     val selectedIds = selection ?: emptySet()
     val selectedCount = selectedIds.size
     val validSessionIds = remember(sessions) { sessions.filter { it.endedAt != null }.map { it.id } }
+    val selectionToggleState = remember(validSessionIds, selectedIds) {
+        selectionToggle(validSessionIds, selectedIds)
+    }
 
     val selectedSessions = remember(sessions, selectedIds) { sessions.filter { it.id in selectedIds } }
     val allSelectedPinned = selectedSessions.isNotEmpty() && selectedSessions.all { it.pinned }
@@ -289,7 +293,8 @@ fun HomeScreen(
                 SelectingTopBar(
                     selectedCount = selectedCount,
                     onClose = { viewModel.exitSelecting() },
-                    onSelectAll = { viewModel.selectAll(validSessionIds) },
+                    onToggleAll = { viewModel.selectAll(selectionToggleState.targetIds.toList()) },
+                    allSelected = selectionToggleState.allSelected,
                     selectAllEnabled = validSessionIds.isNotEmpty(),
                 )
             } else if (searchEnabled) {
@@ -687,7 +692,8 @@ private fun SectionHeader(section: HomeSection, modifier: Modifier = Modifier) {
 private fun SelectingTopBar(
     selectedCount: Int,
     onClose: () -> Unit,
-    onSelectAll: () -> Unit,
+    onToggleAll: () -> Unit,
+    allSelected: Boolean,
     selectAllEnabled: Boolean,
 ) {
     TopAppBar(
@@ -700,8 +706,15 @@ private fun SelectingTopBar(
             }
         },
         actions = {
-            TextButton(onClick = onSelectAll, enabled = selectAllEnabled) {
-                Text(stringResource(R.string.home_select_all))
+            IconButton(onClick = onToggleAll, enabled = selectAllEnabled) {
+                Icon(
+                    painterResource(
+                        if (allSelected) R.drawable.ic_deselect else R.drawable.ic_select_all,
+                    ),
+                    contentDescription = stringResource(
+                        if (allSelected) R.string.home_deselect else R.string.home_select_all,
+                    ),
+                )
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(),

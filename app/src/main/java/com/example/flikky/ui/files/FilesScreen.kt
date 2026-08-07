@@ -45,7 +45,6 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -92,6 +91,7 @@ import com.example.flikky.ui.components.saveToGallery
 import com.example.flikky.ui.components.sessionFile
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.components.shareStoredFile
+import com.example.flikky.ui.components.selectionToggle
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
@@ -142,6 +142,10 @@ fun FilesScreen(
     val selectedIds = selection.orEmpty()
     val selectedRows = remember(rows, selectedIds) {
         rows.filter { it.messageId in selectedIds }
+    }
+    val availableIds = remember(rows) { rows.map { it.messageId } }
+    val selectionToggleState = remember(availableIds, selectedIds) {
+        selectionToggle(availableIds, selectedIds)
     }
     val singleSelected = selectedRows.singleOrNull()
     val deletableRows = selectedRows.filter { it.sessionEndedAt != null }
@@ -209,11 +213,26 @@ fun FilesScreen(
                         }
                     },
                     actions = {
-                        TextButton(
-                            onClick = { viewModel.selectAll(rows.map { it.messageId }) },
+                        IconButton(
+                            onClick = { viewModel.selectAll(selectionToggleState.targetIds.toList()) },
                             enabled = rows.isNotEmpty(),
                         ) {
-                            Text(stringResource(R.string.home_select_all))
+                            Icon(
+                                painterResource(
+                                    if (selectionToggleState.allSelected) {
+                                        R.drawable.ic_deselect
+                                    } else {
+                                        R.drawable.ic_select_all
+                                    },
+                                ),
+                                contentDescription = stringResource(
+                                    if (selectionToggleState.allSelected) {
+                                        R.string.home_deselect
+                                    } else {
+                                        R.string.home_select_all
+                                    },
+                                ),
+                            )
                         }
                     },
                 )

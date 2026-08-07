@@ -46,6 +46,7 @@
     </plurals>
     <string name="home_close">关闭</string>
     <string name="home_select_all">全选</string>
+    <string name="home_deselect">取消全选</string>
     <string name="home_pin">置顶</string>
     <string name="home_unpin">取消置顶</string>
     <string name="home_rename">重命名</string>
