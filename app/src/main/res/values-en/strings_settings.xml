@@ -111,6 +111,9 @@
     <string name="theme_custom_hex">Theme seed color</string>
     <string name="theme_custom_summary">Enter a 6-digit hex color, such as #33618D</string>
     <string name="theme_custom_invalid">Enter a valid #RRGGBB color</string>
+    <string name="theme_custom_palette">Saturation and brightness palette</string>
+    <string name="theme_custom_hue">Hue slider</string>
+    <string name="theme_custom_details">Hue %1$d°  Saturation %2$d%%  Brightness %3$d%%</string>
     <string name="theme_contrast">Contrast</string>
     <string name="theme_preset_danshu_red">Dawn red</string>
     <string name="theme_preset_danzi_red">Crimson purple</string>

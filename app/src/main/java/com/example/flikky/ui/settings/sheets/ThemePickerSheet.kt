@@ -33,6 +33,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -51,8 +52,11 @@ import com.example.flikky.ui.theme.Spacing
 import com.example.flikky.ui.theme.customScheme
 import com.example.flikky.ui.theme.presetScheme
 import com.example.flikky.ui.settings.localizedLabel
+import com.example.flikky.util.ThemeHsv
 import com.example.flikky.util.formatThemeSeed
 import com.example.flikky.util.parseThemeSeed
+import com.example.flikky.util.themeHsvToSeed
+import com.example.flikky.util.themeSeedToHsv
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -70,6 +74,9 @@ fun ThemePickerSheet(
         mutableStateOf(formatThemeSeed(current.customThemeSeedArgb))
     }
     var showCustomColorDialog by rememberSaveable { mutableStateOf(false) }
+    var customHue by rememberSaveable { mutableFloatStateOf(0f) }
+    var customSaturation by rememberSaveable { mutableFloatStateOf(0f) }
+    var customValue by rememberSaveable { mutableFloatStateOf(0f) }
     val parsedCustomSeed = remember(customSeedInput) { parseThemeSeed(customSeedInput) }
     val customSeedBodyLength = customSeedInput.trim().removePrefix("#").length
     val showCustomSeedError = parsedCustomSeed == null && customSeedBodyLength >= 6
@@ -137,6 +144,11 @@ fun ThemePickerSheet(
                         .fillMaxWidth()
                         .clickable {
                             customSeedInput = formatThemeSeed(current.customThemeSeedArgb)
+                            themeSeedToHsv(current.customThemeSeedArgb).let { hsv ->
+                                customHue = hsv.hue
+                                customSaturation = hsv.saturation
+                                customValue = hsv.value
+                            }
                             showCustomColorDialog = true
                         }
                         .padding(vertical = Spacing.sm),
@@ -272,27 +284,47 @@ fun ThemePickerSheet(
             onDismissRequest = { showCustomColorDialog = false },
             title = { Text(stringResource(R.string.theme_custom)) },
             text = {
-                OutlinedTextField(
-                    value = customSeedInput,
-                    onValueChange = { value ->
-                        if (value.length <= 7) customSeedInput = value
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.theme_custom_hex)) },
-                    supportingText = {
-                        Text(
-                            stringResource(
-                                if (showCustomSeedError) {
-                                    R.string.theme_custom_invalid
-                                } else {
-                                    R.string.theme_custom_summary
-                                },
-                            ),
-                        )
-                    },
-                    isError = showCustomSeedError,
-                    singleLine = true,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                    ThemeColorPicker(
+                        hsv = ThemeHsv(customHue, customSaturation, customValue),
+                        onHsvChange = { hsv ->
+                            customHue = hsv.hue
+                            customSaturation = hsv.saturation
+                            customValue = hsv.value
+                            customSeedInput = formatThemeSeed(themeHsvToSeed(hsv))
+                        },
+                    )
+                    OutlinedTextField(
+                        value = customSeedInput,
+                        onValueChange = { value ->
+                            if (value.length <= 7) {
+                                customSeedInput = value
+                                parseThemeSeed(value)?.let { seed ->
+                                    themeSeedToHsv(seed).let { hsv ->
+                                        customHue = hsv.hue
+                                        customSaturation = hsv.saturation
+                                        customValue = hsv.value
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.theme_custom_hex)) },
+                        supportingText = {
+                            Text(
+                                stringResource(
+                                    if (showCustomSeedError) {
+                                        R.string.theme_custom_invalid
+                                    } else {
+                                        R.string.theme_custom_summary
+                                    },
+                                ),
+                            )
+                        },
+                        isError = showCustomSeedError,
+                        singleLine = true,
+                    )
+                }
             },
             confirmButton = {
                 TextButton(

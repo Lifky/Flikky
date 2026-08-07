@@ -106,6 +106,9 @@
     <string name="theme_custom_hex">主题种子色</string>
     <string name="theme_custom_summary">输入 6 位十六进制颜色，例如 #33618D</string>
     <string name="theme_custom_invalid">请输入有效的 #RRGGBB 颜色</string>
+    <string name="theme_custom_palette">饱和度与明度色板</string>
+    <string name="theme_custom_hue">色相滑条</string>
+    <string name="theme_custom_details">色相 %1$d°　饱和度 %2$d%%　明度 %3$d%%</string>
     <string name="theme_contrast">对比度</string>
     <string name="theme_preset_danshu_red">淡曙红</string>
     <string name="theme_preset_danzi_red">丹紫红</string>
