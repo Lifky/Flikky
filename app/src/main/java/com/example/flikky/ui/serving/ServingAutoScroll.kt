@@ -16,3 +16,9 @@ internal fun shouldAutoScrollToLatestMessage(
     }
     return true
 }
+
+internal fun shouldAutoScrollToLatestMessageForIme(
+    wasAtBottomBeforeIme: Boolean,
+    currentImeVisible: Boolean,
+    currentMessageCount: Int,
+): Boolean = wasAtBottomBeforeIme && currentImeVisible && currentMessageCount > 0
