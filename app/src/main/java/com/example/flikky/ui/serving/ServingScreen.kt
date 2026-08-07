@@ -8,12 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -48,13 +46,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -295,8 +293,7 @@ fun ServingScreen(
     }
 
     val listState = rememberLazyListState()
-    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    var wasAtBottomBeforeIme by remember { mutableStateOf(true) }
+    val currentMessages = rememberUpdatedState(ui.messages)
     var previousAutoScrollMessageCount by remember { mutableStateOf(0) }
     var previousAutoScrollLastMessageId by remember { mutableStateOf<Long?>(null) }
     LaunchedEffect(ui.messages.size, ui.messages.lastOrNull()?.id) {
@@ -314,19 +311,28 @@ fun ServingScreen(
             listState.animateScrollToItem(currentMessageCount - 1)
         }
     }
-    LaunchedEffect(imeVisible) {
-        if (imeVisible) {
-            val shouldScroll = shouldAutoScrollToLatestMessageForIme(
-                wasAtBottomBeforeIme = wasAtBottomBeforeIme,
-                currentImeVisible = true,
-                currentMessageCount = ui.messages.size,
-            )
-            if (shouldScroll) listState.animateScrollToItem(ui.messages.lastIndex)
-        } else {
-            snapshotFlow { !listState.canScrollForward }
-                .distinctUntilChanged()
-                .collect { wasAtBottomBeforeIme = it }
+    // Keep a bottom-anchored conversation pinned through every frame of an IME resize.
+    LaunchedEffect(Unit) {
+        var previousViewportHeight = 0
+        var wasAtBottomBeforeResize = true
+        snapshotFlow {
+            listState.layoutInfo.viewportSize.height to !listState.canScrollForward
         }
+            .distinctUntilChanged()
+            .collect { (currentViewportHeight, isAtBottom) ->
+                val messages = currentMessages.value
+                val shouldScroll = shouldKeepLatestMessageVisibleAfterViewportResize(
+                    previousViewportHeight = previousViewportHeight,
+                    currentViewportHeight = currentViewportHeight,
+                    wasAtBottomBeforeResize = wasAtBottomBeforeResize,
+                    currentMessageCount = messages.size,
+                )
+                if (shouldScroll) {
+                    listState.scrollToItem(messages.lastIndex)
+                }
+                previousViewportHeight = currentViewportHeight
+                wasAtBottomBeforeResize = if (shouldScroll) true else isAtBottom
+            }
     }
     // Dismiss the floating/inline action target whenever the list starts scrolling.
     LaunchedEffect(listState.isScrollInProgress) {

@@ -17,8 +17,13 @@ internal fun shouldAutoScrollToLatestMessage(
     return true
 }
 
-internal fun shouldAutoScrollToLatestMessageForIme(
-    wasAtBottomBeforeIme: Boolean,
-    currentImeVisible: Boolean,
+internal fun shouldKeepLatestMessageVisibleAfterViewportResize(
+    previousViewportHeight: Int,
+    currentViewportHeight: Int,
+    wasAtBottomBeforeResize: Boolean,
     currentMessageCount: Int,
-): Boolean = wasAtBottomBeforeIme && currentImeVisible && currentMessageCount > 0
+): Boolean =
+    previousViewportHeight > currentViewportHeight &&
+        currentViewportHeight > 0 &&
+        wasAtBottomBeforeResize &&
+        currentMessageCount > 0

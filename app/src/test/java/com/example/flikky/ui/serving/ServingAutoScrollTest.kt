@@ -33,33 +33,80 @@ class ServingAutoScrollTest {
     }
 
     @Test
-    fun `scrolls to latest message when keyboard becomes visible`() {
+    fun `keeps latest message visible through consecutive viewport shrink steps`() {
         assertTrue(
-            shouldAutoScrollToLatestMessageForIme(
-                wasAtBottomBeforeIme = true,
-                currentImeVisible = true,
+            shouldKeepLatestMessageVisibleAfterViewportResize(
+                previousViewportHeight = 1200,
+                currentViewportHeight = 1000,
+                wasAtBottomBeforeResize = true,
+                currentMessageCount = 12,
+            ),
+        )
+        assertTrue(
+            shouldKeepLatestMessageVisibleAfterViewportResize(
+                previousViewportHeight = 1000,
+                currentViewportHeight = 800,
+                wasAtBottomBeforeResize = true,
                 currentMessageCount = 12,
             ),
         )
     }
 
     @Test
-    fun `does not scroll when user was away from the bottom before keyboard`() {
+    fun `does not move viewport when user was away from bottom before resize`() {
         assertFalse(
-            shouldAutoScrollToLatestMessageForIme(
-                wasAtBottomBeforeIme = false,
-                currentImeVisible = true,
+            shouldKeepLatestMessageVisibleAfterViewportResize(
+                previousViewportHeight = 1200,
+                currentViewportHeight = 800,
+                wasAtBottomBeforeResize = false,
                 currentMessageCount = 12,
             ),
         )
     }
 
     @Test
-    fun `does not scroll for keyboard visibility without messages`() {
+    fun `does not scroll when viewport height is unchanged`() {
         assertFalse(
-            shouldAutoScrollToLatestMessageForIme(
-                wasAtBottomBeforeIme = true,
-                currentImeVisible = true,
+            shouldKeepLatestMessageVisibleAfterViewportResize(
+                previousViewportHeight = 800,
+                currentViewportHeight = 800,
+                wasAtBottomBeforeResize = true,
+                currentMessageCount = 12,
+            ),
+        )
+    }
+
+    @Test
+    fun `does not scroll when viewport grows`() {
+        assertFalse(
+            shouldKeepLatestMessageVisibleAfterViewportResize(
+                previousViewportHeight = 800,
+                currentViewportHeight = 1200,
+                wasAtBottomBeforeResize = true,
+                currentMessageCount = 12,
+            ),
+        )
+    }
+
+    @Test
+    fun `does not scroll before viewport has an initial height`() {
+        assertFalse(
+            shouldKeepLatestMessageVisibleAfterViewportResize(
+                previousViewportHeight = 0,
+                currentViewportHeight = 1200,
+                wasAtBottomBeforeResize = true,
+                currentMessageCount = 12,
+            ),
+        )
+    }
+
+    @Test
+    fun `does not scroll after viewport resize without messages`() {
+        assertFalse(
+            shouldKeepLatestMessageVisibleAfterViewportResize(
+                previousViewportHeight = 1200,
+                currentViewportHeight = 800,
+                wasAtBottomBeforeResize = true,
                 currentMessageCount = 0,
             ),
         )
