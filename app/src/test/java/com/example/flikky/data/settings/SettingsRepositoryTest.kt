@@ -34,6 +34,7 @@ class SettingsRepositoryTest {
 
         assertEquals(ThemeMode.PRESET, s.themeMode)
         assertEquals(PresetTheme.DANSHU_RED, s.presetTheme)
+        assertEquals(0xFF8F4A4CL, s.customThemeSeedArgb)
         assertEquals(10, s.bubbleCornerRadius)
         assertEquals(true, s.recallBetaEnabled)
         assertEquals(true, s.allowPeerRecall)
@@ -46,6 +47,7 @@ class SettingsRepositoryTest {
         val s = repo.settings.first()
         assertEquals(ThemeMode.PRESET, s.themeMode)
         assertEquals(PresetTheme.DANSHU_RED, s.presetTheme)
+        assertEquals(0xFF8F4A4CL, s.customThemeSeedArgb)
         assertEquals(20, s.historyRetainLimit)
         assertEquals(10, s.bubbleCornerRadius)
         assertEquals(true, s.recallBetaEnabled)
@@ -123,6 +125,25 @@ class SettingsRepositoryTest {
         assertEquals(MessageActionStyle.INLINE, repo.settings.first().messageActionStyle)
         repo.setMessageActionStyle(MessageActionStyle.FLOATING)
         assertEquals(MessageActionStyle.FLOATING, repo.settings.first().messageActionStyle)
+    }
+
+    @Test fun custom_theme_seed_persists_and_backup_roundtrips() = runTest {
+        val source = makeRepo(this)
+        source.setCustomThemeSeed(0x0033618DL)
+        source.setThemeMode(ThemeMode.CUSTOM)
+
+        val saved = source.settings.first()
+        assertEquals(ThemeMode.CUSTOM, saved.themeMode)
+        assertEquals(0xFF33618DL, saved.customThemeSeedArgb)
+
+        val backup = source.exportBackup()
+        assertEquals(0xFF33618DL, backup.customThemeSeedArgb)
+
+        val target = makeRepo(this)
+        target.importBackup(backup)
+        val restored = target.settings.first()
+        assertEquals(ThemeMode.CUSTOM, restored.themeMode)
+        assertEquals(0xFF33618DL, restored.customThemeSeedArgb)
     }
 
     @Test fun avatar_grouping_roundtrips() = runTest {

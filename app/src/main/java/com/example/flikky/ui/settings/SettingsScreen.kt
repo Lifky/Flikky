@@ -96,6 +96,7 @@ import com.example.flikky.ui.settings.components.SettingSection
 import com.example.flikky.ui.settings.sheets.AvatarPickerSheet
 import com.example.flikky.ui.settings.sheets.BackgroundPickerSheet
 import com.example.flikky.ui.settings.sheets.ThemePickerSheet
+import com.example.flikky.util.formatThemeSeed
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
@@ -348,10 +349,10 @@ fun SettingsScreen(
             item {
                 val sectionItems = 4
                 SettingSection(title = stringResource(R.string.settings_section_theme_color)) {
-                    val themeSubtitle = if (s.themeMode == ThemeMode.DYNAMIC) {
-                        stringResource(R.string.settings_theme_follow_wallpaper)
-                    } else {
-                        s.presetTheme.localizedLabel()
+                    val themeSubtitle = when (s.themeMode) {
+                        ThemeMode.DYNAMIC -> stringResource(R.string.settings_theme_follow_wallpaper)
+                        ThemeMode.PRESET -> s.presetTheme.localizedLabel()
+                        ThemeMode.CUSTOM -> formatThemeSeed(s.customThemeSeedArgb)
                     }
                     SettingItem(
                         title = stringResource(R.string.settings_theme),
@@ -740,6 +741,7 @@ fun SettingsScreen(
             current = s,
             onSelectMode = { viewModel.setThemeMode(it) },
             onSelectPreset = { viewModel.setPreset(it) },
+            onSelectCustomSeed = { viewModel.setCustomThemeSeed(it) },
             onSelectContrast = { viewModel.setContrast(it) },
             onDismiss = { activeSheet = null },
         )

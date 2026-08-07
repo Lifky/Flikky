@@ -44,6 +44,9 @@ class SettingsViewModel @JvmOverloads constructor(
 
     fun setThemeMode(value: ThemeMode) = viewModelScope.launch { repository.setThemeMode(value) }
     fun setPreset(value: PresetTheme) = viewModelScope.launch { repository.setPresetTheme(value) }
+    fun setCustomThemeSeed(value: Long) =
+        viewModelScope.launch { repository.setCustomThemeSeed(value) }
+
     fun setContrast(value: ContrastLevel) = viewModelScope.launch { repository.setContrastLevel(value) }
     fun setDarkMode(value: DarkMode) = viewModelScope.launch { repository.setDarkMode(value) }
     fun setAmoled(value: Boolean) = viewModelScope.launch { repository.setAmoled(value) }

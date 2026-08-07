@@ -1,6 +1,6 @@
 package com.example.flikky.data.settings
 
-enum class ThemeMode { DYNAMIC, PRESET }
+enum class ThemeMode { DYNAMIC, PRESET, CUSTOM }
 
 /**
  * 8 个命名预设主题。色值来自用户自定义的 Material Theme Builder 导出
@@ -61,10 +61,12 @@ sealed class BackgroundSetting {
 const val BUBBLE_CORNER_MIN = 8
 const val BUBBLE_CORNER_MAX = 28
 const val BUBBLE_CORNER_DEFAULT = 10
+const val CUSTOM_THEME_SEED_DEFAULT = 0xFF8F4A4CL
 
 data class FlikkySettings(
     val themeMode: ThemeMode = ThemeMode.PRESET,
     val presetTheme: PresetTheme = PresetTheme.DANSHU_RED,
+    val customThemeSeedArgb: Long = CUSTOM_THEME_SEED_DEFAULT,
     val contrastLevel: ContrastLevel = ContrastLevel.SYSTEM,
     val darkMode: DarkMode = DarkMode.SYSTEM,
     val amoled: Boolean = false,

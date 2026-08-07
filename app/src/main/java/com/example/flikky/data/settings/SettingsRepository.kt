@@ -6,11 +6,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import com.example.flikky.export.SettingsExport
+import com.example.flikky.util.normalizeThemeSeedArgb
 
 class SettingsRepository(private val ds: DataStore<Preferences>) {
     private object Keys {
         val themeMode = stringPreferencesKey("theme_mode")
         val preset = stringPreferencesKey("preset_theme")
+        val customThemeSeed = longPreferencesKey("custom_theme_seed")
         val contrast = stringPreferencesKey("contrast_level")
         val darkMode = stringPreferencesKey("dark_mode")
         val amoled = booleanPreferencesKey("amoled")
@@ -44,6 +46,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             presetTheme = p[Keys.preset]
                 ?.let { runCatching { PresetTheme.valueOf(it) }.getOrNull() }
                 ?: PresetTheme.DANSHU_RED,
+            customThemeSeedArgb = normalizeThemeSeedArgb(
+                p[Keys.customThemeSeed] ?: CUSTOM_THEME_SEED_DEFAULT,
+            ),
             contrastLevel = p[Keys.contrast]
                 ?.let { runCatching { ContrastLevel.valueOf(it) }.getOrNull() }
                 ?: ContrastLevel.SYSTEM,
@@ -84,6 +89,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
 
     suspend fun setThemeMode(v: ThemeMode) = ds.edit { it[Keys.themeMode] = v.name }
     suspend fun setPresetTheme(v: PresetTheme) = ds.edit { it[Keys.preset] = v.name }
+    suspend fun setCustomThemeSeed(v: Long) = ds.edit {
+        it[Keys.customThemeSeed] = normalizeThemeSeedArgb(v)
+    }
     suspend fun setContrastLevel(v: ContrastLevel) = ds.edit { it[Keys.contrast] = v.name }
     suspend fun setDarkMode(v: DarkMode) = ds.edit { it[Keys.darkMode] = v.name }
     suspend fun setAmoled(v: Boolean) = ds.edit { it[Keys.amoled] = v }
@@ -144,6 +152,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         return SettingsExport(
             themeMode = s.themeMode.name,
             presetTheme = s.presetTheme.name,
+            customThemeSeedArgb = s.customThemeSeedArgb,
             contrastLevel = s.contrastLevel.name,
             darkMode = s.darkMode.name,
             amoled = s.amoled,
@@ -170,6 +179,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun importBackup(backup: SettingsExport) = ds.edit { prefs ->
         backup.themeMode?.enumNameOrNull<ThemeMode>()?.let { prefs[Keys.themeMode] = it }
         backup.presetTheme?.enumNameOrNull<PresetTheme>()?.let { prefs[Keys.preset] = it }
+        backup.customThemeSeedArgb?.let {
+            prefs[Keys.customThemeSeed] = normalizeThemeSeedArgb(it)
+        }
         backup.contrastLevel?.enumNameOrNull<ContrastLevel>()?.let { prefs[Keys.contrast] = it }
         backup.darkMode?.enumNameOrNull<DarkMode>()?.let { prefs[Keys.darkMode] = it }
         backup.amoled?.let { prefs[Keys.amoled] = it }

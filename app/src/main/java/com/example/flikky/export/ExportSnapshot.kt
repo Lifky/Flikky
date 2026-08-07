@@ -53,6 +53,7 @@ data class FavoriteExport(
 data class SettingsExport(
     val themeMode: String? = null,
     val presetTheme: String? = null,
+    val customThemeSeedArgb: Long? = null,
     val contrastLevel: String? = null,
     val darkMode: String? = null,
     val amoled: Boolean? = null,

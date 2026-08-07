@@ -5,6 +5,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import com.materialkolor.Contrast
+import com.materialkolor.dynamicColorScheme
 import com.example.flikky.data.settings.PresetTheme
 import com.example.flikky.ui.theme.scheme.AnanBlueScheme
 import com.example.flikky.ui.theme.scheme.ChengpiYellowScheme
@@ -50,6 +52,20 @@ fun presetScheme(
         ResolvedContrast.HIGH     -> if (dark) set.darkHigh else set.lightHigh
     }
 }
+
+fun customScheme(
+    seedArgb: Long,
+    dark: Boolean,
+    contrast: ResolvedContrast = ResolvedContrast.STANDARD,
+): ColorScheme = dynamicColorScheme(
+    seedColor = Color(seedArgb.toInt()),
+    isDark = dark,
+    contrastLevel = when (contrast) {
+        ResolvedContrast.STANDARD -> Contrast.Default.value
+        ResolvedContrast.MEDIUM -> Contrast.Medium.value
+        ResolvedContrast.HIGH -> Contrast.High.value
+    },
+)
 
 // ─── AMOLED override ─────────────────────────────────────────────────────────
 // Pure-black background/surface; surfaceContainer* stay as dark greys for layering.

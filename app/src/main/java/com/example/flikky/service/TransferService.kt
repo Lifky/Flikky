@@ -36,6 +36,7 @@ import com.example.flikky.server.dto.StatusDto
 import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
 import com.example.flikky.util.IdGen
+import com.example.flikky.util.formatThemeSeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -673,13 +674,17 @@ class TransferService : Service() {
                 // BackgroundSetting.Gradient removed in v1.6.0 — handled by else in SettingsRepository.decodeBackground
             }
             // 双端主题对齐：浏览器跟随手机当前深浅 + 主题色相。动态色（Material You）由壁纸提取，
-            // 浏览器拿不到，故只对预设主题推 seed；动态时 seed=null，浏览器回落 mdui 默认配色但仍跟深浅。
+            // 浏览器拿不到，故动态时 seed=null；预设与自定义主题都推同源 seed。
             val resolvedDark = when (darkMode) {
                 DarkMode.SYSTEM -> systemDark
                 DarkMode.LIGHT -> false
                 DarkMode.DARK -> true
             }
-            val seed = if (themeMode == ThemeMode.PRESET) presetTheme.seedHex else null
+            val seed = when (themeMode) {
+                ThemeMode.DYNAMIC -> null
+                ThemeMode.PRESET -> presetTheme.seedHex
+                ThemeMode.CUSTOM -> formatThemeSeed(customThemeSeedArgb)
+            }
             return PeerInfoDto(
                 deviceName = deviceName.ifBlank { defaultDeviceName },
                 phoneAvatarId = phoneAvatarId,

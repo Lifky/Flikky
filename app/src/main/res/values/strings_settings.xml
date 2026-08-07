@@ -102,6 +102,10 @@
     <string name="theme_dynamic">跟随壁纸（动态色）</string>
     <string name="theme_dynamic_summary">Android 12+ 自动提取主色</string>
     <string name="theme_presets">预设色彩</string>
+    <string name="theme_custom">自定义颜色</string>
+    <string name="theme_custom_hex">主题种子色</string>
+    <string name="theme_custom_summary">输入 6 位十六进制颜色，例如 #33618D</string>
+    <string name="theme_custom_invalid">请输入有效的 #RRGGBB 颜色</string>
     <string name="theme_contrast">对比度</string>
     <string name="theme_preset_danshu_red">淡曙红</string>
     <string name="theme_preset_danzi_red">丹紫红</string>

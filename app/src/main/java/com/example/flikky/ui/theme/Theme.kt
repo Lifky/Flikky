@@ -60,12 +60,18 @@ fun FlikkyTheme(settings: FlikkySettings, content: @Composable () -> Unit) {
             if (useDark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
         }
         else -> {
-            // 预设主题才走对比度档；动态色由系统调色板自带（含系统对比度），不二次套。
+            // 预设与自定义主题走用户对比度档；动态色由系统调色板自带，不二次套。
             val ctx = LocalContext.current
             val contrast = remember(settings.contrastLevel, ctx) {
                 resolveContrast(settings.contrastLevel, ctx)
             }
-            presetScheme(settings.presetTheme, useDark, contrast)
+            when (settings.themeMode) {
+                ThemeMode.CUSTOM -> remember(settings.customThemeSeedArgb, useDark, contrast) {
+                    customScheme(settings.customThemeSeedArgb, useDark, contrast)
+                }
+                ThemeMode.DYNAMIC,
+                ThemeMode.PRESET -> presetScheme(settings.presetTheme, useDark, contrast)
+            }
         }
     }
     val scheme = if (settings.amoled && useDark) amoledOverride(base) else base

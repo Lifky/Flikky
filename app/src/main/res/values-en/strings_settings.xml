@@ -107,6 +107,10 @@
     <string name="theme_dynamic">Follow wallpaper (dynamic color)</string>
     <string name="theme_dynamic_summary">Automatically extract colors on Android 12+</string>
     <string name="theme_presets">Preset colors</string>
+    <string name="theme_custom">Custom color</string>
+    <string name="theme_custom_hex">Theme seed color</string>
+    <string name="theme_custom_summary">Enter a 6-digit hex color, such as #33618D</string>
+    <string name="theme_custom_invalid">Enter a valid #RRGGBB color</string>
     <string name="theme_contrast">Contrast</string>
     <string name="theme_preset_danshu_red">Dawn red</string>
     <string name="theme_preset_danzi_red">Crimson purple</string>

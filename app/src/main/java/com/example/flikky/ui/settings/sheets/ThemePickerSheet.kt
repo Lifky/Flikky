@@ -22,6 +22,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -29,10 +30,14 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
@@ -41,8 +46,11 @@ import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.data.settings.PresetTheme
 import com.example.flikky.data.settings.ThemeMode
 import com.example.flikky.ui.theme.Spacing
+import com.example.flikky.ui.theme.customScheme
 import com.example.flikky.ui.theme.presetScheme
 import com.example.flikky.ui.settings.localizedLabel
+import com.example.flikky.util.formatThemeSeed
+import com.example.flikky.util.parseThemeSeed
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -50,11 +58,18 @@ fun ThemePickerSheet(
     current: FlikkySettings,
     onSelectMode: (ThemeMode) -> Unit,
     onSelectPreset: (PresetTheme) -> Unit,
+    onSelectCustomSeed: (Long) -> Unit,
     onSelectContrast: (ContrastLevel) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val dark = isSystemInDarkTheme()
+    var customSeedInput by rememberSaveable(current.customThemeSeedArgb) {
+        mutableStateOf(formatThemeSeed(current.customThemeSeedArgb))
+    }
+    val parsedCustomSeed = remember(customSeedInput) { parseThemeSeed(customSeedInput) }
+    val customSeedBodyLength = customSeedInput.trim().removePrefix("#").length
+    val showCustomSeedError = parsedCustomSeed == null && customSeedBodyLength >= 6
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -107,8 +122,8 @@ fun ThemePickerSheet(
                 )
             }
 
-            // Preset swatches + contrast — visible when PRESET mode
-            if (current.themeMode == ThemeMode.PRESET) {
+            // Dynamic color hides manual controls; preset and custom share the same contrast setting.
+            if (current.themeMode != ThemeMode.DYNAMIC) {
                 Spacer(Modifier.height(Spacing.lg))
                 Text(
                     text = stringResource(R.string.theme_presets),
@@ -125,7 +140,8 @@ fun ThemePickerSheet(
                 ) {
                     PresetTheme.entries.forEach { preset ->
                         val scheme = presetScheme(preset, dark)
-                        val isSelected = current.presetTheme == preset
+                        val isSelected = current.themeMode == ThemeMode.PRESET &&
+                            current.presetTheme == preset
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier.weight(1f),
@@ -164,6 +180,88 @@ fun ThemePickerSheet(
                             )
                         }
                     }
+                }
+
+                Spacer(Modifier.height(Spacing.lg))
+                val customSelected = current.themeMode == ThemeMode.CUSTOM
+                val customPreviewScheme = remember(current.customThemeSeedArgb, dark) {
+                    customScheme(current.customThemeSeedArgb, dark)
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelectMode(ThemeMode.CUSTOM) }
+                        .padding(vertical = Spacing.sm),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.theme_custom),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (customSelected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurface,
+                        )
+                        Text(
+                            text = formatThemeSeed(current.customThemeSeedArgb),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(customPreviewScheme.primary)
+                            .then(
+                                if (customSelected) {
+                                    Modifier.border(
+                                        3.dp,
+                                        customPreviewScheme.primaryContainer,
+                                        CircleShape,
+                                    )
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (customSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = customPreviewScheme.onPrimary,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                }
+
+                if (customSelected) {
+                    OutlinedTextField(
+                        value = customSeedInput,
+                        onValueChange = { value ->
+                            if (value.length <= 7) {
+                                customSeedInput = value
+                                parseThemeSeed(value)?.let(onSelectCustomSeed)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.theme_custom_hex)) },
+                        supportingText = {
+                            Text(
+                                stringResource(
+                                    if (showCustomSeedError) {
+                                        R.string.theme_custom_invalid
+                                    } else {
+                                        R.string.theme_custom_summary
+                                    },
+                                ),
+                            )
+                        },
+                        isError = showCustomSeedError,
+                        singleLine = true,
+                    )
                 }
 
                 // 对比度档：跟随系统 / 标准 / 中 / 高（每个主题都备有三套 role）。
