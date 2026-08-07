@@ -71,7 +71,8 @@ class KtorServer(
             deviceName = "Flikky",
             phoneAvatarId = 0,
             backgroundMode = "DEFAULT",
-            recallEnabled = false,
+            recallEnabled = true,
+            allowPeerRecall = true,
         )
     },
     private val webLanguageTagProvider: () -> String = { "zh-CN" },

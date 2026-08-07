@@ -147,13 +147,13 @@ data class PeerInfoDto(
     val themeSeed: String? = null,
     val themeDark: Boolean = false,
     // 气泡圆角（dp，8..28）——推给浏览器让两端气泡圆角一致；手机设置里拖 slider 即两端同步。
-    // 默认 18 与 data.settings.BUBBLE_CORNER_DEFAULT 对齐；DTO 不依赖 data 层，故此处内联。
-    val bubbleCornerRadius: Int = 18,
+    // 默认 10 与 data.settings.BUBBLE_CORNER_DEFAULT 对齐；DTO 不依赖 data 层，故此处内联。
+    val bubbleCornerRadius: Int = 10,
     val avatarGrouping: String = "EACH",
     // 消息操作样式（FLOATING/INLINE）——Web 端据此切换 hover 浮条 vs 常驻按钮行（§12）。
-    val messageActionStyle: String = "FLOATING",
+    val messageActionStyle: String = "INLINE",
     val recallEnabled: Boolean,
-    val allowPeerRecall: Boolean = false,
+    val allowPeerRecall: Boolean = true,
 )
 
 @Serializable

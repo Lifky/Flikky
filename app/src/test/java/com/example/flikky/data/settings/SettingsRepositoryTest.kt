@@ -34,6 +34,10 @@ class SettingsRepositoryTest {
 
         assertEquals(ThemeMode.PRESET, s.themeMode)
         assertEquals(PresetTheme.DANSHU_RED, s.presetTheme)
+        assertEquals(10, s.bubbleCornerRadius)
+        assertEquals(true, s.recallBetaEnabled)
+        assertEquals(true, s.allowPeerRecall)
+        assertEquals(MessageActionStyle.INLINE, s.messageActionStyle)
         assertEquals(AvatarGroupingMode.EACH, s.avatarGrouping)
     }
 
@@ -43,11 +47,13 @@ class SettingsRepositoryTest {
         assertEquals(ThemeMode.PRESET, s.themeMode)
         assertEquals(PresetTheme.DANSHU_RED, s.presetTheme)
         assertEquals(20, s.historyRetainLimit)
-        assertEquals(false, s.recallBetaEnabled)
-        assertEquals(false, s.allowPeerRecall)
+        assertEquals(10, s.bubbleCornerRadius)
+        assertEquals(true, s.recallBetaEnabled)
+        assertEquals(true, s.allowPeerRecall)
         assertEquals(false, s.favoriteBetaEnabled)
         assertEquals(true, s.requirePin)
         assertEquals("", s.deviceName)
+        assertEquals(MessageActionStyle.INLINE, s.messageActionStyle)
         assertEquals(AvatarGroupingMode.EACH, s.avatarGrouping)
     }
 
@@ -114,9 +120,9 @@ class SettingsRepositoryTest {
 
     @Test fun message_action_style_roundtrips() = runTest {
         val repo = makeRepo(this)
-        assertEquals(MessageActionStyle.FLOATING, repo.settings.first().messageActionStyle)
-        repo.setMessageActionStyle(MessageActionStyle.INLINE)
         assertEquals(MessageActionStyle.INLINE, repo.settings.first().messageActionStyle)
+        repo.setMessageActionStyle(MessageActionStyle.FLOATING)
+        assertEquals(MessageActionStyle.FLOATING, repo.settings.first().messageActionStyle)
     }
 
     @Test fun avatar_grouping_roundtrips() = runTest {

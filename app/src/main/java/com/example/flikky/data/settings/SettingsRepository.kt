@@ -53,8 +53,8 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             phoneAvatarKey = p[Keys.phoneAvatarKey] ?: "icon:smartphone",
             background = decodeBackground(p[Keys.bgMode], p[Keys.bgValue]),
             deviceName = normalizeDeviceName(p[Keys.deviceName]),
-            recallBetaEnabled = p[Keys.recallBeta] ?: false,
-            allowPeerRecall = p[Keys.allowPeerRecall] ?: false,
+            recallBetaEnabled = p[Keys.recallBeta] ?: true,
+            allowPeerRecall = p[Keys.allowPeerRecall] ?: true,
             favoriteBetaEnabled = p[Keys.favoriteBeta] ?: false,
             requirePin = p[Keys.requirePin] ?: true,
             historyRetainLimit = (p[Keys.retainLimit] ?: 20).coerceAtLeast(-1),
@@ -62,7 +62,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
                 .coerceIn(BUBBLE_CORNER_MIN, BUBBLE_CORNER_MAX),
             messageActionStyle = p[Keys.msgActionStyle]
                 ?.let { runCatching { MessageActionStyle.valueOf(it) }.getOrNull() }
-                ?: MessageActionStyle.FLOATING,
+                ?: MessageActionStyle.INLINE,
             avatarGrouping = p[Keys.avatarGrouping]
                 ?.let { runCatching { AvatarGroupingMode.valueOf(it) }.getOrNull() }
                 ?: AvatarGroupingMode.EACH,

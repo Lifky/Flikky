@@ -42,5 +42,5 @@
 
   /* ── 气泡圆角（默认值；运行时由 app.js 从 peer-info 的 bubbleCornerRadius 覆写）──
    * 「一个设计决策一处改动两端生效」的活样例：手机拖 slider → 浏览器实时改圆角。 */
-  --flikky-bubble-radius: 18px;
+  --flikky-bubble-radius: 10px;
 }

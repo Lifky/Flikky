@@ -39,7 +39,8 @@ class PeerInfoRoutesTest {
         phoneAvatarId = 3,
         backgroundMode = "GRADIENT",
         backgroundValue = "sunset",
-        recallEnabled = false,
+        recallEnabled = true,
+        allowPeerRecall = true,
     )
 
     private fun setupApp(provider: () -> PeerInfoDto): io.ktor.server.application.Application.() -> Unit = {
@@ -87,12 +88,12 @@ class PeerInfoRoutesTest {
         assertEquals(3, body["phoneAvatarId"]!!.jsonPrimitive.int)
         assertEquals("GRADIENT", body["backgroundMode"]!!.jsonPrimitive.content)
         assertEquals("sunset", body["backgroundValue"]!!.jsonPrimitive.content)
-        // bubbleCornerRadius defaults to 18 and is serialized so the browser can mirror it.
-        assertEquals(18, body["bubbleCornerRadius"]!!.jsonPrimitive.int)
+        // Fresh-install message defaults are serialized so the browser mirrors the App.
+        assertEquals(10, body["bubbleCornerRadius"]!!.jsonPrimitive.int)
         assertEquals("EACH", body["avatarGrouping"]!!.jsonPrimitive.content)
-        assertEquals(false, body["recallEnabled"]!!.jsonPrimitive.boolean)
-        assertEquals(false, body["allowPeerRecall"]!!.jsonPrimitive.boolean)
-        assertEquals("FLOATING", body["messageActionStyle"]!!.jsonPrimitive.content)
+        assertEquals(true, body["recallEnabled"]!!.jsonPrimitive.boolean)
+        assertEquals(true, body["allowPeerRecall"]!!.jsonPrimitive.boolean)
+        assertEquals("INLINE", body["messageActionStyle"]!!.jsonPrimitive.content)
     }
 
     @Test

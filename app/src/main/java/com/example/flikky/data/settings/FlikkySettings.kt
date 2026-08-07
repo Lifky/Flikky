@@ -60,7 +60,7 @@ sealed class BackgroundSetting {
 
 const val BUBBLE_CORNER_MIN = 8
 const val BUBBLE_CORNER_MAX = 28
-const val BUBBLE_CORNER_DEFAULT = 18
+const val BUBBLE_CORNER_DEFAULT = 10
 
 data class FlikkySettings(
     val themeMode: ThemeMode = ThemeMode.PRESET,
@@ -72,13 +72,13 @@ data class FlikkySettings(
     val phoneAvatarKey: String = "icon:smartphone",
     val background: BackgroundSetting = BackgroundSetting.Default,
     val deviceName: String = "",
-    val recallBetaEnabled: Boolean = false,
-    val allowPeerRecall: Boolean = false,
+    val recallBetaEnabled: Boolean = true,
+    val allowPeerRecall: Boolean = true,
     val favoriteBetaEnabled: Boolean = false,
     val requirePin: Boolean = true,
     val historyRetainLimit: Int = 20,   // 0=不保存, -1=无限制
     val bubbleCornerRadius: Int = BUBBLE_CORNER_DEFAULT,   // dp，钳制 8..28
-    val messageActionStyle: MessageActionStyle = MessageActionStyle.FLOATING,
+    val messageActionStyle: MessageActionStyle = MessageActionStyle.INLINE,
     val avatarGrouping: AvatarGroupingMode = AvatarGroupingMode.EACH,
     /** 允许会话进行中按返回键退出到主页（默认 false：拦截返回，保护会话稳定）。 */
     val allowBackDuringSession: Boolean = false,
