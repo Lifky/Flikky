@@ -185,6 +185,7 @@ function createDocument() {
   };
 
   [
+    'chat-list-shell',
     'list',
     'text-input',
     'send-btn',
@@ -200,6 +201,7 @@ function createDocument() {
   ].forEach((id) => {
     ids.set(id, new Element(id === 'text-input' ? 'mdui-text-field' : 'div'));
   });
+  ids.get('chat-list-shell').appendChild(ids.get('list'));
 
   document.querySelector = (...args) => document.body.querySelector(...args);
   document.querySelectorAll = (...args) => document.body.querySelectorAll(...args);
@@ -395,10 +397,10 @@ function runServerStoppedUpdatesDefaultWatermarkTest() {
     type: 'settings_changed',
     payload: { deviceName: '我的手机', backgroundMode: 'DEFAULT' },
   });
-  assertDeepEqual(watermarkText(app.list), '已连接 · 我的手机', 'initial connected watermark');
+  assertDeepEqual(watermarkText(app.list.parentNode), '已连接 · 我的手机', 'initial connected watermark');
 
   app.onWsEvent({ type: 'server_stopped', payload: {} });
-  assertDeepEqual(watermarkText(app.list), '已断开 · 我的手机', 'server stopped watermark');
+  assertDeepEqual(watermarkText(app.list.parentNode), '已断开 · 我的手机', 'server stopped watermark');
 }
 
 runServerStoppedUpdatesDefaultWatermarkTest();
