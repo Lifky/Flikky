@@ -38,6 +38,8 @@
     <string name="files_delete_in_progress_hint">Files in an active session cannot be deleted</string>
     <string name="files_save_done">Saved to the chosen location</string>
     <string name="files_save_failed">Save failed</string>
+    <string name="files_save_batch_done">Saved %1$d files</string>
+    <string name="files_save_batch_partial">Saved %1$d of %2$d files</string>
     <string name="files_favorite_done">Added to favorites</string>
     <string name="files_empty_title">No files yet</string>
     <string name="files_empty_desc">Files sent and received in sessions\nwill show up here</string>

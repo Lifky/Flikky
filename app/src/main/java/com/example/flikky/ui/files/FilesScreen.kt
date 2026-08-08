@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContract
@@ -155,7 +156,6 @@ fun FilesScreen(
     val selectionToggleState = remember(availableIds, selectedIds) {
         selectionToggle(availableIds, selectedIds)
     }
-    val singleSelected = selectedRows.singleOrNull()
     val deletableRows = selectedRows.filter { it.sessionEndedAt != null }
     // 多选浮动工具栏可见时，snackbar 与列表底部都要为它让位（共用同一抬升量）。
     val toolbarLift by animateDpAsState(
@@ -204,6 +204,30 @@ fun FilesScreen(
                     context.getString(
                         if (saved) R.string.files_save_done else R.string.files_save_failed,
                     ),
+                )
+            }
+        }
+    }
+
+    var treeSaveTargets by remember { mutableStateOf<List<FileOverviewRow>>(emptyList()) }
+    val saveTreeLauncher = rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree(),
+    ) { treeUri ->
+        val targets = treeSaveTargets
+        treeSaveTargets = emptyList()
+        if (treeUri != null && targets.isNotEmpty()) {
+            scope.launch {
+                val saved = withContext(Dispatchers.IO) {
+                    saveRowsToTree(context, treeUri, targets)
+                }
+                snackbarHostState.showSnackbar(
+                    if (saved == targets.size) {
+                        context.getString(R.string.files_save_batch_done, saved)
+                    } else {
+                        context.getString(
+                            R.string.files_save_batch_partial, saved, targets.size,
+                        )
+                    },
                 )
             }
         }
@@ -555,6 +579,27 @@ fun FilesScreen(
                         )
                     }
                     IconButton(
+                        onClick = {
+                            val single = selectedRows.singleOrNull()
+                            if (single != null) {
+                                saveTarget = single
+                                saveLauncher.launch(
+                                    (single.fileMime ?: "application/octet-stream") to
+                                        (single.fileName ?: single.fileId),
+                                )
+                            } else {
+                                treeSaveTargets = selectedRows
+                                saveTreeLauncher.launch(null)
+                            }
+                        },
+                        enabled = selectedRows.isNotEmpty(),
+                    ) {
+                        Icon(
+                            painterResource(R.drawable.ic_save),
+                            contentDescription = stringResource(R.string.files_action_save_as),
+                        )
+                    }
+                    IconButton(
                         onClick = { deleteTargets = selectedRows },
                         enabled = deletableRows.isNotEmpty(),
                     ) {
@@ -567,63 +612,6 @@ fun FilesScreen(
                                 LocalContentColor.current
                             },
                         )
-                    }
-                    Box {
-                        var moreExpanded by remember { mutableStateOf(false) }
-                        IconButton(
-                            onClick = { moreExpanded = true },
-                            enabled = singleSelected != null,
-                        ) {
-                            Icon(
-                                painterResource(R.drawable.ic_more_vert),
-                                contentDescription = stringResource(R.string.files_more_actions),
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = moreExpanded,
-                            onDismissRequest = { moreExpanded = false },
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.files_action_save_as)) },
-                                leadingIcon = {
-                                    Icon(
-                                        // download 让位给「存相册」，另存为改官方 save 图标。
-                                        painterResource(R.drawable.ic_save),
-                                        contentDescription = null,
-                                    )
-                                },
-                                enabled = singleSelected != null,
-                                onClick = {
-                                    moreExpanded = false
-                                    singleSelected?.let { single ->
-                                        saveTarget = single
-                                        saveLauncher.launch(
-                                            (single.fileMime ?: "application/octet-stream") to
-                                                (single.fileName ?: single.fileId),
-                                        )
-                                    }
-                                },
-                            )
-                            DropdownMenuItem(
-                                text = {
-                                    Text(stringResource(R.string.files_action_open_in_session))
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        painterResource(R.drawable.ic_history),
-                                        contentDescription = null,
-                                    )
-                                },
-                                enabled = singleSelected?.sessionEndedAt != null,
-                                onClick = {
-                                    moreExpanded = false
-                                    singleSelected?.let { single ->
-                                        viewModel.exitSelecting()
-                                        onOpenMessage(single.sessionId, single.messageId)
-                                    }
-                                },
-                            )
-                        }
                     }
                 }
             }
@@ -1026,3 +1014,40 @@ private fun FileOverviewRow.toFileMessage(): Message.File = Message.File(
     mime = fileMime ?: "",
     status = Message.File.Status.COMPLETED,
 )
+
+/** Writes stored files to a SAF directory and returns the successful item count. */
+private fun saveRowsToTree(
+    context: Context,
+    treeUri: Uri,
+    rows: List<FileOverviewRow>,
+): Int {
+    val resolver = context.contentResolver
+    val parent = DocumentsContract.buildDocumentUriUsingTree(
+        treeUri,
+        DocumentsContract.getTreeDocumentId(treeUri),
+    )
+    var saved = 0
+    for (row in rows) {
+        val source = sessionFile(row.sessionId, row.fileId)
+        if (!source.exists()) continue
+        val target = runCatching {
+            DocumentsContract.createDocument(
+                resolver,
+                parent,
+                row.fileMime?.ifBlank { null } ?: "application/octet-stream",
+                row.fileName ?: row.fileId,
+            )
+        }.getOrNull() ?: continue
+        val ok = runCatching {
+            requireNotNull(resolver.openOutputStream(target)).use { output ->
+                source.inputStream().use { input -> input.copyTo(output) }
+            }
+        }.isSuccess
+        if (ok) {
+            saved += 1
+        } else {
+            runCatching { DocumentsContract.deleteDocument(resolver, target) }
+        }
+    }
+    return saved
+}
