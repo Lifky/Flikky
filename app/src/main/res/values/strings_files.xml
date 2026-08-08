@@ -39,4 +39,5 @@
     <string name="files_empty_title">还没有文件</string>
     <string name="files_empty_desc">会话中收发的文件\n会在这里汇总显示</string>
     <string name="files_selected_count">已选 %1$d 项</string>
+    <string name="files_select_item">选择</string>
 </resources>

@@ -39,4 +39,5 @@
     <string name="files_empty_title">No files yet</string>
     <string name="files_empty_desc">Files sent and received in sessions\nwill show up here</string>
     <string name="files_selected_count">%1$d selected</string>
+    <string name="files_select_item">Select</string>
 </resources>

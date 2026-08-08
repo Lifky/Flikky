@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -83,6 +84,7 @@ import com.example.flikky.ui.components.EmptyStateContent
 import com.example.flikky.ui.components.FlikkyFloatingToolbar
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
+import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.formatSize
 import com.example.flikky.ui.components.maxContentWidth
@@ -95,6 +97,7 @@ import com.example.flikky.ui.components.selectionToggle
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
+import java.io.File
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.Dispatchers
@@ -138,6 +141,7 @@ fun FilesScreen(
     var showFavoriteSheet by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var saveTarget by remember { mutableStateOf<FileOverviewRow?>(null) }
+    var previewImage by remember { mutableStateOf<File?>(null) }
     val focusRequester = remember { FocusRequester() }
     val selectedIds = selection.orEmpty()
     val selectedRows = remember(rows, selectedIds) {
@@ -158,6 +162,22 @@ fun FilesScreen(
     fun closeSearch() {
         searchActive = false
         viewModel.setQuery("")
+    }
+
+    fun openOrPreview(row: FileOverviewRow) {
+        val file = sessionFile(row.sessionId, row.fileId)
+        if (row.fileMime.orEmpty().startsWith("image/") && file.exists()) {
+            previewImage = file
+        } else {
+            openStoredFile(
+                context = context,
+                sessionId = row.sessionId,
+                fileId = row.fileId,
+                displayName = row.fileName ?: row.fileId,
+                mime = row.fileMime,
+                onMissing = { viewModel.markMissing(row.messageId) },
+            )
+        }
     }
 
     val saveLauncher = rememberLauncherForActivityResult(
@@ -383,15 +403,9 @@ fun FilesScreen(
                                 selecting = selecting,
                                 selected = row.messageId in selectedIds,
                                 modifier = flikkyItemAnimation(),
-                                onNormalClick = {
-                                    openStoredFile(
-                                        context = context,
-                                        sessionId = row.sessionId,
-                                        fileId = row.fileId,
-                                        displayName = row.fileName ?: row.fileId,
-                                        mime = row.fileMime,
-                                        onMissing = { viewModel.markMissing(row.messageId) },
-                                    )
+                                onNormalClick = { openOrPreview(row) },
+                                onThumbnailClick = {
+                                    viewModel.toggleSelection(row.messageId)
                                 },
                                 onEnterSelecting = {
                                     viewModel.toggleSelection(row.messageId)
@@ -636,6 +650,10 @@ fun FilesScreen(
             onDismiss = { showDeleteDialog = false },
         )
     }
+
+    previewImage?.let { file ->
+        ImagePreviewDialog(file = file, onDismiss = { previewImage = null })
+    }
 }
 
 @Composable
@@ -725,6 +743,7 @@ private fun FileOverviewItem(
     selecting: Boolean,
     selected: Boolean,
     onNormalClick: () -> Unit,
+    onThumbnailClick: () -> Unit,
     onEnterSelecting: () -> Unit,
     onToggleSelection: () -> Unit,
     modifier: Modifier = Modifier,
@@ -775,7 +794,8 @@ private fun FileOverviewItem(
                 Modifier
             },
         )
-    val leading: @Composable () -> Unit =
+    val selectLabel = stringResource(R.string.files_select_item)
+    val leadingVisual: @Composable () -> Unit =
         if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
             {
                 AsyncImage(
@@ -799,6 +819,17 @@ private fun FileOverviewItem(
                 )
             }
         }
+    val leading: @Composable () -> Unit = if (selecting) {
+        leadingVisual
+    } else {
+        {
+            Box(
+                modifier = Modifier.clickable(onClickLabel = selectLabel) { onThumbnailClick() },
+            ) {
+                leadingVisual()
+            }
+        }
+    }
     val supporting: @Composable () -> Unit = {
         Text(
             text = subtitle,
