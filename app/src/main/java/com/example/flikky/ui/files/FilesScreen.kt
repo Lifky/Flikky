@@ -509,31 +509,44 @@ fun FilesScreen(
                             contentDescription = stringResource(R.string.files_action_share),
                         )
                     }
-                    val gallerySelected = singleSelected?.takeIf {
+                    val mediaSelected = selectedRows.filter {
                         FilesListBuilder.isMedia(it.fileMime)
                     }
                     IconButton(
                         onClick = {
-                            gallerySelected?.let { row ->
-                                scope.launch {
-                                    val saved = withContext(Dispatchers.IO) {
-                                        saveToGallery(
+                            val media = mediaSelected
+                            val skipped = selectedRows.size - media.size
+                            scope.launch {
+                                var saved = 0
+                                withContext(Dispatchers.IO) {
+                                    media.forEach { row ->
+                                        val ok = saveToGallery(
                                             context,
                                             sessionFile(row.sessionId, row.fileId),
                                             row.fileName ?: row.fileId,
                                             row.fileMime.orEmpty(),
                                         )
+                                        if (ok) saved += 1
                                     }
-                                    snackbarHostState.showSnackbar(
-                                        context.getString(
-                                            if (saved) R.string.files_gallery_done
-                                            else R.string.files_gallery_failed,
-                                        ),
+                                }
+                                val base = if (saved == media.size) {
+                                    context.getString(R.string.files_gallery_done_count, saved)
+                                } else {
+                                    context.getString(
+                                        R.string.files_gallery_partial, saved, media.size,
                                     )
                                 }
+                                val message = if (skipped > 0) {
+                                    base + context.getString(
+                                        R.string.files_gallery_skipped_suffix, skipped,
+                                    )
+                                } else {
+                                    base
+                                }
+                                snackbarHostState.showSnackbar(message)
                             }
                         },
-                        enabled = gallerySelected != null,
+                        enabled = mediaSelected.isNotEmpty(),
                     ) {
                         Icon(
                             // 图标语义与消息操作栏统一：file_download=存相册。

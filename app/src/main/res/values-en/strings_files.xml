@@ -25,6 +25,9 @@
     <string name="files_action_delete">Delete</string>
     <string name="files_gallery_done">Saved to gallery</string>
     <string name="files_gallery_failed">Couldn\'t save to gallery</string>
+    <string name="files_gallery_done_count">Saved %1$d to gallery</string>
+    <string name="files_gallery_partial">Saved %1$d of %2$d to gallery</string>
+    <string name="files_gallery_skipped_suffix">, skipped %1$d non-media files</string>
     <string name="files_more_actions">More actions</string>
     <string name="files_delete_title">Delete this file?</string>
     <string name="files_delete_text_single">Frees %1$s. The session record stays, but the file can no longer be opened.</string>

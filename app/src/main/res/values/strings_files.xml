@@ -25,6 +25,9 @@
     <string name="files_action_delete">删除</string>
     <string name="files_gallery_done">已保存到相册</string>
     <string name="files_gallery_failed">保存到相册失败</string>
+    <string name="files_gallery_done_count">已存入相册 %1$d 个</string>
+    <string name="files_gallery_partial">已存入相册 %1$d/%2$d 个</string>
+    <string name="files_gallery_skipped_suffix">，跳过 %1$d 个非媒体文件</string>
     <string name="files_more_actions">更多操作</string>
     <string name="files_delete_title">删除文件？</string>
     <string name="files_delete_text_single">将释放 %1$s。会话记录会保留，但文件无法再打开。</string>
