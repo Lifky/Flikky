@@ -149,3 +149,63 @@ fun shareStoredFile(
     displayName: String,
     mime: String?,
 ): Boolean = shareFile(context, sessionFile(sessionId, fileId), displayName, mime)
+
+data class StoredShareItem(
+    val sessionId: Long,
+    val fileId: String,
+    val displayName: String,
+)
+
+/** Shares multiple stored files with ACTION_SEND_MULTIPLE and FileProvider URIs. */
+fun shareStoredFiles(
+    context: Context,
+    items: List<StoredShareItem>,
+    mime: String,
+): Boolean {
+    if (items.isEmpty()) return false
+    if (items.size == 1) {
+        val single = items.first()
+        return shareFile(
+            context,
+            sessionFile(single.sessionId, single.fileId),
+            single.displayName,
+            mime,
+        )
+    }
+    val uris = ArrayList<android.net.Uri>(items.size)
+    for (item in items) {
+        val file = sessionFile(item.sessionId, item.fileId)
+        if (!file.exists()) continue
+        val uri = try {
+            FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file,
+                item.displayName,
+            )
+        } catch (_: IllegalArgumentException) {
+            continue
+        }
+        uris.add(uri)
+    }
+    if (uris.isEmpty()) {
+        Toast.makeText(context, R.string.file_missing, Toast.LENGTH_SHORT).show()
+        return false
+    }
+    val intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+        type = mime
+        putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    return try {
+        context.startActivity(
+            Intent.createChooser(intent, context.getString(R.string.files_action_share)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+        )
+        true
+    } catch (_: ActivityNotFoundException) {
+        Toast.makeText(context, R.string.file_no_handler, Toast.LENGTH_SHORT).show()
+        false
+    }
+}

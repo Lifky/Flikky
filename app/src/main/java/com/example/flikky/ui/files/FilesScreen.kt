@@ -92,8 +92,10 @@ import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.openStoredFile
 import com.example.flikky.ui.components.saveToGallery
 import com.example.flikky.ui.components.sessionFile
+import com.example.flikky.ui.components.StoredShareItem
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.components.shareStoredFile
+import com.example.flikky.ui.components.shareStoredFiles
 import com.example.flikky.ui.components.selectionToggle
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.theme.Motion
@@ -475,7 +477,8 @@ fun FilesScreen(
                     }
                     IconButton(
                         onClick = {
-                            singleSelected?.let { single ->
+                            val single = selectedRows.singleOrNull()
+                            if (single != null) {
                                 shareStoredFile(
                                     context,
                                     single.sessionId,
@@ -483,9 +486,23 @@ fun FilesScreen(
                                     single.fileName ?: single.fileId,
                                     single.fileMime,
                                 )
+                            } else {
+                                shareStoredFiles(
+                                    context,
+                                    selectedRows.map {
+                                        StoredShareItem(
+                                            it.sessionId,
+                                            it.fileId,
+                                            it.fileName ?: it.fileId,
+                                        )
+                                    },
+                                    FileActionPolicy.batchShareMime(
+                                        selectedRows.map { it.fileMime },
+                                    ),
+                                )
                             }
                         },
-                        enabled = singleSelected != null,
+                        enabled = selectedRows.isNotEmpty(),
                     ) {
                         Icon(
                             painterResource(R.drawable.ic_share),
