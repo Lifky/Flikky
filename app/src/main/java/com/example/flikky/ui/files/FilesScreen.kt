@@ -39,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -138,8 +139,9 @@ fun FilesScreen(
     val scope = rememberCoroutineScope()
     var searchActive by rememberSaveable { mutableStateOf(false) }
     var sortExpanded by remember { mutableStateOf(false) }
-    var showFavoriteSheet by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
+    // 收藏 sheet / 删除确认框的目标行：工具栏批量入口传 selectedRows，行内 ⋮ 传单行。
+    var favoriteTargets by remember { mutableStateOf<List<FileOverviewRow>?>(null) }
+    var deleteTargets by remember { mutableStateOf<List<FileOverviewRow>?>(null) }
     var saveTarget by remember { mutableStateOf<FileOverviewRow?>(null) }
     var previewImage by remember { mutableStateOf<File?>(null) }
     val focusRequester = remember { FocusRequester() }
@@ -202,6 +204,43 @@ fun FilesScreen(
                     ),
                 )
             }
+        }
+    }
+
+    fun runRowAction(row: FileOverviewRow, action: RowAction) {
+        when (action) {
+            RowAction.FAVORITE -> favoriteTargets = listOf(row)
+            RowAction.SHARE -> shareStoredFile(
+                context,
+                row.sessionId,
+                row.fileId,
+                row.fileName ?: row.fileId,
+                row.fileMime,
+            )
+            RowAction.GALLERY -> scope.launch {
+                val saved = withContext(Dispatchers.IO) {
+                    saveToGallery(
+                        context,
+                        sessionFile(row.sessionId, row.fileId),
+                        row.fileName ?: row.fileId,
+                        row.fileMime.orEmpty(),
+                    )
+                }
+                snackbarHostState.showSnackbar(
+                    context.getString(
+                        if (saved) R.string.files_gallery_done else R.string.files_gallery_failed,
+                    ),
+                )
+            }
+            RowAction.SAVE_AS -> {
+                saveTarget = row
+                saveLauncher.launch(
+                    (row.fileMime ?: "application/octet-stream") to
+                        (row.fileName ?: row.fileId),
+                )
+            }
+            RowAction.OPEN_IN_SESSION -> onOpenMessage(row.sessionId, row.messageId)
+            RowAction.DELETE -> deleteTargets = listOf(row)
         }
     }
 
@@ -407,6 +446,7 @@ fun FilesScreen(
                                 onThumbnailClick = {
                                     viewModel.toggleSelection(row.messageId)
                                 },
+                                onMenuAction = { action -> runRowAction(row, action) },
                                 onEnterSelecting = {
                                     viewModel.toggleSelection(row.messageId)
                                 },
@@ -425,7 +465,7 @@ fun FilesScreen(
             ) {
                 FlikkyFloatingToolbar {
                     IconButton(
-                        onClick = { showFavoriteSheet = true },
+                        onClick = { favoriteTargets = selectedRows },
                         enabled = selectedRows.isNotEmpty(),
                     ) {
                         Icon(
@@ -485,7 +525,7 @@ fun FilesScreen(
                         )
                     }
                     IconButton(
-                        onClick = { showDeleteDialog = true },
+                        onClick = { deleteTargets = selectedRows },
                         enabled = deletableRows.isNotEmpty(),
                     ) {
                         Icon(
@@ -560,13 +600,13 @@ fun FilesScreen(
         }
     }
 
-    if (showFavoriteSheet) {
+    favoriteTargets?.let { targets ->
         FavoriteGroupPickerSheet(
             groups = favoriteGroups,
             onSelect = { groupId ->
-                showFavoriteSheet = false
+                favoriteTargets = null
                 scope.launch {
-                    selectedRows.forEach { row ->
+                    targets.forEach { row ->
                         runCatching {
                             ServiceLocator.favoritesRepository.favoriteFile(
                                 row.sessionId,
@@ -583,10 +623,10 @@ fun FilesScreen(
                 }
             },
             onCreateGroup = { name ->
-                showFavoriteSheet = false
+                favoriteTargets = null
                 scope.launch {
                     val groupId = ServiceLocator.favoritesRepository.createGroup(name)
-                    selectedRows.forEach { row ->
+                    targets.forEach { row ->
                         runCatching {
                             ServiceLocator.favoritesRepository.favoriteFile(
                                 row.sessionId,
@@ -602,14 +642,15 @@ fun FilesScreen(
                     viewModel.exitSelecting()
                 }
             },
-            onDismiss = { showFavoriteSheet = false },
+            onDismiss = { favoriteTargets = null },
         )
     }
 
-    if (showDeleteDialog) {
-        val selectedSize = deletableRows.sumOf { it.fileSize ?: 0L }
-        val hasActive = selectedRows.any { it.sessionEndedAt == null }
-        val message = if (selectedRows.size == 1) {
+    deleteTargets?.let { targets ->
+        val deletable = targets.filter { it.sessionEndedAt != null }
+        val selectedSize = deletable.sumOf { it.fileSize ?: 0L }
+        val hasActive = targets.any { it.sessionEndedAt == null }
+        val message = if (targets.size == 1) {
             context.getString(R.string.files_delete_text_single, formatSize(selectedSize))
         } else {
             context.getString(R.string.files_delete_text_batch, formatSize(selectedSize))
@@ -619,18 +660,18 @@ fun FilesScreen(
             ""
         }
         ConfirmDialog(
-            title = if (selectedRows.size == 1) {
+            title = if (targets.size == 1) {
                 stringResource(R.string.files_delete_title)
             } else {
-                stringResource(R.string.files_delete_title_batch, selectedRows.size)
+                stringResource(R.string.files_delete_title_batch, targets.size)
             },
             text = message,
             confirmLabel = stringResource(R.string.files_action_delete),
             danger = true,
             onConfirm = {
-                showDeleteDialog = false
+                deleteTargets = null
                 scope.launch {
-                    val (deleted, requested) = viewModel.deleteRows(selectedRows)
+                    val (deleted, requested) = viewModel.deleteRows(targets)
                     snackbarHostState.showSnackbar(
                         if (deleted == requested) {
                             context.getString(
@@ -647,7 +688,7 @@ fun FilesScreen(
                     )
                 }
             },
-            onDismiss = { showDeleteDialog = false },
+            onDismiss = { deleteTargets = null },
         )
     }
 
@@ -744,6 +785,7 @@ private fun FileOverviewItem(
     selected: Boolean,
     onNormalClick: () -> Unit,
     onThumbnailClick: () -> Unit,
+    onMenuAction: (RowAction) -> Unit,
     onEnterSelecting: () -> Unit,
     onToggleSelection: () -> Unit,
     modifier: Modifier = Modifier,
@@ -846,6 +888,71 @@ private fun FileOverviewItem(
             overflow = TextOverflow.Ellipsis,
         )
     }
+    val menuLabel: @Composable (RowAction) -> String = { action ->
+        stringResource(
+            when (action) {
+                RowAction.FAVORITE -> R.string.files_action_favorite
+                RowAction.SHARE -> R.string.files_action_share
+                RowAction.GALLERY -> R.string.files_action_gallery
+                RowAction.SAVE_AS -> R.string.files_action_save_as
+                RowAction.OPEN_IN_SESSION -> R.string.files_action_open_in_session
+                RowAction.DELETE -> R.string.files_action_delete
+            },
+        )
+    }
+    val menuIcon: (RowAction) -> Int = { action ->
+        when (action) {
+            RowAction.FAVORITE -> R.drawable.ic_star_border
+            RowAction.SHARE -> R.drawable.ic_share
+            RowAction.GALLERY -> R.drawable.ic_file_download
+            RowAction.SAVE_AS -> R.drawable.ic_save
+            RowAction.OPEN_IN_SESSION -> R.drawable.ic_history
+            RowAction.DELETE -> R.drawable.ic_delete
+        }
+    }
+    val trailing: @Composable () -> Unit = {
+        Box {
+            var menuExpanded by remember { mutableStateOf(false) }
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(
+                    painterResource(R.drawable.ic_more_vert),
+                    contentDescription = stringResource(R.string.files_more_actions),
+                )
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+            ) {
+                FileActionPolicy.rowMenu(
+                    mime = row.fileMime,
+                    sessionEnded = row.sessionEndedAt != null,
+                ).forEach { entry ->
+                    DropdownMenuItem(
+                        text = { Text(menuLabel(entry.action)) },
+                        leadingIcon = {
+                            Icon(
+                                painterResource(menuIcon(entry.action)),
+                                contentDescription = null,
+                            )
+                        },
+                        colors = if (entry.action == RowAction.DELETE) {
+                            MenuDefaults.itemColors(
+                                textColor = MaterialTheme.colorScheme.error,
+                                leadingIconColor = MaterialTheme.colorScheme.error,
+                            )
+                        } else {
+                            MenuDefaults.itemColors()
+                        },
+                        enabled = entry.enabled,
+                        onClick = {
+                            menuExpanded = false
+                            onMenuAction(entry.action)
+                        },
+                    )
+                }
+            }
+        }
+    }
 
     if (selecting) {
         SegmentedListItem(
@@ -871,6 +978,7 @@ private fun FileOverviewItem(
             leadingContent = leading,
             supportingContent = supporting,
             content = headline,
+            trailingContent = trailing,
         )
     }
 }
