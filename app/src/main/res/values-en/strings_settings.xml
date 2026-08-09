@@ -76,7 +76,6 @@
     <string name="settings_check_update">Check updates</string>
     <string name="settings_checking_update">Checking for updates</string>
     <string name="settings_auto_check_update">Auto-check updates</string>
-    <string name="settings_auto_check_update_summary">Check for new versions on launch, at most once a day</string>
     <string name="settings_update_available_title">New version %1$s available</string>
     <string name="settings_update_download">Download</string>
     <string name="settings_update_later">Later</string>

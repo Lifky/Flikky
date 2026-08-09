@@ -714,7 +714,6 @@ fun SettingsScreen(
                     SettingItem(
                         title = stringResource(R.string.settings_auto_check_update),
                         leadingIcon = painterResource(R.drawable.ic_update),
-                        subtitle = stringResource(R.string.settings_auto_check_update_summary),
                         trailing = {
                             Switch(
                                 checked = s.autoCheckUpdate,

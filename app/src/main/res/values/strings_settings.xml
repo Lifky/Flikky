@@ -75,7 +75,6 @@
     <string name="settings_check_update">检查更新</string>
     <string name="settings_checking_update">正在检查更新</string>
     <string name="settings_auto_check_update">自动检查更新</string>
-    <string name="settings_auto_check_update_summary">启动时检查新版本，每 24 小时至多一次</string>
     <string name="settings_update_available_title">发现新版本 %1$s</string>
     <string name="settings_update_download">前往下载</string>
     <string name="settings_update_later">以后再说</string>
