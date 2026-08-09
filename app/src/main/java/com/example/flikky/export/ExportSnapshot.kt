@@ -59,6 +59,7 @@ data class SettingsExport(
     val amoled: Boolean? = null,
     val phoneAvatarId: Int? = null,
     val phoneAvatarKey: String? = null,
+    val browserAvatarKey: String? = null,
     val backgroundMode: String? = null,
     val backgroundValue: String? = null,
     val deviceName: String? = null,

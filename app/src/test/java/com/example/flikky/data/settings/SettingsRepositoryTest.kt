@@ -284,4 +284,29 @@ class SettingsRepositoryTest {
         assertEquals(0L, restored.lastUpdateCheckAt())
         assertEquals(null, restored.lastPromptedUpdateVersion())
     }
+
+    @Test fun browser_avatar_key_defaults_and_roundtrips() = runTest {
+        val repo = makeRepo(this)
+        assertEquals("icon:desktop_windows", repo.settings.first().browserAvatarKey)
+        assertEquals(null, repo.browserAvatarKeyOrNull())
+
+        repo.setBrowserAvatarKey("icon:star")
+
+        assertEquals("icon:star", repo.settings.first().browserAvatarKey)
+        assertEquals("icon:star", repo.browserAvatarKeyOrNull())
+    }
+
+    @Test fun backup_skips_browser_avatar_when_never_set_and_roundtrips_when_set() = runTest {
+        val unset = makeRepo(this)
+        assertEquals(null, unset.exportBackup().browserAvatarKey)
+
+        val source = makeRepo(this)
+        source.setBrowserAvatarKey("char:B")
+        val backup = source.exportBackup()
+        assertEquals("char:B", backup.browserAvatarKey)
+
+        val target = makeRepo(this)
+        target.importBackup(backup)
+        assertEquals("char:B", target.browserAvatarKeyOrNull())
+    }
 }

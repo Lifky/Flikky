@@ -18,6 +18,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val amoled = booleanPreferencesKey("amoled")
         val phoneAvatar = intPreferencesKey("phone_avatar")
         val phoneAvatarKey = stringPreferencesKey("phone_avatar_key")
+        val browserAvatarKey = stringPreferencesKey("browser_avatar_key")
         val bgMode = stringPreferencesKey("bg_mode")
         val bgValue = stringPreferencesKey("bg_value")
         val deviceName = stringPreferencesKey("device_name")
@@ -59,6 +60,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             amoled = p[Keys.amoled] ?: false,
             phoneAvatarId = p[Keys.phoneAvatar] ?: 0,
             phoneAvatarKey = p[Keys.phoneAvatarKey] ?: "icon:smartphone",
+            browserAvatarKey = p[Keys.browserAvatarKey] ?: "icon:desktop_windows",
             background = decodeBackground(p[Keys.bgMode], p[Keys.bgValue]),
             deviceName = normalizeDeviceName(p[Keys.deviceName]),
             recallBetaEnabled = p[Keys.recallBeta] ?: true,
@@ -101,6 +103,14 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setAmoled(v: Boolean) = ds.edit { it[Keys.amoled] = v }
     suspend fun setPhoneAvatar(v: Int) = ds.edit { it[Keys.phoneAvatar] = v }
     suspend fun setPhoneAvatarKey(v: String) = ds.edit { it[Keys.phoneAvatarKey] = v }
+    suspend fun setBrowserAvatarKey(v: String) = ds.edit { it[Keys.browserAvatarKey] = v }
+
+    /**
+     * One-shot raw read: null means the user (or a browser hello) has never persisted a
+     * browser avatar - the upgrade-migration branch in BrowserAvatarHelloPolicy keys off this.
+     */
+    suspend fun browserAvatarKeyOrNull(): String? = ds.data.first()[Keys.browserAvatarKey]
+
     suspend fun setDeviceName(v: String) = ds.edit { prefs ->
         val normalized = normalizeDeviceName(v)
         if (normalized.isEmpty()) prefs.remove(Keys.deviceName)
@@ -175,6 +185,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             amoled = s.amoled,
             phoneAvatarId = s.phoneAvatarId,
             phoneAvatarKey = s.phoneAvatarKey,
+            browserAvatarKey = browserAvatarKeyOrNull(),
             backgroundMode = backgroundMode,
             backgroundValue = backgroundValue,
             deviceName = s.deviceName,
@@ -205,6 +216,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         backup.amoled?.let { prefs[Keys.amoled] = it }
         backup.phoneAvatarId?.let { prefs[Keys.phoneAvatar] = it }
         backup.phoneAvatarKey?.let { prefs[Keys.phoneAvatarKey] = it }
+        backup.browserAvatarKey?.let { prefs[Keys.browserAvatarKey] = it }
         backup.deviceName?.let { value ->
             val normalized = normalizeDeviceName(value)
             if (normalized.isEmpty()) prefs.remove(Keys.deviceName)

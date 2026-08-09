@@ -72,6 +72,7 @@ data class FlikkySettings(
     val amoled: Boolean = false,
     val phoneAvatarId: Int = 0,
     val phoneAvatarKey: String = "icon:smartphone",
+    val browserAvatarKey: String = "icon:desktop_windows",
     val background: BackgroundSetting = BackgroundSetting.Default,
     val deviceName: String = "",
     val recallBetaEnabled: Boolean = true,
