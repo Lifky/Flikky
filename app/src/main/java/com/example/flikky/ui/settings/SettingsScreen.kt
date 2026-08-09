@@ -48,6 +48,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -90,6 +93,7 @@ import com.example.flikky.data.settings.ThemeMode
 import com.example.flikky.export.ExportFileName
 import com.example.flikky.export.ExportScope
 import com.example.flikky.ui.components.Avatar
+import com.example.flikky.ui.components.AvatarKey
 import com.example.flikky.ui.components.ChoiceDialog
 import com.example.flikky.ui.components.ChoiceRow
 import com.example.flikky.ui.components.maxContentWidth
@@ -154,6 +158,7 @@ fun SettingsScreen(
 
     // Sheet / dialog state
     var activeSheet by remember { mutableStateOf<ActiveSheet?>(null) }
+    var avatarSheetTab by remember { mutableStateOf(0) } // 0 = App, 1 = Browser
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showDarkModeDialog by remember { mutableStateOf(false) }
     var showDeviceNameDialog by remember { mutableStateOf(false) }
@@ -412,10 +417,18 @@ fun SettingsScreen(
                         index = 0, total = sectionItems,
                     )
                     SettingItem(
-                        title = stringResource(R.string.settings_app_avatar),
+                        title = stringResource(R.string.settings_avatar),
                         leadingIcon = painterResource(R.drawable.ic_account_circle),
-                        trailing = { Avatar(avatarKey = s.phoneAvatarKey, size = Sizes.avatar) },
-                        onClick = { activeSheet = ActiveSheet.Avatar },
+                        trailing = {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Avatar(avatarKey = s.phoneAvatarKey, size = Sizes.avatar)
+                                Avatar(avatarKey = s.browserAvatarKey, size = Sizes.avatar)
+                            }
+                        },
+                        onClick = { avatarSheetTab = 0; activeSheet = ActiveSheet.Avatar },
                         index = 1, total = sectionItems,
                     )
                 }
@@ -795,11 +808,37 @@ fun SettingsScreen(
             onSelectContrast = { viewModel.setContrast(it) },
             onDismiss = { activeSheet = null },
         )
-        ActiveSheet.Avatar -> AvatarPickerSheet(
-            currentKey = s.phoneAvatarKey,
-            onSelect = { viewModel.setPhoneAvatarKey(it); activeSheet = null },
-            onDismiss = { activeSheet = null },
-        )
+        ActiveSheet.Avatar -> {
+            val isApp = avatarSheetTab == 0
+            AvatarPickerSheet(
+                currentKey = if (isApp) s.phoneAvatarKey else s.browserAvatarKey,
+                fallbackKey = if (isApp) AvatarKey.DEFAULT_PHONE else AvatarKey.DEFAULT_BROWSER,
+                onSelect = {
+                    if (isApp) viewModel.setPhoneAvatarKey(it) else viewModel.setBrowserAvatarKey(it)
+                    activeSheet = null
+                },
+                onDismiss = { activeSheet = null },
+                header = {
+                    // 专名直显，不进 i18n（spec §4.2）。
+                    val tabs = listOf("App", "Browser")
+                    SingleChoiceSegmentedButtonRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = Spacing.md),
+                    ) {
+                        tabs.forEachIndexed { index, label ->
+                            SegmentedButton(
+                                selected = avatarSheetTab == index,
+                                onClick = { avatarSheetTab = index },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = tabs.size),
+                            ) {
+                                Text(label)
+                            }
+                        }
+                    }
+                },
+            )
+        }
         ActiveSheet.Background -> BackgroundPickerSheet(
             // 选项点选只更新背景、不关面板，便于连续比较/微调；关闭靠下滑或点外部。
             current = s.background,

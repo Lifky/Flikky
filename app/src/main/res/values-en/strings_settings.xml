@@ -17,7 +17,7 @@
 
     <string name="settings_section_identity">Identity</string>
     <string name="settings_device_name">Device name</string>
-    <string name="settings_app_avatar">App avatar</string>
+    <string name="settings_avatar">Avatar</string>
     <string name="settings_default_device_name">My phone</string>
 
     <string name="settings_section_session_appearance">Session appearance</string>

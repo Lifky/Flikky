@@ -63,6 +63,7 @@ class SettingsViewModel @JvmOverloads constructor(
     fun setAmoled(value: Boolean) = viewModelScope.launch { repository.setAmoled(value) }
     fun setPhoneAvatar(value: Int) = viewModelScope.launch { repository.setPhoneAvatar(value) }
     fun setPhoneAvatarKey(value: String) = viewModelScope.launch { repository.setPhoneAvatarKey(value) }
+    fun setBrowserAvatarKey(value: String) = viewModelScope.launch { repository.setBrowserAvatarKey(value) }
     fun setBackground(value: BackgroundSetting) = viewModelScope.launch { repository.setBackground(value) }
     fun setDeviceName(value: String) = viewModelScope.launch { repository.setDeviceName(value) }
     fun setRecallBeta(value: Boolean) = viewModelScope.launch { repository.setRecallBeta(value) }

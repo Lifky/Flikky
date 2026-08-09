@@ -17,7 +17,7 @@
 
     <string name="settings_section_identity">身份</string>
     <string name="settings_device_name">本机名称</string>
-    <string name="settings_app_avatar">APP 端头像</string>
+    <string name="settings_avatar">头像</string>
     <string name="settings_default_device_name">我的手机</string>
 
     <string name="settings_section_session_appearance">会话外观</string>

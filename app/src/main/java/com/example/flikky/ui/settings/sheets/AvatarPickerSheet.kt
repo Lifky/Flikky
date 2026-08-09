@@ -49,6 +49,8 @@ fun AvatarPickerSheet(
     fallbackKey: String = AvatarKey.DEFAULT_PHONE,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
+    /** Optional slot rendered between the title and the fill switch (e.g. App/Browser tabs). */
+    header: (@Composable () -> Unit)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val selectedKey = AvatarKey.normalize(currentKey, fallbackKey)
@@ -88,6 +90,8 @@ fun AvatarPickerSheet(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(bottom = Spacing.lg),
             )
+
+            header?.invoke()
 
             Row(
                 modifier = Modifier

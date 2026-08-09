@@ -30,6 +30,7 @@ data class AvatarPreset(val key: String, val label: String)
 
 object AvatarKey {
     const val DEFAULT_PHONE = "icon:smartphone"
+    const val DEFAULT_BROWSER = "icon:desktop_windows"
     const val DEFAULT_PEER = "icon:desktop_windows"
 
     private val SUPPORTED_ICONS = setOf(
