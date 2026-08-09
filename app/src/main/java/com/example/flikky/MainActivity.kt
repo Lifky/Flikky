@@ -1,5 +1,8 @@
 package com.example.flikky
 
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -32,6 +35,7 @@ import androidx.navigation.navArgument
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.FlikkyNavBar
+import com.example.flikky.ui.components.UpdateAvailableDialog
 import com.example.flikky.ui.components.flikkyNavTransitions
 import com.example.flikky.ui.exporting.ExportingScreen
 import com.example.flikky.ui.favorites.FavoritesScreen
@@ -42,6 +46,11 @@ import com.example.flikky.ui.serving.ServingScreen
 import com.example.flikky.ui.settings.SettingsScreen
 import com.example.flikky.ui.theme.FlikkyTheme
 import com.example.flikky.ui.theme.Motion
+import com.example.flikky.network.UpdateChecker
+import com.example.flikky.network.UpdateInfo
+import com.example.flikky.util.UpdateCheckPolicy
+import com.example.flikky.util.UpdateVersion
+import kotlinx.coroutines.flow.first
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,6 +79,54 @@ class MainActivity : ComponentActivity() {
                     // 底栏「设置」入口，避免会话期间误入设置改动配置。服务停止后自动解锁。
                     val sessionSnap by ServiceLocator.session.snapshot.collectAsState()
                     val servingActive = sessionSnap.currentSessionId != null
+
+                    var autoUpdateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+                    LaunchedEffect(Unit) {
+                        val repository = ServiceLocator.settingsRepository
+                        val current = repository.settings.first()
+                        val shouldCheck = UpdateCheckPolicy.shouldAutoCheck(
+                            enabled = current.autoCheckUpdate,
+                            lastCheckAtMs = repository.lastUpdateCheckAt(),
+                            nowMs = System.currentTimeMillis(),
+                        )
+                        if (!shouldCheck) return@LaunchedEffect
+
+                        val info = UpdateChecker().check() ?: return@LaunchedEffect
+                        if (UpdateVersion.parse(info.tagName) == null) {
+                            return@LaunchedEffect
+                        }
+                        repository.setLastUpdateCheckAt(System.currentTimeMillis())
+                        val versionName = runCatching {
+                            packageManager
+                                .getPackageInfo(
+                                    packageName,
+                                    PackageManager.PackageInfoFlags.of(0),
+                                )
+                                .versionName
+                        }.getOrNull()
+                        if (UpdateVersion.isNewer(info.tagName, versionName) &&
+                            UpdateCheckPolicy.shouldAutoPrompt(
+                                info.tagName,
+                                repository.lastPromptedUpdateVersion(),
+                            )
+                        ) {
+                            repository.setLastPromptedUpdateVersion(info.tagName)
+                            autoUpdateInfo = info
+                        }
+                    }
+
+                    autoUpdateInfo?.let { info ->
+                        UpdateAvailableDialog(
+                            info = info,
+                            onConfirm = {
+                                autoUpdateInfo = null
+                                runCatching {
+                                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(info.htmlUrl)))
+                                }
+                            },
+                            onDismiss = { autoUpdateInfo = null },
+                        )
+                    }
 
                     var homeSelecting by remember { mutableStateOf(false) }
                     // 主页搜索展开时也隐藏底栏，让搜索铺满全屏。
