@@ -87,6 +87,8 @@ data class FlikkySettings(
     val sortMode: SortMode = SortMode.TIME,
     val groupMode: GroupMode = GroupMode.NONE,
     val animationSpeed: AnimationSpeed = AnimationSpeed.STANDARD,
+    /** 启动时自动检查更新，默认关闭。 */
+    val autoCheckUpdate: Boolean = false,
     val activeGroupId: Long? = null,
     val activeFavoriteGroupId: Long? = null,
     val recentFavoriteIds: List<Long> = emptyList(),

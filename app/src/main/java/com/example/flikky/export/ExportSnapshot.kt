@@ -76,6 +76,7 @@ data class SettingsExport(
     val sortMode: String? = null,
     val groupMode: String? = null,
     val animationSpeed: String? = null,
+    val autoCheckUpdate: Boolean? = null,
 )
 
 data class SessionExport(

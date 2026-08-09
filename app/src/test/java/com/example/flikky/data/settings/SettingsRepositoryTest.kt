@@ -248,4 +248,40 @@ class SettingsRepositoryTest {
         assertEquals(6L, restored.activeFavoriteGroupId)
         assertEquals(listOf(7L), restored.recentFavoriteIds)
     }
+
+    @Test fun auto_check_update_defaults_off_and_persists() = runTest {
+        val repo = makeRepo(this)
+        assertEquals(false, repo.settings.first().autoCheckUpdate)
+
+        repo.setAutoCheckUpdate(true)
+
+        assertEquals(true, repo.settings.first().autoCheckUpdate)
+    }
+
+    @Test fun update_check_state_defaults_and_roundtrip() = runTest {
+        val repo = makeRepo(this)
+        assertEquals(0L, repo.lastUpdateCheckAt())
+        assertEquals(null, repo.lastPromptedUpdateVersion())
+
+        repo.setLastUpdateCheckAt(123456L)
+        repo.setLastPromptedUpdateVersion("v1.18.0")
+
+        assertEquals(123456L, repo.lastUpdateCheckAt())
+        assertEquals("v1.18.0", repo.lastPromptedUpdateVersion())
+    }
+
+    @Test fun backup_includes_auto_check_update_only() = runTest {
+        val source = makeRepo(this)
+        source.setAutoCheckUpdate(true)
+        source.setLastUpdateCheckAt(999L)
+        source.setLastPromptedUpdateVersion("v9.9.9")
+        val backup = source.exportBackup()
+        assertEquals(true, backup.autoCheckUpdate)
+
+        val restored = makeRepo(this)
+        restored.importBackup(backup)
+        assertEquals(true, restored.settings.first().autoCheckUpdate)
+        assertEquals(0L, restored.lastUpdateCheckAt())
+        assertEquals(null, restored.lastPromptedUpdateVersion())
+    }
 }

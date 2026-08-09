@@ -33,6 +33,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val sortMode = stringPreferencesKey("sort_mode")
         val groupMode = stringPreferencesKey("group_mode")
         val animationSpeed = stringPreferencesKey("animation_speed")
+        val autoCheckUpdate = booleanPreferencesKey("auto_check_update")
+        val lastUpdateCheckAt = longPreferencesKey("last_update_check_at")
+        val lastPromptedUpdateVersion = stringPreferencesKey("last_prompted_update_version")
         val activeGroupId = longPreferencesKey("active_group_id")
         val activeFavoriteGroupId = longPreferencesKey("active_favorite_group_id")
         val recentFavoriteIds = stringPreferencesKey("recent_favorite_ids")
@@ -81,6 +84,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             animationSpeed = p[Keys.animationSpeed]
                 ?.let { runCatching { AnimationSpeed.valueOf(it) }.getOrNull() }
                 ?: AnimationSpeed.STANDARD,
+            autoCheckUpdate = p[Keys.autoCheckUpdate] ?: false,
             activeGroupId = p[Keys.activeGroupId]?.takeIf { it > 0L },
             activeFavoriteGroupId = p[Keys.activeFavoriteGroupId]?.takeIf { it > 0L },
             recentFavoriteIds = decodeRecentFavoriteIds(p[Keys.recentFavoriteIds]),
@@ -116,6 +120,19 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setSortMode(v: SortMode) = ds.edit { it[Keys.sortMode] = v.name }
     suspend fun setGroupMode(v: GroupMode) = ds.edit { it[Keys.groupMode] = v.name }
     suspend fun setAnimationSpeed(v: AnimationSpeed) = ds.edit { it[Keys.animationSpeed] = v.name }
+    suspend fun setAutoCheckUpdate(v: Boolean) = ds.edit { it[Keys.autoCheckUpdate] = v }
+
+    /** Last successful check time. Device-local state excluded from backups. */
+    suspend fun lastUpdateCheckAt(): Long = ds.data.first()[Keys.lastUpdateCheckAt] ?: 0L
+    suspend fun setLastUpdateCheckAt(v: Long) = ds.edit { it[Keys.lastUpdateCheckAt] = v }
+
+    /** Last version shown by an automatic prompt. Device-local state excluded from backups. */
+    suspend fun lastPromptedUpdateVersion(): String? =
+        ds.data.first()[Keys.lastPromptedUpdateVersion]
+    suspend fun setLastPromptedUpdateVersion(v: String) = ds.edit {
+        it[Keys.lastPromptedUpdateVersion] = v
+    }
+
     suspend fun setActiveGroup(id: Long?) = ds.edit { prefs ->
         val valid = id?.takeIf { it > 0L }
         if (valid != null) prefs[Keys.activeGroupId] = valid else prefs.remove(Keys.activeGroupId)
@@ -173,6 +190,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             sortMode = s.sortMode.name,
             groupMode = s.groupMode.name,
             animationSpeed = s.animationSpeed.name,
+            autoCheckUpdate = s.autoCheckUpdate,
         )
     }
 
@@ -209,6 +227,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         backup.groupMode?.enumNameOrNull<GroupMode>()?.let { prefs[Keys.groupMode] = it }
         backup.animationSpeed?.enumNameOrNull<AnimationSpeed>()
             ?.let { prefs[Keys.animationSpeed] = it }
+        backup.autoCheckUpdate?.let { prefs[Keys.autoCheckUpdate] = it }
         when (backup.backgroundMode) {
             "DEFAULT", "BLANK" -> {
                 prefs[Keys.bgMode] = backup.backgroundMode
