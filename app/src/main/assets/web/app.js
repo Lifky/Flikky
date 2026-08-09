@@ -597,14 +597,19 @@
         updatePickerSelection();
         closeAvatarPicker();
         // Re-send client_hello so the phone updates its view of our avatar.
-        sendClientHello();
+        sendClientHello(true);
     }
 
     // ── M9b: client_hello ─────────────────────────────────────────────────
-    function sendClientHello() {
+    function sendClientHello(explicit) {
         if (currentWs && currentWs.readyState === 1) {
             try {
-                currentWs.send(JSON.stringify({ type: 'client_hello', avatarKey: myAvatarKey }));
+                currentWs.send(JSON.stringify({
+                    type: 'client_hello',
+                    avatarKey: myAvatarKey,
+                    // Explicit picks win on the phone; connect announces may be pushed back.
+                    explicit: !!explicit,
+                }));
             } catch (_) {}
         }
     }
@@ -1481,7 +1486,7 @@
             reconnectAttempts = 0;   // 成功一次就清零计数
             startHeartbeat();
             // M9b: announce our avatar to the phone; fetch phone's info.
-            sendClientHello();
+            sendClientHello(false);
             fetchPeerInfo().catch(() => {});
             // 重连后追平断开期间手机端发的消息（seen 集合 dedup 防重复渲染）。
             loadHistory().catch(() => {});
