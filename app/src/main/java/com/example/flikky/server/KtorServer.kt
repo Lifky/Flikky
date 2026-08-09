@@ -54,6 +54,14 @@ class KtorServer(
         { _, _ -> ServerRecallOutcome.NotFound },
     private val recallEnabled: () -> Boolean = { false },
     private val allowPeerRecall: () -> Boolean = { false },
+    /**
+     * client_hello adoption callback. Transfer mode injects the DataStore-backed policy;
+     * export mode keeps the default session-only behavior.
+     */
+    private val onClientHello: suspend (avatarKey: String, explicit: Boolean) -> String? = { key, _ ->
+        session.setPeerAvatarKey(key)
+        null
+    },
     private val nowMs: () -> Long = System::currentTimeMillis,
     private val mode: ServiceMode = ServiceMode.Transfer,
     private val requirePin: Boolean = true,
@@ -169,7 +177,7 @@ class KtorServer(
             thumbnailer = thumbnailGenerator,
         )
         peerInfoRoutes(authGate, peerInfoProvider)
-        wsRoutes(authGate, session, wsHub)
+        wsRoutes(authGate, session, wsHub, onClientHello)
     }
 
     private fun Route.installExportRoutes(authGate: AuthGate) {
@@ -191,7 +199,7 @@ class KtorServer(
         peerInfoRoutes(authGate, peerInfoProvider)
         // v1.3 test2 修订：export 页也挂 WS，让浏览器通过 WS onclose 立即
         // 感知断网（不再依赖 fetch 探测的 3 秒延迟）。WS 复用同一 cookie 鉴权。
-        wsRoutes(authGate, session, wsHub)
+        wsRoutes(authGate, session, wsHub, onClientHello)
     }
 
     fun stop() {

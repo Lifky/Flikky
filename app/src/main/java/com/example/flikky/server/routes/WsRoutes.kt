@@ -1,5 +1,6 @@
 package com.example.flikky.server.routes
 
+import com.example.flikky.server.dto.PeerAvatarChangedDto
 import com.example.flikky.session.SessionState
 import io.ktor.server.routing.Route
 import io.ktor.server.websocket.WebSocketServerSession
@@ -10,6 +11,7 @@ import io.ktor.websocket.close
 import io.ktor.websocket.readText
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.Json
 
 class WsHub {
     private val mutex = Mutex()
@@ -70,11 +72,21 @@ private val pingPattern = Regex("""\{\s*"type"\s*:\s*"ping"\s*,\s*"id"\s*:\s*(\d
 // serializes JSON.stringify keys in insertion order, so this is guaranteed by the send path).
 private val clientHelloPattern = Regex(""""type"\s*:\s*"client_hello".*?"avatarId"\s*:\s*(\d+)""")
 private val clientHelloKeyPattern = Regex(""""type"\s*:\s*"client_hello".*?"avatarKey"\s*:\s*"([^"]{1,48})"""")
+private val clientHelloExplicitPattern =
+    Regex(""""type"\s*:\s*"client_hello".*?"explicit"\s*:\s*(true|false)""")
 
 fun Route.wsRoutes(
     authGate: AuthGate,
     session: SessionState,
     hub: WsHub,
+    /**
+     * client_hello adoption callback. Null means the avatar was adopted with no online action;
+     * a returned key is the phone's authoritative value to broadcast back to the browser.
+     */
+    onClientHello: suspend (avatarKey: String, explicit: Boolean) -> String? = { key, _ ->
+        session.setPeerAvatarKey(key)
+        null
+    },
 ) {
     webSocket("/ws") {
         val token = call.request.cookies[AUTH_COOKIE]
@@ -106,7 +118,17 @@ fun Route.wsRoutes(
                 }
                 val helloKeyMatch = clientHelloKeyPattern.find(text)
                 if (helloKeyMatch != null) {
-                    session.setPeerAvatarKey(helloKeyMatch.groupValues[1])
+                    val explicit = clientHelloExplicitPattern.find(text)?.groupValues?.get(1) == "true"
+                    val pushBack = onClientHello(helloKeyMatch.groupValues[1], explicit)
+                    if (pushBack != null) {
+                        hub.broadcast(
+                            "peer_avatar_changed",
+                            Json.encodeToString(
+                                PeerAvatarChangedDto.serializer(),
+                                PeerAvatarChangedDto(pushBack),
+                            ),
+                        )
+                    }
                 }
             }
         } finally {
