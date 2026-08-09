@@ -30,11 +30,14 @@ import com.example.flikky.network.RebindIntent
 import com.example.flikky.server.KtorServer
 import com.example.flikky.server.PinAuth
 import com.example.flikky.server.ServiceMode
+import com.example.flikky.server.dto.PeerAvatarChangedDto
 import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.StatusDto
 import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
+import com.example.flikky.util.BrowserAvatarHelloDecision
+import com.example.flikky.util.BrowserAvatarHelloPolicy
 import com.example.flikky.util.IdGen
 import com.example.flikky.util.formatThemeSeed
 import kotlinx.coroutines.CoroutineScope
@@ -170,12 +173,36 @@ class TransferService : Service() {
         currentSessionId = sid
         ServiceLocator.session.startNew(sid)
 
+        // Browser avatar single source of truth: seed the in-memory session value from
+        // DataStore at every transfer start (session.reset() clears it back to default).
+        scope.launch {
+            ServiceLocator.settingsRepository.browserAvatarKeyOrNull()?.let {
+                ServiceLocator.session.setPeerAvatarKey(it)
+            }
+        }
+
         // M9: start settings collector once — survives rebinds since it's tied to
         // the service scope, not a KtorServer instance.
         if (settingsCollectorJob == null) {
             settingsCollectorJob = scope.launch {
                 ServiceLocator.settingsRepository.settings.collect {
                     latestSettings = it
+                    // DataStore -> session + browser propagation (single point). Skips when the
+                    // session already holds the value - adoption/Serving paths write the session
+                    // first, so this also suppresses echo broadcasts back to the browser.
+                    val browserAvatar = it.browserAvatarKey
+                    if (browserAvatar != ServiceLocator.session.peerAvatarKey.value) {
+                        ServiceLocator.session.setPeerAvatarKey(browserAvatar)
+                        if (currentMode == ServiceMode.Transfer) {
+                            ktor?.wsHub?.broadcast(
+                                "peer_avatar_changed",
+                                Json.encodeToString(
+                                    PeerAvatarChangedDto.serializer(),
+                                    PeerAvatarChangedDto(browserAvatar),
+                                ),
+                            )
+                        }
+                    }
                     if (currentMode == ServiceMode.Transfer) {
                         val payload = Json.encodeToString(
                             PeerInfoDto.serializer(),
@@ -427,6 +454,19 @@ class TransferService : Service() {
         },
         recallEnabled = { latestSettings.recallBetaEnabled },
         allowPeerRecall = { latestSettings.allowPeerRecall },
+        onClientHello = { avatarKey, explicit ->
+            val stored = ServiceLocator.settingsRepository.browserAvatarKeyOrNull()
+            when (val decision = BrowserAvatarHelloPolicy.decide(explicit, stored)) {
+                is BrowserAvatarHelloDecision.Adopt -> {
+                    // Session first, then persist: the collector's diff check sees the session
+                    // already updated and stays silent (no echo back to the browser).
+                    ServiceLocator.session.setPeerAvatarKey(avatarKey)
+                    ServiceLocator.settingsRepository.setBrowserAvatarKey(avatarKey)
+                    null
+                }
+                is BrowserAvatarHelloDecision.PushBack -> decision.authoritativeKey
+            }
+        },
         thumbnailGenerator = AndroidThumbnailGenerator(),
         mode = ServiceMode.Transfer,
         requirePin = currentRequirePin,

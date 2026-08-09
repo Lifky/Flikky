@@ -190,6 +190,9 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
             } else {
                 ServiceLocator.session.setPeerAvatarKey(key)
             }
+            // Persist last: session is already updated above, so the settings collector
+            // in TransferService sees no diff and does not re-broadcast.
+            ServiceLocator.settingsRepository.setBrowserAvatarKey(key)
         }
     }
 
