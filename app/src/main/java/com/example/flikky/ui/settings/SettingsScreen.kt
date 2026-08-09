@@ -24,7 +24,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Slider
 import androidx.compose.foundation.lazy.LazyColumn
@@ -38,6 +40,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -68,6 +71,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -89,6 +93,7 @@ import com.example.flikky.ui.components.Avatar
 import com.example.flikky.ui.components.ChoiceDialog
 import com.example.flikky.ui.components.ChoiceRow
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.components.UpdateAvailableDialog
 import com.example.flikky.ui.exporting.ArchiveViewModel
 import com.example.flikky.ui.exporting.ExportDestinationSheet
 import com.example.flikky.ui.settings.components.SettingItem
@@ -130,8 +135,11 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val s by viewModel.settings.collectAsState()
+    val updateChecking by viewModel.updateChecking.collectAsState()
+    val updateAvailable by viewModel.updateAvailable.collectAsState()
     val appLanguage = AppLanguageManager.current(context)
     val defaultDeviceName = stringResource(R.string.settings_default_device_name)
+    val checkingUpdateLabel = stringResource(R.string.settings_checking_update)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(Unit) {
@@ -675,19 +683,45 @@ fun SettingsScreen(
 
             // ─── 关于 ─────────────────────────────────────────────────────────
             item {
-                val sectionItems = 2
+                val sectionItems = 3
                 SettingSection(title = stringResource(R.string.settings_section_about)) {
                     SettingItem(
                         title = stringResource(R.string.settings_version),
                         leadingIcon = painterResource(R.drawable.ic_info),
+                        subtitle = versionLabel,
                         trailing = {
-                            Text(
-                                text = versionLabel,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            if (updateChecking) {
+                                Box(
+                                    modifier = Modifier.heightIn(min = 40.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    LoadingIndicator(
+                                        modifier = Modifier
+                                            .size(28.dp)
+                                            .semantics {
+                                                contentDescription = checkingUpdateLabel
+                                            },
+                                    )
+                                }
+                            } else {
+                                TextButton(onClick = { viewModel.checkForUpdate() }) {
+                                    Text(stringResource(R.string.settings_check_update))
+                                }
+                            }
                         },
                         index = 0, total = sectionItems,
+                    )
+                    SettingItem(
+                        title = stringResource(R.string.settings_auto_check_update),
+                        leadingIcon = painterResource(R.drawable.ic_update),
+                        subtitle = stringResource(R.string.settings_auto_check_update_summary),
+                        trailing = {
+                            Switch(
+                                checked = s.autoCheckUpdate,
+                                onCheckedChange = viewModel::setAutoCheckUpdate,
+                            )
+                        },
+                        index = 1, total = sectionItems,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_open_source),
@@ -709,7 +743,7 @@ fun SettingsScreen(
                                 }
                             }
                         },
-                        index = 1, total = sectionItems,
+                        index = 2, total = sectionItems,
                     )
                 }
             }
@@ -733,6 +767,23 @@ fun SettingsScreen(
                 )
             }
         }
+    }
+
+    updateAvailable?.let { info ->
+        UpdateAvailableDialog(
+            info = info,
+            onConfirm = {
+                viewModel.dismissUpdateDialog()
+                if (!openExternalLink(context, info.htmlUrl)) {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.settings_open_source_open_failed),
+                        )
+                    }
+                }
+            },
+            onDismiss = { viewModel.dismissUpdateDialog() },
+        )
     }
 
     // ─── Picker sheets ────────────────────────────────────────────────────────

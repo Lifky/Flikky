@@ -71,6 +71,17 @@
     <string name="settings_open_source_summary">Ktor · mdui · Apache/MIT</string>
     <string name="settings_open_source_open_failed">无法打开链接，请安装浏览器后重试</string>
 
+    <!-- 检查更新 -->
+    <string name="settings_check_update">检查更新</string>
+    <string name="settings_checking_update">正在检查更新</string>
+    <string name="settings_auto_check_update">自动检查更新</string>
+    <string name="settings_auto_check_update_summary">启动时检查新版本，每 24 小时至多一次</string>
+    <string name="settings_update_available_title">发现新版本 %1$s</string>
+    <string name="settings_update_download">前往下载</string>
+    <string name="settings_update_later">以后再说</string>
+    <string name="settings_update_latest">当前已是最新版本</string>
+    <string name="settings_update_failed">无法连接更新服务，请稍后重试</string>
+
     <string name="settings_device_name_limit">最多 20 字</string>
     <string name="settings_history_custom">自定义</string>
     <string name="settings_history_input_hint">0=不保存，-1=无限制</string>

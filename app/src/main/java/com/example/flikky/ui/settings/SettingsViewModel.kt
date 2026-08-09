@@ -19,9 +19,13 @@ import com.example.flikky.data.settings.PresetTheme
 import com.example.flikky.data.settings.SettingsRepository
 import com.example.flikky.data.settings.ThemeMode
 import com.example.flikky.di.ServiceLocator
+import com.example.flikky.network.UpdateChecker
+import com.example.flikky.network.UpdateInfo
+import com.example.flikky.util.UpdateVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -34,6 +38,7 @@ class SettingsViewModel @JvmOverloads constructor(
     app: Application,
     private val repository: SettingsRepository = ServiceLocator.settingsRepository,
     private val sessionRepository: SessionRepository = ServiceLocator.repository,
+    private val updateChecker: UpdateChecker = UpdateChecker(),
 ) : AndroidViewModel(app) {
 
     val settings: StateFlow<FlikkySettings> = repository.settings
@@ -41,6 +46,12 @@ class SettingsViewModel @JvmOverloads constructor(
 
     private val _events = Channel<String>(Channel.BUFFERED)
     val events: Flow<String> = _events.receiveAsFlow()
+
+    private val _updateChecking = MutableStateFlow(false)
+    val updateChecking: StateFlow<Boolean> = _updateChecking
+
+    private val _updateAvailable = MutableStateFlow<UpdateInfo?>(null)
+    val updateAvailable: StateFlow<UpdateInfo?> = _updateAvailable
 
     fun setThemeMode(value: ThemeMode) = viewModelScope.launch { repository.setThemeMode(value) }
     fun setPreset(value: PresetTheme) = viewModelScope.launch { repository.setPresetTheme(value) }
@@ -74,6 +85,46 @@ class SettingsViewModel @JvmOverloads constructor(
 
     fun setBubbleCornerRadius(value: Int) =
         viewModelScope.launch { repository.setBubbleCornerRadius(value) }
+
+    fun setAutoCheckUpdate(value: Boolean) =
+        viewModelScope.launch { repository.setAutoCheckUpdate(value) }
+
+    fun checkForUpdate() {
+        if (_updateChecking.value) return
+        viewModelScope.launch {
+            _updateChecking.value = true
+            try {
+                val info = updateChecker.check()
+                if (info == null) {
+                    _events.send(getApplication<Application>().getString(R.string.settings_update_failed))
+                    return@launch
+                }
+                if (UpdateVersion.parse(info.tagName) == null) {
+                    _events.send(getApplication<Application>().getString(R.string.settings_update_failed))
+                    return@launch
+                }
+                repository.setLastUpdateCheckAt(System.currentTimeMillis())
+                if (UpdateVersion.isNewer(info.tagName, currentVersionName())) {
+                    _updateAvailable.value = info
+                } else {
+                    _events.send(getApplication<Application>().getString(R.string.settings_update_latest))
+                }
+            } finally {
+                _updateChecking.value = false
+            }
+        }
+    }
+
+    fun dismissUpdateDialog() {
+        _updateAvailable.value = null
+    }
+
+    private fun currentVersionName(): String? = runCatching {
+        val app = getApplication<Application>()
+        app.packageManager
+            .getPackageInfo(app.packageName, android.content.pm.PackageManager.PackageInfoFlags.of(0))
+            .versionName
+    }.getOrNull()
 
     fun setHistoryRetainLimit(value: Int) = viewModelScope.launch {
         repository.setHistoryRetainLimit(value)

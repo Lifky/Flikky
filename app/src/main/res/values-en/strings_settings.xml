@@ -72,6 +72,17 @@
     <string name="settings_open_source_summary">Ktor · mdui · Apache/MIT</string>
     <string name="settings_open_source_open_failed">Couldn\'t open the link. Install a browser and try again.</string>
 
+    <!-- Update check -->
+    <string name="settings_check_update">Check updates</string>
+    <string name="settings_checking_update">Checking for updates</string>
+    <string name="settings_auto_check_update">Auto-check updates</string>
+    <string name="settings_auto_check_update_summary">Check for new versions on launch, at most once a day</string>
+    <string name="settings_update_available_title">New version %1$s available</string>
+    <string name="settings_update_download">Download</string>
+    <string name="settings_update_later">Later</string>
+    <string name="settings_update_latest">You are on the latest version</string>
+    <string name="settings_update_failed">Could not reach the update service. Try again later</string>
+
     <string name="settings_device_name_limit">Up to 20 characters</string>
     <string name="settings_history_custom">Custom</string>
     <string name="settings_history_input_hint">0 = do not save, -1 = unlimited</string>
