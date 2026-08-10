@@ -39,6 +39,14 @@ class FilesListBuilderTest {
     }
 
     @Test
+    fun `categoryOf treats svg as OTHER despite image mime prefix`() {
+        // Android 系统不把 SVG 当媒体：BitmapFactory 解不出、相册也不收录，
+        // 归 IMAGE 会打开黑屏预览和假成功的存相册入口。
+        assertEquals(FileCategory.OTHER, FilesListBuilder.categoryOf("image/svg+xml"))
+        assertFalse(FilesListBuilder.isMedia("image/svg+xml"))
+    }
+
+    @Test
     fun `isMedia is true only for image and video`() {
         assertTrue(FilesListBuilder.isMedia("image/jpeg"))
         assertTrue(FilesListBuilder.isMedia("video/mp4"))

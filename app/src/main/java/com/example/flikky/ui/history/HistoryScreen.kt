@@ -71,6 +71,7 @@ import com.example.flikky.ui.components.saveToGallery
 import com.example.flikky.ui.components.sessionFile
 import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
+import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
@@ -162,7 +163,7 @@ fun HistoryScreen(
     fun openOrPreview(msg: Message.File) {
         val file = sessionFile(sessionId, msg.fileId)
         if (msg.status == Message.File.Status.COMPLETED &&
-            msg.mime.startsWith("image/") && file.exists()
+            FilesListBuilder.categoryOf(msg.mime) == FileCategory.IMAGE && file.exists()
         ) {
             previewImage = file
         } else {

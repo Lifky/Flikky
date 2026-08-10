@@ -173,7 +173,7 @@ fun FilesScreen(
 
     fun openOrPreview(row: FileOverviewRow) {
         val file = sessionFile(row.sessionId, row.fileId)
-        if (row.fileMime.orEmpty().startsWith("image/") && file.exists()) {
+        if (FilesListBuilder.categoryOf(row.fileMime) == FileCategory.IMAGE && file.exists()) {
             previewImage = file
         } else {
             openStoredFile(

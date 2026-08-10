@@ -26,6 +26,8 @@ object FilesListBuilder {
     fun categoryOf(mime: String?): FileCategory {
         val normalized = mime.orEmpty()
         return when {
+            // SVG 系统层面不算媒体（BitmapFactory 解不出、相册不收录），归 OTHER。
+            normalized == "image/svg+xml" -> FileCategory.OTHER
             normalized.startsWith("image/") -> FileCategory.IMAGE
             normalized.startsWith("video/") -> FileCategory.VIDEO
             normalized.startsWith("audio/") -> FileCategory.AUDIO
