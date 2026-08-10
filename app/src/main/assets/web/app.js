@@ -34,6 +34,27 @@
         return icon;
     }
 
+    // 文件气泡分类图标：镜像 App 端 FilesListBuilder.categoryOf + FileCategoryUi.iconResource，
+    // 两端同一文件必须显示同一图标。SVG 系统层面不算媒体，与 App 一致归「其他」。
+    const DOCUMENT_MIMES = new Set([
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    ]);
+    function fileSymbolName(mime) {
+        const m = (mime || '').toLowerCase();
+        if (m === 'image/svg+xml') return 'draft';
+        if (m.startsWith('image/')) return 'image';
+        if (m.startsWith('video/')) return 'movie';
+        if (m.startsWith('audio/')) return 'music_note';
+        if (m.startsWith('text/') || DOCUMENT_MIMES.has(m)) return 'description';
+        return 'draft';
+    }
+
 
     // ── M9b: Avatar constants ─────────────────────────────────────────────
     /*
@@ -771,8 +792,8 @@
         const size = document.createElement('span');
         size.className = 'size';
         size.textContent = formatSize(sizeBytes);
-        // 文件图标（与 App 文件气泡同款 Material Symbols description）。
-        bubble.appendChild(materialSymbolEl('description', false));
+        // 文件图标：与 App 文件气泡/文件总览同款分类图标。
+        bubble.appendChild(materialSymbolEl(fileSymbolName(bubble.dataset.mime), false));
         bubble.appendChild(a);
         bubble.appendChild(size);
     }
@@ -1047,6 +1068,7 @@
         pct.className = 'progress-pct';
         pct.textContent = '0%';
 
+        div.appendChild(materialSymbolEl(fileSymbolName(msg.mime), false));
         div.appendChild(a);
         div.appendChild(size);
         div.appendChild(bar);
@@ -1081,6 +1103,7 @@
         pct.className = 'progress-pct';
         pct.textContent = '0%';
 
+        div.appendChild(materialSymbolEl(fileSymbolName(opts.mime), false));
         div.appendChild(a);
         div.appendChild(size);
         div.appendChild(bar);
@@ -1111,22 +1134,14 @@
         }
         bubble.classList.remove('uploading', 'transferring');
 
-        const bar = bubble.querySelector('.progress-bar');
-        if (bar) bar.remove();
-        const pct = bubble.querySelector('.progress-pct');
-        if (pct) pct.remove();
-
-        const a = bubble.querySelector('a');
-        if (a) {
-            a.href = `/api/files/${dto.fileId}`;
-            a.download = dto.name;
-            a.removeAttribute('aria-disabled');
-            a.textContent = dto.name;
-        }
-        const size = bubble.querySelector('.size');
-        if (size) size.textContent = formatSize(dto.sizeBytes);
+        // 完成态统一整体重建（媒体缩略图 / 经典行），两条路径都保证带分类图标——
+        // 旧版非媒体只打补丁，transferring/uploading 骨架里缺的图标永远补不上。
         const kind = mediaKind(bubble.dataset.mime);
-        if (kind) applyMediaBubble(bubble, dto.fileId, dto.name, dto.sizeBytes, kind);
+        if (kind) {
+            applyMediaBubble(bubble, dto.fileId, dto.name, dto.sizeBytes, kind);
+        } else {
+            buildClassicFileContent(bubble, dto.fileId, dto.name, dto.sizeBytes);
+        }
         bubble.dataset.name = dto.name;
         renderMessageActionBar(bubble.closest('.bubble-row'), bubble);
     }

@@ -48,6 +48,8 @@ import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
 import com.example.flikky.R
 import com.example.flikky.session.Message
+import com.example.flikky.ui.files.FilesListBuilder
+import com.example.flikky.ui.files.iconResource
 import com.example.flikky.util.MediaThumbLayout
 import com.example.flikky.session.Origin
 import com.example.flikky.ui.theme.Sizes
@@ -244,7 +246,8 @@ private fun FileBubbleContent(
     val contentColor = if (isDeleted) fg.copy(alpha = 0.38f) else fg
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
-            painter = painterResource(R.drawable.ic_description),
+            // 与文件总览一致：按 MIME 分类取图标（文档/音频/其他分开），不统一用文档图标。
+            painter = painterResource(FilesListBuilder.categoryOf(msg.mime).iconResource()),
             contentDescription = null,
             modifier = Modifier.size(28.dp),
             tint = contentColor,
