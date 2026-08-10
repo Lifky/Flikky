@@ -78,6 +78,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.example.flikky.R
 import com.example.flikky.data.db.FileOverviewRow
+import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
@@ -136,6 +137,8 @@ fun FilesScreen(
     val sort by viewModel.sort.collectAsState()
     val selection by viewModel.selection.collectAsState()
     val selecting by viewModel.selecting.collectAsState()
+    val settings by ServiceLocator.settingsRepository.settings
+        .collectAsState(initial = FlikkySettings())
     val favoriteGroups by ServiceLocator.favoritesRepository.observeGroups()
         .collectAsState(initial = emptyList())
     val snackbarHostState = remember { SnackbarHostState() }
@@ -468,6 +471,7 @@ fun FilesScreen(
                                 selecting = selecting,
                                 selected = row.messageId in selectedIds,
                                 modifier = flikkyItemAnimation(),
+                                favoritesEnabled = settings.favoriteBetaEnabled,
                                 onNormalClick = { openOrPreview(row) },
                                 onThumbnailClick = {
                                     viewModel.toggleSelection(row.messageId)
@@ -490,14 +494,16 @@ fun FilesScreen(
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
                 FlikkyFloatingToolbar {
-                    IconButton(
-                        onClick = { favoriteTargets = selectedRows },
-                        enabled = selectedRows.isNotEmpty(),
-                    ) {
-                        Icon(
-                            painterResource(R.drawable.ic_star_border),
-                            contentDescription = stringResource(R.string.files_action_favorite),
-                        )
+                    if (settings.favoriteBetaEnabled) {
+                        IconButton(
+                            onClick = { favoriteTargets = selectedRows },
+                            enabled = selectedRows.isNotEmpty(),
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_star_border),
+                                contentDescription = stringResource(R.string.files_action_favorite),
+                            )
+                        }
                     }
                     IconButton(
                         onClick = {
@@ -801,6 +807,7 @@ private fun FileOverviewItem(
     count: Int,
     selecting: Boolean,
     selected: Boolean,
+    favoritesEnabled: Boolean,
     onNormalClick: () -> Unit,
     onThumbnailClick: () -> Unit,
     onMenuAction: (RowAction) -> Unit,
@@ -944,6 +951,7 @@ private fun FileOverviewItem(
                 FileActionPolicy.rowMenu(
                     mime = row.fileMime,
                     sessionEnded = row.sessionEndedAt != null,
+                    favoritesEnabled = favoritesEnabled,
                 ).forEach { entry ->
                     DropdownMenuItem(
                         text = { Text(menuLabel(entry.action)) },

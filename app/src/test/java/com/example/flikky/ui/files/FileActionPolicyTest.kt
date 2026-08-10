@@ -11,7 +11,11 @@ class FileActionPolicyTest {
 
     @Test
     fun `rowMenu media file in ended session shows all six enabled`() {
-        val menu = FileActionPolicy.rowMenu(mime = "image/png", sessionEnded = true)
+        val menu = FileActionPolicy.rowMenu(
+            mime = "image/png",
+            sessionEnded = true,
+            favoritesEnabled = true,
+        )
         assertEquals(
             listOf(
                 RowAction.FAVORITE, RowAction.SHARE, RowAction.GALLERY,
@@ -24,7 +28,11 @@ class FileActionPolicyTest {
 
     @Test
     fun `rowMenu non media hides gallery entirely`() {
-        val menu = FileActionPolicy.rowMenu(mime = "application/pdf", sessionEnded = true)
+        val menu = FileActionPolicy.rowMenu(
+            mime = "application/pdf",
+            sessionEnded = true,
+            favoritesEnabled = true,
+        )
         assertEquals(
             listOf(
                 RowAction.FAVORITE, RowAction.SHARE,
@@ -35,8 +43,28 @@ class FileActionPolicyTest {
     }
 
     @Test
+    fun `rowMenu hides favorite when favorites feature is disabled`() {
+        val menu = FileActionPolicy.rowMenu(
+            mime = "image/png",
+            sessionEnded = true,
+            favoritesEnabled = false,
+        )
+        assertEquals(
+            listOf(
+                RowAction.SHARE, RowAction.GALLERY,
+                RowAction.SAVE_AS, RowAction.OPEN_IN_SESSION, RowAction.DELETE,
+            ),
+            actions(menu),
+        )
+    }
+
+    @Test
     fun `rowMenu active session disables open-in-session and delete but keeps them visible`() {
-        val menu = FileActionPolicy.rowMenu(mime = "video/mp4", sessionEnded = false)
+        val menu = FileActionPolicy.rowMenu(
+            mime = "video/mp4",
+            sessionEnded = false,
+            favoritesEnabled = true,
+        )
         val byAction = menu.associateBy { it.action }
         assertFalse(byAction.getValue(RowAction.OPEN_IN_SESSION).enabled)
         assertFalse(byAction.getValue(RowAction.DELETE).enabled)
