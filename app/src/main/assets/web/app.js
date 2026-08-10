@@ -676,6 +676,8 @@
 
     function mediaKind(mime) {
         const m = (mime || '').toLowerCase();
+        // SVG 与 App 端一致归「其他」：不给预览/lightbox/缩略图气泡。
+        if (m === 'image/svg+xml') return null;
         if (m.startsWith('image/')) return 'image';
         if (m.startsWith('video/')) return 'video';
         return null;

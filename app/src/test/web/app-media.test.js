@@ -30,6 +30,12 @@ test('mediaKind classifies image and video mimes', () => {
     assert.equal(kindOf(undefined), null);
 });
 
+test('mediaKind treats svg as non-media, matching the app', () => {
+    // SVG 归「其他」：无预览操作、无 lightbox、无缩略图气泡（与 App categoryOf 一致）。
+    assert.equal(kindOf('image/svg+xml'), null);
+    assert.equal(kindOf('IMAGE/SVG+XML'), null);
+});
+
 test('lightbox starts hidden and its CSS keeps the hidden attribute effective', () => {
     assert.match(appHtml, /<div id="lightbox"[^>]*\bhidden\b/);
     assert.match(appCss, /\.lightbox\[hidden\]\s*\{\s*display:\s*none\s*;?\s*\}/);
