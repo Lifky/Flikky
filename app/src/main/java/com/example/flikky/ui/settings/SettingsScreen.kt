@@ -705,7 +705,9 @@ fun SettingsScreen(
                         trailing = {
                             if (updateChecking) {
                                 Box(
-                                    modifier = Modifier.heightIn(min = 40.dp),
+                                    // TextButton 的最小触控目标是 48dp，占位高度必须一致，
+                                    // 否则按钮换转圈时整行高度跳动。
+                                    modifier = Modifier.heightIn(min = 48.dp),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     LoadingIndicator(
