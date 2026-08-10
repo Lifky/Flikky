@@ -4,6 +4,37 @@
 
 This file records user-facing changes for each Flikky release, loosely following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow `x.y.z`: x for major architectural changes, y for new features, z for bug fixes. Dates are tag creation dates.
 
+## [v1.17.0](https://github.com/Lifky/Flikky/releases/tag/v1.17.0) · 2026-08-10
+
+### Added
+- Media thumbnails in chat bubbles on both ends: images and videos render as proportionally scaled thumbnails; tapping opens an in-app image preview on Android and a fullscreen lightbox in the browser. Favorite file rows show thumbnails too
+- Browser message actions now follow the app's "message action style" setting: a persistent inline action bar, or a floating hover toolbar with right-click / long-press context menu; the whole bubble acts as the download target under the floating style
+- "Allow recalling peer messages" setting: when enabled, either end can recall the other end's messages; enforced by the server on both ends
+- Files overview action rework: tap a row to open or preview, tap the thumbnail to enter multi-select, per-row overflow menu, and a batch toolbar with favorite, share, save to gallery, save as, and delete
+- Check for updates: a manual entry under Settings > About, plus an optional auto-check on launch (off by default). The check contacts only the GitHub releases API and sends no device or account data
+- Browser avatar: the avatar entry in Settings now has App and Browser tabs; the browser avatar is persisted on the phone and pushed to the browser when it connects
+- Custom theme color: pick any seed color in an interactive dialog (saturation/value panel, hue slider, two-way hex input); generates a full Material 3 light/dark/contrast palette locally and syncs to the browser
+- Quick-send sheet in an active session can now pick from all stored files, not just favorites
+- Share a single selected favorite file; "delete all data" action in Settings
+
+### Changed
+- New-install defaults: bubble corner radius 10, message recall on, allow peer recall on, inline message actions, and "return during session" on — existing explicit choices are never overwritten
+- Browser disconnected state is a non-closable blurred dialog instead of a snackbar; the connection watermark stays centered in the message viewport instead of scrolling with messages
+- Multi-select top bars use a select-all/deselect icon toggle
+- SVG files are classified as "Other" on both ends: no preview, lightbox, thumbnail, or save-to-gallery, since Android does not treat SVG as media
+- File bubbles on both ends use per-category icons (image/video/audio/document/other), matching the files overview list
+- Long setting summaries moved into info dialogs; action icons realigned with their semantics (preview uses the visibility icon)
+
+### Fixed
+- Message lists stay anchored while the keyboard resizes the screen
+- Media bubbles size themselves from real media dimensions; browser media bubbles are frameless with the image as the sole width source
+- Each file in a multi-file browser upload is processed independently, so one failure no longer aborts the rest
+- Video thumbnails decode correctly for stored files without an extension
+- Favorite actions in the files overview are hidden when the favorites feature is disabled
+- The "check for updates" row keeps a stable height while checking
+- Browser file bubbles show their icon during live transfers, and message actions are restored after a phone-to-browser file transfer
+- Importing an archive from Settings routes through the same conflict decision flow as other imports
+
 ## [v1.16.0](https://github.com/Lifky/Flikky/releases/tag/v1.16.0) · 2026-08-03
 
 ### Added

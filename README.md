@@ -20,8 +20,8 @@ Flikky is designed for trusted local networks and keeps the operational complexi
 
 | Channel | Revision | State |
 | --- | --- | --- |
-| Stable source | [`v1.16.0`](https://github.com/Lifky/Flikky/tree/v1.16.0) · 2026-08-03 | Cross-session files overview, file deletion with inert history records, browser drag-and-drop upload, and import conflict handling. |
-| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.16.0...main) | No unreleased changes beyond the stable tag. |
+| Stable source | [`v1.17.0`](https://github.com/Lifky/Flikky/tree/v1.17.0) · 2026-08-10 | Media thumbnails in bubbles, browser message action styles, files-overview batch actions, custom theme color, browser-side avatar, and an optional update check. |
+| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.17.0...main) | No unreleased changes beyond the stable tag. |
 
 Use the stable tag for a reproducible build. Use `main` when evaluating the latest unreleased work. Per-release changes are documented in the [changelog](./docs/CHANGELOG.md); version history is available from the repository's [tags](https://github.com/Lifky/Flikky/tags).
 
@@ -46,13 +46,13 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 
 ## Capabilities
 
-- **Two-way transfer:** text and files move between Android and the browser over HTTP and WebSocket, with progress and failure states for both directions. The browser accepts drag-and-drop file uploads.
+- **Two-way transfer:** text and files move between Android and the browser over HTTP and WebSocket, with progress and failure states for both directions. The browser accepts drag-and-drop file uploads. Images and videos show proportional thumbnails in bubbles, with an in-app preview on Android and a fullscreen lightbox in the browser.
 - **Session history:** Room-backed sessions support search, pin, rename, grouping, per-message actions, configurable retention, and crash recovery.
-- **Recall and cleanup:** messages can be recalled during an active session; local history items and sessions can be deleted with confirmation or undo where appropriate. Deleting a file frees its on-disk copy while History keeps an inert record.
+- **Recall and cleanup:** messages can be recalled during an active session, optionally including the other end's messages; local history items and sessions can be deleted with confirmation or undo where appropriate. Deleting a file frees its on-disk copy while History keeps an inert record.
 - **Files overview:** browse files from all sessions in one place with direction/category filters, search, sorting, and multi-select actions (favorite, save, share, jump to message, delete).
 - **Favorites:** keep independent text or file snapshots in collections, add local items without a session, search them, and send them back into an active transfer.
 - **Portable archives:** export sessions, favorites, settings, or all data to a ZIP archive; save it on Android or serve it to a browser, then import it later. When imported sessions already exist locally, choose to skip or overwrite them.
-- **Adaptive appearance:** Material 3 Expressive themes, dark mode, contrast, motion speed, avatars, bubble shape, grouping, and selected appearance settings stay aligned across phone and browser.
+- **Adaptive appearance:** Material 3 Expressive themes, custom theme color, dark mode, contrast, motion speed, avatars (including a browser-side avatar), bubble shape, grouping, and selected appearance settings stay aligned across phone and browser.
 - **Multilingual:** both the app and the browser client support Chinese and English, and the language setting stays in sync across both ends.
 - **Offline browser client:** the HTML, CSS, JavaScript, mdui components, Material Symbols font, and design tokens are bundled in the APK; no CDN is used.
 
@@ -113,6 +113,14 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 - [x] Import settings
 - [x] Export/import everything
 - [x] Import conflict skip/overwrite
+- [x] Media thumbnails in bubbles (both ends)
+- [x] Image preview (in-app viewer / browser lightbox)
+- [x] Browser message action styles (inline / floating)
+- [x] Allow recalling peer messages
+- [x] Custom theme color
+- [x] Browser-side avatar
+- [x] Check for updates (manual + optional auto-check)
+- [x] Delete all data
 - [ ] More... iterating...
 
 ## Security Model and Limits
@@ -124,6 +132,7 @@ Flikky reduces exposure, but it does not turn an untrusted LAN into a secure tra
 - PIN authentication can be disabled in Settings. When disabled, anyone who can reach the phone on the same LAN can open the service.
 - Browser responses use a strict CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, HttpOnly/SameSite cookies, `textContent` rendering, and short-lived Blob download URLs.
 - Notifications show the connection URL but never expose the PIN or token on the lock screen.
+- The only network request outside the LAN is the optional update check, which fetches `https://api.github.com/repos/Lifky/Flikky/releases/latest` over HTTPS. It runs only when triggered manually or when auto-check is explicitly enabled (off by default), and sends no device identifier, account, or telemetry data.
 
 Known boundaries:
 
