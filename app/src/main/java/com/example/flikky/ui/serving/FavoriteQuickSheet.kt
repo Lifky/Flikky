@@ -325,9 +325,9 @@ private fun FavoriteQuickRow(
     ) {
         if (favorite.kind == "FILE") {
             val depotId = favorite.fileId
+            val category = FilesListBuilder.categoryOf(favorite.fileMime)
             if (depotId != null && FilesListBuilder.isMedia(favorite.fileMime)) {
                 // 图片/视频收藏行显示缩略图，与文件快发行一致；解析失败回退分类图标。
-                val category = FilesListBuilder.categoryOf(favorite.fileMime)
                 AsyncImage(
                     model = remember(depotId, category) {
                         val file = ServiceLocator.favoriteFileStore.resolve(depotId)
@@ -341,8 +341,9 @@ private fun FavoriteQuickRow(
                         .clip(RoundedCornerShape(8.dp)),
                 )
             } else {
+                // 非媒体行与文件快发行一致：按分类图标显示。
                 Icon(
-                    painter = painterResource(R.drawable.ic_description),
+                    painter = painterResource(category.iconResource()),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )
