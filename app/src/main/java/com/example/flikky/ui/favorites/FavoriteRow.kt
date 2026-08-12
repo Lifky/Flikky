@@ -14,6 +14,7 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -37,6 +38,8 @@ import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+internal fun favoriteRowVerticalAlignment(): Alignment.Vertical = Alignment.CenterVertically
 
 /**
  * A favorite row rendered with the official M3 Expressive [SegmentedListItem].
@@ -160,6 +163,7 @@ fun FavoriteRow(
             modifier = rowModifier,
             colors = colors,
             onLongClick = onLongClick,
+            verticalAlignment = favoriteRowVerticalAlignment(),
             leadingContent = leading,
             supportingContent = supporting,
             trailingContent = trailing,
@@ -172,6 +176,7 @@ fun FavoriteRow(
             modifier = rowModifier,
             colors = colors,
             onLongClick = onLongClick,
+            verticalAlignment = favoriteRowVerticalAlignment(),
             leadingContent = leading,
             supportingContent = supporting,
             trailingContent = trailing,
