@@ -1,8 +1,10 @@
 package com.example.flikky.ui.home
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -248,9 +250,14 @@ fun HomeScreen(
     // 是否有进行中会话——影响 FAB 文案、点击行为、会话项的 trailing 按钮。
     val hasInProgress = sessions.any { it.endedAt == null }
 
+    var showNoWifiDialog by remember { mutableStateOf(false) }
+
     fun startAndNavigate() {
-        viewModel.startService()
-        onStartService()
+        // 拿不到可用 Wi-Fi 地址就停在这里：服务起不来，跳进传输页只会看到空 URL + 永远的转圈。
+        when (viewModel.startService()) {
+            HomeViewModel.StartResult.Success -> onStartService()
+            HomeViewModel.StartResult.NoUsableNetwork -> showNoWifiDialog = true
+        }
     }
 
     fun resumeNavigate() {
@@ -735,6 +742,33 @@ fun HomeScreen(
                 viewModel.deleteSession(target.id)
             },
             onDismiss = { menuDeleteTarget = null },
+        )
+    }
+
+    if (showNoWifiDialog) {
+        // 只报"未连接"没用，直接把用户送到 Wi-Fi 设置。
+        AlertDialog(
+            onDismissRequest = { showNoWifiDialog = false },
+            title = { Text(stringResource(R.string.home_no_wifi_title)) },
+            text = { Text(stringResource(R.string.home_no_wifi_text)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showNoWifiDialog = false
+                        runCatching {
+                            context.startActivity(
+                                Intent(Settings.ACTION_WIFI_SETTINGS)
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
+                    },
+                ) { Text(stringResource(R.string.home_no_wifi_open_settings)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNoWifiDialog = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
         )
     }
 

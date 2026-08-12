@@ -16,6 +16,7 @@ import com.example.flikky.di.ServiceLocator
 import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSession
 import com.example.flikky.export.ExportSnapshot
+import com.example.flikky.network.UsableIpPolicy
 import com.example.flikky.service.TransferService
 import com.example.flikky.session.SessionState
 import com.example.flikky.ui.exporting.LocalExportWriter
@@ -41,6 +42,9 @@ class HomeViewModel @JvmOverloads constructor(
     private val pinGenerator: () -> String = { IdGen.newPin() },
     private val now: () -> Long = { System.currentTimeMillis() },
     private val settingsRepository: SettingsRepository = ServiceLocator.settingsRepository,
+    // lambda 而不是 NetworkInfo 实例：默认值在构造时就会求值，直接引用 ServiceLocator 会让
+    // 没初始化过它的单测在 new ViewModel 时就炸。
+    private val currentWifiIp: () -> String? = { ServiceLocator.networkInfo.currentWifiIpv4() },
     private val localExportWriter: suspend (Uri, ExportSnapshot) -> Unit = { uri, snapshot ->
         LocalExportWriter.write(
             context = app,
@@ -86,12 +90,30 @@ class HomeViewModel @JvmOverloads constructor(
         .map { it != null }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    fun startService() {
+    sealed class StartResult {
+        object Success : StartResult()
+
+        /** 没有电脑连得上的 Wi-Fi 地址，开服只会得到一个空 URL 的死页面。 */
+        object NoUsableNetwork : StartResult()
+    }
+
+    /**
+     * 开启传输服务。
+     *
+     * 先确认拿得到可用的 Wi-Fi IPv4：拿不到就直接拒绝，不启动服务、也不让 UI 跳进传输页——
+     * 否则 [com.example.flikky.service.TransferService] 会在前台通知闪一下之后自杀，
+     * 而传输页留在原地转圈等一个永远不会来的浏览器（v1.17.0 装机反馈）。
+     */
+    fun startService(): StartResult {
+        if (!UsableIpPolicy.isUsable(currentWifiIp())) {
+            return StartResult.NoUsableNetwork
+        }
         val ctx = getApplication<Application>()
         val intent = Intent(ctx, TransferService::class.java).apply {
             action = TransferService.ACTION_START
         }
         ctx.startForegroundService(intent)
+        return StartResult.Success
     }
 
     /** 主页直接停止当前进行中传输（点击会话项右侧的停止按钮触发）。 */

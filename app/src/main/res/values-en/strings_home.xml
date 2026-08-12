@@ -104,4 +104,7 @@
     <string name="home_section_today">Today</string>
     <string name="home_section_yesterday">Yesterday</string>
     <string name="home_section_earlier">Earlier</string>
+    <string name="home_no_wifi_title">No Wi-Fi connection</string>
+    <string name="home_no_wifi_text">Any device on the same Wi-Fi network can connect from its browser. Connect to Wi-Fi, then start the transfer.</string>
+    <string name="home_no_wifi_open_settings">Connect</string>
 </resources>

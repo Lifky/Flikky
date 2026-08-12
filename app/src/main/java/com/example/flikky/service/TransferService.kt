@@ -26,6 +26,7 @@ import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.network.LinkInfo
 import com.example.flikky.network.NetworkRebinder
+import com.example.flikky.network.UsableIpPolicy
 import com.example.flikky.network.RebindIntent
 import com.example.flikky.server.KtorServer
 import com.example.flikky.server.PinAuth
@@ -144,8 +145,9 @@ class TransferService : Service() {
 
     private fun startTransfer() {
         val ip = ServiceLocator.networkInfo.currentWifiIpv4()
+            ?.takeIf { UsableIpPolicy.isUsable(it) }
             ?: run {
-                Log.e(TAG, "startTransfer aborted: no Wi-Fi IPv4")
+                Log.e(TAG, "startTransfer aborted: no usable Wi-Fi IPv4")
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return

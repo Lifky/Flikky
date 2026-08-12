@@ -95,4 +95,7 @@
     <string name="home_section_today">今天</string>
     <string name="home_section_yesterday">昨天</string>
     <string name="home_section_earlier">更早</string>
+    <string name="home_no_wifi_title">未连接 Wi-Fi</string>
+    <string name="home_no_wifi_text">同一 Wi-Fi 下的设备使用浏览器即可连接。请先连接 Wi-Fi，再开始传输。</string>
+    <string name="home_no_wifi_open_settings">去连接</string>
 </resources>
