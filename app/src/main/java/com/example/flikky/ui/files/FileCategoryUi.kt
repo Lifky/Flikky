@@ -14,7 +14,7 @@ internal fun FileCategory.labelResource(): Int = when (this) {
 internal fun FileCategory.iconResource(): Int = when (this) {
     FileCategory.IMAGE -> R.drawable.ic_image
     FileCategory.VIDEO -> R.drawable.ic_movie
-    FileCategory.AUDIO -> R.drawable.ic_music_note
+    FileCategory.AUDIO -> R.drawable.ic_audio_file
     FileCategory.DOCUMENT -> R.drawable.ic_description
     FileCategory.ALL,
     FileCategory.OTHER,

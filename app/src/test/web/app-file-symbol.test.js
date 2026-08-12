@@ -23,7 +23,7 @@ test('fileSymbolName mirrors app-side category icons', () => {
     // 镜像 FilesListBuilder.categoryOf + FileCategoryUi.iconResource 的映射。
     assert.equal(symbolOf('image/png'), 'image');
     assert.equal(symbolOf('video/mp4'), 'movie');
-    assert.equal(symbolOf('audio/mpeg'), 'music_note');
+    assert.equal(symbolOf('audio/mpeg'), 'audio_file');
     assert.equal(symbolOf('application/pdf'), 'description');
     assert.equal(symbolOf('text/plain'), 'description');
     assert.equal(symbolOf('application/zip'), 'draft');

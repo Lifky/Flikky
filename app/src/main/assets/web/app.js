@@ -50,7 +50,7 @@
         if (m === 'image/svg+xml') return 'draft';
         if (m.startsWith('image/')) return 'image';
         if (m.startsWith('video/')) return 'movie';
-        if (m.startsWith('audio/')) return 'music_note';
+        if (m.startsWith('audio/')) return 'audio_file';
         if (m.startsWith('text/') || DOCUMENT_MIMES.has(m)) return 'description';
         return 'draft';
     }
