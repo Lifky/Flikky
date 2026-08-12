@@ -20,8 +20,8 @@ Flikky 面向可信局域网使用，并把配对、会话状态、历史记录�
 
 | 通道 | 版本 | 状态 |
 | --- | --- | --- |
-| 稳定版源码 | [`v1.17.0`](https://github.com/Lifky/Flikky/tree/v1.17.0) · 2026-08-10 | 气泡媒体缩略图、浏览器端消息操作样式、文件总览批量操作、自定义主题色、浏览器端头像，以及可选的检查更新。 |
-| `main` | [未发布改动](https://github.com/Lifky/Flikky/compare/v1.17.0...main) | 稳定 tag 之外暂无未发布改动。 |
+| 稳定版源码 | [`v1.17.1`](https://github.com/Lifky/Flikky/tree/v1.17.1) · 2026-08-13 | 收藏与会话的行内菜单、收藏批量操作、列表 leading 对齐，以及未连 Wi-Fi 时的启动守卫。 |
+| `main` | [未发布改动](https://github.com/Lifky/Flikky/compare/v1.17.1...main) | 稳定 tag 之外暂无未发布改动。 |
 
 需要可复现构建时使用稳定版 tag；需要评估最新但尚未发布的工作时使用 `main`。各版本变更详见 [更新日志](./docs/CHANGELOG.zh-CN.md)，历史版本可在仓库的 [tags](https://github.com/Lifky/Flikky/tags) 中查看。
 
@@ -121,6 +121,8 @@ Flikky 面向可信局域网使用，并把配对、会话状态、历史记录�
 - [x] 浏览器端头像
 - [x] 检查更新（手动 + 可选自动）
 - [x] 删除全部数据
+- [x] 收藏行与会话行的行内菜单
+- [x] 开始传输前的 Wi-Fi 检查
 - [ ] 更多...迭代中...
 
 ## 安全模型与边界

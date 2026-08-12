@@ -4,6 +4,31 @@
 
 This file records user-facing changes for each Flikky release, loosely following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow `x.y.z`: x for major architectural changes, y for new features, z for bug fixes. Dates are tag creation dates.
 
+## [v1.17.1](https://github.com/Lifky/Flikky/releases/tag/v1.17.1) · 2026-08-13
+
+### Added
+- Row overflow menu on favorites: share, move to collection, open with, save to gallery (media only), save as, and delete. Text favorites get their own set — copy, move, delete — since they have no file on disk
+- The favorite row's trailing control is now a split button: the left half sends, the right half opens that menu
+- Favorites selection toolbar gained the full batch set (share, save to gallery, save as) alongside move and delete. Each file action runs on the subset it can touch and reports what it skipped
+- Row overflow menu on ended sessions on the home screen: pin, rename, move to group, export, delete — no more long-pressing into multi-select to act on one session
+- Starting a transfer without a usable Wi-Fi address is now refused with a dialog that explains any device on the same network can connect from its browser, and a button that opens Wi-Fi settings
+
+### Changed
+- Favorite rows follow the files-overview interactions: tap an image to preview it in the app, tap another file to hand it to an external app, tap a text favorite to copy it, and tap the leading visual to enter multi-select
+- Non-media file rows draw their category icon inside a 40dp Material Expressive cookie container, so thumbnails and icons occupy the same footprint and every headline starts on the same line. All four file-row surfaces share one implementation
+- Text favorites take that same leading slot with a quote symbol, on the favorites screen and in the quick-send sheet
+- The favorites screen calls its containers "collections" everywhere; the shared group chips, move sheet and manage dialog take their wording from the caller
+- Audio files use the official audio_file symbol
+- A selected row's leading container turns a light surface tone instead of a solid primary fill
+
+### Fixed
+- Media thumbnails and category icons no longer sit at different widths, which used to shift the headline left and right between rows
+- Leading content stays vertically centered when a favorite headline wraps to two lines
+- Text favorites in the quick-send sheet were missing their leading entirely, indenting their titles differently from file rows
+- A thumbnail that fails to decode falls back to the icon container instead of stretching a 24dp vector to 40dp
+- Starting without Wi-Fi no longer leaves the serving screen showing an empty URL, an empty PIN and a climbing uptime for a service that already killed itself
+- The favorite row's split button is smaller, and its menu half is narrower than its send half instead of both being the same width
+
 ## [v1.17.0](https://github.com/Lifky/Flikky/releases/tag/v1.17.0) · 2026-08-10
 
 ### Added

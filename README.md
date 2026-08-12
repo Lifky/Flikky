@@ -20,8 +20,8 @@ Flikky is designed for trusted local networks and keeps the operational complexi
 
 | Channel | Revision | State |
 | --- | --- | --- |
-| Stable source | [`v1.17.0`](https://github.com/Lifky/Flikky/tree/v1.17.0) · 2026-08-10 | Media thumbnails in bubbles, browser message action styles, files-overview batch actions, custom theme color, browser-side avatar, and an optional update check. |
-| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.17.0...main) | No unreleased changes beyond the stable tag. |
+| Stable source | [`v1.17.1`](https://github.com/Lifky/Flikky/tree/v1.17.1) · 2026-08-13 | Row overflow menus on favorites and sessions, favorites batch actions, aligned list leading visuals, and a guard against starting without Wi-Fi. |
+| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.17.1...main) | No unreleased changes beyond the stable tag. |
 
 Use the stable tag for a reproducible build. Use `main` when evaluating the latest unreleased work. Per-release changes are documented in the [changelog](./docs/CHANGELOG.md); version history is available from the repository's [tags](https://github.com/Lifky/Flikky/tags).
 
@@ -121,6 +121,8 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 - [x] Browser-side avatar
 - [x] Check for updates (manual + optional auto-check)
 - [x] Delete all data
+- [x] Row overflow menus on favorite and session rows
+- [x] Wi-Fi check before starting a transfer
 - [ ] More... iterating...
 
 ## Security Model and Limits
