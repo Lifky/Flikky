@@ -1,7 +1,8 @@
 package com.example.flikky.ui.components
 
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
@@ -25,9 +26,15 @@ class FileLeadingSpecTest {
         assertTrue(FileLeadingSpec.iconSize < FileLeadingSpec.size)
     }
 
+    /** 图标容器要的是 M3 Expressive 官方异形，退回普通圆形/圆角方形都算回归。 */
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     @Test
-    fun iconContainerIsCircular() {
-        assertEquals(CircleShape, FileLeadingSpec.iconContainerShape)
+    fun iconContainerUsesExpressiveCookieShape() {
+        assertEquals(
+            MaterialShapes.Cookie9Sided.cubics.size,
+            FileLeadingSpec.iconContainerPolygon.cubics.size,
+        )
+        assertTrue(FileLeadingSpec.iconContainerPolygon.cubics.size > 4)
     }
 
     @Test

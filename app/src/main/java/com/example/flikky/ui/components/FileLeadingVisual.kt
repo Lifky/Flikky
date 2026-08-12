@@ -3,10 +3,12 @@ package com.example.flikky.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,6 +22,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.graphics.shapes.RoundedPolygon
 import coil3.compose.AsyncImage
 import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.iconResource
@@ -41,8 +44,14 @@ internal object FileLeadingSpec {
     /** 图片/视频缩略图形状。 */
     val thumbnailShape: Shape = RoundedCornerShape(8.dp)
 
-    /** 非媒体文件的图标容器形状（MD3 leading avatar container 默认圆形）。 */
-    val iconContainerShape: Shape = CircleShape
+    /**
+     * 非媒体文件的图标容器形状：M3 Expressive 官方异形 [MaterialShapes.Cookie9Sided]。
+     *
+     * 选 9 边 cookie 而不是 Cookie4Sided/Clover4Leaf——后两者凹进太深，40dp 容器里放 24dp 图标会顶到边。
+     * 存 polygon 而不是 `Shape`：`toShape()` 是 @Composable（内部 remember Path），只能在组合里解析。
+     */
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+    val iconContainerPolygon: RoundedPolygon = MaterialShapes.Cookie9Sided
 
     /** 文件行的垂直对齐：headline 换行时 leading 仍居中。 */
     val rowAlignment: Alignment.Vertical = Alignment.CenterVertically
@@ -52,12 +61,14 @@ internal object FileLeadingSpec {
  * 文件行的 leading 视觉，四处文件行（文件总览 / 收藏页 / 文件快发 Sheet / 收藏快发 Sheet）唯一实现。
  *
  * - [thumbnailModel] 非空 → 渲染 [FileLeadingSpec.size] 的圆角方形缩略图（图片/视频）。
- * - [thumbnailModel] 为空、或缩略图解码失败 → 渲染同占位的圆形容器 + 分类图标。
+ * - [thumbnailModel] 为空、或缩略图解码失败 → 渲染同占位的 Expressive 异形容器 + 分类图标。
  *
  * 解码失败回落到容器而不是把 24dp 矢量图拉伸到 40dp，保证失败行与其他非媒体行长得一样。
  *
- * @param selected 多选选中态。选中行底色为 primaryContainer，容器需翻到 primary 才拉开对比。
+ * @param selected 多选选中态。选中行底色为 primaryContainer，容器翻成浅色 surface 才既看得见轮廓、
+ *   又不像 primary 实心那样压过 headline；沿用 primaryContainer 会与行底色同色、容器直接消失。
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun FileLeadingVisual(
     category: FileCategory,
@@ -82,11 +93,11 @@ internal fun FileLeadingVisual(
                 .size(FileLeadingSpec.size)
                 .background(
                     color = if (selected) {
-                        MaterialTheme.colorScheme.primary
+                        MaterialTheme.colorScheme.surface
                     } else {
                         MaterialTheme.colorScheme.primaryContainer
                     },
-                    shape = FileLeadingSpec.iconContainerShape,
+                    shape = FileLeadingSpec.iconContainerPolygon.toShape(),
                 ),
             contentAlignment = Alignment.Center,
         ) {
@@ -94,7 +105,7 @@ internal fun FileLeadingVisual(
                 painter = painterResource(category.iconResource()),
                 contentDescription = null,
                 tint = if (selected) {
-                    MaterialTheme.colorScheme.onPrimary
+                    MaterialTheme.colorScheme.primary
                 } else {
                     MaterialTheme.colorScheme.onPrimaryContainer
                 },
