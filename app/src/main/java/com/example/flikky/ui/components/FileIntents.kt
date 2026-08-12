@@ -161,27 +161,35 @@ fun shareStoredFiles(
     context: Context,
     items: List<StoredShareItem>,
     mime: String,
+): Boolean = shareFiles(
+    context,
+    items.map { sessionFile(it.sessionId, it.fileId) to it.displayName },
+    mime,
+)
+
+/**
+ * Shares an already-resolved set of files. Session files and favorite depot files live under
+ * different roots, so callers resolve them and hand over (file, display name) pairs.
+ */
+fun shareFiles(
+    context: Context,
+    files: List<Pair<File, String>>,
+    mime: String,
 ): Boolean {
-    if (items.isEmpty()) return false
-    if (items.size == 1) {
-        val single = items.first()
-        return shareFile(
-            context,
-            sessionFile(single.sessionId, single.fileId),
-            single.displayName,
-            mime,
-        )
+    if (files.isEmpty()) return false
+    if (files.size == 1) {
+        val (file, displayName) = files.first()
+        return shareFile(context, file, displayName, mime)
     }
-    val uris = ArrayList<android.net.Uri>(items.size)
-    for (item in items) {
-        val file = sessionFile(item.sessionId, item.fileId)
+    val uris = ArrayList<android.net.Uri>(files.size)
+    for ((file, displayName) in files) {
         if (!file.exists()) continue
         val uri = try {
             FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
                 file,
-                item.displayName,
+                displayName,
             )
         } catch (_: IllegalArgumentException) {
             continue
