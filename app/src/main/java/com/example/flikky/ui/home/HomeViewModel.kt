@@ -199,6 +199,11 @@ class HomeViewModel @JvmOverloads constructor(
      * 把当前选中的会话整体移动到 [groupId]（null = 移出分组，回到「全部」），
      * 完成后退出多选并返回移动的数量；空选则 no-op 返回 0。
      */
+    /** 行内菜单的单条移动：不碰多选集合，避免行内操作把用户拖进多选态。 */
+    suspend fun moveSessionToGroup(sessionId: Long, groupId: Long?) {
+        repository.moveSessionsToGroup(listOf(sessionId), groupId)
+    }
+
     suspend fun moveSelectedToGroup(groupId: Long?): Int {
         val ids = _selection.value?.toList().orEmpty()
         if (ids.isEmpty()) return 0
@@ -229,12 +234,12 @@ class HomeViewModel @JvmOverloads constructor(
      * 6. Clear selection on success so a return-to-home after export doesn't leave the UI
      *    stuck in selecting mode.
      */
-    suspend fun startExport(): ExportStartResult {
-        val sel = _selection.value
+    suspend fun startExport(sessionIds: List<Long>? = null): ExportStartResult {
+        val sel = sessionIds ?: _selection.value?.toList()
         if (sel.isNullOrEmpty()) return ExportStartResult.EmptySelection
         if (isTransferOrExportRunning()) return ExportStartResult.TransferRunning
 
-        val snapshot = repository.exportSnapshot(sel.toList())
+        val snapshot = repository.exportSnapshot(sel)
         if (snapshot.sessions.isEmpty()) return ExportStartResult.NoValidSessions
 
         val settings = settingsRepository.settings.first()
@@ -260,11 +265,11 @@ class HomeViewModel @JvmOverloads constructor(
         return ExportStartResult.Success
     }
 
-    suspend fun saveExport(uri: Uri): ExportStartResult {
-        val selectedIds = _selection.value
+    suspend fun saveExport(uri: Uri, sessionIds: List<Long>? = null): ExportStartResult {
+        val selectedIds = sessionIds ?: _selection.value?.toList()
         if (selectedIds.isNullOrEmpty()) return ExportStartResult.EmptySelection
 
-        val snapshot = repository.exportSnapshot(selectedIds.toList())
+        val snapshot = repository.exportSnapshot(selectedIds)
         if (snapshot.sessions.isEmpty()) return ExportStartResult.NoValidSessions
 
         localExportWriter(uri, snapshot)

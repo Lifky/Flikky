@@ -39,7 +39,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -145,6 +148,8 @@ fun HomeScreen(
     var showImportDialog by remember { mutableStateOf(false) }
     var showExportDestination by rememberSaveable { mutableStateOf(false) }
     var showLocalExportProgress by remember { mutableStateOf(false) }
+    // 本地导出的目标：行内菜单传单条 id，多选走 null（= 用当前选中集）。
+    var localExportIds by remember { mutableStateOf<List<Long>?>(null) }
 
     // 非空 = 冲突对话框可见（值为已存在的会话数）。选择结果交给 resolveImport。
     var importConflictCount by remember { mutableStateOf<Int?>(null) }
@@ -212,11 +217,13 @@ fun HomeScreen(
     val localExportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
+        val exportIds = localExportIds
+        localExportIds = null
         if (uri != null) {
             showLocalExportProgress = true
             scope.launch {
                 val message = try {
-                    when (viewModel.saveExport(uri)) {
+                    when (viewModel.saveExport(uri, exportIds)) {
                         HomeViewModel.ExportStartResult.Success ->
                             context.getString(R.string.home_export_saved)
                         HomeViewModel.ExportStartResult.NoValidSessions ->
@@ -274,6 +281,11 @@ fun HomeScreen(
     val allSelectedPinned = selectedSessions.isNotEmpty() && selectedSessions.all { it.pinned }
     val singleSelected = selectedSessions.singleOrNull()
     var showRenameDialog by remember { mutableStateOf(false) }
+    // 行内菜单的单目标：与多选集合分开，行内操作不会把用户拖进多选态。
+    var menuRenameTarget by remember { mutableStateOf<SessionEntity?>(null) }
+    var menuMoveTarget by remember { mutableStateOf<SessionEntity?>(null) }
+    var menuDeleteTarget by remember { mutableStateOf<SessionEntity?>(null) }
+    var menuExportTarget by remember { mutableStateOf<SessionEntity?>(null) }
     var showBatchDeleteDialog by remember { mutableStateOf(false) }
     var showMoveSheet by remember { mutableStateOf(false) }
     var showCreateGroupDialog by remember { mutableStateOf(false) }
@@ -452,6 +464,18 @@ fun HomeScreen(
                                                 onEnterSelecting = { viewModel.toggleSelection(s.id) },
                                                 onToggleSelection = { viewModel.toggleSelection(s.id) },
                                                 onStopInProgress = { viewModel.stopService() },
+                                                onMenuAction = { action ->
+                                                    when (action) {
+                                                        HomeRowAction.PIN -> viewModel.setPinned(
+                                                            s.id,
+                                                            HomeRowMenuPolicy.pinTarget(s.pinned),
+                                                        )
+                                                        HomeRowAction.RENAME -> menuRenameTarget = s
+                                                        HomeRowAction.MOVE -> menuMoveTarget = s
+                                                        HomeRowAction.EXPORT -> menuExportTarget = s
+                                                        HomeRowAction.DELETE -> menuDeleteTarget = s
+                                                    }
+                                                },
                                                 modifier = flikkyItemAnimation(),
                                             )
                                         }
@@ -535,18 +559,23 @@ fun HomeScreen(
         )
     }
 
-    if (showExportDestination) {
+    if (showExportDestination || menuExportTarget != null) {
+        // 行内菜单导出单条，多选工具栏导出选中集：同一个 sheet，只是目标不同。
+        val exportIds = menuExportTarget?.let { listOf(it.id) }
         ExportDestinationSheet(
             onSaveLocal = {
                 showExportDestination = false
+                localExportIds = exportIds
                 localExportLauncher.launch(
                     ExportFileName.build(ExportScope.SESSIONS, System.currentTimeMillis())
                 )
+                menuExportTarget = null
             },
             onDownloadToComputer = {
                 showExportDestination = false
+                menuExportTarget = null
                 scope.launch {
-                    when (viewModel.startExport()) {
+                    when (viewModel.startExport(exportIds)) {
                         HomeViewModel.ExportStartResult.Success -> onStartExport()
                         HomeViewModel.ExportStartResult.TransferRunning ->
                             snackbarHostState.showSnackbar(
@@ -563,7 +592,10 @@ fun HomeScreen(
                     }
                 }
             },
-            onDismiss = { showExportDestination = false },
+            onDismiss = {
+                showExportDestination = false
+                menuExportTarget = null
+            },
         )
     }
 
@@ -653,6 +685,56 @@ fun HomeScreen(
                 }
             },
             onDismiss = { managingGroup = null },
+        )
+    }
+
+    menuRenameTarget?.let { target ->
+        RenameDialog(
+            initial = target.name,
+            onConfirm = { name ->
+                menuRenameTarget = null
+                viewModel.rename(target.id, name)
+            },
+            onDismiss = { menuRenameTarget = null },
+        )
+    }
+
+    menuMoveTarget?.let { target ->
+        MoveToGroupSheet(
+            groups = groups,
+            onSelect = { targetGroupId ->
+                menuMoveTarget = null
+                val targetName =
+                    if (targetGroupId == null) context.getString(R.string.home_all_groups)
+                    else groups.firstOrNull { it.id == targetGroupId }?.name
+                        ?: context.getString(R.string.home_group_fallback)
+                scope.launch {
+                    viewModel.moveSessionToGroup(target.id, targetGroupId)
+                    snackbarHostState.showSnackbar(
+                        context.resources.getQuantityString(
+                            R.plurals.home_sessions_moved,
+                            1,
+                            1,
+                            targetName,
+                        ),
+                    )
+                }
+            },
+            onDismiss = { menuMoveTarget = null },
+        )
+    }
+
+    menuDeleteTarget?.let { target ->
+        ConfirmDialog(
+            title = pluralStringResource(R.plurals.home_delete_sessions_title, 1, 1),
+            text = stringResource(R.string.home_delete_sessions_text),
+            confirmLabel = stringResource(R.string.home_delete),
+            danger = true,
+            onConfirm = {
+                menuDeleteTarget = null
+                viewModel.deleteSession(target.id)
+            },
+            onDismiss = { menuDeleteTarget = null },
         )
     }
 
@@ -831,6 +913,7 @@ private fun SessionRow(
     onEnterSelecting: () -> Unit,
     onToggleSelection: () -> Unit,
     onStopInProgress: () -> Unit,
+    onMenuAction: (HomeRowAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val inProgress = s.endedAt == null
@@ -919,13 +1002,60 @@ private fun SessionRow(
             )
         }
     }
-    val trailing: (@Composable () -> Unit)? = if (inProgress && !selecting) {
-        {
-            TextButton(onClick = onStopInProgress) {
-                Text(stringResource(R.string.home_stop), color = MaterialTheme.colorScheme.error)
+    // 尾部：进行中给「停止」，已结束给行内菜单——单条会话不必先长按进多选；多选态两者都收起。
+    val rowMenu = HomeRowMenuPolicy.rowMenu(inProgress)
+    val trailing: (@Composable () -> Unit)? = when {
+        selecting -> null
+        inProgress -> {
+            {
+                TextButton(onClick = onStopInProgress) {
+                    Text(stringResource(R.string.home_stop), color = MaterialTheme.colorScheme.error)
+                }
             }
         }
-    } else null
+        rowMenu.isEmpty() -> null
+        else -> {
+            {
+                var menuExpanded by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_more_vert),
+                            contentDescription = stringResource(R.string.files_more_actions),
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        rowMenu.forEach { action ->
+                            DropdownMenuItem(
+                                text = { Text(stringResource(action.labelResource(s.pinned))) },
+                                leadingIcon = {
+                                    Icon(
+                                        painter = painterResource(action.iconResource()),
+                                        contentDescription = null,
+                                    )
+                                },
+                                colors = if (action == HomeRowAction.DELETE) {
+                                    MenuDefaults.itemColors(
+                                        textColor = MaterialTheme.colorScheme.error,
+                                        leadingIconColor = MaterialTheme.colorScheme.error,
+                                    )
+                                } else {
+                                    MenuDefaults.itemColors()
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onMenuAction(action)
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     if (selectable) {
         // Multi-select: the `selected` overload gives the built-in selection spring (shape + color morph).
@@ -965,6 +1095,22 @@ private fun SessionRow(
             content = headline,
         )
     }
+}
+
+internal fun HomeRowAction.labelResource(pinned: Boolean): Int = when (this) {
+    HomeRowAction.PIN -> if (pinned) R.string.home_unpin else R.string.home_pin
+    HomeRowAction.RENAME -> R.string.home_rename
+    HomeRowAction.MOVE -> R.string.home_move_to_group
+    HomeRowAction.EXPORT -> R.string.home_export
+    HomeRowAction.DELETE -> R.string.home_delete
+}
+
+internal fun HomeRowAction.iconResource(): Int = when (this) {
+    HomeRowAction.PIN -> R.drawable.ic_push_pin
+    HomeRowAction.RENAME -> R.drawable.ic_edit
+    HomeRowAction.MOVE -> R.drawable.ic_drive_file_move
+    HomeRowAction.EXPORT -> R.drawable.ic_upload
+    HomeRowAction.DELETE -> R.drawable.ic_delete
 }
 
 private val DATE_FMT = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
