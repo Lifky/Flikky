@@ -54,6 +54,7 @@ import com.example.flikky.ui.components.formatSize
 import com.example.flikky.ui.components.sessionFile
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.files.FileCategory
+import com.example.flikky.ui.files.iconResource
 import com.example.flikky.ui.files.FileSort
 import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.files.labelResource
@@ -228,7 +229,7 @@ private fun FileQuickRow(
     ) {
         // leading 与文件总览行逐像素一致，共用 FileLeadingVisual。
         FileLeadingVisual(
-            category = category,
+            iconRes = category.iconResource(),
             thumbnailModel = if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
                 remember(row.sessionId, row.fileId, category) {
                     val file = sessionFile(row.sessionId, row.fileId)

@@ -55,6 +55,7 @@ import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.FileLeadingVisual
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.files.FileCategory
+import com.example.flikky.ui.files.iconResource
 import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Spacing
@@ -324,7 +325,7 @@ private fun FavoriteQuickRow(
             val category = FilesListBuilder.categoryOf(favorite.fileMime)
             // leading 与文件快发行/文件总览行逐像素一致，共用 FileLeadingVisual。
             FileLeadingVisual(
-                category = category,
+                iconRes = category.iconResource(),
                 thumbnailModel = if (depotId != null && FilesListBuilder.isMedia(favorite.fileMime)) {
                     remember(depotId, category) {
                         val file = ServiceLocator.favoriteFileStore.resolve(depotId)

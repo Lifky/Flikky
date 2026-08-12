@@ -24,8 +24,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.RoundedPolygon
 import coil3.compose.AsyncImage
-import com.example.flikky.ui.files.FileCategory
-import com.example.flikky.ui.files.iconResource
 
 /**
  * 文件行 leading 的尺寸/形状唯一事实源。
@@ -58,10 +56,12 @@ internal object FileLeadingSpec {
 }
 
 /**
- * 文件行的 leading 视觉，四处文件行（文件总览 / 收藏页 / 文件快发 Sheet / 收藏快发 Sheet）唯一实现。
+ * 文件行的 leading 视觉，各列表行（文件总览 / 收藏页 / 两个快发 Sheet）唯一实现。
  *
  * - [thumbnailModel] 非空 → 渲染 [FileLeadingSpec.size] 的圆角方形缩略图（图片/视频）。
- * - [thumbnailModel] 为空、或缩略图解码失败 → 渲染同占位的 Expressive 异形容器 + 分类图标。
+ * - [thumbnailModel] 为空、或缩略图解码失败 → 渲染同占位的 Expressive 异形容器 + [iconRes]。
+ *
+ * [iconRes] 由调用方给：文件行传分类图标，文本收藏行传 `ic_format_quote`——它没有文件，谈不上分类。
  *
  * 解码失败回落到容器而不是把 24dp 矢量图拉伸到 40dp，保证失败行与其他非媒体行长得一样。
  *
@@ -71,7 +71,7 @@ internal object FileLeadingSpec {
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun FileLeadingVisual(
-    category: FileCategory,
+    iconRes: Int,
     thumbnailModel: Any?,
     modifier: Modifier = Modifier,
     selected: Boolean = false,
@@ -102,7 +102,7 @@ internal fun FileLeadingVisual(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                painter = painterResource(category.iconResource()),
+                painter = painterResource(iconRes),
                 contentDescription = null,
                 tint = if (selected) {
                     MaterialTheme.colorScheme.primary

@@ -863,7 +863,7 @@ private fun FileOverviewItem(
     // leading 走共用件：媒体行缩略图、非媒体行同占位的圆形图标容器，两者宽度相等才能让 headline 对齐。
     val leadingVisual: @Composable () -> Unit = {
         FileLeadingVisual(
-            category = category,
+            iconRes = category.iconResource(),
             thumbnailModel = if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
                 remember(row.sessionId, row.fileId, category) {
                     val file = sessionFile(row.sessionId, row.fileId)

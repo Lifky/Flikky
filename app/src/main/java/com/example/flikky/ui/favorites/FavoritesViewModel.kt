@@ -140,6 +140,11 @@ class FavoritesViewModel @JvmOverloads constructor(
     fun deleteFavorite(id: Long): Job =
         viewModelScope.launch { repository.deleteFavorite(id) }
 
+    /** 行内菜单的单条移动：不碰多选集合，避免行内操作把用户拖进多选态。 */
+    suspend fun moveFavoriteToGroup(id: Long, groupId: Long?) {
+        repository.moveFavoritesToGroup(listOf(id), groupId)
+    }
+
     suspend fun addLocalText(text: String): Boolean {
         val normalized = text.trim()
         if (normalized.isBlank()) return false

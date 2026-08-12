@@ -63,4 +63,6 @@
     <string name="favorites_text_message">Text message</string>
     <string name="favorites_add_text">Add text</string>
     <string name="favorites_choose_file">Choose local file</string>
+    <string name="favorites_action_copy">Copy</string>
+    <string name="favorites_action_open_with">Open with…</string>
 </resources>

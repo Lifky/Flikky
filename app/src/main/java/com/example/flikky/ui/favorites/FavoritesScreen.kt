@@ -62,19 +62,23 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.export.ExportFileName
 import com.example.flikky.export.ExportScope
+import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.EmptyStateContent
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
+import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.ImportExportOverflowMenu
 import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
+import com.example.flikky.ui.components.saveToGallery
 import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.components.shareFile
 import com.example.flikky.ui.components.selectionToggle
+import com.example.flikky.ui.files.CreateDocumentDynamicMime
 import com.example.flikky.ui.exporting.ArchiveViewModel
 import com.example.flikky.ui.exporting.ExportDestinationSheet
 import com.example.flikky.ui.home.GroupChips
@@ -82,8 +86,11 @@ import com.example.flikky.ui.home.GroupManageDialog
 import com.example.flikky.ui.home.MoveToGroupSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
+import java.io.File
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,6 +127,11 @@ fun FavoritesScreen(
     var managingGroup by remember { mutableStateOf<FavoriteGroupEntity?>(null) }
     var showMoveSheet by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    // 行内菜单的单目标：与多选集合完全分开，行内操作不会把用户拖进多选态。
+    var menuMoveTarget by remember { mutableStateOf<FavoriteEntity?>(null) }
+    var menuDeleteTarget by remember { mutableStateOf<FavoriteEntity?>(null) }
+    var saveAsTarget by remember { mutableStateOf<FavoriteEntity?>(null) }
+    var previewImage by remember { mutableStateOf<File?>(null) }
     var showAddFavoriteSheet by remember { mutableStateOf(false) }
     var showImportProgress by remember { mutableStateOf(false) }
     var showExportProgress by remember { mutableStateOf(false) }
@@ -213,6 +225,77 @@ fun FavoritesScreen(
                     else R.string.favorites_file_add_failed
                 ))
             }
+        }
+    }
+    val saveAsLauncher = rememberLauncherForActivityResult(CreateDocumentDynamicMime()) { uri ->
+        val target = saveAsTarget
+        saveAsTarget = null
+        val depotId = target?.fileId
+        if (uri != null && depotId != null) {
+            scope.launch {
+                val saved = withContext(Dispatchers.IO) {
+                    runCatching {
+                        requireNotNull(context.contentResolver.openOutputStream(uri)).use { output ->
+                            ServiceLocator.favoriteFileStore.resolve(depotId)
+                                .inputStream()
+                                .use { input -> input.copyTo(output) }
+                        }
+                    }.isSuccess
+                }
+                snackbarHostState.showSnackbar(
+                    context.getString(
+                        if (saved) R.string.files_save_done else R.string.files_save_failed,
+                    ),
+                )
+            }
+        }
+    }
+
+    val copyFavoriteText: (FavoriteEntity) -> Unit = { favorite ->
+        scope.launch { clipboard.setPlainText(favorite.textContent.orEmpty()) }
+        Toast.makeText(context, R.string.favorites_copied, Toast.LENGTH_SHORT).show()
+    }
+
+    // 行内菜单分派。文件类动作都以落盘副本存在为前提，depotId 为空时策略层已把它们置灰。
+    val runFavoriteAction: (FavoriteEntity, FavoriteRowAction) -> Unit = { favorite, action ->
+        val depotId = favorite.fileId
+        val displayName = favorite.fileName ?: depotId.orEmpty()
+        when (action) {
+            FavoriteRowAction.COPY -> copyFavoriteText(favorite)
+            FavoriteRowAction.SHARE -> depotId?.let {
+                shareFile(
+                    context,
+                    ServiceLocator.favoriteFileStore.resolve(it),
+                    displayName,
+                    favorite.fileMime,
+                )
+            }
+            FavoriteRowAction.MOVE -> menuMoveTarget = favorite
+            FavoriteRowAction.OPEN_WITH -> viewModel.openFavoriteFile(favorite)
+            FavoriteRowAction.GALLERY -> depotId?.let {
+                scope.launch {
+                    val saved = withContext(Dispatchers.IO) {
+                        saveToGallery(
+                            context,
+                            ServiceLocator.favoriteFileStore.resolve(it),
+                            displayName,
+                            favorite.fileMime.orEmpty(),
+                        )
+                    }
+                    snackbarHostState.showSnackbar(
+                        context.getString(
+                            if (saved) R.string.files_gallery_done else R.string.files_gallery_failed,
+                        ),
+                    )
+                }
+            }
+            FavoriteRowAction.SAVE_AS -> {
+                saveAsTarget = favorite
+                saveAsLauncher.launch(
+                    (favorite.fileMime?.ifBlank { null } ?: "application/octet-stream") to displayName,
+                )
+            }
+            FavoriteRowAction.DELETE -> menuDeleteTarget = favorite
         }
     }
 
@@ -393,18 +476,33 @@ fun FavoritesScreen(
                                     onClick = {
                                         if (selecting) {
                                             viewModel.toggleSelection(favorite.id)
-                                        } else if (favorite.kind == "TEXT") {
-                                            scope.launch { clipboard.setPlainText(favorite.textContent.orEmpty()) }
-                                            Toast.makeText(
-                                                context,
-                                                R.string.favorites_copied,
-                                                Toast.LENGTH_SHORT,
-                                            ).show()
                                         } else {
-                                            viewModel.openFavoriteFile(favorite)
+                                            when (
+                                                FavoriteActionPolicy.tap(
+                                                    favorite.kind,
+                                                    favorite.fileMime,
+                                                )
+                                            ) {
+                                                FavoriteTap.COPY_TEXT -> copyFavoriteText(favorite)
+                                                // 图片进应用内预览；副本缺失时退回外部打开，由它统一提示"文件已丢失"。
+                                                FavoriteTap.PREVIEW_IMAGE -> {
+                                                    val file = favorite.fileId?.let {
+                                                        ServiceLocator.favoriteFileStore.resolve(it)
+                                                    }
+                                                    if (file != null && file.exists()) {
+                                                        previewImage = file
+                                                    } else {
+                                                        viewModel.openFavoriteFile(favorite)
+                                                    }
+                                                }
+                                                FavoriteTap.OPEN_EXTERNAL ->
+                                                    viewModel.openFavoriteFile(favorite)
+                                            }
                                         }
                                     },
                                     onLongClick = { viewModel.toggleSelection(favorite.id) },
+                                    onLeadingClick = { viewModel.toggleSelection(favorite.id) },
+                                    onMenuAction = { action -> runFavoriteAction(favorite, action) },
                                     onSend = {
                                         scope.launch {
                                             val sent = viewModel.sendFavorite(favorite)
@@ -608,6 +706,40 @@ fun FavoritesScreen(
                 scope.launch { viewModel.deleteSelected() }
             },
             onDismiss = { showDeleteConfirm = false },
+        )
+    }
+
+    previewImage?.let { file ->
+        ImagePreviewDialog(file = file, onDismiss = { previewImage = null })
+    }
+
+    menuMoveTarget?.let { target ->
+        MoveToGroupSheet(
+            groups = groups.toGroupEntities(),
+            onSelect = { targetGroup ->
+                menuMoveTarget = null
+                scope.launch {
+                    viewModel.moveFavoriteToGroup(target.id, targetGroup)
+                    snackbarHostState.showSnackbar(
+                        context.resources.getQuantityString(R.plurals.favorites_moved, 1, 1),
+                    )
+                }
+            },
+            onDismiss = { menuMoveTarget = null },
+        )
+    }
+
+    menuDeleteTarget?.let { target ->
+        ConfirmDialog(
+            title = pluralStringResource(R.plurals.favorites_delete_title, 1, 1),
+            text = stringResource(R.string.favorites_delete_text),
+            confirmLabel = stringResource(R.string.favorites_delete),
+            danger = true,
+            onConfirm = {
+                menuDeleteTarget = null
+                viewModel.deleteFavorite(target.id)
+            },
+            onDismiss = { menuDeleteTarget = null },
         )
     }
 
