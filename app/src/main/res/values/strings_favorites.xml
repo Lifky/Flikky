@@ -52,7 +52,7 @@
     <string name="favorites_empty_text">空文本</string>
 
     <string name="favorites_choose_group">选择合集</string>
-    <string name="favorites_all_ungrouped">全部 / 不分组</string>
+    <string name="favorites_all_ungrouped">全部 / 无合集</string>
     <string name="favorites_group_name">合集名</string>
     <string name="favorites_add_title">添加收藏</string>
     <string name="favorites_text_message">文本消息</string>
@@ -60,4 +60,6 @@
     <string name="favorites_choose_file">选择本地文件</string>
     <string name="favorites_action_copy">复制</string>
     <string name="favorites_action_open_with">用其他应用打开</string>
+    <string name="favorites_move_out_of_group">全部（移出合集）</string>
+    <string name="favorites_delete_group">删除合集</string>
 </resources>

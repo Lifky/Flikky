@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.example.flikky.R
 import com.example.flikky.data.db.entities.GroupEntity
+import com.example.flikky.ui.components.GroupWording
 import com.example.flikky.ui.theme.Spacing
 
 /**
@@ -43,6 +44,7 @@ fun GroupManageDialog(
     onMoveDown: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
+    wording: GroupWording = GroupWording.Sessions,
 ) {
     var draft by remember(group.id) { mutableStateOf(group.name.take(12)) }
     val trimmed = draft.trim()
@@ -55,7 +57,7 @@ fun GroupManageDialog(
                     value = draft,
                     onValueChange = { draft = it.take(12) },
                     singleLine = true,
-                    label = { Text(stringResource(R.string.home_group_name)) },
+                    label = { Text(stringResource(wording.groupName)) },
                     supportingText = { Text("${draft.length}/12") },
                     isError = draft.isNotEmpty() && trimmed.isEmpty(),
                     modifier = Modifier.fillMaxWidth(),
@@ -82,7 +84,7 @@ fun GroupManageDialog(
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error,
                     ),
-                ) { Text(stringResource(R.string.home_delete_group)) }
+                ) { Text(stringResource(wording.deleteGroup)) }
             }
         },
         confirmButton = {

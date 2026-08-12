@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
 import com.example.flikky.R
 import com.example.flikky.data.db.entities.GroupEntity
+import com.example.flikky.ui.components.GroupWording
 import com.example.flikky.ui.theme.Spacing
 
 data class GroupChipModel(
@@ -67,10 +68,11 @@ fun GroupChips(
     onAdd: () -> Unit,
     onManage: (GroupEntity) -> Unit,
     modifier: Modifier = Modifier,
+    wording: GroupWording = GroupWording.Sessions,
 ) {
     val byId = groups.associateBy { it.id }
     val models = buildGroupChipModels(groups, activeGroupId)
-    val newGroupLabel = stringResource(R.string.home_new_group)
+    val newGroupLabel = stringResource(wording.newGroup)
 
     Row(
         modifier = modifier

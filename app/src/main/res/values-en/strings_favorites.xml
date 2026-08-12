@@ -65,4 +65,6 @@
     <string name="favorites_choose_file">Choose local file</string>
     <string name="favorites_action_copy">Copy</string>
     <string name="favorites_action_open_with">Open with…</string>
+    <string name="favorites_move_out_of_group">All (remove from collection)</string>
+    <string name="favorites_delete_group">Delete collection</string>
 </resources>

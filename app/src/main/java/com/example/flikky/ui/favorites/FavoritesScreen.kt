@@ -1,5 +1,6 @@
 package com.example.flikky.ui.favorites
 
+import android.provider.DocumentsContract
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -69,6 +70,7 @@ import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.EmptyStateContent
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
+import com.example.flikky.ui.components.GroupWording
 import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.ImportExportOverflowMenu
 import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
@@ -77,8 +79,10 @@ import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.saveToGallery
 import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.components.shareFile
+import com.example.flikky.ui.components.shareFiles
 import com.example.flikky.ui.components.selectionToggle
 import com.example.flikky.ui.files.CreateDocumentDynamicMime
+import com.example.flikky.ui.files.FileActionPolicy
 import com.example.flikky.ui.exporting.ArchiveViewModel
 import com.example.flikky.ui.exporting.ExportDestinationSheet
 import com.example.flikky.ui.home.GroupChips
@@ -115,8 +119,29 @@ fun FavoritesScreen(
     val selectionToggleState = remember(availableIds, selectedIds) {
         selectionToggle(availableIds, selectedIds)
     }
-    val shareTarget = selectedFavorites.singleOrNull()
-        ?.takeIf { it.kind == "FILE" && it.fileId != null }
+    // 批量动作的适用子集：文本收藏与缺副本的孤儿收藏够不着文件类操作。
+    val batchItems = remember(selectedFavorites) {
+        selectedFavorites.map {
+            FavoriteBatchItem(
+                id = it.id,
+                kind = it.kind,
+                mime = it.fileMime,
+                hasFile = it.fileId != null,
+            )
+        }
+    }
+    val fileTargetIds = remember(batchItems) {
+        FavoriteBatchPolicy.fileTargets(batchItems).map { it.id }.toSet()
+    }
+    val mediaTargetIds = remember(batchItems) {
+        FavoriteBatchPolicy.mediaTargets(batchItems).map { it.id }.toSet()
+    }
+    val fileTargets = remember(selectedFavorites, fileTargetIds) {
+        selectedFavorites.filter { it.id in fileTargetIds }
+    }
+    val mediaTargets = remember(selectedFavorites, mediaTargetIds) {
+        selectedFavorites.filter { it.id in mediaTargetIds }
+    }
     val canSendFavorites = sessionSnap.clientConnected
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -246,6 +271,28 @@ fun FavoritesScreen(
                     context.getString(
                         if (saved) R.string.files_save_done else R.string.files_save_failed,
                     ),
+                )
+            }
+        }
+    }
+
+    var treeSaveTargets by remember { mutableStateOf<List<FavoriteEntity>>(emptyList()) }
+    val saveTreeLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { treeUri ->
+        val targets = treeSaveTargets
+        treeSaveTargets = emptyList()
+        if (treeUri != null && targets.isNotEmpty()) {
+            scope.launch {
+                val saved = withContext(Dispatchers.IO) {
+                    saveFavoritesToTree(context, treeUri, targets)
+                }
+                snackbarHostState.showSnackbar(
+                    if (saved == targets.size) {
+                        context.getString(R.string.files_save_batch_done, saved)
+                    } else {
+                        context.getString(R.string.files_save_batch_partial, saved, targets.size)
+                    },
                 )
             }
         }
@@ -438,6 +485,7 @@ fun FavoritesScreen(
                             onSelect = { viewModel.setActiveGroup(it) },
                             onAdd = { showCreateGroup = true },
                             onManage = { group -> managingGroup = group.toFavoriteGroup(groups) },
+                            wording = GroupWording.Favorites,
                         )
                     }
                     if (items.isEmpty()) {
@@ -528,18 +576,64 @@ fun FavoritesScreen(
             ) {
                 FavoritesSelectingToolbar(
                     selectedCount = selectedIds.size,
-                    shareEnabled = shareTarget != null,
+                    fileTargetCount = fileTargets.size,
+                    mediaTargetCount = mediaTargets.size,
                     onShare = {
-                        shareTarget?.let { favorite ->
-                            shareFile(
-                                context,
-                                ServiceLocator.favoriteFileStore.resolve(favorite.fileId!!),
-                                favorite.fileName ?: favorite.fileId!!,
-                                favorite.fileMime,
-                            )
-                        }
+                        shareFiles(
+                            context,
+                            fileTargets.map { favorite ->
+                                ServiceLocator.favoriteFileStore.resolve(favorite.fileId!!) to
+                                    (favorite.fileName ?: favorite.fileId!!)
+                            },
+                            FileActionPolicy.batchShareMime(fileTargets.map { it.fileMime }),
+                        )
                     },
                     onMove = { showMoveSheet = true },
+                    onSaveToGallery = {
+                        val targets = mediaTargets
+                        val skipped = selectedIds.size - targets.size
+                        scope.launch {
+                            val saved = withContext(Dispatchers.IO) {
+                                targets.count { favorite ->
+                                    saveToGallery(
+                                        context,
+                                        ServiceLocator.favoriteFileStore.resolve(favorite.fileId!!),
+                                        favorite.fileName ?: favorite.fileId!!,
+                                        favorite.fileMime.orEmpty(),
+                                    )
+                                }
+                            }
+                            val base = if (saved == targets.size) {
+                                context.getString(R.string.files_gallery_done_count, saved)
+                            } else {
+                                context.getString(
+                                    R.string.files_gallery_partial,
+                                    saved,
+                                    targets.size,
+                                )
+                            }
+                            val suffix = if (skipped > 0) {
+                                context.getString(R.string.files_gallery_skipped_suffix, skipped)
+                            } else {
+                                ""
+                            }
+                            snackbarHostState.showSnackbar(base + suffix)
+                        }
+                    },
+                    onSaveAs = {
+                        val targets = fileTargets
+                        val single = targets.singleOrNull()
+                        if (single != null) {
+                            saveAsTarget = single
+                            saveAsLauncher.launch(
+                                (single.fileMime?.ifBlank { null } ?: "application/octet-stream") to
+                                    (single.fileName ?: single.fileId.orEmpty()),
+                            )
+                        } else if (targets.isNotEmpty()) {
+                            treeSaveTargets = targets
+                            saveTreeLauncher.launch(null)
+                        }
+                    },
                     onDelete = { if (selectedIds.isNotEmpty()) showDeleteConfirm = true },
                 )
             }
@@ -668,6 +762,7 @@ fun FavoritesScreen(
                 }
             },
             onDismiss = { managingGroup = null },
+            wording = GroupWording.Favorites,
         )
     }
 
@@ -688,6 +783,7 @@ fun FavoritesScreen(
                 }
             },
             onDismiss = { showMoveSheet = false },
+            wording = GroupWording.Favorites,
         )
     }
 
@@ -726,6 +822,7 @@ fun FavoritesScreen(
                 }
             },
             onDismiss = { menuMoveTarget = null },
+            wording = GroupWording.Favorites,
         )
     }
 
@@ -772,4 +869,38 @@ private fun EmptyFavorites(text: String, modifier: Modifier = Modifier) {
         description = text,
         modifier = modifier,
     )
+}
+
+/** 批量另存为：把选中的收藏副本逐个写进用户挑的目录，返回成功条数。 */
+private fun saveFavoritesToTree(
+    context: android.content.Context,
+    treeUri: android.net.Uri,
+    favorites: List<FavoriteEntity>,
+): Int {
+    val resolver = context.contentResolver
+    val parent = DocumentsContract.buildDocumentUriUsingTree(
+        treeUri,
+        DocumentsContract.getTreeDocumentId(treeUri),
+    )
+    var saved = 0
+    for (favorite in favorites) {
+        val depotId = favorite.fileId ?: continue
+        val source = ServiceLocator.favoriteFileStore.resolve(depotId)
+        if (!source.exists()) continue
+        val target = runCatching {
+            DocumentsContract.createDocument(
+                resolver,
+                parent,
+                favorite.fileMime?.ifBlank { null } ?: "application/octet-stream",
+                favorite.fileName ?: depotId,
+            )
+        }.getOrNull() ?: continue
+        val ok = runCatching {
+            requireNotNull(resolver.openOutputStream(target)).use { output ->
+                source.inputStream().use { input -> input.copyTo(output) }
+            }
+        }.isSuccess
+        if (ok) saved += 1
+    }
+    return saved
 }

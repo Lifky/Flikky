@@ -24,6 +24,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.example.flikky.R
 import com.example.flikky.data.db.entities.GroupEntity
+import com.example.flikky.ui.components.GroupWording
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Spacing
 
@@ -41,6 +42,7 @@ fun MoveToGroupSheet(
     groups: List<GroupEntity>,
     onSelect: (Long?) -> Unit,
     onDismiss: () -> Unit,
+    wording: GroupWording = GroupWording.Sessions,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val ordered = remember(groups) {
@@ -61,7 +63,7 @@ fun MoveToGroupSheet(
                 .padding(bottom = Spacing.lg),
         ) {
             Text(
-                text = stringResource(R.string.home_move_sheet_title),
+                text = stringResource(wording.moveSheetTitle),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(
                     horizontal = Spacing.screenEdge,
@@ -69,7 +71,7 @@ fun MoveToGroupSheet(
                 ),
             )
             MoveTargetRow(
-                label = stringResource(R.string.home_move_out_of_group),
+                label = stringResource(wording.moveOutOfGroup),
                 iconRes = R.drawable.ic_swap_vert,
                 onClick = { onSelect(null) },
             )
