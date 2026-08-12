@@ -5,8 +5,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -32,6 +35,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.di.ServiceLocator
@@ -46,6 +51,26 @@ import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/**
+ * 收藏行尾部 SplitButton 的尺寸。
+ *
+ * 官方 `LeadingButton`/`TrailingButton` 各自带 `defaultMinSize(minWidth = 48dp, minHeight = 40dp)`：
+ * XSmall/Small 两档下 leading 内容宽 42–48、trailing 22+13+13=48，都被 48dp 下限抹平成一样宽。
+ * MD3 示例那种效果要到 Medium(56dp) 才自然出现，但会比 Small 更大。
+ * 所以这里取 XSmall 高度并显式给 trailing 定宽，拿到 4:3 的左长右短，同时整体比原来更小。
+ */
+internal object FavoriteSplitButtonSpec {
+    /** M3 Expressive XSmall 容器高（32dp），列表行里比 Small 的 40dp 克制。 */
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+    val height: Dp = SplitButtonDefaults.ExtraSmallContainerHeight
+
+    /** leading 保留官方 48dp 下限，够放下 20dp 图标与两侧留白。 */
+    val leadingMinWidth: Dp = 48.dp
+
+    /** trailing 收窄到 leading 的 3/4——右短左长。 */
+    val trailingWidth: Dp = 32.dp
+}
 
 /** 与文件总览行共用同一个垂直对齐 token，两屏不会漂移。 */
 internal fun favoriteRowVerticalAlignment(): Alignment.Vertical = FileLeadingSpec.rowAlignment
@@ -177,11 +202,22 @@ fun FavoriteRow(
                         SplitButtonDefaults.LeadingButton(
                             onClick = onSend,
                             enabled = sendEnabled,
+                            modifier = Modifier.height(FavoriteSplitButtonSpec.height),
+                            shapes = SplitButtonDefaults.leadingButtonShapesFor(
+                                FavoriteSplitButtonSpec.height,
+                            ),
+                            contentPadding = SplitButtonDefaults.leadingButtonContentPaddingFor(
+                                FavoriteSplitButtonSpec.height,
+                            ),
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_arrow_upward),
                                 contentDescription = stringResource(R.string.favorites_send),
-                                modifier = Modifier.size(SplitButtonDefaults.LeadingIconSize),
+                                modifier = Modifier.size(
+                                    SplitButtonDefaults.leadingButtonIconSizeFor(
+                                        FavoriteSplitButtonSpec.height,
+                                    ),
+                                ),
                             )
                         }
                     },
@@ -189,12 +225,24 @@ fun FavoriteRow(
                         SplitButtonDefaults.TrailingButton(
                             checked = menuExpanded,
                             onCheckedChange = { menuExpanded = it },
+                            modifier = Modifier
+                                .height(FavoriteSplitButtonSpec.height)
+                                .width(FavoriteSplitButtonSpec.trailingWidth),
+                            shapes = SplitButtonDefaults.trailingButtonShapesFor(
+                                FavoriteSplitButtonSpec.height,
+                            ),
+                            // 定宽后官方 13/13 的内边距会把 22dp 图标挤扁，交给 Row 自己居中。
+                            contentPadding = PaddingValues(0.dp),
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_expand_more),
                                 contentDescription = stringResource(R.string.files_more_actions),
                                 modifier = Modifier
-                                    .size(SplitButtonDefaults.TrailingIconSize)
+                                    .size(
+                                        SplitButtonDefaults.trailingButtonIconSizeFor(
+                                            FavoriteSplitButtonSpec.height,
+                                        ),
+                                    )
                                     .graphicsLayer { rotationZ = chevronRotation },
                             )
                         }
