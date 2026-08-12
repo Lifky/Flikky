@@ -3,8 +3,6 @@ package com.example.flikky.ui.favorites
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
@@ -16,30 +14,28 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.example.flikky.R
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.di.ServiceLocator
+import com.example.flikky.ui.components.FileLeadingSpec
+import com.example.flikky.ui.components.FileLeadingVisual
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.FilesListBuilder
-import com.example.flikky.ui.files.iconResource
 import com.example.flikky.ui.theme.Spacing
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-internal fun favoriteRowVerticalAlignment(): Alignment.Vertical = Alignment.CenterVertically
+/** 与文件总览行共用同一个垂直对齐 token，两屏不会漂移。 */
+internal fun favoriteRowVerticalAlignment(): Alignment.Vertical = FileLeadingSpec.rowAlignment
 
 /**
  * A favorite row rendered with the official M3 Expressive [SegmentedListItem].
@@ -88,31 +84,23 @@ fun FavoriteRow(
             } else Modifier
         )
 
+    // leading 与文件总览逐像素一致：共用 FileLeadingVisual（媒体缩略图 / 同占位圆形图标容器）。
     val leading: (@Composable () -> Unit)? = if (favorite.kind == "FILE") {
         {
             val depotId = favorite.fileId
             val category = FilesListBuilder.categoryOf(favorite.fileMime)
-            if (depotId != null && FilesListBuilder.isMedia(favorite.fileMime)) {
-                // 图片/视频收藏行显示缩略图，与文件总览行一致；解析失败回退分类图标。
-                AsyncImage(
-                    model = remember(depotId, category) {
+            FileLeadingVisual(
+                category = category,
+                thumbnailModel = if (depotId != null && FilesListBuilder.isMedia(favorite.fileMime)) {
+                    remember(depotId, category) {
                         val file = ServiceLocator.favoriteFileStore.resolve(depotId)
                         if (category == FileCategory.VIDEO) StoredVideo(file) else file
-                    },
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(category.iconResource()),
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                )
-            } else {
-                // 非媒体行与文件总览一致：按分类图标显示，不再统一用文档图标。
-                Icon(
-                    painter = painterResource(category.iconResource()),
-                    contentDescription = null,
-                )
-            }
+                    }
+                } else {
+                    null
+                },
+                selected = selectedNow,
+            )
         }
     } else null
 

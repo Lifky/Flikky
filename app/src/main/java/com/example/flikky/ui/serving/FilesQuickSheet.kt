@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Done
@@ -43,23 +42,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.example.flikky.R
 import com.example.flikky.data.db.FileOverviewRow
+import com.example.flikky.ui.components.FileLeadingVisual
 import com.example.flikky.ui.components.formatSize
 import com.example.flikky.ui.components.sessionFile
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.FileSort
 import com.example.flikky.ui.files.FilesListBuilder
-import com.example.flikky.ui.files.iconResource
 import com.example.flikky.ui.files.labelResource
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Spacing
@@ -230,26 +226,18 @@ private fun FileQuickRow(
             .padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
-            AsyncImage(
-                model = remember(row.sessionId, row.fileId, category) {
+        // leading 与文件总览行逐像素一致，共用 FileLeadingVisual。
+        FileLeadingVisual(
+            category = category,
+            thumbnailModel = if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
+                remember(row.sessionId, row.fileId, category) {
                     val file = sessionFile(row.sessionId, row.fileId)
                     if (category == FileCategory.VIDEO) StoredVideo(file) else file
-                },
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                error = painterResource(category.iconResource()),
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-            )
-        } else {
-            Icon(
-                painter = painterResource(category.iconResource()),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        }
+                }
+            } else {
+                null
+            },
+        )
         Spacer(Modifier.width(Spacing.lg))
         Column(Modifier.weight(1f)) {
             Text(

@@ -42,24 +42,20 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.example.flikky.R
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.di.ServiceLocator
+import com.example.flikky.ui.components.FileLeadingVisual
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.FilesListBuilder
-import com.example.flikky.ui.files.iconResource
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.delay
@@ -326,28 +322,18 @@ private fun FavoriteQuickRow(
         if (favorite.kind == "FILE") {
             val depotId = favorite.fileId
             val category = FilesListBuilder.categoryOf(favorite.fileMime)
-            if (depotId != null && FilesListBuilder.isMedia(favorite.fileMime)) {
-                // 图片/视频收藏行显示缩略图，与文件快发行一致；解析失败回退分类图标。
-                AsyncImage(
-                    model = remember(depotId, category) {
+            // leading 与文件快发行/文件总览行逐像素一致，共用 FileLeadingVisual。
+            FileLeadingVisual(
+                category = category,
+                thumbnailModel = if (depotId != null && FilesListBuilder.isMedia(favorite.fileMime)) {
+                    remember(depotId, category) {
                         val file = ServiceLocator.favoriteFileStore.resolve(depotId)
                         if (category == FileCategory.VIDEO) StoredVideo(file) else file
-                    },
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(category.iconResource()),
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                )
-            } else {
-                // 非媒体行与文件快发行一致：按分类图标显示。
-                Icon(
-                    painter = painterResource(category.iconResource()),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
+                    }
+                } else {
+                    null
+                },
+            )
             Spacer(Modifier.width(Spacing.lg))
         }
         Column(Modifier.weight(1f)) {

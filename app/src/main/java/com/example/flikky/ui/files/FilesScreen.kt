@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -60,11 +59,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -75,7 +72,6 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil3.compose.AsyncImage
 import com.example.flikky.R
 import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.data.settings.FlikkySettings
@@ -84,6 +80,8 @@ import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.EmptyStateContent
+import com.example.flikky.ui.components.FileLeadingSpec
+import com.example.flikky.ui.components.FileLeadingVisual
 import com.example.flikky.ui.components.FlikkyFloatingToolbar
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
@@ -862,30 +860,21 @@ private fun FileOverviewItem(
             },
         )
     val selectLabel = stringResource(R.string.files_select_item)
-    val leadingVisual: @Composable () -> Unit =
-        if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
-            {
-                AsyncImage(
-                    model = remember(row.sessionId, row.fileId, category) {
-                        val file = sessionFile(row.sessionId, row.fileId)
-                        if (category == FileCategory.VIDEO) StoredVideo(file) else file
-                    },
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(category.iconResource()),
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                )
-            }
-        } else {
-            {
-                Icon(
-                    painter = painterResource(category.iconResource()),
-                    contentDescription = null,
-                )
-            }
-        }
+    // leading 走共用件：媒体行缩略图、非媒体行同占位的圆形图标容器，两者宽度相等才能让 headline 对齐。
+    val leadingVisual: @Composable () -> Unit = {
+        FileLeadingVisual(
+            category = category,
+            thumbnailModel = if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
+                remember(row.sessionId, row.fileId, category) {
+                    val file = sessionFile(row.sessionId, row.fileId)
+                    if (category == FileCategory.VIDEO) StoredVideo(file) else file
+                }
+            } else {
+                null
+            },
+            selected = selected,
+        )
+    }
     val leading: @Composable () -> Unit = if (selecting) {
         leadingVisual
     } else {
@@ -987,6 +976,7 @@ private fun FileOverviewItem(
             shapes = shapes,
             colors = colors,
             modifier = rowModifier,
+            verticalAlignment = FileLeadingSpec.rowAlignment,
             leadingContent = leading,
             supportingContent = supporting,
             content = headline,
@@ -1001,6 +991,7 @@ private fun FileOverviewItem(
             shapes = shapes,
             colors = colors,
             modifier = rowModifier,
+            verticalAlignment = FileLeadingSpec.rowAlignment,
             leadingContent = leading,
             supportingContent = supporting,
             content = headline,
