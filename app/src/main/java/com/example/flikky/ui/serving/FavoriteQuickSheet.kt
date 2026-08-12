@@ -54,9 +54,10 @@ import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.FileLeadingVisual
 import com.example.flikky.ui.components.StoredVideo
+import com.example.flikky.ui.favorites.FavoriteActionPolicy
 import com.example.flikky.ui.files.FileCategory
-import com.example.flikky.ui.files.iconResource
 import com.example.flikky.ui.files.FilesListBuilder
+import com.example.flikky.ui.files.iconResource
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.delay
@@ -320,23 +321,25 @@ private fun FavoriteQuickRow(
             .padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (favorite.kind == "FILE") {
-            val depotId = favorite.fileId
-            val category = FilesListBuilder.categoryOf(favorite.fileMime)
-            // leading 与文件快发行/文件总览行逐像素一致，共用 FileLeadingVisual。
-            FileLeadingVisual(
-                iconRes = category.iconResource(),
-                thumbnailModel = if (depotId != null && FilesListBuilder.isMedia(favorite.fileMime)) {
-                    remember(depotId, category) {
-                        val file = ServiceLocator.favoriteFileStore.resolve(depotId)
-                        if (category == FileCategory.VIDEO) StoredVideo(file) else file
-                    }
-                } else {
-                    null
-                },
-            )
-            Spacer(Modifier.width(Spacing.lg))
-        }
+        // leading 与收藏页/文件总览行逐像素一致，共用 FileLeadingVisual。
+        // 文本收藏同样占这一格（format_quote），否则文本行标题会比文件行左移一整个 leading 宽度。
+        val isText = favorite.kind == FavoriteActionPolicy.KIND_TEXT
+        val depotId = favorite.fileId
+        val category = FilesListBuilder.categoryOf(favorite.fileMime)
+        FileLeadingVisual(
+            iconRes = if (isText) R.drawable.ic_format_quote else category.iconResource(),
+            thumbnailModel = if (!isText && depotId != null &&
+                FilesListBuilder.isMedia(favorite.fileMime)
+            ) {
+                remember(depotId, category) {
+                    val file = ServiceLocator.favoriteFileStore.resolve(depotId)
+                    if (category == FileCategory.VIDEO) StoredVideo(file) else file
+                }
+            } else {
+                null
+            },
+        )
+        Spacer(Modifier.width(Spacing.lg))
         Column(Modifier.weight(1f)) {
             Text(
                 text = favorite.primaryLabel(),
