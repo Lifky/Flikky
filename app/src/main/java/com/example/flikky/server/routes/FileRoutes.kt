@@ -1,5 +1,6 @@
 package com.example.flikky.server.routes
 
+import com.example.flikky.export.FilesZipWriter
 import com.example.flikky.server.dto.FileMessageDto
 import com.example.flikky.server.dto.FileProgressDto
 import com.example.flikky.server.dto.FileReadyDto
@@ -22,6 +23,7 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondBytesWriter
+import io.ktor.server.response.respondOutputStream
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -29,6 +31,9 @@ import io.ktor.utils.io.readAvailable
 import io.ktor.utils.io.writeFully
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.UUID
 
 interface FileStore {
@@ -212,6 +217,46 @@ fun Route.fileRoutes(
             }
         }
         call.respondBytes(thumb.readBytes(), ContentType.Image.JPEG)
+    }
+
+    get("/api/files/archive") {
+        if (!authed(call)) {
+            call.respond(HttpStatusCode.Unauthorized)
+            return@get
+        }
+        val sid = currentSessionId()
+        val entries = session.snapshot.value.messages
+            .filterIsInstance<Message.File>()
+            .filter { it.status == Message.File.Status.COMPLETED }
+            .mapNotNull { msg ->
+                val file = File(store.fileDir(sid), msg.fileId)
+                if (file.isFile) FilesZipWriter.Entry(msg.name, file) else null
+            }
+        if (entries.isEmpty()) {
+            call.respond(HttpStatusCode.NotFound)
+            return@get
+        }
+        val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date(nowMs()))
+        call.response.header(
+            HttpHeaders.ContentDisposition,
+            ContentDisposition.Attachment
+                .withParameter(ContentDisposition.Parameters.FileName, "flikky-files-$stamp.zip")
+                .toString(),
+        )
+        call.respondOutputStream(
+            contentType = ContentType.Application.Zip,
+            status = HttpStatusCode.OK,
+        ) {
+            val downstream = this
+            val counting = object : java.io.FilterOutputStream(downstream) {
+                override fun write(b: ByteArray, off: Int, len: Int) {
+                    downstream.write(b, off, len)
+                    stats.recordBytes(len.toLong())
+                }
+            }
+            FilesZipWriter.write(counting, entries)
+            counting.flush()
+        }
     }
 
     get("/api/files/{id}") {

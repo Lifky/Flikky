@@ -4,11 +4,14 @@ import com.example.flikky.server.PinAuth
 import com.example.flikky.session.Message
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
+import io.ktor.client.HttpClient
+import io.ktor.client.request.get
 import io.ktor.client.request.forms.MultiPartFormDataContent
 import io.ktor.client.request.forms.formData
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsBytes
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -24,7 +27,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.ByteArrayInputStream
 import java.io.File
+import java.util.zip.ZipInputStream
 
 /**
  * B16 回归：一个上传请求带多个 multipart file part 时，每个 part 必须独立走完
@@ -46,11 +51,14 @@ class FileRoutesTest {
         }
     }
 
-    private fun io.ktor.server.routing.Route.installFileRoutes(h: Harness) {
+    private fun io.ktor.server.routing.Route.installFileRoutes(
+        h: Harness,
+        authRequired: Boolean = false,
+    ) {
         fileRoutes(
             session = h.session,
             authGate = AuthGate(
-                required = false,
+                required = authRequired,
                 pinAuth = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" }),
             ),
             store = h.store,
@@ -67,6 +75,14 @@ class FileRoutesTest {
         append(HttpHeaders.ContentDisposition, "form-data; name=\"file\"; filename=\"$name\"")
         append(HttpHeaders.ContentType, "application/octet-stream")
     }.let { headers -> Triple(name, payload, headers) }
+
+    private suspend fun HttpClient.uploadFile(name: String, payload: ByteArray): HttpResponse =
+        post("/api/files") {
+            setBody(MultiPartFormDataContent(formData {
+                val (_, bytes, headers) = filePart(name, payload)
+                append("file", bytes, headers)
+            }))
+        }
 
     @Test
     fun `single file part is saved completed and persisted once`() = testApplication {
@@ -153,5 +169,54 @@ class FileRoutesTest {
         assertEquals(HttpStatusCode.BadRequest, resp.status)
         assertEquals(0, h.persisted.size)
         assertEquals(0, h.events.size)
+    }
+
+    @Test
+    fun `archive streams all completed files as zip with deduped names`() = testApplication {
+        val h = Harness(tmp.root)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { installFileRoutes(h) }
+        }
+        client.uploadFile("a.txt", "one".toByteArray())
+        client.uploadFile("a.txt", "two".toByteArray())
+
+        val response = client.get("/api/files/archive")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertTrue(response.headers[HttpHeaders.ContentDisposition]!!.contains("flikky-files-"))
+        val names = mutableListOf<String>()
+        val contents = mutableListOf<String>()
+        ZipInputStream(ByteArrayInputStream(response.bodyAsBytes())).use { zin ->
+            while (true) {
+                val entry = zin.nextEntry ?: break
+                names += entry.name
+                contents += zin.readBytes().decodeToString()
+            }
+        }
+        assertEquals(listOf("a.txt", "a (1).txt"), names)
+        assertEquals(listOf("one", "two"), contents)
+    }
+
+    @Test
+    fun `archive returns 404 when no completed files`() = testApplication {
+        val h = Harness(tmp.root)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { installFileRoutes(h) }
+        }
+
+        assertEquals(HttpStatusCode.NotFound, client.get("/api/files/archive").status)
+    }
+
+    @Test
+    fun `archive rejects unauthenticated requests when auth is required`() = testApplication {
+        val h = Harness(tmp.root)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { installFileRoutes(h, authRequired = true) }
+        }
+
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/api/files/archive").status)
     }
 }
