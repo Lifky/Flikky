@@ -62,6 +62,9 @@
             'app.send_failed': '发送失败',
             'app.processing': '处理中…',
             'app.close_preview': '关闭预览',
+            'app.save_all': '保存所有文件',
+            'app.save_all_each': '逐个保存 ({count})',
+            'app.save_all_zip': '打包为 ZIP',
 
             'export.title': 'Flikky 导出',
             'export.pending': '即将下载',
@@ -157,6 +160,9 @@
             'app.send_failed': 'Send failed',
             'app.processing': 'Processing…',
             'app.close_preview': 'Close preview',
+            'app.save_all': 'Save all files',
+            'app.save_all_each': 'Save each ({count})',
+            'app.save_all_zip': 'Download as ZIP',
 
             'export.title': 'Flikky export',
             'export.pending': 'Ready to download',

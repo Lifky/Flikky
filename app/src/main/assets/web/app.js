@@ -1,6 +1,9 @@
 (function () {
     const list = document.getElementById('list');
     const listShell = document.getElementById('chat-list-shell');
+    const saveAllDropdown = document.getElementById('save-all-dropdown');
+    const saveAllEachItem = document.getElementById('save-all-each');
+    const saveAllZipItem = document.getElementById('save-all-zip');
     const input = document.getElementById('text-input');
     const sendBtn = document.getElementById('send-btn');
     const fileBtn = document.getElementById('file-btn');
@@ -13,6 +16,15 @@
     const t = (key, values) => i18n.t(key, values);
     const countText = (key, count) => i18n.count(key, count);
     let lastStatus = null;
+    const savedFileIds = new Set();
+
+    function computeSaveAllState(files, savedSet) {
+        const unsaved = files.filter((file) => !savedSet.has(file.fileId));
+        return {
+            visible: files.length >= 2 && unsaved.length >= 1,
+            unsavedCount: unsaved.length,
+        };
+    }
 
     const ua = navigator.userAgent || '';
     if (/Android|iPhone|iPad|iPod/i.test(ua)) {
@@ -752,6 +764,45 @@
         document.body.appendChild(link);
         link.click();
         link.remove();
+        savedFileIds.add(fileId);
+        refreshSaveAllFab();
+    }
+
+    function collectReceivedCompletedFiles() {
+        return Array.from(list.querySelectorAll('.file-bubble.them'))
+            .filter((bubble) => bubble.dataset.fileId
+                && !bubble.classList.contains('failed')
+                && !bubble.classList.contains('uploading')
+                && !bubble.classList.contains('transferring'))
+            .map((bubble) => ({
+                fileId: bubble.dataset.fileId,
+                name: bubble.dataset.name || '',
+            }));
+    }
+
+    function refreshSaveAllFab() {
+        const state = computeSaveAllState(collectReceivedCompletedFiles(), savedFileIds);
+        saveAllDropdown.hidden = !state.visible;
+        saveAllEachItem.textContent = t('app.save_all_each', { count: state.unsavedCount });
+    }
+
+    async function saveAllIndividually() {
+        const files = collectReceivedCompletedFiles()
+            .filter((file) => !savedFileIds.has(file.fileId));
+        for (const file of files) {
+            triggerDownload(file.fileId, file.name);
+            await new Promise((resolve) => setTimeout(resolve, 350));
+        }
+        refreshSaveAllFab();
+    }
+
+    function saveAllAsZip() {
+        const link = document.createElement('a');
+        link.href = '/api/files/archive';
+        link.download = '';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
     }
 
     async function copyBubbleText(bubble) {
@@ -1068,6 +1119,7 @@
             node.remove();
         }
         reflowMessageAvatars();
+        refreshSaveAllFab();
     }
 
     function renderTransferringBubble(msg) {
@@ -1176,6 +1228,7 @@
         }
         bubble.dataset.name = dto.name;
         renderMessageActionBar(bubble.closest('.bubble-row'), bubble);
+        refreshSaveAllFab();
     }
 
     function markBubbleFailed(bubble, file, status) {
@@ -1276,6 +1329,7 @@
                     window.flikky.showInfo(t('app.peer_recalled'));
                 }
             }
+            refreshSaveAllFab();
             return;
         }
         if (ev.type === 'text_added') {
@@ -1293,6 +1347,7 @@
             } else {
                 renderFile(ev.payload, ev.payload.origin === 'BROWSER');
             }
+            refreshSaveAllFab();
         } else if (ev.type === 'file_progress') {
             const p = ev.payload;
             if (p && typeof p.messageId === 'number') {
@@ -1313,6 +1368,7 @@
                 const bubble = list.querySelector(`[data-message-id="${p.messageId}"]`);
                 if (bubble) {
                     markBubbleFailedNoRetry(bubble, 'app.transfer_failed');
+                    refreshSaveAllFab();
                 }
             }
         } else if (ev.type === 'status') {
@@ -1360,6 +1416,7 @@
                     }
                 }
             }
+            refreshSaveAllFab();
             return;
         }
         for (const t of data.texts) {
@@ -1375,6 +1432,7 @@
             const bubble = renderFile(f, f.origin === 'BROWSER');
             if (bubble) bubble.dataset.fileId = f.fileId;
         }
+        refreshSaveAllFab();
     }
 
     let currentConnKey = 'app.connecting';
@@ -1787,6 +1845,8 @@
         if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
     }
 
+    saveAllEachItem.addEventListener('click', saveAllIndividually);
+    saveAllZipItem.addEventListener('click', saveAllAsZip);
     sendBtn.addEventListener('click', sendText);
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }
@@ -1815,11 +1875,13 @@
             connectionDialogMessage.textContent = t(connectionDialogState.key, connectionDialogState.values);
         }
         refreshAllMessageActions();
+        refreshSaveAllFab();
         closeRecallMenu();
         fetchPeerInfo().catch(() => {});
     });
 
     // 初始禁用，等 WS 连上后启用。
+    refreshSaveAllFab();
     setSendEnabled(false);
     loadHistory().then(openWs);
 })();

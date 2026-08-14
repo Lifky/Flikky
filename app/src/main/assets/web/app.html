@@ -41,6 +41,15 @@
 
         <div id="chat-list-shell" class="chat-list-shell">
             <div id="list" class="chat-list"></div>
+            <mdui-dropdown id="save-all-dropdown" placement="top-end">
+                <mdui-fab slot="trigger" id="save-all-fab" aria-label="保存所有文件" data-i18n-aria-label="app.save_all">
+                    <span slot="icon" class="material-symbols-outlined">download</span>
+                </mdui-fab>
+                <mdui-menu>
+                    <mdui-menu-item id="save-all-each"></mdui-menu-item>
+                    <mdui-menu-item id="save-all-zip" data-i18n="app.save_all_zip">打包为 ZIP</mdui-menu-item>
+                </mdui-menu>
+            </mdui-dropdown>
         </div>
 
         <div class="chat-input-row">

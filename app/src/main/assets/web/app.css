@@ -65,6 +65,16 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     background: rgb(var(--mdui-color-surface-container-lowest));
 }
 
+/* v1.18: 一键保存 FAB（悬浮于消息滚动区右下角） */
+#save-all-dropdown {
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    z-index: 5;
+}
+
+#save-all-dropdown[hidden] { display: none; }
+
 .chat-list {
     height: 100%;
     box-sizing: border-box;

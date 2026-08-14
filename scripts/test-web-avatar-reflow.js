@@ -197,6 +197,9 @@ function createDocument() {
     'uptime',
     'count',
     'rate',
+    'save-all-dropdown',
+    'save-all-each',
+    'save-all-zip',
     'my-avatar-btn',
     'peer-avatar',
   ].forEach((id) => {
