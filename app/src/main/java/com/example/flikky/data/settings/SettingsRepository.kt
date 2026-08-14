@@ -31,6 +31,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val msgActionStyle = stringPreferencesKey("msg_action_style")
         val avatarGrouping = stringPreferencesKey("avatar_grouping")
         val allowBackDuringSession = booleanPreferencesKey("allow_back_during_session")
+        val sessionTimestampEnabled = booleanPreferencesKey("session_timestamp_enabled")
         val sortMode = stringPreferencesKey("sort_mode")
         val groupMode = stringPreferencesKey("group_mode")
         val animationSpeed = stringPreferencesKey("animation_speed")
@@ -77,6 +78,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
                 ?.let { runCatching { AvatarGroupingMode.valueOf(it) }.getOrNull() }
                 ?: AvatarGroupingMode.EACH,
             allowBackDuringSession = p[Keys.allowBackDuringSession] ?: true,
+            sessionTimestampEnabled = p[Keys.sessionTimestampEnabled] ?: false,
             sortMode = p[Keys.sortMode]
                 ?.let { runCatching { SortMode.valueOf(it) }.getOrNull() }
                 ?: SortMode.TIME,
@@ -127,6 +129,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setMessageActionStyle(v: MessageActionStyle) = ds.edit { it[Keys.msgActionStyle] = v.name }
     suspend fun setAvatarGrouping(v: AvatarGroupingMode) = ds.edit { it[Keys.avatarGrouping] = v.name }
     suspend fun setAllowBackDuringSession(v: Boolean) = ds.edit { it[Keys.allowBackDuringSession] = v }
+    suspend fun setSessionTimestampEnabled(v: Boolean) = ds.edit { it[Keys.sessionTimestampEnabled] = v }
     suspend fun setSortMode(v: SortMode) = ds.edit { it[Keys.sortMode] = v.name }
     suspend fun setGroupMode(v: GroupMode) = ds.edit { it[Keys.groupMode] = v.name }
     suspend fun setAnimationSpeed(v: AnimationSpeed) = ds.edit { it[Keys.animationSpeed] = v.name }
@@ -198,6 +201,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             messageActionStyle = s.messageActionStyle.name,
             avatarGrouping = s.avatarGrouping.name,
             allowBackDuringSession = s.allowBackDuringSession,
+            sessionTimestampEnabled = s.sessionTimestampEnabled,
             sortMode = s.sortMode.name,
             groupMode = s.groupMode.name,
             animationSpeed = s.animationSpeed.name,
@@ -235,6 +239,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         backup.avatarGrouping?.enumNameOrNull<AvatarGroupingMode>()
             ?.let { prefs[Keys.avatarGrouping] = it }
         backup.allowBackDuringSession?.let { prefs[Keys.allowBackDuringSession] = it }
+        backup.sessionTimestampEnabled?.let { prefs[Keys.sessionTimestampEnabled] = it }
         backup.sortMode?.enumNameOrNull<SortMode>()?.let { prefs[Keys.sortMode] = it }
         backup.groupMode?.enumNameOrNull<GroupMode>()?.let { prefs[Keys.groupMode] = it }
         backup.animationSpeed?.enumNameOrNull<AnimationSpeed>()

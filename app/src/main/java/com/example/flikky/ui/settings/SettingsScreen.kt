@@ -436,7 +436,7 @@ fun SettingsScreen(
 
             // ─── 会话外观 ───────────────────────────────────────────────────────
             item {
-                val sectionItems = 3
+                val sectionItems = 4
                 SettingSection(title = stringResource(R.string.settings_section_session_appearance)) {
                     var radiusDraft by remember(s.bubbleCornerRadius) {
                         mutableStateOf(s.bubbleCornerRadius.toFloat())
@@ -480,6 +480,17 @@ fun SettingsScreen(
                         subtitle = bgSubtitle,
                         onClick = { activeSheet = ActiveSheet.Background },
                         index = 2, total = sectionItems,
+                    )
+                    SettingItem(
+                        title = stringResource(R.string.settings_session_timestamp),
+                        subtitle = stringResource(R.string.settings_session_timestamp_summary),
+                        trailing = {
+                            Switch(
+                                checked = s.sessionTimestampEnabled,
+                                onCheckedChange = viewModel::setSessionTimestampEnabled,
+                            )
+                        },
+                        index = 3, total = sectionItems,
                     )
                 }
             }

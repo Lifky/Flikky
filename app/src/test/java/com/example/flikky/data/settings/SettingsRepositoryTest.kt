@@ -165,6 +165,13 @@ class SettingsRepositoryTest {
         assertTrue(repo.settings.first().allowBackDuringSession)
     }
 
+    @Test fun session_timestamp_toggle_roundtrips() = runTest {
+        val repo = makeRepo(this)
+        assertEquals(false, repo.settings.first().sessionTimestampEnabled)
+        repo.setSessionTimestampEnabled(true)
+        assertEquals(true, repo.settings.first().sessionTimestampEnabled)
+    }
+
     @Test fun require_pin_roundtrips() = runTest {
         val repo = makeRepo(this)
         assertEquals(true, repo.settings.first().requirePin)

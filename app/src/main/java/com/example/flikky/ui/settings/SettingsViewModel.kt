@@ -84,6 +84,9 @@ class SettingsViewModel @JvmOverloads constructor(
     fun setAllowBackDuringSession(value: Boolean) =
         viewModelScope.launch { repository.setAllowBackDuringSession(value) }
 
+    fun setSessionTimestampEnabled(value: Boolean) =
+        viewModelScope.launch { repository.setSessionTimestampEnabled(value) }
+
     fun setBubbleCornerRadius(value: Int) =
         viewModelScope.launch { repository.setBubbleCornerRadius(value) }
 

@@ -85,6 +85,8 @@ data class FlikkySettings(
     val avatarGrouping: AvatarGroupingMode = AvatarGroupingMode.EACH,
     /** 允许会话进行中按返回键退出到主页。 */
     val allowBackDuringSession: Boolean = true,
+    /** 会话中显示时间戳分隔条（两端同步，浏览器经 settings_changed 跟随）。 */
+    val sessionTimestampEnabled: Boolean = false,
     val sortMode: SortMode = SortMode.TIME,
     val groupMode: GroupMode = GroupMode.NONE,
     val animationSpeed: AnimationSpeed = AnimationSpeed.STANDARD,
