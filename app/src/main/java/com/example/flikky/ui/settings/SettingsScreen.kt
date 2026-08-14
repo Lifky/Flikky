@@ -483,7 +483,8 @@ fun SettingsScreen(
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_session_timestamp),
-                        subtitle = stringResource(R.string.settings_session_timestamp_summary),
+                        leadingIcon = painterResource(R.drawable.ic_pin_history),
+                        infoText = stringResource(R.string.settings_session_timestamp_summary),
                         trailing = {
                             Switch(
                                 checked = s.sessionTimestampEnabled,
@@ -576,7 +577,7 @@ fun SettingsScreen(
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_keep_screen_on),
-                        subtitle = stringResource(R.string.settings_keep_screen_on_summary),
+                        leadingIcon = painterResource(R.drawable.ic_wb_sunny),
                         trailing = {
                             Switch(
                                 checked = s.keepScreenOnDuringSession,

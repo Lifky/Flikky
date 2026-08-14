@@ -45,7 +45,6 @@
     <string name="settings_allow_back">允许会话中返回</string>
     <string name="settings_allow_back_summary">默认拦截返回键保护会话；开启后可返回主页查看历史（会话期间设置入口锁定）</string>
     <string name="settings_keep_screen_on">会话中保持屏幕常亮</string>
-    <string name="settings_keep_screen_on_summary">服务运行中停留在会话页时屏幕不自动熄灭</string>
 
     <string name="settings_section_data">数据</string>
     <string name="settings_history_limit">历史保存数量</string>
