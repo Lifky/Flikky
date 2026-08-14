@@ -87,6 +87,8 @@ data class FlikkySettings(
     val allowBackDuringSession: Boolean = true,
     /** 会话中显示时间戳分隔条（两端同步，浏览器经 settings_changed 跟随）。 */
     val sessionTimestampEnabled: Boolean = false,
+    /** 服务运行中停留在会话页时保持屏幕常亮。 */
+    val keepScreenOnDuringSession: Boolean = false,
     val sortMode: SortMode = SortMode.TIME,
     val groupMode: GroupMode = GroupMode.NONE,
     val animationSpeed: AnimationSpeed = AnimationSpeed.STANDARD,

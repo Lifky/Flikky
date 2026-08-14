@@ -1,5 +1,7 @@
 package com.example.flikky.ui.serving
 
+import android.app.Activity
+import android.view.WindowManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -40,6 +42,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -53,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -104,6 +108,18 @@ fun ServingScreen(
     val ui by viewModel.ui.collectAsState()
     val progressMap by viewModel.fileTransferProgress.collectAsState()
     val settings by viewModel.settings.collectAsState()
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        DisposableEffect(settings.keepScreenOnDuringSession) {
+            val window = (view.context as Activity).window
+            if (settings.keepScreenOnDuringSession) {
+                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+            onDispose {
+                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            }
+        }
+    }
     val peerAvatarId by viewModel.peerAvatarId.collectAsState()
     val peerAvatarKey by viewModel.peerAvatarKey.collectAsState()
     var draft by remember { mutableStateOf("") }

@@ -75,6 +75,7 @@ data class SettingsExport(
     val avatarGrouping: String? = null,
     val allowBackDuringSession: Boolean? = null,
     val sessionTimestampEnabled: Boolean? = null,
+    val keepScreenOnDuringSession: Boolean? = null,
     val sortMode: String? = null,
     val groupMode: String? = null,
     val animationSpeed: String? = null,

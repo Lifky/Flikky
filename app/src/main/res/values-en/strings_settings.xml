@@ -44,6 +44,8 @@
     <string name="settings_favorites_summary">Show Favorites and allow messages to be saved</string>
     <string name="settings_allow_back">Allow leaving an active session</string>
     <string name="settings_allow_back_summary">Back is blocked by default to protect the session. Turn this on to view history while a session runs; Settings remains locked.</string>
+    <string name="settings_keep_screen_on">Keep screen on during session</string>
+    <string name="settings_keep_screen_on_summary">Prevent the screen from sleeping while on the session screen</string>
 
     <string name="settings_section_data">Data</string>
     <string name="settings_history_limit">Saved session limit</string>

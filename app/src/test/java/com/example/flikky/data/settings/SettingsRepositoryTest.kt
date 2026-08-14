@@ -172,6 +172,13 @@ class SettingsRepositoryTest {
         assertEquals(true, repo.settings.first().sessionTimestampEnabled)
     }
 
+    @Test fun keep_screen_on_toggle_roundtrips() = runTest {
+        val repo = makeRepo(this)
+        assertEquals(false, repo.settings.first().keepScreenOnDuringSession)
+        repo.setKeepScreenOnDuringSession(true)
+        assertEquals(true, repo.settings.first().keepScreenOnDuringSession)
+    }
+
     @Test fun require_pin_roundtrips() = runTest {
         val repo = makeRepo(this)
         assertEquals(true, repo.settings.first().requirePin)

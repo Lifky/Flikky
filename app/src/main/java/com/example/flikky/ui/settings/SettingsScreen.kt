@@ -497,7 +497,7 @@ fun SettingsScreen(
 
             // ─── 会话行为 ───────────────────────────────────────────────────────
             item {
-                val sectionItems = if (s.recallBetaEnabled) 6 else 5
+                val sectionItems = if (s.recallBetaEnabled) 7 else 6
                 SettingSection(title = stringResource(R.string.settings_section_session_behavior)) {
                     SettingItem(
                         title = stringResource(R.string.settings_require_pin),
@@ -573,6 +573,17 @@ fun SettingsScreen(
                             )
                         },
                         index = 4 + followingIndexOffset, total = sectionItems,
+                    )
+                    SettingItem(
+                        title = stringResource(R.string.settings_keep_screen_on),
+                        subtitle = stringResource(R.string.settings_keep_screen_on_summary),
+                        trailing = {
+                            Switch(
+                                checked = s.keepScreenOnDuringSession,
+                                onCheckedChange = viewModel::setKeepScreenOnDuringSession,
+                            )
+                        },
+                        index = 5 + followingIndexOffset, total = sectionItems,
                     )
                 }
             }
