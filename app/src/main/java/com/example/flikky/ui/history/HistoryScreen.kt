@@ -62,6 +62,7 @@ import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
+import com.example.flikky.ui.components.SessionTimeDivider
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.flikkyItemAnimation
@@ -75,6 +76,7 @@ import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
+import com.example.flikky.util.SessionTimestamp
 import androidx.compose.foundation.text.selection.SelectionContainer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -373,6 +375,13 @@ fun HistoryScreen(
                         .background(highlightColor),
                 ) {
                     Column {
+                        val prevTimestamp = if (index == 0) null else messages[index - 1].timestamp
+                        if (
+                            settings.sessionTimestampEnabled &&
+                            SessionTimestamp.shouldInsertDividerBefore(prevTimestamp, msg.timestamp)
+                        ) {
+                            SessionTimeDivider(SessionTimestamp.format(msg.timestamp))
+                        }
                         MessageBubble(
                             msg = msg,
                             onTap = {

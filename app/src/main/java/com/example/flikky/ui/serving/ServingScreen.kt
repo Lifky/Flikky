@@ -82,6 +82,7 @@ import com.example.flikky.ui.components.MessageBubble
 import com.example.flikky.ui.components.MessageFloatingToolbarOverlay
 import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.NetworkStatusBanner
+import com.example.flikky.ui.components.SessionTimeDivider
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.sessionFile
@@ -93,6 +94,7 @@ import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.settings.sheets.AvatarPickerSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
+import com.example.flikky.util.SessionTimestamp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -506,6 +508,13 @@ fun ServingScreen(
                                 com.example.flikky.data.settings.MessageActionStyle.FLOATING
 
                             Column(modifier = flikkyItemAnimation()) {
+                                val prevTimestamp = if (index == 0) null else ui.messages[index - 1].timestamp
+                                if (
+                                    settings.sessionTimestampEnabled &&
+                                    SessionTimestamp.shouldInsertDividerBefore(prevTimestamp, msg.timestamp)
+                                ) {
+                                    SessionTimeDivider(SessionTimestamp.format(msg.timestamp))
+                                }
                                 MessageBubble(
                                     msg = msg,
                                     onTap = {
