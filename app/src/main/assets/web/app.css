@@ -412,6 +412,19 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     flex-direction: row;
     align-self: flex-start;
 }
+
+/* v1.18: 会话时间戳分隔条（显隐由 body[data-timestamps] 控制，开关即时生效） */
+.time-divider { display: none; justify-content: center; margin: 6px 0; }
+body[data-timestamps="on"] .time-divider { display: flex; }
+.time-divider-pill {
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 3px 10px;
+    border-radius: 8px;
+    background: rgb(var(--mdui-color-surface-container-high));
+    color: rgb(var(--mdui-color-on-surface-variant));
+}
+
 /* Override bubble self-alignment: the row handles alignment now */
 .bubble-row .bubble,
 .bubble-row .file-bubble {

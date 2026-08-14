@@ -228,6 +228,29 @@
         );
     }
 
+    const TIME_DIVIDER_GAP_MS = 5 * 60 * 1000;
+    let lastDividerBaseTs = null;
+
+    function formatSessionTimestamp(ms) {
+        const d = new Date(ms);
+        const p = (n) => String(n).padStart(2, '0');
+        return `${p(d.getFullYear() % 100)}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    }
+
+    function maybeInsertTimeDivider(ts) {
+        if (!Number.isFinite(ts)) return;
+        if (lastDividerBaseTs === null || ts - lastDividerBaseTs > TIME_DIVIDER_GAP_MS) {
+            const row = document.createElement('div');
+            row.className = 'time-divider';
+            const pill = document.createElement('span');
+            pill.className = 'time-divider-pill';
+            pill.textContent = formatSessionTimestamp(ts);
+            row.appendChild(pill);
+            list.appendChild(row);
+        }
+        lastDividerBaseTs = ts;
+    }
+
     // Track last rendered origin for consecutive same-origin suppression.
     // 'PHONE' | 'BROWSER' | null
     let lastBubbleOrigin = null;
@@ -503,6 +526,9 @@
         applyBubbleRadius(data.bubbleCornerRadius);
         if (Object.prototype.hasOwnProperty.call(data, 'animationSpeed')) {
             applyAnimationSpeed(data.animationSpeed);
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'sessionTimestampEnabled')) {
+            document.body.dataset.timestamps = data.sessionTimestampEnabled ? 'on' : 'off';
         }
         reflowMessageAvatars();
     }
@@ -840,6 +866,7 @@
     }
 
     function renderText(msg, mine) {
+        maybeInsertTimeDivider(msg.timestamp);
         const div = document.createElement('div');
         div.className = 'bubble ' + (mine ? 'me' : 'them');
         div.textContent = msg.content;
@@ -851,6 +878,7 @@
     }
 
     function renderFile(msg, mine) {
+        maybeInsertTimeDivider(msg.timestamp);
         const div = document.createElement('div');
         div.className = 'file-bubble ' + (mine ? 'me' : 'them');
         div.dataset.messageId = msg.id;
@@ -1043,6 +1071,7 @@
     }
 
     function renderTransferringBubble(msg) {
+        maybeInsertTimeDivider(msg.timestamp);
         const mine = msg.origin === 'BROWSER';
         const div = document.createElement('div');
         div.className = 'file-bubble ' + (mine ? 'me' : 'them') + ' transferring';
@@ -1082,6 +1111,7 @@
     }
 
     function renderUploadingBubble(opts) {
+        maybeInsertTimeDivider(Date.now());
         const div = document.createElement('div');
         div.className = 'file-bubble me uploading';
         div.dataset.localId = opts.localId;
@@ -1304,6 +1334,7 @@
 
     async function loadHistory() {
         lastBubbleOrigin = null;
+        lastDividerBaseTs = null;
         const r = await fetch('/api/messages');
         if (!r.ok) return;
         const data = await r.json();
