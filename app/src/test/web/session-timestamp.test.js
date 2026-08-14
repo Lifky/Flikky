@@ -34,7 +34,7 @@ test('formatSessionTimestamp uses fixed padded yy MM dd HH mm', () => {
     assert.equal(evaluate(`formatSessionTimestamp(${padded})`), '31/01/05 08:07');
 });
 
-test('maybeInsertTimeDivider inserts first and only gaps over five minutes', () => {
+test('maybeInsertTimeDivider anchors gaps to the last inserted divider', () => {
     const list = createElement();
     const context = {
         document: { createElement },
@@ -44,13 +44,14 @@ test('maybeInsertTimeDivider inserts first and only gaps over five minutes', () 
     vm.runInContext(
         `${slice}
         maybeInsertTimeDivider(1000000);
+        maybeInsertTimeDivider(1240000);
         maybeInsertTimeDivider(1300000);
-        maybeInsertTimeDivider(1600001);
+        maybeInsertTimeDivider(1540000);
+        maybeInsertTimeDivider(1600000);
         globalThis.count = list.children.length;
-        globalThis.labels = list.children.map((row) => row.children[0].textContent);`,
+        `,
         context,
     );
 
-    assert.equal(context.count, 2);
-    assert.equal(context.labels.length, 2);
+    assert.equal(context.count, 3);
 });

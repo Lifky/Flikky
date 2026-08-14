@@ -28,7 +28,7 @@
     <string name="settings_avatar_each">Every message</string>
     <string name="settings_session_background">Active session background</string>
     <string name="settings_session_timestamp">Session timestamps</string>
-    <string name="settings_session_timestamp_summary">Show send time when messages are over 5 minutes apart, synced to browser</string>
+    <string name="settings_session_timestamp_summary">Show send time when a new message is at least 5 minutes after the last timestamp, synced to browser</string>
 
     <string name="settings_section_session_behavior">Session behavior</string>
     <string name="settings_require_pin">Require a PIN to connect</string>

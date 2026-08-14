@@ -110,6 +110,9 @@ fun ServingScreen(
     val ui by viewModel.ui.collectAsState()
     val progressMap by viewModel.fileTransferProgress.collectAsState()
     val settings by viewModel.settings.collectAsState()
+    val timestampDividerIndices = remember(ui.messages) {
+        SessionTimestamp.dividerIndices(ui.messages.map { it.timestamp })
+    }
     val view = LocalView.current
     if (!view.isInEditMode) {
         DisposableEffect(settings.keepScreenOnDuringSession) {
@@ -508,10 +511,9 @@ fun ServingScreen(
                                 com.example.flikky.data.settings.MessageActionStyle.FLOATING
 
                             Column(modifier = flikkyItemAnimation()) {
-                                val prevTimestamp = if (index == 0) null else ui.messages[index - 1].timestamp
                                 if (
                                     settings.sessionTimestampEnabled &&
-                                    SessionTimestamp.shouldInsertDividerBefore(prevTimestamp, msg.timestamp)
+                                    index in timestampDividerIndices
                                 ) {
                                     SessionTimeDivider(SessionTimestamp.format(msg.timestamp))
                                 }

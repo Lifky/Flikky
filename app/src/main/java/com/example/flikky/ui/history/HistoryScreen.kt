@@ -100,6 +100,9 @@ fun HistoryScreen(
     val session by viewModel.session.collectAsState(initial = null)
     val messages by viewModel.messages.collectAsState()
     val settings by ServiceLocator.settingsRepository.settings.collectAsState(initial = FlikkySettings())
+    val timestampDividerIndices = remember(messages) {
+        SessionTimestamp.dividerIndices(messages.map { it.timestamp })
+    }
     var menuExpanded by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
@@ -375,10 +378,9 @@ fun HistoryScreen(
                         .background(highlightColor),
                 ) {
                     Column {
-                        val prevTimestamp = if (index == 0) null else messages[index - 1].timestamp
                         if (
                             settings.sessionTimestampEnabled &&
-                            SessionTimestamp.shouldInsertDividerBefore(prevTimestamp, msg.timestamp)
+                            index in timestampDividerIndices
                         ) {
                             SessionTimeDivider(SessionTimestamp.format(msg.timestamp))
                         }

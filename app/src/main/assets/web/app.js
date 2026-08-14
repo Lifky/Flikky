@@ -251,7 +251,7 @@
 
     function maybeInsertTimeDivider(ts) {
         if (!Number.isFinite(ts)) return;
-        if (lastDividerBaseTs === null || ts - lastDividerBaseTs > TIME_DIVIDER_GAP_MS) {
+        if (lastDividerBaseTs === null || ts - lastDividerBaseTs >= TIME_DIVIDER_GAP_MS) {
             const row = document.createElement('div');
             row.className = 'time-divider';
             const pill = document.createElement('span');
@@ -259,8 +259,8 @@
             pill.textContent = formatSessionTimestamp(ts);
             row.appendChild(pill);
             list.appendChild(row);
+            lastDividerBaseTs = ts;
         }
-        lastDividerBaseTs = ts;
     }
 
     // Track last rendered origin for consecutive same-origin suppression.

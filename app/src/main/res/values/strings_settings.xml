@@ -28,7 +28,7 @@
     <string name="settings_avatar_each">每条都显示</string>
     <string name="settings_session_background">进行中会话背景</string>
     <string name="settings_session_timestamp">会话时间戳</string>
-    <string name="settings_session_timestamp_summary">消息间隔超过 5 分钟时显示发送时间，两端同步</string>
+    <string name="settings_session_timestamp_summary">新消息距上次时间戳达到 5 分钟时显示发送时间，两端同步</string>
 
     <string name="settings_section_session_behavior">会话行为</string>
     <string name="settings_require_pin">连接需要 PIN 码</string>

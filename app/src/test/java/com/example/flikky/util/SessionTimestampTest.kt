@@ -20,10 +20,22 @@ class SessionTimestampTest {
     }
 
     @Test
-    fun `gap of exactly five minutes or less gets no divider`() {
+    fun `gap of exactly five minutes gets divider`() {
         val prev = 1_000_000L
-        assertFalse(SessionTimestamp.shouldInsertDividerBefore(prev, prev + 5 * 60 * 1000))
-        assertFalse(SessionTimestamp.shouldInsertDividerBefore(prev, prev + 1))
+        assertTrue(SessionTimestamp.shouldInsertDividerBefore(prev, prev + 5 * 60 * 1000))
+        assertFalse(SessionTimestamp.shouldInsertDividerBefore(prev, prev + 5 * 60 * 1000 - 1))
+    }
+
+    @Test
+    fun `continuous messages anchor gaps to the last inserted divider`() {
+        val minute = 60_000L
+
+        assertEquals(
+            setOf(0, 2, 4),
+            SessionTimestamp.dividerIndices(
+                listOf(0L, 4 * minute, 5 * minute, 9 * minute, 10 * minute),
+            ),
+        )
     }
 
     @Test
