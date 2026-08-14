@@ -4,7 +4,9 @@ import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.ThemeMode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TransferServiceThemeMappingTest {
@@ -38,5 +40,20 @@ class TransferServiceThemeMappingTest {
         }
 
         assertNull(dto.themeSeed)
+    }
+
+    @Test
+    fun sessionTimestampFlag_mapsIntoPeerInfoDto() {
+        val on = with(TransferService.Companion) {
+            FlikkySettings(sessionTimestampEnabled = true)
+                .toPeerInfoDto(systemDark = false, defaultDeviceName = "Phone")
+        }
+        val off = with(TransferService.Companion) {
+            FlikkySettings(sessionTimestampEnabled = false)
+                .toPeerInfoDto(systemDark = false, defaultDeviceName = "Phone")
+        }
+
+        assertTrue(on.sessionTimestampEnabled)
+        assertFalse(off.sessionTimestampEnabled)
     }
 }

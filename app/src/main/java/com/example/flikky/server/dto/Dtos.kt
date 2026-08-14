@@ -153,6 +153,7 @@ data class PeerInfoDto(
     // 消息操作样式（FLOATING/INLINE）——Web 端据此切换 hover 浮条 vs 常驻按钮行（§12）。
     val messageActionStyle: String = "INLINE",
     val animationSpeed: String = "STANDARD",
+    val sessionTimestampEnabled: Boolean = false,
     val recallEnabled: Boolean,
     val allowPeerRecall: Boolean = true,
 )

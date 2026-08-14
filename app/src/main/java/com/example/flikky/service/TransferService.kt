@@ -739,6 +739,7 @@ class TransferService : Service() {
                 avatarGrouping = avatarGrouping.name,
                 messageActionStyle = messageActionStyle.name,
                 animationSpeed = animationSpeed.name,
+                sessionTimestampEnabled = sessionTimestampEnabled,
                 recallEnabled = recallBetaEnabled,
                 allowPeerRecall = allowPeerRecall,
             )
