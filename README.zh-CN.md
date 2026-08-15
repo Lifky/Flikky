@@ -20,8 +20,8 @@ Flikky 面向可信局域网使用，并把配对、会话状态、历史记录�
 
 | 通道 | 版本 | 状态 |
 | --- | --- | --- |
-| 稳定版源码 | [`v1.17.1`](https://github.com/Lifky/Flikky/tree/v1.17.1) · 2026-08-13 | 收藏与会话的行内菜单、收藏批量操作、列表 leading 对齐，以及未连 Wi-Fi 时的启动守卫。 |
-| `main` | [未发布改动](https://github.com/Lifky/Flikky/compare/v1.17.1...main) | 稳定 tag 之外暂无未发布改动。 |
+| 稳定版源码 | [`v1.18.0`](https://github.com/Lifky/Flikky/tree/v1.18.0) · 2026-08-15 | 双端会话时间戳分隔条、会话中屏幕常亮，以及浏览器端一键保存（逐个下载 / ZIP 打包）。 |
+| `main` | [未发布改动](https://github.com/Lifky/Flikky/compare/v1.18.0...main) | 稳定 tag 之外暂无未发布改动。 |
 
 需要可复现构建时使用稳定版 tag；需要评估最新但尚未发布的工作时使用 `main`。各版本变更详见 [更新日志](./docs/CHANGELOG.zh-CN.md)，历史版本可在仓库的 [tags](https://github.com/Lifky/Flikky/tags) 中查看。
 
@@ -123,6 +123,9 @@ Flikky 面向可信局域网使用，并把配对、会话状态、历史记录�
 - [x] 删除全部数据
 - [x] 收藏行与会话行的行内菜单
 - [x] 开始传输前的 Wi-Fi 检查
+- [x] 会话时间戳分隔条（双端）
+- [x] 会话中保持屏幕常亮
+- [x] 浏览器端一键保存（逐个 / ZIP 打包）
 - [ ] 更多...迭代中...
 
 ## 安全模型与边界

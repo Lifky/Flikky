@@ -4,6 +4,19 @@
 
 This file records user-facing changes for each Flikky release, loosely following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow `x.y.z`: x for major architectural changes, y for new features, z for bug fixes. Dates are tag creation dates.
 
+## [v1.18.0](https://github.com/Lifky/Flikky/releases/tag/v1.18.0) · 2026-08-15
+
+### Added
+- Session timestamp dividers on both ends (off by default): a centered pill shows `yy/MM/dd HH:mm` before the first message and again whenever a message arrives 5+ minutes after the last shown divider. One switch in the app controls both ends; the browser follows instantly, including in already-rendered history
+- Keep screen on during a session (off by default): while the service is running and the session screen is in front, the display no longer times out; leaving the screen or stopping the service restores normal behavior
+- Save-all button in the browser: once 2 or more received files are ready, a floating button offers "Save each (N)" — downloading every file one by one under its original name — and "Download as ZIP", a streamed plain-files archive with duplicate names auto-renamed. The ZIP endpoint uses the same session authentication as every other file route
+
+### Changed
+- The two new setting rows carry official Material Symbols leading icons, with the timestamp explanation moved into an info dialog
+
+### Fixed
+- Dragging the bubble corner radius back to its default no longer makes browser bubbles fall back to the old default; both ends now agree the default is 10
+
 ## [v1.17.1](https://github.com/Lifky/Flikky/releases/tag/v1.17.1) · 2026-08-13
 
 ### Added
