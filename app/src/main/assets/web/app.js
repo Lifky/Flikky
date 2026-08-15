@@ -488,11 +488,14 @@
 
     // 气泡圆角双端联动：手机在设置里拖 slider → peer-info 推 bubbleCornerRadius(dp) →
     // 覆写 tokens.css 的 --flikky-bubble-radius，气泡两端圆角一致。这是「一个设计决策
-    // 一处改动两端生效」的活样例。钳制到 App 侧的 8..28dp，非法值回落默认 18。
+    // 一处改动两端生效」的活样例。钳制到 App 侧的 8..28dp，非法/省略值回落默认 10。
+    const DEFAULT_BUBBLE_RADIUS = 10;
     let lastBubbleRadius = null;
     function applyBubbleRadius(dp) {
         const n = Number(dp);
-        const clamped = Number.isFinite(n) ? Math.max(8, Math.min(28, Math.round(n))) : 18;
+        const clamped = Number.isFinite(n)
+            ? Math.max(8, Math.min(28, Math.round(n)))
+            : DEFAULT_BUBBLE_RADIUS;
         if (clamped === lastBubbleRadius) return;
         lastBubbleRadius = clamped;
         document.documentElement.style.setProperty('--flikky-bubble-radius', clamped + 'px');
