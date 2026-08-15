@@ -30,12 +30,12 @@ test('save-all stays hidden for fewer than two received files', () => {
     });
 });
 
-test('save-all stays hidden when all received files are already saved', () => {
+test('save-all remains visible when all received files are already saved', () => {
     assert.deepEqual(compute([
         { fileId: 'a', name: 'a.txt' },
         { fileId: 'b', name: 'b.txt' },
     ], new Set(['a', 'b'])), {
-        visible: false,
+        visible: true,
         unsavedCount: 0,
     });
 });

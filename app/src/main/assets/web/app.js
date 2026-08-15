@@ -21,7 +21,7 @@
     function computeSaveAllState(files, savedSet) {
         const unsaved = files.filter((file) => !savedSet.has(file.fileId));
         return {
-            visible: files.length >= 2 && unsaved.length >= 1,
+            visible: files.length >= 2,
             unsavedCount: unsaved.length,
         };
     }
