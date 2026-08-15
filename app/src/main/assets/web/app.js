@@ -1390,7 +1390,6 @@
 
     async function loadHistory() {
         lastBubbleOrigin = null;
-        lastDividerBaseTs = null;
         const r = await fetch('/api/messages');
         if (!r.ok) return;
         const data = await r.json();

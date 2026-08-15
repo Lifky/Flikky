@@ -12,6 +12,14 @@ const end = appJs.indexOf('// Wrap a bubble div');
 assert.ok(start >= 0 && end > start, 'session timestamp helpers not found in app.js');
 const slice = appJs.slice(start, end);
 
+const loadHistoryStart = appJs.indexOf('    async function loadHistory()');
+const loadHistoryEnd = appJs.indexOf('\n    let currentConnKey', loadHistoryStart);
+assert.ok(
+    loadHistoryStart >= 0 && loadHistoryEnd > loadHistoryStart,
+    'loadHistory not found in app.js',
+);
+const loadHistorySlice = appJs.slice(loadHistoryStart, loadHistoryEnd);
+
 function createElement() {
     return {
         children: [],
@@ -54,4 +62,38 @@ test('maybeInsertTimeDivider anchors gaps to the last inserted divider', () => {
     );
 
     assert.equal(context.count, 3);
+});
+
+test('reloading rendered history keeps the divider anchor for the next message', async () => {
+    const list = createElement();
+    const history = {
+        ordered: [
+            { kind: 'text', id: 1, origin: 'PHONE', timestamp: 1000000, content: 'first' },
+        ],
+    };
+    const context = {
+        document: { createElement },
+        fetch: async () => ({ ok: true, json: async () => history }),
+        list,
+    };
+    vm.createContext(context);
+    vm.runInContext(
+        `${slice}
+        const seen = new Set();
+        function renderText(msg) { maybeInsertTimeDivider(msg.timestamp); }
+        function renderFile(msg) { maybeInsertTimeDivider(msg.timestamp); return null; }
+        function renderTransferringBubble(msg) { maybeInsertTimeDivider(msg.timestamp); }
+        function refreshSaveAllFab() {}
+        ${loadHistorySlice}
+        globalThis.runScenario = async () => {
+            await loadHistory();
+            await loadHistory();
+            renderText({ timestamp: 1060000 });
+            return list.children.length;
+        };
+        `,
+        context,
+    );
+
+    assert.equal(await context.runScenario(), 1);
 });
