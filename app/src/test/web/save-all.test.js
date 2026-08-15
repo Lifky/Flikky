@@ -13,42 +13,97 @@ const end = appJs.indexOf('    const ua', start);
 assert.ok(end > start, 'save-all state helper is incomplete');
 const slice = appJs.slice(start, end);
 
-function compute(files, savedIds) {
-    const context = { files, savedIds };
+const actionsStart = appJs.indexOf('    function triggerDownload');
+const actionsEnd = appJs.indexOf('    function saveAllAsZip', actionsStart);
+assert.ok(actionsStart >= 0 && actionsEnd > actionsStart, 'save-all actions not found in app.js');
+const actionsSlice = appJs.slice(actionsStart, actionsEnd);
+
+function compute(files) {
+    const context = { files };
     vm.createContext(context);
-    vm.runInContext(`${slice}\nglobalThis.result = computeSaveAllState(files, savedIds);`, context);
+    vm.runInContext(`${slice}\nglobalThis.result = computeSaveAllState(files);`, context);
     return {
         visible: context.result.visible,
-        unsavedCount: context.result.unsavedCount,
+        fileCount: context.result.fileCount,
     };
 }
 
 test('save-all stays hidden for fewer than two received files', () => {
-    assert.deepEqual(compute([{ fileId: 'a', name: 'a.txt' }], new Set()), {
+    assert.deepEqual(compute([{ fileId: 'a', name: 'a.txt' }]), {
         visible: false,
-        unsavedCount: 1,
+        fileCount: 1,
     });
 });
 
-test('save-all remains visible when all received files are already saved', () => {
+test('save-all remains visible for two received files', () => {
     assert.deepEqual(compute([
         { fileId: 'a', name: 'a.txt' },
         { fileId: 'b', name: 'b.txt' },
-    ], new Set(['a', 'b'])), {
+    ]), {
         visible: true,
-        unsavedCount: 0,
+        fileCount: 2,
     });
 });
 
-test('save-all shows the number of unsaved received files', () => {
+test('save-all reports the total number of received files', () => {
     assert.deepEqual(compute([
         { fileId: 'a', name: 'a.txt' },
         { fileId: 'b', name: 'b.txt' },
         { fileId: 'c', name: 'c.txt' },
-    ], new Set(['b'])), {
+    ]), {
         visible: true,
-        unsavedCount: 2,
+        fileCount: 3,
     });
+});
+
+test('saving individually downloads every received file on every click', async () => {
+    const downloads = [];
+    const bubbles = [
+        {
+            dataset: { fileId: 'a', name: 'a.txt' },
+            classList: { contains: () => false },
+        },
+        {
+            dataset: { fileId: 'b', name: 'b.txt' },
+            classList: { contains: () => false },
+        },
+    ];
+    const context = {
+        document: {
+            createElement: () => ({
+                href: '',
+                download: '',
+                click() { downloads.push(this.href); },
+                remove() {},
+            }),
+            body: { appendChild() {} },
+        },
+        list: { querySelectorAll: () => bubbles },
+        saveAllDropdown: { hidden: true },
+        saveAllEachItem: { textContent: '' },
+        setTimeout: (callback) => callback(),
+        t: (_key, values) => String(values.count),
+        downloads,
+    };
+    vm.createContext(context);
+    vm.runInContext(
+        `${slice}
+        ${actionsSlice}
+        globalThis.runScenario = async () => {
+            await saveAllIndividually();
+            await saveAllIndividually();
+        };
+        `,
+        context,
+    );
+
+    await context.runScenario();
+    assert.deepEqual(downloads, [
+        '/api/files/a',
+        '/api/files/b',
+        '/api/files/a',
+        '/api/files/b',
+    ]);
 });
 
 test('save-all dropdown creates a positioned box above the chat list', () => {

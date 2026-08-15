@@ -16,13 +16,11 @@
     const t = (key, values) => i18n.t(key, values);
     const countText = (key, count) => i18n.count(key, count);
     let lastStatus = null;
-    const savedFileIds = new Set();
 
-    function computeSaveAllState(files, savedSet) {
-        const unsaved = files.filter((file) => !savedSet.has(file.fileId));
+    function computeSaveAllState(files) {
         return {
             visible: files.length >= 2,
-            unsavedCount: unsaved.length,
+            fileCount: files.length,
         };
     }
 
@@ -767,8 +765,6 @@
         document.body.appendChild(link);
         link.click();
         link.remove();
-        savedFileIds.add(fileId);
-        refreshSaveAllFab();
     }
 
     function collectReceivedCompletedFiles() {
@@ -784,14 +780,13 @@
     }
 
     function refreshSaveAllFab() {
-        const state = computeSaveAllState(collectReceivedCompletedFiles(), savedFileIds);
+        const state = computeSaveAllState(collectReceivedCompletedFiles());
         saveAllDropdown.hidden = !state.visible;
-        saveAllEachItem.textContent = t('app.save_all_each', { count: state.unsavedCount });
+        saveAllEachItem.textContent = t('app.save_all_each', { count: state.fileCount });
     }
 
     async function saveAllIndividually() {
-        const files = collectReceivedCompletedFiles()
-            .filter((file) => !savedFileIds.has(file.fileId));
+        const files = collectReceivedCompletedFiles();
         for (const file of files) {
             triggerDownload(file.fileId, file.name);
             await new Promise((resolve) => setTimeout(resolve, 350));
