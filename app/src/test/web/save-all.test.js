@@ -6,6 +6,7 @@ const vm = require('node:vm');
 
 const webDir = path.join(__dirname, '../../main/assets/web');
 const appJs = fs.readFileSync(path.join(webDir, 'app.js'), 'utf8');
+const appCss = fs.readFileSync(path.join(webDir, 'app.css'), 'utf8');
 const start = appJs.indexOf('function computeSaveAllState');
 assert.ok(start >= 0, 'save-all state helper not found in app.js');
 const end = appJs.indexOf('    const ua', start);
@@ -48,4 +49,11 @@ test('save-all shows the number of unsaved received files', () => {
         visible: true,
         unsavedCount: 2,
     });
+});
+
+test('save-all dropdown creates a positioned box above the chat list', () => {
+    const rule = appCss.match(/#save-all-dropdown\s*\{[^}]*\}/)?.[0] ?? '';
+
+    assert.match(rule, /display:\s*inline-block/);
+    assert.match(rule, /position:\s*absolute/);
 });

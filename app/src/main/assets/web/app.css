@@ -67,6 +67,8 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
 
 /* v1.18: 一键保存 FAB（悬浮于消息滚动区右下角） */
 #save-all-dropdown {
+    /* mdui.css defaults custom elements to display:contents; positioning then has no box. */
+    display: inline-block;
     position: absolute;
     right: 20px;
     bottom: 20px;
