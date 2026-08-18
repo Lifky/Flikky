@@ -11,7 +11,9 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.client.statement.readRawBytes
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
@@ -24,9 +26,15 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class FavoriteRoutesTest {
+
+    @get:Rule
+    val tmp = TemporaryFolder()
 
     private val sample = FavoritesResponseDto(
         groups = listOf(FavoriteGroupDto(id = 3, name = "常用片段", sortOrder = 0)),
@@ -112,5 +120,62 @@ class FavoriteRoutesTest {
         val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
         assertEquals(0, body["groups"]!!.jsonArray.size)
         assertEquals(0, body["items"]!!.jsonArray.size)
+    }
+
+    @Test
+    fun `GET favorite file without cookie returns 401`() = testApplication {
+        application(setupApp())
+        val resp: HttpResponse = client.get("/api/favorites/12/file")
+        assertEquals(HttpStatusCode.Unauthorized, resp.status)
+    }
+
+    @Test
+    fun `GET favorite file streams bytes as an attachment`() = testApplication {
+        val f = tmp.newFile("payload.bin").apply { writeBytes(byteArrayOf(1, 2, 3, 4, 5)) }
+        application(setupApp(fileResolver = { id -> if (id == 12L) f else null }))
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        val resp: HttpResponse = http.get("/api/favorites/12/file")
+        assertEquals(HttpStatusCode.OK, resp.status)
+        assertEquals(listOf<Byte>(1, 2, 3, 4, 5), resp.readRawBytes().toList())
+        val cd = resp.headers[HttpHeaders.ContentDisposition] ?: ""
+        assertEquals(true, cd.startsWith("attachment"))
+    }
+
+    @Test
+    fun `GET favorite file returns 404 when the row or file is gone`() = testApplication {
+        application(setupApp(fileResolver = { null }))
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        val resp: HttpResponse = http.get("/api/favorites/999/file")
+        assertEquals(HttpStatusCode.NotFound, resp.status)
+    }
+
+    @Test
+    fun `GET favorite file rejects a non-numeric id with 400`() = testApplication {
+        application(setupApp())
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        // "abc" is a single path segment, so the route matches and toLongOrNull() reliably
+        // returns null -- this is what actually exercises the numeric guard.
+        val resp: HttpResponse = http.get("/api/favorites/abc/file")
+        assertEquals(HttpStatusCode.BadRequest, resp.status)
+    }
+
+    @Test
+    fun `GET favorite file refuses a traversal-shaped id`() = testApplication {
+        application(setupApp())
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        // "..%2F..%2Fetc" decodes to "../../etc", which is three path segments once Ktor
+        // decodes it -- whether that fails routing (404) or reaches the handler and fails
+        // toLongOrNull() (400) depends on this Ktor version's decode-before-route behavior.
+        // Only assert it is refused, not which status refuses it.
+        val resp: HttpResponse = http.get("/api/favorites/..%2F..%2Fetc/file")
+        assertNotEquals(HttpStatusCode.OK, resp.status)
     }
 }
