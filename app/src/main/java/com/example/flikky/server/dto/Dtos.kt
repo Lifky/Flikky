@@ -146,6 +146,12 @@ data class PeerInfoDto(
     val backgroundValue: String? = null,
     val themeSeed: String? = null,
     val themeDark: Boolean = false,
+    /**
+     * v1.19.0: AMOLED 纯黑变体。仅在 themeDark 为 true 时有意义——浏览器端读法是
+     * `if (!themeDark) light else if (amoled) amoled else dark`。
+     * 单独一个布尔而不是把 themeDark 改成三态字符串：后者会打破既有契约与测试。
+     */
+    val amoled: Boolean = false,
     // 气泡圆角（dp，8..28）——推给浏览器让两端气泡圆角一致；手机设置里拖 slider 即两端同步。
     // 默认 10 与 data.settings.BUBBLE_CORNER_DEFAULT 对齐；DTO 不依赖 data 层，故此处内联。
     val bubbleCornerRadius: Int = 10,
@@ -162,6 +168,7 @@ data class PeerInfoDto(
 data class WebThemeDto(
     val themeSeed: String? = null,
     val themeDark: Boolean = false,
+    val amoled: Boolean = false,
     val languageTag: String = "zh-CN",
 )
 

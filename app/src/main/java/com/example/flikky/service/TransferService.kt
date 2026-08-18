@@ -735,6 +735,7 @@ class TransferService : Service() {
                 backgroundValue = value,
                 themeSeed = seed,
                 themeDark = resolvedDark,
+                amoled = amoled,
                 bubbleCornerRadius = bubbleCornerRadius,
                 avatarGrouping = avatarGrouping.name,
                 messageActionStyle = messageActionStyle.name,

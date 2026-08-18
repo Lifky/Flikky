@@ -133,6 +133,7 @@ class KtorServer(
                                 WebThemeDto(
                                     themeSeed = info.themeSeed,
                                     themeDark = info.themeDark,
+                                    amoled = info.amoled,
                                     languageTag = webLanguageTagProvider(),
                                 )
                             },

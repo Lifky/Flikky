@@ -52,7 +52,7 @@ class PeerInfoRoutesTest {
                 authGate,
                 readAsset = { byteArrayOf() },
                 publicThemeProvider = {
-                    WebThemeDto(themeSeed = "#6750A4", themeDark = true, languageTag = "en")
+                    WebThemeDto(themeSeed = "#6750A4", themeDark = true, amoled = true, languageTag = "en")
                 },
             )
             peerInfoRoutes(authGate = authGate, provider = provider)
@@ -147,7 +147,8 @@ class PeerInfoRoutesTest {
         val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
         assertEquals("#6750A4", body["themeSeed"]!!.jsonPrimitive.content)
         assertEquals(true, body["themeDark"]!!.jsonPrimitive.boolean)
+        assertEquals(true, body["amoled"]!!.jsonPrimitive.boolean)
         assertEquals("en", body["languageTag"]!!.jsonPrimitive.content)
-        assertEquals(setOf("themeSeed", "themeDark", "languageTag"), body.keys)
+        assertEquals(setOf("themeSeed", "themeDark", "amoled", "languageTag"), body.keys)
     }
 }
