@@ -482,6 +482,15 @@ class TransferService : Service() {
             )
         },
         webLanguageTagProvider = { AppLanguageManager.effectiveLanguageTag(this) },
+        favoritesProvider = {
+            toFavoritesResponseDto(
+                favorites = ServiceLocator.favoritesRepository.observeFavorites().first(),
+                groups = ServiceLocator.favoritesRepository.observeGroups().first(),
+            )
+        },
+        favoriteRowFileResolver = { rowId ->
+            ServiceLocator.favoritesRepository.findFavoriteFile(rowId)
+        },
     )
 
     /**

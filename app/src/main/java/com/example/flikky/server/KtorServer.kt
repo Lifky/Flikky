@@ -3,6 +3,7 @@ package com.example.flikky.server
 import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.server.dto.ServerRecallOutcome
+import com.example.flikky.server.dto.FavoritesResponseDto
 import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.dto.WebThemeDto
 import com.example.flikky.server.routes.FileStore
@@ -11,6 +12,7 @@ import com.example.flikky.server.routes.AuthGate
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.server.routes.authRoutes
 import com.example.flikky.server.routes.exportRoutes
+import com.example.flikky.server.routes.favoriteRoutes
 import com.example.flikky.server.routes.fileRoutes
 import com.example.flikky.server.routes.messageRoutes
 import com.example.flikky.server.routes.peerInfoRoutes
@@ -67,6 +69,15 @@ class KtorServer(
     private val requirePin: Boolean = true,
     private val onZipSent: suspend () -> Unit = {},
     private val favoriteFileResolver: (String) -> java.io.File? = { null },
+    /**
+     * v1.19.0 浏览器端收藏 tab。lambda 而非实例：Wi-Fi rebind 会整组替换 KtorServer，
+     * 调用时现取才不会指向已废弃的依赖（见 CLAUDE.md「跨 Wi-Fi rebind 的引用规范」）。
+     */
+    private val favoritesProvider: suspend () -> FavoritesResponseDto = {
+        FavoritesResponseDto(emptyList(), emptyList())
+    },
+    /** 按收藏行 id 取落盘文件。与上面按 depot id 的 favoriteFileResolver 是两回事，勿混用。 */
+    private val favoriteRowFileResolver: suspend (Long) -> java.io.File? = { null },
     /** Web thumbnail generator. TransferService supplies the Android implementation. */
     private val thumbnailGenerator: ThumbnailGenerator = ThumbnailGenerator { _, _, _ -> false },
     /**
@@ -178,6 +189,11 @@ class KtorServer(
             thumbnailer = thumbnailGenerator,
         )
         peerInfoRoutes(authGate, peerInfoProvider)
+        favoriteRoutes(
+            authGate = authGate,
+            listProvider = favoritesProvider,
+            fileResolver = favoriteRowFileResolver,
+        )
         wsRoutes(authGate, session, wsHub, onClientHello)
     }
 

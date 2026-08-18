@@ -150,6 +150,16 @@ class FavoritesRepository(
         row.fileId?.let { favoriteFileStore.delete(it) }
     }
 
+    /**
+     * v1.19.0: 按收藏行 id 解析落盘文件。路径唯一事实源是 FavoriteFileStore.resolve —— 禁止手拼。
+     * 文本收藏与文件缺失都返回 null，由路由层转 404。
+     */
+    suspend fun findFavoriteFile(id: Long): File? {
+        val row = favoriteDao.getById(id) ?: return null
+        val depotId = row.fileId ?: return null
+        return favoriteFileStore.resolve(depotId).takeIf { it.isFile }
+    }
+
     suspend fun deleteFavorites(ids: List<Long>) {
         ids.forEach { deleteFavorite(it) }
     }
