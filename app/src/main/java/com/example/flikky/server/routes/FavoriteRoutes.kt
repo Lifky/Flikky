@@ -54,18 +54,16 @@ fun Route.favoriteRoutes(
             return@get
         }
 
-        val mime = call.request.queryParameters["mime"]
-        val inline = call.request.queryParameters["inline"] == "1" &&
-            mime != null && isMediaMime(mime)
-
+        // 收藏面板只提供“下载”，没有预览/lightbox（spec §4.2），所以这里刻意不提供 inline：
+        // 调用方不能选择渲染的 Content-Type，永远按 attachment + octet-stream 下发。
         call.response.header(
             HttpHeaders.ContentDisposition,
-            (if (inline) ContentDisposition.Inline else ContentDisposition.Attachment)
+            ContentDisposition.Attachment
                 .withParameter(ContentDisposition.Parameters.FileName, file.name)
                 .toString(),
         )
         call.respondOutputStream(
-            contentType = if (inline) ContentType.parse(mime!!) else ContentType.Application.OctetStream,
+            contentType = ContentType.Application.OctetStream,
             status = HttpStatusCode.OK,
         ) {
             file.inputStream().use { input ->

@@ -141,7 +141,26 @@ class FavoriteRoutesTest {
         assertEquals(listOf<Byte>(1, 2, 3, 4, 5), resp.readRawBytes().toList())
         val cd = resp.headers[HttpHeaders.ContentDisposition] ?: ""
         assertEquals(true, cd.startsWith("attachment"))
+        assertEquals(true, cd.contains("filename") && cd.contains("payload.bin"))
     }
+
+    @Test
+    fun `GET favorite file ignores inline and mime query params and always downloads as octet-stream`() =
+        testApplication {
+            // R7: the favorites panel only offers download, never preview/lightbox (spec §4.2),
+            // so this endpoint must not let the caller pick the rendered Content-Type -- even
+            // when a client tries to force inline SVG rendering (a script-execution vector).
+            val f = tmp.newFile("payload.bin").apply { writeBytes(byteArrayOf(9)) }
+            application(setupApp(fileResolver = { id -> if (id == 12L) f else null }))
+            val http = createClient { install(HttpCookies) }
+            authenticate(http)
+
+            val resp: HttpResponse = http.get("/api/favorites/12/file?inline=1&mime=image/svg+xml")
+            assertEquals(HttpStatusCode.OK, resp.status)
+            val cd = resp.headers[HttpHeaders.ContentDisposition] ?: ""
+            assertEquals(true, cd.startsWith("attachment"))
+            assertEquals("application/octet-stream", resp.headers[HttpHeaders.ContentType])
+        }
 
     @Test
     fun `GET favorite file returns 404 when the row or file is gone`() = testApplication {
