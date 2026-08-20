@@ -91,9 +91,18 @@
     </div>
 
     <nav class="fk-navbar" id="navbar" aria-label="主导航">
-        <button class="fk-navbar-item" data-dest="chat" aria-selected="true"></button>
-        <button class="fk-navbar-item" data-dest="favorites" aria-selected="false"></button>
-        <button class="fk-navbar-item" data-dest="settings" aria-selected="false"></button>
+        <button class="fk-navbar-item" data-dest="chat" aria-selected="true">
+            <span class="fk-navbar-icon"><span class="material-symbols-outlined">forum</span></span>
+            <span data-i18n="app.nav.chat">会话</span>
+        </button>
+        <button class="fk-navbar-item" data-dest="favorites" aria-selected="false">
+            <span class="fk-navbar-icon"><span class="material-symbols-outlined">star</span></span>
+            <span data-i18n="app.nav.favorites">收藏</span>
+        </button>
+        <button class="fk-navbar-item" data-dest="settings" aria-selected="false">
+            <span class="fk-navbar-icon"><span class="material-symbols-outlined">settings</span></span>
+            <span data-i18n="app.nav.settings">设置</span>
+        </button>
     </nav>
 
     <!-- Avatar picker (12 presets) — official mdui-dialog -->

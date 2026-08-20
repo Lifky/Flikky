@@ -65,8 +65,12 @@ body.chat-page .chat > mdui-top-app-bar { position: relative !important; }
     background: rgb(var(--mdui-color-surface-container-lowest));
 }
 
-/* v1.18: 一键保存 FAB（悬浮于消息滚动区右下角） */
-#save-all-dropdown {
+/* v1.18: 一键保存 FAB（悬浮于消息滚动区右下角）。
+   v1.19.0：FAB 已经从 #chat-list-shell 移到 .fk-dock-row 里，不再需要这条绝对定位——
+   若不加限定，它会把新位置的 FAB 拽出 dock-row 的文档流，钉在 .fk-pillar 右下角并被裁切。
+   限定在 #chat-list-shell 下面，让它只对旧结构生效（也就是不再生效）；
+   Task 4 迁移完样式后这条规则和这个文件一起删除，不需要为新位置补样式。 */
+#chat-list-shell #save-all-dropdown {
     /* mdui.css defaults custom elements to display:contents; positioning then has no box. */
     display: inline-block;
     position: absolute;

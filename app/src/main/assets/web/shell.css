@@ -351,7 +351,9 @@ body {
   display: none;
   position: fixed;
   left: 0; right: 0; bottom: 0;
-  height: var(--flikky-navbar-h);        /* Expressive navigation bar 64dp */
+  /* min-height, not height: under global box-sizing: border-box, a fixed height would let
+     padding-bottom eat into the 64dp bar instead of the home-indicator inset growing past it. */
+  min-height: var(--flikky-navbar-h);    /* Expressive navigation bar 64dp */
   background: rgb(var(--mdui-color-surface-container));
   z-index: 40;
   padding-bottom: env(safe-area-inset-bottom, 0);
@@ -394,12 +396,9 @@ body {
 }
 .fk-navbar-item:active .fk-navbar-icon { transform: scale(.9); }
 
-/* ⚠️ 这条必须留在 .fk-navbar 基础规则之后。
-   媒体查询不增加特异性，同为 .fk-navbar 时靠源码顺序决胜；
-   之前 display:none 若写在媒体查询下方，会把窄屏的 display:flex 盖掉，
-   移动端底部导航就永远不出现。
-   选择器故意不写 ".fk-navbar {"（带空格）—— 那样会和上面的基础规则撞成
-   同一个字面子串，测试用 lastIndexOf 定位「基础规则位置」时会误命中这一行自己。 */
+/* 这条必须留在 .fk-navbar 基础规则之后：媒体查询不增加特异性，
+   同为 .fk-navbar 时靠源码顺序决胜——写在基础规则上方会被窄屏的
+   display:flex 盖掉，移动端底部导航就永远不出现。 */
 @media (max-width: 839px) {
-  .fk-navbar{ display: flex; }
+  .fk-navbar { display: flex; }
 }

@@ -62,10 +62,16 @@ test('mobile drops the rail, the splitter and the collapse button', () => {
 });
 
 test('the mobile navbar display override comes after its base rule', () => {
-  const base = shell.lastIndexOf('.fk-navbar {');
-  const override = shell.lastIndexOf('.fk-navbar { display: flex;');
-  assert.ok(override > base || /max-width:\s*839px\)\s*\{\s*\.fk-navbar\s*\{\s*display:\s*flex/.test(shell.slice(base)),
-    'navbar display:flex must win by source order');
+  // Two independent lookups instead of lastIndexOf on a short substring — ".fk-navbar {"
+  // is a literal prefix of the override rule too, so a single shared search string can
+  // resolve to the wrong occurrence. Matching each rule's own shape and comparing
+  // match().index keeps this meaningful without constraining shell.css's formatting.
+  const baseMatch = shell.match(/\.fk-navbar\s*\{[^}]*display:\s*none[^}]*\}/);
+  assert.ok(baseMatch, 'no base .fk-navbar rule with display: none');
+  const overrideMatch = shell.match(/@media \(max-width:\s*839px\)\s*\{\s*\.fk-navbar\s*\{\s*display:\s*flex/);
+  assert.ok(overrideMatch, 'no mobile .fk-navbar display:flex override inside the 839px media query');
+  assert.ok(overrideMatch.index > baseMatch.index,
+    'navbar display:flex override must come after the base rule by source order');
 });
 
 test('scrollbars are hidden until hover', () => {

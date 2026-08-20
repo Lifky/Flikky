@@ -16,6 +16,7 @@
             'login.wrong_pin': 'PIN 错误',
             'login.network_error': '网络错误',
 
+            'app.nav.chat': '会话',
             'app.nav.favorites': '收藏',
             'app.nav.settings': '设置',
             'app.avatar.change': '更换头像',
@@ -117,6 +118,7 @@
             'login.wrong_pin': 'Incorrect PIN',
             'login.network_error': 'Network error',
 
+            'app.nav.chat': 'Chat',
             'app.nav.favorites': 'Favorites',
             'app.nav.settings': 'Settings',
             'app.avatar.change': 'Change avatar',

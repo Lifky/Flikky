@@ -1875,10 +1875,20 @@
 
     // 点任一导航目的地：顺带展开功能栏（折叠的是功能栏，rail 永远常驻），
     // 同步 rail/navbar 的 aria-selected，并在两个 .fk-view 之间切换 hidden。
+    // "chat" 是特例：它只在移动端底部导航出现（桌面 rail 没有这个目的地），
+    // 且没有对应的 .fk-view —— 提前 return，只切 mobileDest + navbar 的
+    // aria-selected，绝不动 data-panel 或任何 .fk-view 的 hidden。
     function selectDest(dest) {
         if (!shell) return;
+        if (dest === 'chat') {
+            shell.dataset.mobileDest = 'chat';
+            document.querySelectorAll('.fk-navbar-item').forEach((btn) => {
+                btn.setAttribute('aria-selected', btn.dataset.dest === dest ? 'true' : 'false');
+            });
+            return;
+        }
         setPanel(true);
-        shell.dataset.mobileDest = dest === 'chat' ? 'chat' : 'panel';
+        shell.dataset.mobileDest = 'panel';
         document.querySelectorAll('.fk-rail-item, .fk-navbar-item').forEach((btn) => {
             btn.setAttribute('aria-selected', btn.dataset.dest === dest ? 'true' : 'false');
         });
