@@ -179,10 +179,10 @@ The debug APK is generated at `app/build/outputs/apk/debug/app-debug.apk`.
 Browser regression checks use Node.js without third-party packages:
 
 ```bash
-node --check app/src/main/assets/web/app.js
-node --test app/src/test/web/app-avatar-default.test.js
-node scripts/test-web-avatar-reflow.js
-node scripts/test-web-login-theme.js
+# Browser tests (one command runs everything: syntax check + node:test suite + two DOM scripts)
+node scripts/test-web.mjs
+# or via Gradle (already wired into check)
+./gradlew webTest
 ```
 
 ## Architecture

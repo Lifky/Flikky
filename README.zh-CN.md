@@ -179,10 +179,10 @@ Debug APK 输出到 `app/build/outputs/apk/debug/app-debug.apk`。
 浏览器端回归检查只依赖 Node.js，不需要第三方 package：
 
 ```bash
-node --check app/src/main/assets/web/app.js
-node --test app/src/test/web/app-avatar-default.test.js
-node scripts/test-web-avatar-reflow.js
-node scripts/test-web-login-theme.js
+# 浏览器端测试（一条命令跑全部：语法检查 + node:test 套件 + 两个 DOM 脚本）
+node scripts/test-web.mjs
+# 或经 Gradle（已挂在 check 上）
+./gradlew webTest
 ```
 
 ## 架构

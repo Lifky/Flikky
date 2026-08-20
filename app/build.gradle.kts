@@ -133,3 +133,17 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
+
+/**
+ * v1.19.0: 浏览器端测试（Node 内建 node:test + 两个自研 DOM 脚本）纳入 `check`。
+ * 它们不是 JVM 测试，Gradle 只做一层包装 —— 但必须进门禁，
+ * 否则 `testDebugUnitTest` 全绿会给出「web 也没坏」的错觉。
+ */
+tasks.register<Exec>("webTest") {
+    group = "verification"
+    description = "Runs the browser-side test suite (node scripts/test-web.mjs)"
+    workingDir = rootProject.projectDir
+    commandLine("node", "scripts/test-web.mjs")
+}
+
+tasks.named("check") { dependsOn("webTest") }
