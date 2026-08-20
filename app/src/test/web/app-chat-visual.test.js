@@ -249,3 +249,16 @@ test('setSendEnabled resets the send-ready state on every connection change (B3)
   const slice = sliceFunction('function setSendEnabled', 'function autoGrowInput');
   assert.match(slice, /refreshSendReady\(\);/);
 });
+
+test('sendText recomputes the ready state on every exit path (B3)', () => {
+  // sendText's finally sets sendBtn.disabled directly instead of going through
+  // setSendEnabled, and clearing input.value programmatically fires no `input`
+  // event — so without an explicit call here the button stays primary-coloured
+  // over an empty box until the next keystroke. finally (not the success branch)
+  // is the right home: it also covers send-failure and disconnect.
+  const slice = sliceFunction('async function sendText', 'function sendFile');
+  assert.match(
+    slice,
+    /finally \{[\s\S]*?sendBtn\.disabled = !wsConnected;[\s\S]*?refreshSendReady\(\);/,
+  );
+});

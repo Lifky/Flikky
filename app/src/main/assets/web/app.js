@@ -1659,6 +1659,10 @@
             }
         } finally {
             sendBtn.disabled = !wsConnected;
+            // 这里绕开了 setSendEnabled 直接改 disabled，而清空 input.value 又不会触发
+            // input 事件——所以 ready 态必须在这里显式重算，否则发完消息按钮还亮着。
+            // 放在 finally 覆盖全部出口：成功（已清空）、失败（文本仍在）、断线。
+            refreshSendReady();
             input.focus();
         }
     }
