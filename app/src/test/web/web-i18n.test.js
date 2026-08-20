@@ -93,7 +93,7 @@ test('all page translation keys exist in both dictionaries', () => {
     const { i18n } = loadI18n();
     const webDir = path.resolve(__dirname, '../../main/assets/web');
     const pageFiles = ['login.html', 'login.js', 'app.html', 'app.js', 'export.html', 'export.js'];
-    const keyPattern = /['"]((?:common|login|app|export)\.[a-z0-9_]+)['"]/g;
+    const keyPattern = /['"]((?:common|login|app|export)\.[a-z0-9_]+(?:\.[a-z0-9_]+)*)['"]/g;
     const keys = new Set();
     for (const file of pageFiles) {
         const source = fs.readFileSync(path.join(webDir, file), 'utf8');

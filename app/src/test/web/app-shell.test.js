@@ -100,3 +100,23 @@ test('every --flikky- variable the shell uses is defined somewhere', () => {
   const missing = [...new Set(used)].filter((v) => !defined.has(v));
   assert.deepEqual(missing, [], `undefined CSS variables: ${missing.join(', ')}`);
 });
+
+// v1.19.0 items 4/5/8/10 each add or remove <link>/<script> tags; nothing before this
+// caught a page referencing a static file that doesn't exist on disk (see app.css
+// being dropped from app.html's <head> in the Task 3 first pass). This only checks
+// "everything referenced exists" — not the converse — because several later tasks
+// legitimately land a file a commit before wiring it up.
+test('every /static/ href and src referenced by a page exists on disk', () => {
+  const pages = ['app.html', 'login.html', 'export.html'];
+  for (const page of pages) {
+    const source = fs.readFileSync(path.join(WEB, page), 'utf8');
+    const refs = [
+      ...[...source.matchAll(/href="\/static\/([^"]+\.css)"/g)].map((m) => m[1]),
+      ...[...source.matchAll(/src="\/static\/([^"]+\.js)"/g)].map((m) => m[1]),
+    ];
+    for (const ref of refs) {
+      const resolved = path.join(WEB, ref);
+      assert.ok(fs.existsSync(resolved), `${page} references missing static file: /static/${ref}`);
+    }
+  }
+});

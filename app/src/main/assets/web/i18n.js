@@ -16,6 +16,9 @@
             'login.wrong_pin': 'PIN 错误',
             'login.network_error': '网络错误',
 
+            'app.nav.favorites': '收藏',
+            'app.nav.settings': '设置',
+            'app.avatar.change': '更换头像',
             'app.peer_info': '对方信息',
             'app.peer_avatar': '对方头像',
             'app.connecting': '连接中…',
@@ -114,6 +117,9 @@
             'login.wrong_pin': 'Incorrect PIN',
             'login.network_error': 'Network error',
 
+            'app.nav.favorites': 'Favorites',
+            'app.nav.settings': 'Settings',
+            'app.avatar.change': 'Change avatar',
             'app.peer_info': 'Peer information',
             'app.peer_avatar': 'Peer avatar',
             'app.connecting': 'Connecting…',
