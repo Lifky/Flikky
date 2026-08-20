@@ -59,38 +59,40 @@
   /* ── 动效速度层。数值语义与 App 的 LocalMotionScale 一致：越大越慢，0 = 关闭。── */
   --flikky-motion-scale: 1;
 
-  /* ── 完整 type scale（对齐 Type.kt，含 line-height 与 letter-spacing）──
-   * 主变量编码为 "size/line-height"，配合 font 简写使用：
-   * font: var(--flikky-type-title-medium) var(--flikky-font-family); */
-  --flikky-type-display-large: 57px/64px;
+  /* ── 完整 type scale（对齐 Type.kt，含 font-weight、line-height 与 letter-spacing）──
+   * 主变量编码为 "weight size/line-height"，配合 font 简写使用：
+   * font: var(--flikky-type-title-medium) var(--flikky-font-family);
+   * weight 必须显式写入 —— font 简写省略它时会重置为 400，titleMedium/titleSmall/
+   * label-* 在 Type.kt 里是 Medium(500)，省略就会比 App 端轻一档。 */
+  --flikky-type-display-large: 400 57px/64px;
   --flikky-type-display-large-tracking: -0.25px;
-  --flikky-type-display-medium: 45px/52px;
+  --flikky-type-display-medium: 400 45px/52px;
   --flikky-type-display-medium-tracking: 0px;
-  --flikky-type-display-small: 36px/44px;
+  --flikky-type-display-small: 400 36px/44px;
   --flikky-type-display-small-tracking: 0px;
-  --flikky-type-headline-large: 32px/40px;
+  --flikky-type-headline-large: 400 32px/40px;
   --flikky-type-headline-large-tracking: 0px;
-  --flikky-type-headline-medium: 28px/36px;
+  --flikky-type-headline-medium: 400 28px/36px;
   --flikky-type-headline-medium-tracking: 0px;
-  --flikky-type-headline-small: 24px/32px;
+  --flikky-type-headline-small: 400 24px/32px;
   --flikky-type-headline-small-tracking: 0px;
-  --flikky-type-title-large: 22px/28px;
+  --flikky-type-title-large: 400 22px/28px;
   --flikky-type-title-large-tracking: 0px;
-  --flikky-type-title-medium: 16px/24px;
+  --flikky-type-title-medium: 500 16px/24px;
   --flikky-type-title-medium-tracking: 0.15px;
-  --flikky-type-title-small: 14px/20px;
+  --flikky-type-title-small: 500 14px/20px;
   --flikky-type-title-small-tracking: 0.1px;
-  --flikky-type-body-large: 16px/24px;
+  --flikky-type-body-large: 400 16px/24px;
   --flikky-type-body-large-tracking: 0.5px;
-  --flikky-type-body-medium: 14px/20px;
+  --flikky-type-body-medium: 400 14px/20px;
   --flikky-type-body-medium-tracking: 0.25px;
-  --flikky-type-body-small: 12px/16px;
+  --flikky-type-body-small: 400 12px/16px;
   --flikky-type-body-small-tracking: 0.4px;
-  --flikky-type-label-large: 14px/20px;
+  --flikky-type-label-large: 500 14px/20px;
   --flikky-type-label-large-tracking: 0.1px;
-  --flikky-type-label-medium: 12px/16px;
+  --flikky-type-label-medium: 500 12px/16px;
   --flikky-type-label-medium-tracking: 0.5px;
-  --flikky-type-label-small: 11px/16px;
+  --flikky-type-label-small: 500 11px/16px;
   --flikky-type-label-small-tracking: 0.5px;
 }
 

@@ -69,3 +69,13 @@ test('cookie9 has nine-fold symmetry: one single corner radius', () => {
   const radii = new Set([...shapes.matchAll(/A\s+([\d.]+)\s+([\d.]+)/g)].map((m) => m[1]));
   assert.equal(radii.size, 1, `expected one radius, got ${[...radii].join(', ')}`);
 });
+
+test('type tokens carry an explicit font-weight so the font shorthand never resets to 400', () => {
+  // font: var(--flikky-type-x) var(--flikky-font-family) 是合法的 font 简写；
+  // 若主变量里没有 weight 分量，简写会把粗细悄悄压回 400 —— titleMedium/titleSmall/
+  // label-* 在 Type.kt 里是 Medium(500)，漏写 weight 就会比 App 端轻一档，且没有任何
+  // 测试会因此变红（外观问题，不是解析/构建错误）。
+  assert.match(tokens, /--flikky-type-display-large:\s*400\s+57px\/64px;/, 'Normal -> 400');
+  assert.match(tokens, /--flikky-type-title-medium:\s*500\s+16px\/24px;/, 'Medium -> 500');
+  assert.match(tokens, /--flikky-type-label-large:\s*500\s+14px\/20px;/, 'Medium -> 500');
+});
