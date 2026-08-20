@@ -5,77 +5,111 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Flikky</title>
     <link rel="stylesheet" href="/static/vendor/mdui.css">
+    <link rel="stylesheet" href="/static/base.css">
+    <link rel="stylesheet" href="/static/springs.css">
     <link rel="stylesheet" href="/static/tokens.css">
-    <link rel="stylesheet" href="/static/app.css">
+    <link rel="stylesheet" href="/static/shell.css">
 </head>
 <body class="chat-page" data-action-style="INLINE">
-    <div class="chat">
-        <mdui-top-app-bar>
-            <div class="header-peer" id="header-peer" aria-label="对方信息" data-i18n-aria-label="app.peer_info">
+    <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+        <defs>
+            <clipPath id="flikky-cookie9" clipPathUnits="objectBoundingBox">
+                <path d="M 0.40421 0.08691 A 0.14256 0.14256 0 0 1 0.59579 0.08691 L 0.59579 0.08691 A 0.14256 0.14256 0 0 0 0.6971 0.12379 L 0.6971 0.12379 A 0.14256 0.14256 0 0 1 0.84387 0.24694 L 0.84387 0.24694 A 0.14256 0.14256 0 0 0 0.89777 0.3403 L 0.89777 0.3403 A 0.14256 0.14256 0 0 1 0.93104 0.52898 L 0.93104 0.52898 A 0.14256 0.14256 0 0 0 0.91232 0.63515 L 0.91232 0.63515 A 0.14256 0.14256 0 0 1 0.81653 0.80107 L 0.81653 0.80107 A 0.14256 0.14256 0 0 0 0.73394 0.87037 L 0.73394 0.87037 A 0.14256 0.14256 0 0 1 0.55391 0.9359 L 0.55391 0.9359 A 0.14256 0.14256 0 0 0 0.44609 0.9359 L 0.44609 0.9359 A 0.14256 0.14256 0 0 1 0.26606 0.87037 L 0.26606 0.87037 A 0.14256 0.14256 0 0 0 0.18347 0.80107 L 0.18347 0.80107 A 0.14256 0.14256 0 0 1 0.08768 0.63515 L 0.08768 0.63515 A 0.14256 0.14256 0 0 0 0.06896 0.52898 L 0.06896 0.52898 A 0.14256 0.14256 0 0 1 0.10223 0.3403 L 0.10223 0.3403 A 0.14256 0.14256 0 0 0 0.15613 0.24694 L 0.15613 0.24694 A 0.14256 0.14256 0 0 1 0.3029 0.12379 L 0.3029 0.12379 A 0.14256 0.14256 0 0 0 0.40421 0.08691 Z"/>
+            </clipPath>
+        </defs>
+    </svg>
+
+    <div id="shell" class="fk-shell"
+         data-rail-side="left" data-swap="0" data-panel="shown" data-mobile-dest="chat">
+
+        <nav class="fk-pillar fk-pillar--rail" aria-label="主导航">
+            <img class="fk-rail-logo" src="/static/flikky-logo.svg" alt="Flikky">
+            <div class="fk-rail-items" id="rail-items">
+                <button class="fk-rail-item" data-dest="favorites" aria-selected="true">
+                    <span class="fk-rail-icon"><span class="material-symbols-outlined">star</span></span>
+                    <span data-i18n="app.nav.favorites">收藏</span>
+                </button>
+                <button class="fk-rail-item" data-dest="settings" aria-selected="false">
+                    <span class="fk-rail-icon"><span class="material-symbols-outlined">settings</span></span>
+                    <span data-i18n="app.nav.settings">设置</span>
+                </button>
+            </div>
+            <button class="fk-rail-avatar" id="my-avatar-btn"
+                    aria-label="我的头像，点击更换" data-i18n-aria-label="app.my_avatar"
+                    data-i18n-title="app.avatar.change" type="button"></button>
+        </nav>
+
+        <section class="fk-pillar fk-pillar--chat" aria-label="会话">
+            <header class="fk-chat-head" id="header-peer" aria-label="对方信息" data-i18n-aria-label="app.peer_info">
                 <div class="avatar-circle" id="peer-avatar" aria-label="对方头像" data-i18n-aria-label="app.peer_avatar"></div>
-                <span class="header-peer-name" id="peer-name"></span>
-            </div>
-            <div class="chat-meta" style="margin-right:8px;">
+                <div class="fk-chat-peer"><span class="header-peer-name" id="peer-name"></span></div>
+                <span class="fk-chat-stats">
+                    <span id="uptime">00:00</span><span id="count">0 个文件</span><span id="rate">0 B/s</span>
+                </span>
                 <mdui-chip id="conn" data-i18n="app.connecting" variant="assist" selected>连接中…</mdui-chip>
-                <span id="uptime">00:00</span>
-                <span>·</span>
-                <span id="count">0 个文件</span>
-                <span>·</span>
-                <span id="rate">0 B/s</span>
+            </header>
+
+            <div id="chat-list-shell" class="chat-list-shell">
+                <div id="list" class="chat-list"></div>
             </div>
-            <div class="header-my-avatar-wrap" style="margin-right:16px;">
-                <button class="avatar-circle avatar-btn" id="my-avatar-btn" aria-label="我的头像，点击更换" data-i18n-aria-label="app.my_avatar" type="button"></button>
+
+            <div class="fk-dock-row">
+                <div class="fk-dock" id="dock">
+                    <input type="file" id="file-picker" multiple style="display:none">
+                    <button class="fk-dock-btn" id="file-btn" aria-label="附件" data-i18n-aria-label="app.attach" type="button">
+                        <span class="material-symbols-outlined">attach_file</span>
+                    </button>
+                    <textarea class="fk-dock-input" id="text-input" rows="1"
+                              aria-label="消息" data-i18n-aria-label="app.message"
+                              placeholder="输入消息" data-i18n-placeholder="app.message_placeholder"></textarea>
+                    <button class="fk-send" id="send-btn" data-ready="false" aria-label="发送" data-i18n-aria-label="app.send" type="button">
+                        <span class="material-symbols-outlined">arrow_upward</span>
+                    </button>
+                </div>
+                <mdui-dropdown id="save-all-dropdown" placement="top-end">
+                    <mdui-fab slot="trigger" id="save-all-fab" class="fk-fab" aria-label="保存所有文件" data-i18n-aria-label="app.save_all">
+                        <span slot="icon" class="material-symbols-outlined">download</span>
+                    </mdui-fab>
+                    <mdui-menu>
+                        <mdui-menu-item id="save-all-each"></mdui-menu-item>
+                        <mdui-menu-item id="save-all-zip" data-i18n="app.save_all_zip">打包为 ZIP</mdui-menu-item>
+                    </mdui-menu>
+                </mdui-dropdown>
             </div>
-        </mdui-top-app-bar>
+        </section>
 
-        <!-- Avatar picker (12 presets) — official mdui-dialog -->
-        <mdui-dialog id="avatar-picker" close-on-overlay-click close-on-esc headline="选择头像" data-i18n-headline="app.choose_avatar">
-            <div class="avatar-picker-grid" id="avatar-picker-grid"></div>
-        </mdui-dialog>
+        <div class="fk-splitter" id="splitter" role="separator"
+             aria-orientation="vertical" tabindex="0"></div>
 
-        <mdui-dialog id="connection-dialog">
-            <span slot="icon" class="material-symbols-outlined">signal_disconnected</span>
-            <div slot="headline" data-i18n="app.disconnected">已断开</div>
-            <div id="connection-dialog-message" role="status" aria-live="assertive"></div>
-        </mdui-dialog>
-
-        <div id="chat-list-shell" class="chat-list-shell">
-            <div id="list" class="chat-list"></div>
-            <mdui-dropdown id="save-all-dropdown" placement="top-end">
-                <mdui-fab slot="trigger" id="save-all-fab" aria-label="保存所有文件" data-i18n-aria-label="app.save_all">
-                    <span slot="icon" class="material-symbols-outlined">download</span>
-                </mdui-fab>
-                <mdui-menu>
-                    <mdui-menu-item id="save-all-each"></mdui-menu-item>
-                    <mdui-menu-item id="save-all-zip" data-i18n="app.save_all_zip">打包为 ZIP</mdui-menu-item>
-                </mdui-menu>
-            </mdui-dropdown>
-        </div>
-
-        <div class="chat-input-row">
-            <input type="file" id="file-picker" style="display:none" multiple>
-            <mdui-button id="file-btn" variant="outlined">
-                <span slot="icon" class="material-symbols-outlined">attach_file</span>
-                <span data-i18n="app.attach">附件</span>
-            </mdui-button>
-            <mdui-text-field
-                id="text-input"
-                variant="outlined"
-                label="消息"
-                data-i18n-label="app.message"
-                placeholder="输入消息"
-                data-i18n-placeholder="app.message_placeholder"
-                rows="1"
-                autosize
-                min-rows="1"
-                max-rows="4">
-            </mdui-text-field>
-            <mdui-button id="send-btn" variant="filled">
-                <span slot="icon" class="material-symbols-outlined">arrow_upward</span>
-                <span data-i18n="app.send">发送</span>
-            </mdui-button>
-        </div>
+        <section class="fk-pillar fk-pillar--panel" aria-label="功能面板">
+            <div class="fk-view" id="view-favorites"></div>
+            <div class="fk-view" id="view-settings" hidden></div>
+        </section>
     </div>
+
+    <nav class="fk-navbar" id="navbar" aria-label="主导航">
+        <button class="fk-navbar-item" data-dest="chat" aria-selected="true"></button>
+        <button class="fk-navbar-item" data-dest="favorites" aria-selected="false"></button>
+        <button class="fk-navbar-item" data-dest="settings" aria-selected="false"></button>
+    </nav>
+
+    <!-- Avatar picker (12 presets) — official mdui-dialog -->
+    <mdui-dialog id="avatar-picker" close-on-overlay-click close-on-esc headline="选择头像" data-i18n-headline="app.choose_avatar">
+        <div class="avatar-picker-grid" id="avatar-picker-grid"></div>
+    </mdui-dialog>
+
+    <mdui-dialog id="connection-dialog">
+        <span slot="icon" class="material-symbols-outlined">signal_disconnected</span>
+        <div slot="headline" data-i18n="app.disconnected">已断开</div>
+        <div id="connection-dialog-message" role="status" aria-live="assertive"></div>
+    </mdui-dialog>
+
+    <!-- v1.3 D26: 撤回二次确认 dialog。两端一致：手机端 AlertDialog ⇄ 浏览器 mdui-dialog -->
+    <mdui-dialog id="recall-confirm-dialog" close-on-overlay-click="true" close-on-esc="true" headline="撤回这条消息？" data-i18n-headline="app.recall_title">
+        <div data-i18n="app.recall_body" style="padding: 0 24px 8px;">撤回后两端都会消失，不可恢复。</div>
+        <mdui-button slot="action" data-action="cancel" data-i18n="common.cancel" variant="text">取消</mdui-button>
+        <mdui-button slot="action" data-action="confirm" data-i18n="app.recall" variant="text">撤回</mdui-button>
+    </mdui-dialog>
 
     <mdui-snackbar id="snackbar" placement="bottom"></mdui-snackbar>
 
@@ -89,13 +123,6 @@
         </button>
         <div id="lightbox-content" class="lightbox-content"></div>
     </div>
-
-    <!-- v1.3 D26: 撤回二次确认 dialog。两端一致：手机端 AlertDialog ⇄ 浏览器 mdui-dialog -->
-    <mdui-dialog id="recall-confirm-dialog" close-on-overlay-click="true" close-on-esc="true" headline="撤回这条消息？" data-i18n-headline="app.recall_title">
-        <div data-i18n="app.recall_body" style="padding: 0 24px 8px;">撤回后两端都会消失，不可恢复。</div>
-        <mdui-button slot="action" data-action="cancel" data-i18n="common.cancel" variant="text">取消</mdui-button>
-        <mdui-button slot="action" data-action="confirm" data-i18n="app.recall" variant="text">撤回</mdui-button>
-    </mdui-dialog>
 
     <script src="/static/vendor/mdui.global.js"></script>
     <script src="/static/i18n.js"></script>

@@ -1842,6 +1842,115 @@
         if (lightboxClose) lightboxClose.addEventListener('click', closeLightbox);
     }
 
+    // ---- three-pane shell: drag-resize splitter, panel collapse, destination nav (v1.19.0) ----
+    const shell = document.getElementById('shell');
+    const shellSplitter = document.getElementById('splitter');
+    const chatPane = document.querySelector('.fk-pillar--chat');
+    const panelPane = document.querySelector('.fk-pillar--panel');
+    const SPLIT_MIN = 28;
+    const SPLIT_MAX = 72;
+
+    // rail 在右、或两栏互换，两者恰好一个成立时会话栏才在拖拽手柄左边——
+    // 用异或而不是分别 if，四种组合（rail 左右 × 是否对调）才不会漏掉一种。
+    function chatIsOnLeft() {
+        return (shell.dataset.railSide === 'right') !== (shell.dataset.swap === '1');
+    }
+
+    function applySplit(chatPercent) {
+        const clamped = Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, chatPercent));
+        shell.style.setProperty('--flikky-split-chat', clamped + '%');
+        shell.style.setProperty('--flikky-split-panel', (100 - clamped) + '%');
+        return clamped;
+    }
+
+    function persistSplit(percent) {
+        try { localStorage.setItem('flikky_split_chat', String(Math.round(percent))); } catch (e) { /* 隐私模式禁写，忽略 */ }
+    }
+
+    function setPanel(shown) {
+        if (!shell) return;
+        shell.dataset.panel = shown ? 'shown' : 'hidden';
+        try { localStorage.setItem('flikky_panel', shown ? '1' : '0'); } catch (e) { /* 隐私模式禁写，忽略 */ }
+    }
+
+    // 点任一导航目的地：顺带展开功能栏（折叠的是功能栏，rail 永远常驻），
+    // 同步 rail/navbar 的 aria-selected，并在两个 .fk-view 之间切换 hidden。
+    function selectDest(dest) {
+        if (!shell) return;
+        setPanel(true);
+        shell.dataset.mobileDest = dest === 'chat' ? 'chat' : 'panel';
+        document.querySelectorAll('.fk-rail-item, .fk-navbar-item').forEach((btn) => {
+            btn.setAttribute('aria-selected', btn.dataset.dest === dest ? 'true' : 'false');
+        });
+        document.querySelectorAll('.fk-view').forEach((view) => {
+            view.hidden = view.id !== `view-${dest}`;
+        });
+    }
+    window.setPanel = setPanel;
+    window.selectDest = selectDest;
+
+    if (shell && shellSplitter && chatPane && panelPane) {
+        let dragging = false;
+        let dragStartX = 0;
+        let dragStartChatWidth = 0;
+        let dragTotalWidth = 0;
+
+        shellSplitter.addEventListener('pointerdown', (e) => {
+            dragging = true;
+            shell.classList.add('is-dragging');
+            dragStartX = e.clientX;
+            dragStartChatWidth = chatPane.getBoundingClientRect().width;
+            dragTotalWidth = dragStartChatWidth + panelPane.getBoundingClientRect().width;
+            shellSplitter.setPointerCapture(e.pointerId);
+        });
+        shellSplitter.addEventListener('pointermove', (e) => {
+            if (!dragging || dragTotalWidth <= 0) return;
+            const dx = e.clientX - dragStartX;
+            const signedDx = chatIsOnLeft() ? dx : -dx;
+            applySplit(((dragStartChatWidth + signedDx) / dragTotalWidth) * 100);
+        });
+        function endDrag(e) {
+            if (!dragging) return;
+            dragging = false;
+            shell.classList.remove('is-dragging');
+            persistSplit(parseFloat(shell.style.getPropertyValue('--flikky-split-chat')) || 58);
+        }
+        shellSplitter.addEventListener('pointerup', endDrag);
+        shellSplitter.addEventListener('pointercancel', endDrag);
+        // 手柄 role="separator" tabindex="0"：键盘也要能拖，方向与「会话栏在左/右」一致。
+        shellSplitter.addEventListener('keydown', (e) => {
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+            e.preventDefault();
+            const current = parseFloat(shell.style.getPropertyValue('--flikky-split-chat')) || 58;
+            const growsChat = (e.key === 'ArrowRight') === chatIsOnLeft();
+            persistSplit(applySplit(current + (growsChat ? 2 : -2)));
+        });
+    }
+
+    document.querySelectorAll('.fk-rail-item, .fk-navbar-item').forEach((btn) => {
+        btn.addEventListener('click', () => selectDest(btn.dataset.dest));
+    });
+
+    // 布局偏好来自上一次会话；分栏比例与折叠态都是非敏感的纯展示状态，可以放 localStorage。
+    if (shell) {
+        try {
+            const railSide = localStorage.getItem('flikky_rail_side');
+            if (railSide === 'left' || railSide === 'right') shell.dataset.railSide = railSide;
+        } catch (e) { /* 隐私模式禁读，忽略 */ }
+        try {
+            const swap = localStorage.getItem('flikky_pane_swap');
+            if (swap === '0' || swap === '1') shell.dataset.swap = swap;
+        } catch (e) { /* 隐私模式禁读，忽略 */ }
+        try {
+            const panel = localStorage.getItem('flikky_panel');
+            if (panel === '0' || panel === '1') shell.dataset.panel = panel === '1' ? 'shown' : 'hidden';
+        } catch (e) { /* 隐私模式禁读，忽略 */ }
+        try {
+            const pct = parseFloat(localStorage.getItem('flikky_split_chat'));
+            if (!Number.isNaN(pct) && pct >= SPLIT_MIN && pct <= SPLIT_MAX) applySplit(pct);
+        } catch (e) { /* 隐私模式禁读，忽略 */ }
+    }
+
     saveAllEachItem.addEventListener('click', saveAllIndividually);
     saveAllZipItem.addEventListener('click', saveAllAsZip);
     sendBtn.addEventListener('click', sendText);

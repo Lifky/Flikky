@@ -203,7 +203,8 @@ function createDocument() {
     'my-avatar-btn',
     'peer-avatar',
   ].forEach((id) => {
-    ids.set(id, new Element(id === 'text-input' ? 'mdui-text-field' : 'div'));
+    // v1.19.0: 新输入坞用原生 <textarea>——mdui-text-field 的 filled/outlined 皮肤会和自研输入坞打架。
+    ids.set(id, new Element(id === 'text-input' ? 'textarea' : 'div'));
   });
   ids.get('chat-list-shell').appendChild(ids.get('list'));
 

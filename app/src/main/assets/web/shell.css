@@ -1,0 +1,405 @@
+/* ============================================================================
+ * 外壳：三柱布局（导航 rail / 会话栏 / 拖拽手柄 / 功能栏）+ 移动端单栏底部导航
+ * 从原型 docs/others/prototypes/v1.19.0-web/css/shell.css 移植：
+ *   1. 变量前缀 --fk- → --flikky-
+ *   2. 图标类 .msym → .material-symbols-outlined；滚动条类 .fk-scroll → .flikky-scroll
+ *   3. @font-face / @property / reset / :focus-visible / 滚动条默认样式不带过来（住在 base.css）
+ *   4. 文件开头补一个 :root 块，把外壳几何 token 定义在这里
+ * ==========================================================================*/
+
+/* 外壳几何。刻意让柱间距小于页面外边距：视觉上三栏是「一组」，不是三个孤岛。 */
+:root {
+  --flikky-shell-pad: 20px;              /* 页面上/右留白（底部为 0，面板贴底） */
+  --flikky-shell-gap: 12px;              /* rail 与相邻栏之间 */
+  --flikky-splitter-w: 16px;             /* 含拖拽手柄的命中区 */
+  --flikky-pillar-radius: var(--flikky-shape-xl-increased);
+  --flikky-rail-w: 96px;                 /* Expressive NavigationRail collapsed */
+  --flikky-navbar-h: 64px;               /* Expressive NavigationBar */
+  --flikky-indicator-w: 56px;
+  --flikky-indicator-h: 32px;
+  --flikky-shape-full: 999px;            /* 胶囊/圆形指示器；组件级几何，不进生成的 tokens.css */
+  --flikky-split-chat: 58%;              /* 拖拽分栏比例默认值；运行时由 app.js 写到 #shell 内联样式覆盖 */
+  --flikky-split-panel: 42%;
+}
+
+body {
+  font: var(--flikky-type-body-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-medium-tracking);
+  color: rgb(var(--mdui-color-on-surface));
+  background: var(--flikky-page-bg);
+  overflow: hidden;
+  transition: background-color var(--flikky-spring-effects-slow-dur) var(--flikky-spring-effects-slow);
+}
+
+/* ── 三柱布局 ────────────────────────────────────────────────────────────── */
+
+/* 面板贴住底边、只有上方两角是圆角（照草稿）。
+ *
+ * 栏序（默认 rail 在左）：rail │ 功能栏 │ 拖拽手柄 │ 会话栏
+ * 功能栏紧挨着控制它的 rail —— 点导航项即展开相邻栏，动线自解释；
+ * 且折叠功能栏时会话栏只向左扩展，右边缘不动，输入坞与 FAB 不会跟着位移。
+ *
+ * rail 侧可整体镜像（左撇子/右撇子）：只换 order 与内边距，DOM 顺序不动。
+ * rail 那一侧的页面留白 = 柱间距，这样 rail 图标到窗口边、到相邻栏的留白才相等。 */
+.fk-shell {
+  height: 100%;
+  display: flex;
+  padding: var(--flikky-shell-pad) var(--flikky-shell-pad) 0 var(--flikky-shell-gap);
+}
+.fk-shell[data-rail-side="right"] {
+  padding: var(--flikky-shell-pad) var(--flikky-shell-gap) 0 var(--flikky-shell-pad);
+}
+
+.fk-pillar {
+  background: var(--flikky-pillar-bg);
+  border-radius: var(--flikky-shape-xl-increased) var(--flikky-shape-xl-increased) 0 0;
+  box-shadow: none;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  transition:
+    background-color var(--flikky-spring-effects-slow-dur) var(--flikky-spring-effects-slow),
+    flex-basis var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default);
+}
+
+/* 拖拽期间关掉过渡，否则手柄会「追不上」指针 */
+.fk-shell.is-dragging .fk-pillar { transition: none; }
+
+/* rail：直接贴在页面染色底上——无容器、无圆角、无投影，与官方桌面示例一致。
+   导航项垂直居中，底部留「我的头像」。 */
+.fk-pillar--rail {
+  flex: 0 0 var(--flikky-rail-w);
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: var(--flikky-space-lg) 0;
+  margin-inline-end: var(--flikky-shell-gap);
+  order: 1;
+  transition:
+    flex-basis var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    margin-inline-end var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    opacity var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
+}
+
+/* ── 功能栏折叠 ──
+ * 折叠的是功能栏（收藏/设置/文件），不是 rail —— rail 是常驻导航脊柱。
+ * 重新展开靠点 rail 里的任一目的地，「点收藏 = 让我看收藏」本身就是展开动作，
+ * 不需要另设一个唤回按钮。 */
+.fk-shell[data-panel="hidden"] .fk-pillar--panel {
+  flex-basis: 0;
+  flex-grow: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.fk-shell[data-panel="hidden"] .fk-splitter { display: none; }
+.fk-pillar--panel {
+  transition:
+    flex-basis var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    flex-grow var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    opacity var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    background-color var(--flikky-spring-effects-slow-dur) var(--flikky-spring-effects-slow);
+}
+
+/* rail 顶部的品牌位。官方那里放的是菜单按钮，我们的开关移到了功能栏自己头上，
+   这格空着显得突兀，放 logo —— 它不假装可点，就是标识。 */
+.fk-rail-logo {
+  position: absolute;
+  top: var(--flikky-space-xl);
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  margin-left: -20px;
+  display: block;
+  pointer-events: none;
+}
+.fk-pillar--chat { flex: 1 1 var(--flikky-split-chat); order: 4; }
+.fk-pillar--panel { flex: 1 1 var(--flikky-split-panel); order: 2; }
+.fk-splitter { order: 3; }
+
+/* 栏序由两个互相独立的轴决定，四种组合各自列出（order 不便用计算表达）：
+ *   data-rail-side  rail 贴哪一边 —— 左撇子 / 右撇子
+ *   data-swap       中间两栏谁在内侧 —— 会话栏与功能栏对调
+ * 默认（rail 左 · 不对调）：rail │ 功能栏 │ 会话栏 —— 功能栏贴着控制它的 rail。 */
+
+/* rail 靠右：rail 换边，连带内边距与外边距一起对调 */
+.fk-shell[data-rail-side="right"] .fk-pillar--rail {
+  order: 4;
+  margin-inline-end: 0;
+  margin-inline-start: var(--flikky-shell-gap);
+}
+.fk-shell[data-rail-side="right"] .fk-pillar--panel { order: 3; }
+.fk-shell[data-rail-side="right"] .fk-splitter { order: 2; }
+.fk-shell[data-rail-side="right"] .fk-pillar--chat { order: 1; }
+
+/* 两栏对调（与 rail 侧无关，只换中间两栏） */
+.fk-shell[data-swap="1"] .fk-pillar--panel { order: 4; }
+.fk-shell[data-swap="1"] .fk-pillar--chat { order: 2; }
+.fk-shell[data-rail-side="right"][data-swap="1"] .fk-pillar--panel { order: 1; }
+.fk-shell[data-rail-side="right"][data-swap="1"] .fk-pillar--chat { order: 3; }
+
+/* ── 拖拽分隔手柄 ──
+ * 静止：一列点阵；hover/拖拽：收拢成一根胶囊并染主色。 */
+
+.fk-splitter {
+  flex: 0 0 var(--flikky-splitter-w);
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  cursor: col-resize;
+  position: relative;
+  touch-action: none;
+}
+
+.fk-splitter::before {
+  content: '';
+  width: 4px;
+  height: 28px;
+  border-radius: var(--flikky-shape-full);
+  background: rgb(var(--mdui-color-outline-variant));
+  opacity: .7;
+  transition:
+    height var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    width var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    opacity var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
+}
+
+.fk-splitter:hover::before,
+.fk-splitter:focus-visible::before,
+.fk-shell.is-dragging .fk-splitter::before {
+  height: 72px;
+  width: 6px;
+  opacity: 1;
+  background: rgb(var(--mdui-color-primary));
+}
+
+.fk-splitter:focus-visible { outline: none; }
+
+/* ── 导航柱 ──────────────────────────────────────────────────────────────── */
+
+.fk-rail-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--flikky-space-xs);          /* Expressive rail item 间距 4dp */
+  width: 100%;
+  position: relative;
+}
+
+.fk-rail-item {
+  min-height: 64px;                     /* Expressive rail item 最小高 64dp */
+  padding: 6px 0 4px;                   /* Expressive 上 6dp / 下 4dp */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--flikky-space-xs);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: rgb(var(--mdui-color-on-surface-variant));
+  font: var(--flikky-type-label-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-label-medium-tracking);
+  position: relative;
+  z-index: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fk-rail-item .fk-rail-icon {
+  width: var(--flikky-indicator-w);
+  height: var(--flikky-indicator-h);
+  display: grid;
+  place-items: center;
+  border-radius: var(--flikky-shape-full);
+  transition:
+    color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    transform var(--flikky-spring-spatial-fast-dur) var(--flikky-spring-spatial-fast);
+}
+
+/* 指示器就地出现在选中项自己身上（官方 rail 行为），不做跨项滑动 */
+.fk-rail-item[aria-selected="true"] {
+  color: rgb(var(--mdui-color-secondary));   /* Expressive：选中 label 用 secondary */
+}
+.fk-rail-item[aria-selected="true"] .fk-rail-icon {
+  background: rgb(var(--mdui-color-secondary-container));
+  color: rgb(var(--mdui-color-on-secondary-container));
+  --flikky-icon-fill: 1;
+}
+
+/* 未选中项 hover：指示器位没被占用时给一层极淡的态背景 */
+.fk-rail-item:not([aria-selected="true"]):hover .fk-rail-icon {
+  background: rgba(var(--mdui-color-on-surface), .08);
+}
+
+.fk-rail-item:active .fk-rail-icon { transform: scale(.94); }
+
+/* 导航项要真正垂直居中，所以头像不参与 flex 流，改绝对定位钉在底部 */
+.fk-rail-avatar {
+  position: absolute;
+  bottom: var(--flikky-space-xl);
+  left: 50%;
+  margin-left: -20px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--flikky-shape-full);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  background: rgb(var(--mdui-color-surface-container-high));
+  color: rgb(var(--mdui-color-on-surface-variant));
+  transition: background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
+}
+.fk-rail-avatar:hover { background: rgb(var(--mdui-color-surface-container-highest)); }
+
+/* ── 功能柱：视图切换转场 ────────────────────────────────────────────────── */
+
+/* view 自己撑满整根柱子并成为定位上下文：
+   多选浮动工具条要贴在「可见面板」的底部，若定位祖先是整根 pillar，
+   一旦内容比视口高，absolute bottom 就会落到页面中间去。 */
+.fk-view {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  animation: fk-fade-through var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default) both;
+}
+.fk-view[hidden] { display: none; }
+@keyframes fk-fade-through {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* 窄屏没有的「收起功能栏」按钮，桌面版由功能栏自己的头部提供；
+   Task 3 尚未落地面板头部标记，先声明关闭规则，等按钮落地即刻生效。 */
+.fk-panel-collapse {
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+/* ── 滚动条：常态隐形、hover 才显现 ──
+ * 一直挂一条实心滚动条太抢眼，也和「面板是干净色块」的语言冲突。
+ * Firefox 走 scrollbar-color，Chromium 走 ::-webkit。 */
+.flikky-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
+}
+.flikky-scroll:hover,
+.flikky-scroll:focus-within { scrollbar-color: rgba(var(--mdui-color-on-surface), .28) transparent; }
+.flikky-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.flikky-scroll::-webkit-scrollbar-track { background: transparent; }
+.flikky-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: var(--flikky-shape-full);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  transition: background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
+}
+.flikky-scroll:hover::-webkit-scrollbar-thumb,
+.flikky-scroll:focus-within::-webkit-scrollbar-thumb {
+  background: rgba(var(--mdui-color-on-surface), .28);
+  background-clip: content-box;
+}
+.flikky-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--mdui-color-on-surface), .45);
+  background-clip: content-box;
+}
+
+/* ── 移动端（<840px）：面板铺满 + 底部导航 ───────────────────────────────── */
+
+@media (max-width: 839px) {
+  .fk-shell {
+    padding: 0;
+    gap: 0;
+    flex-direction: column;
+  }
+  .fk-pillar {
+    border-radius: 0;
+    box-shadow: none;
+    background: var(--flikky-page-bg);
+  }
+  .fk-pillar--rail,
+  .fk-splitter { display: none; }
+  .fk-pillar--chat,
+  .fk-pillar--panel {
+    flex: 1 1 auto;
+    padding-bottom: var(--flikky-navbar-h);
+  }
+  /* 单栏：一次只显示一个目的地。窄屏没有「折叠功能栏」这回事，
+     data-panel 在这里必须失效，否则桌面存下来的折叠状态会把整栏吃掉。 */
+  .fk-shell[data-mobile-dest="chat"] .fk-pillar--panel { display: none; }
+  .fk-shell[data-mobile-dest="panel"] .fk-pillar--chat { display: none; }
+  .fk-shell[data-panel="hidden"] .fk-pillar--panel {
+    flex: 1 1 auto;
+    opacity: 1;
+    pointer-events: auto;
+  }
+  /* 单栏布局下「收起功能栏」无处可收，按钮直接隐藏；
+     回会话走底部导航的「会话」项，那才是窄屏该有的动线。 */
+  .fk-panel-collapse { display: none; }
+}
+
+.fk-navbar {
+  display: none;
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: var(--flikky-navbar-h);        /* Expressive navigation bar 64dp */
+  background: rgb(var(--mdui-color-surface-container));
+  z-index: 40;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.fk-navbar-item {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--flikky-space-xs);           /* navbar icon↔label 4dp（与 rail 的 8dp 不同） */
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: rgb(var(--mdui-color-on-surface-variant));
+  font: var(--flikky-type-label-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-label-medium-tracking);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.fk-navbar-item .fk-navbar-icon {
+  width: var(--flikky-indicator-w);
+  height: var(--flikky-indicator-h);
+  display: grid;
+  place-items: center;
+  border-radius: var(--flikky-shape-full);
+  transition:
+    background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    transform var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default);
+}
+
+.fk-navbar-item[aria-selected="true"] { color: rgb(var(--mdui-color-secondary)); }
+.fk-navbar-item[aria-selected="true"] .fk-navbar-icon {
+  background: rgb(var(--mdui-color-secondary-container));
+  color: rgb(var(--mdui-color-on-secondary-container));
+  --flikky-icon-fill: 1;
+}
+.fk-navbar-item:active .fk-navbar-icon { transform: scale(.9); }
+
+/* ⚠️ 这条必须留在 .fk-navbar 基础规则之后。
+   媒体查询不增加特异性，同为 .fk-navbar 时靠源码顺序决胜；
+   之前 display:none 若写在媒体查询下方，会把窄屏的 display:flex 盖掉，
+   移动端底部导航就永远不出现。
+   选择器故意不写 ".fk-navbar {"（带空格）—— 那样会和上面的基础规则撞成
+   同一个字面子串，测试用 lastIndexOf 定位「基础规则位置」时会误命中这一行自己。 */
+@media (max-width: 839px) {
+  .fk-navbar{ display: flex; }
+}

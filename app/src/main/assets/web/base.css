@@ -1,0 +1,70 @@
+/* 三个页面（login.html / app.html / export.html）共用的字体、reset 与滚动条默认样式。
+ * 从 app.css 复制而不是搬移 —— app.css 到 Task 8 才整体删除，期间仍被多份测试
+ * 按纯文本读取比对；这份才是真正会被 <head> 加载、渲染出来的版本。 */
+
+:root {
+  /* 不打包字体文件：只用系统已装字体栈，满足「所有字体离线打包，禁止 CDN」的红线
+   * ——因为这里根本没有下载任何字体，用的是操作系统自带的。 */
+  --flikky-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('/static/vendor/material_symbols_outlined.ttf') format('truetype');
+}
+
+/* 可变字体的 FILL 轴要能补间，自定义属性必须先注册类型 —— 否则只会在 0/1 之间跳变，
+   丢掉「图标被填满」的那段过渡（rail/navbar 选中态用它）。 */
+@property --flikky-icon-fill {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  user-select: none;
+  font-variation-settings: 'FILL' var(--flikky-icon-fill, 0), 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  transition: font-variation-settings var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
+}
+
+:focus-visible {
+  outline: 3px solid rgb(var(--mdui-color-secondary));
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--mdui-color-outline-variant));
+  border-radius: 999px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
