@@ -151,13 +151,15 @@ class FavoritesRepository(
     }
 
     /**
-     * v1.19.0: 按收藏行 id 解析落盘文件。路径唯一事实源是 FavoriteFileStore.resolve —— 禁止手拼。
-     * 文本收藏与文件缺失都返回 null，由路由层转 404。
+     * v1.19.0: 按收藏行 id 解析落盘文件 + 下载展示用文件名。路径唯一事实源是
+     * FavoriteFileStore.resolve —— 禁止手拼。文本收藏与文件缺失都返回 null，由路由层转 404。
+     * fileName 为空（历史脏数据）时回退成 depot id，不让浏览器下到一个空文件名。
      */
-    suspend fun findFavoriteFile(id: Long): File? {
+    suspend fun findFavoriteFile(id: Long): Pair<File, String>? {
         val row = favoriteDao.getById(id) ?: return null
         val depotId = row.fileId ?: return null
-        return favoriteFileStore.resolve(depotId).takeIf { it.isFile }
+        val file = favoriteFileStore.resolve(depotId).takeIf { it.isFile } ?: return null
+        return file to (row.fileName ?: depotId)
     }
 
     suspend fun deleteFavorites(ids: List<Long>) {
@@ -210,6 +212,14 @@ class FavoritesRepository(
                 favorite.fileName?.contains(trimmed, ignoreCase = true) == true
         }
     }
+
+    /**
+     * v1.19.0 fix wave：浏览器收藏 tab 每次 HTTP 请求都要读一次列表；用 Flow.first() 会
+     * 白白注册/注销一次 InvalidationTracker observer。这里复用已有的一次性 DAO 查询
+     * （与 exportSnapshot 同一模式），只做一次快照读。
+     */
+    suspend fun snapshot(): Pair<List<FavoriteEntity>, List<FavoriteGroupEntity>> =
+        favoriteDao.listAll() to favoriteGroupDao.listAll()
 
     suspend fun exportSnapshot(): ExportData = ExportData(
         groups = favoriteGroupDao.listAll().map { group ->

@@ -68,7 +68,8 @@ class KtorServer(
     private val mode: ServiceMode = ServiceMode.Transfer,
     private val requirePin: Boolean = true,
     private val onZipSent: suspend () -> Unit = {},
-    private val favoriteFileResolver: (String) -> java.io.File? = { null },
+    /** Export 模式按 depot id 取落盘文件，喂给 ZIP 导出。与下面按收藏行 id 的解析器是两回事。 */
+    private val favoriteDepotFileResolver: (String) -> java.io.File? = { null },
     /**
      * v1.19.0 浏览器端收藏 tab。lambda 而非实例：Wi-Fi rebind 会整组替换 KtorServer，
      * 调用时现取才不会指向已废弃的依赖（见 CLAUDE.md「跨 Wi-Fi rebind 的引用规范」）。
@@ -76,8 +77,10 @@ class KtorServer(
     private val favoritesProvider: suspend () -> FavoritesResponseDto = {
         FavoritesResponseDto(emptyList(), emptyList())
     },
-    /** 按收藏行 id 取落盘文件。与上面按 depot id 的 favoriteFileResolver 是两回事，勿混用。 */
-    private val favoriteRowFileResolver: suspend (Long) -> java.io.File? = { null },
+    /** 按收藏行 id 取落盘文件 + 展示文件名。与上面按 depot id 的 favoriteDepotFileResolver 是两回事，勿混用。 */
+    private val favoriteRowFileResolver: suspend (Long) -> com.example.flikky.server.routes.FavoriteFileHandle? = { null },
+    /** v1.19.0 fix wave：favoriteBetaEnabled 功能开关；默认关闭，收藏接口在关闭时统一回 404。 */
+    private val favoriteEnabled: suspend () -> Boolean = { false },
     /** Web thumbnail generator. TransferService supplies the Android implementation. */
     private val thumbnailGenerator: ThumbnailGenerator = ThumbnailGenerator { _, _, _ -> false },
     /**
@@ -193,6 +196,7 @@ class KtorServer(
             authGate = authGate,
             listProvider = favoritesProvider,
             fileResolver = favoriteRowFileResolver,
+            enabled = favoriteEnabled,
         )
         wsRoutes(authGate, session, wsHub, onClientHello)
     }
@@ -211,7 +215,7 @@ class KtorServer(
             },
             onZipSent = onZipSent,
             now = nowMs,
-            favoriteFileResolver = favoriteFileResolver,
+            favoriteFileResolver = favoriteDepotFileResolver,
         )
         peerInfoRoutes(authGate, peerInfoProvider)
         // v1.3 test2 修订：export 页也挂 WS，让浏览器通过 WS onclose 立即

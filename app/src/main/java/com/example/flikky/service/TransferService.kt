@@ -483,14 +483,17 @@ class TransferService : Service() {
         },
         webLanguageTagProvider = { AppLanguageManager.effectiveLanguageTag(this) },
         favoritesProvider = {
-            toFavoritesResponseDto(
-                favorites = ServiceLocator.favoritesRepository.observeFavorites().first(),
-                groups = ServiceLocator.favoritesRepository.observeGroups().first(),
-            )
+            // v1.19.0 fix wave: 每次 HTTP 请求都走 Flow.first() 会白白注册/注销一次
+            // InvalidationTracker observer；改用一次性快照读（snapshot()，与 exportSnapshot 同一模式）。
+            val (favorites, groups) = ServiceLocator.favoritesRepository.snapshot()
+            toFavoritesResponseDto(favorites = favorites, groups = groups)
         },
         favoriteRowFileResolver = { rowId ->
-            ServiceLocator.favoritesRepository.findFavoriteFile(rowId)
+            ServiceLocator.favoritesRepository.findFavoriteFile(rowId)?.let { (file, fileName) ->
+                com.example.flikky.server.routes.FavoriteFileHandle(file, fileName)
+            }
         },
+        favoriteEnabled = { latestSettings.favoriteBetaEnabled },
     )
 
     /**
@@ -512,7 +515,7 @@ class TransferService : Service() {
         mode = ServiceMode.Export,
         requirePin = currentRequirePin,
         onZipSent = { handleZipSent() },
-        favoriteFileResolver = { fileId ->
+        favoriteDepotFileResolver = { fileId ->
             ServiceLocator.favoriteFileStore.resolve(fileId).takeIf { it.exists() && it.isFile }
         },
         peerInfoProvider = {
@@ -752,6 +755,7 @@ class TransferService : Service() {
                 sessionTimestampEnabled = sessionTimestampEnabled,
                 recallEnabled = recallBetaEnabled,
                 allowPeerRecall = allowPeerRecall,
+                favoriteEnabled = favoriteBetaEnabled,
             )
         }
 

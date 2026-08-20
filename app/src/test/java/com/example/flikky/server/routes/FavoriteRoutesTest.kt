@@ -49,9 +49,10 @@ class FavoriteRoutesTest {
 
     private fun setupApp(
         listProvider: suspend () -> FavoritesResponseDto = { sample },
-        fileResolver: suspend (Long) -> java.io.File? = { null },
+        fileResolver: suspend (Long) -> FavoriteFileHandle? = { null },
+        enabled: suspend () -> Boolean = { true },
     ): io.ktor.server.application.Application.() -> Unit = {
-        install(ContentNegotiation) { json() }
+        install(ContentNegotiation) { json(Json { ignoreUnknownKeys = true; encodeDefaults = true }) }
         routing {
             val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
             val authGate = AuthGate(required = true, pinAuth = pin)
@@ -60,7 +61,12 @@ class FavoriteRoutesTest {
                 readAsset = { byteArrayOf() },
                 publicThemeProvider = { WebThemeDto(themeSeed = null, themeDark = false) },
             )
-            favoriteRoutes(authGate = authGate, listProvider = listProvider, fileResolver = fileResolver)
+            favoriteRoutes(
+                authGate = authGate,
+                listProvider = listProvider,
+                fileResolver = fileResolver,
+                enabled = enabled,
+            )
         }
     }
 
@@ -130,9 +136,16 @@ class FavoriteRoutesTest {
     }
 
     @Test
-    fun `GET favorite file streams bytes as an attachment`() = testApplication {
-        val f = tmp.newFile("payload.bin").apply { writeBytes(byteArrayOf(1, 2, 3, 4, 5)) }
-        application(setupApp(fileResolver = { id -> if (id == 12L) f else null }))
+    fun `GET favorite file streams bytes as an attachment using the recorded fileName`() = testApplication {
+        // The on-disk depot file is named like a bare UUID (FavoriteFileStore.resolve) --
+        // deliberately not "report.pdf" -- so this test actually exercises Fix 1: the
+        // Content-Disposition filename must come from the handle, not from file.name.
+        val f = tmp.newFile("3f2504e0-4f89-11d3-9a0c-0305e82c3301").apply {
+            writeBytes(byteArrayOf(1, 2, 3, 4, 5))
+        }
+        application(
+            setupApp(fileResolver = { id -> if (id == 12L) FavoriteFileHandle(f, "report.pdf") else null }),
+        )
         val http = createClient { install(HttpCookies) }
         authenticate(http)
 
@@ -141,7 +154,9 @@ class FavoriteRoutesTest {
         assertEquals(listOf<Byte>(1, 2, 3, 4, 5), resp.readRawBytes().toList())
         val cd = resp.headers[HttpHeaders.ContentDisposition] ?: ""
         assertEquals(true, cd.startsWith("attachment"))
-        assertEquals(true, cd.contains("filename") && cd.contains("payload.bin"))
+        assertEquals(true, cd.contains("filename") && cd.contains("report.pdf"))
+        assertEquals(false, cd.contains("3f2504e0-4f89-11d3-9a0c-0305e82c3301"))
+        assertEquals("5", resp.headers[HttpHeaders.ContentLength])
     }
 
     @Test
@@ -151,7 +166,9 @@ class FavoriteRoutesTest {
             // so this endpoint must not let the caller pick the rendered Content-Type -- even
             // when a client tries to force inline SVG rendering (a script-execution vector).
             val f = tmp.newFile("payload.bin").apply { writeBytes(byteArrayOf(9)) }
-            application(setupApp(fileResolver = { id -> if (id == 12L) f else null }))
+            application(
+                setupApp(fileResolver = { id -> if (id == 12L) FavoriteFileHandle(f, "payload.bin") else null }),
+            )
             val http = createClient { install(HttpCookies) }
             authenticate(http)
 
@@ -196,5 +213,42 @@ class FavoriteRoutesTest {
         // Only assert it is refused, not which status refuses it.
         val resp: HttpResponse = http.get("/api/favorites/..%2F..%2Fetc/file")
         assertNotEquals(HttpStatusCode.OK, resp.status)
+    }
+
+    @Test
+    fun `GET favorites returns 404 not 403 when the beta flag is off, even when authenticated`() =
+        testApplication {
+            application(setupApp(enabled = { false }))
+            val http = createClient { install(HttpCookies) }
+            authenticate(http)
+
+            val resp: HttpResponse = http.get("/api/favorites")
+            assertEquals(HttpStatusCode.NotFound, resp.status)
+        }
+
+    @Test
+    fun `GET favorite file returns 404 when the beta flag is off, even when authenticated`() =
+        testApplication {
+            val f = tmp.newFile("payload.bin").apply { writeBytes(byteArrayOf(1)) }
+            application(
+                setupApp(
+                    fileResolver = { id -> if (id == 12L) FavoriteFileHandle(f, "report.pdf") else null },
+                    enabled = { false },
+                ),
+            )
+            val http = createClient { install(HttpCookies) }
+            authenticate(http)
+
+            val resp: HttpResponse = http.get("/api/favorites/12/file")
+            assertEquals(HttpStatusCode.NotFound, resp.status)
+        }
+
+    @Test
+    fun `GET favorites without cookie still returns 401 even when the beta flag is off`() = testApplication {
+        // Auth must be checked before the feature gate -- an unauthenticated caller must never
+        // learn whether the beta flag is on or off.
+        application(setupApp(enabled = { false }))
+        val resp: HttpResponse = client.get("/api/favorites")
+        assertEquals(HttpStatusCode.Unauthorized, resp.status)
     }
 }

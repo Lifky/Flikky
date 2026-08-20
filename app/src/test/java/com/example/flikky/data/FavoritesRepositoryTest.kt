@@ -155,6 +155,79 @@ class FavoritesRepositoryTest {
         assertTrue(repo.observeFavorites().first().isEmpty())
     }
 
+    @Test fun findFavoriteFile_returns_the_recorded_display_name_not_the_depot_id() = runTest {
+        sessionFileStore.archiveFromStream(
+            sessionId = 9L,
+            fileId = "source-file",
+            source = "payload".byteInputStream(),
+        )
+        clock = 20L
+        val favoriteId = repo.favoriteFile(
+            sid = 9L,
+            sessionName = "files",
+            msg = Message.File(
+                id = 99L,
+                origin = Origin.BROWSER,
+                timestamp = 1L,
+                fileId = "source-file",
+                name = "report.pdf",
+                sizeBytes = 7L,
+                mime = "application/pdf",
+                status = Message.File.Status.COMPLETED,
+            ),
+            groupId = null,
+        )
+
+        val handle = repo.findFavoriteFile(favoriteId)
+        assertEquals("report.pdf", handle?.second)
+        assertArrayEquals("payload".toByteArray(), handle?.first?.readBytes())
+    }
+
+    @Test fun findFavoriteFile_falls_back_to_the_depot_id_when_fileName_is_null() = runTest {
+        clock = 30L
+        val depotId = "depot-30"
+        favoriteFileStore.copyIn(depotId, "bytes".byteInputStream())
+        val favoriteId = db.favoriteDao().insert(
+            com.example.flikky.data.db.entities.FavoriteEntity(
+                sourceSessionId = 1L,
+                sourceMessageId = 1L,
+                kind = "FILE",
+                fileId = depotId,
+                fileName = null,
+                fileSize = 5L,
+                fileMime = "application/octet-stream",
+                groupId = null,
+                createdAt = clock,
+                sourceSessionName = null,
+                origin = Origin.PHONE.name,
+            )
+        )
+
+        val handle = repo.findFavoriteFile(favoriteId)
+        assertEquals(depotId, handle?.second)
+    }
+
+    @Test fun findFavoriteFile_returns_null_when_the_row_or_the_file_is_missing() = runTest {
+        assertNull(repo.findFavoriteFile(404L))
+    }
+
+    @Test fun snapshot_reads_favorites_and_groups_without_registering_a_flow_observer() = runTest {
+        clock = 40L
+        val groupId = repo.createGroup("常用")
+        repo.favoriteText(
+            sid = 1L,
+            sessionName = "chat",
+            msg = Message.Text(id = 1L, origin = Origin.PHONE, timestamp = 1L, content = "hi"),
+            groupId = groupId,
+        )
+
+        val (favorites, groups) = repo.snapshot()
+        assertEquals(1, favorites.size)
+        assertEquals("hi", favorites[0].textContent)
+        assertEquals(1, groups.size)
+        assertEquals("常用", groups[0].name)
+    }
+
     @Test fun addLocalText_persists_standalone_text_snapshot() = runTest {
         clock = 60L
 

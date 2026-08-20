@@ -1,13 +1,16 @@
 package com.example.flikky.server
 
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 
 /**
- * 源码级守卫，配合 TransferControllerRebindReferenceTest 的同一思路：
- * 收藏 provider 必须以 lambda 注入，且只在 Transfer 模式注册路由。
+ * 源码级守卫，配合 TransferControllerRebindReferenceTest 的同一思路：收藏 provider 必须以
+ * lambda 注入，保证 Wi-Fi rebind 后不指向已废弃的实例。
+ *
+ * v1.19.0 fix wave: "只在 Transfer 模式注册路由" 这条不再靠切源码文本断言——那是脆弱的字符串
+ * 匹配，源码稍微重排就会假绿/假红。真行为验证见 KtorServerExportModeTest 的
+ * `export mode does not mount favorites route`（真起服务器打 HTTP，断言 404）。
  */
 class KtorServerFavoritesWiringTest {
 
@@ -22,22 +25,6 @@ class KtorServerFavoritesWiringTest {
     }
 
     @Test
-    fun `favorite routes are registered only in transfer mode`() {
-        val src = read("src/main/java/com/example/flikky/server/KtorServer.kt")
-        val transferBlock = src
-            .substringAfter("private fun Route.installTransferRoutes")
-            .substringBefore("private fun Route.installExportRoutes")
-        assertTrue("Transfer 模式应注册 favoriteRoutes", transferBlock.contains("favoriteRoutes("))
-
-        val exportBlock = src.substringAfter("private fun Route.installExportRoutes")
-        assertEquals(
-            "Export 模式不应暴露收藏接口（导出页无收藏 tab）",
-            false,
-            exportBlock.contains("favoriteRoutes("),
-        )
-    }
-
-    @Test
     fun `favorites provider is injected as a lambda so it survives wifi rebind`() {
         val src = read("src/main/java/com/example/flikky/server/KtorServer.kt")
         assertTrue(
@@ -46,7 +33,10 @@ class KtorServerFavoritesWiringTest {
         )
         assertTrue(
             "favoriteRowFileResolver 必须是 suspend lambda",
-            src.contains("favoriteRowFileResolver: suspend (Long) -> java.io.File?"),
+            src.contains(
+                "favoriteRowFileResolver: suspend (Long) -> " +
+                    "com.example.flikky.server.routes.FavoriteFileHandle?",
+            ),
         )
     }
 

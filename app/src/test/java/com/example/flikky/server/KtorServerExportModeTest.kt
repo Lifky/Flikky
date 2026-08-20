@@ -143,6 +143,24 @@ class KtorServerExportModeTest {
     }
 
     @Test
+    fun `export mode does not mount favorites route`() = runBlocking {
+        // v1.19.0 fix wave: replaces a source-text substring assertion
+        // (KtorServerFavoritesWiringTest) with a real HTTP boot -- export mode must not
+        // leak the favorites API, mirroring the messages-route check above.
+        val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
+        val session = SessionState(nowMs = { 0L })
+        val s = buildServer(ServiceMode.Export, session, pin)
+        server = s
+        val port = s.start()
+
+        HttpClient(CIO) { install(HttpCookies) }.use { http ->
+            authenticate(http, port)
+            val resp: HttpResponse = http.get("http://127.0.0.1:$port/api/favorites")
+            assertEquals(HttpStatusCode.NotFound, resp.status)
+        }
+    }
+
+    @Test
     fun `export mode does not mount files route`() = runBlocking {
         val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
         val session = SessionState(nowMs = { 0L })

@@ -162,6 +162,8 @@ data class PeerInfoDto(
     val sessionTimestampEnabled: Boolean = false,
     val recallEnabled: Boolean,
     val allowPeerRecall: Boolean = true,
+    /** v1.19.0 fix wave: 收藏 tab 的 beta 开关状态；浏览器据此决定是否渲染收藏入口。 */
+    val favoriteEnabled: Boolean = false,
 )
 
 @Serializable
