@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Flikky</title>
     <link rel="stylesheet" href="/static/vendor/mdui.css">
-    <!-- Legacy sheet, still carrying the chat/dialog styles. Task 4 migrates them into
-         chat.css and deletes this file; it loads first so the new sheets win any overlap. -->
+    <!-- app.css 现在只剩登录页与导出页样式；会话页视觉在 chat.css。 -->
     <link rel="stylesheet" href="/static/app.css">
     <link rel="stylesheet" href="/static/base.css">
     <link rel="stylesheet" href="/static/springs.css">
     <link rel="stylesheet" href="/static/tokens.css">
     <link rel="stylesheet" href="/static/shell.css">
+    <link rel="stylesheet" href="/static/chat.css">
 </head>
 <body class="chat-page" data-action-style="INLINE">
     <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
@@ -123,7 +123,7 @@
         <mdui-button slot="action" data-action="confirm" data-i18n="app.recall" variant="text">撤回</mdui-button>
     </mdui-dialog>
 
-    <mdui-snackbar id="snackbar" placement="bottom"></mdui-snackbar>
+    <mdui-snackbar id="snackbar" placement="top"></mdui-snackbar>
 
     <div id="drop-overlay" class="drop-overlay" hidden>
         <div class="drop-overlay-card" data-i18n="app.drop_hint">松开以发送文件</div>

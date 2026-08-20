@@ -6,7 +6,8 @@ const vm = require('node:vm');
 
 const webDir = path.join(__dirname, '../../main/assets/web');
 const appJs = fs.readFileSync(path.join(webDir, 'app.js'), 'utf8');
-const appCss = fs.readFileSync(path.join(webDir, 'app.css'), 'utf8');
+// v1.19.0: message-action-bar styles live in chat.css now, not app.css.
+const appCss = fs.readFileSync(path.join(webDir, 'chat.css'), 'utf8');
 const appHtml = fs.readFileSync(path.join(webDir, 'app.html'), 'utf8');
 const i18nJs = fs.readFileSync(path.join(webDir, 'i18n.js'), 'utf8');
 
@@ -86,10 +87,13 @@ test('default action style is INLINE and settings drive the body attribute idemp
 });
 
 test('message rows enter with MD3-style motion controlled by the synced animation speed', () => {
+    // v1.19.0: the enter animation is scoped to the .bubble-row--enter modifier
+    // class, not the base .bubble-row rule — otherwise every list rebuild would
+    // replay the animation for every existing row (a "flash" on re-render).
     assert.match(appCss, /@keyframes flikky-message-enter/);
-    assert.match(appCss, /\.bubble-row\s*\{[^}]*animation-name:\s*flikky-message-enter/);
+    assert.match(appCss, /\.bubble-row--enter\s*\{[^}]*animation-name:\s*flikky-message-enter/);
     assert.match(appCss, /animation-duration:\s*var\(--flikky-message-enter-duration\)/);
-    assert.match(appCss, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?animation-duration:\s*0ms/);
+    assert.match(appCss, /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.bubble-row--enter[\s\S]*?animation-duration:\s*0ms/);
     assert.match(appJs, /function applyAnimationSpeed/);
     assert.match(appJs, /--flikky-message-enter-duration/);
 });

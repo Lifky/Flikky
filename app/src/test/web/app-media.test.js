@@ -6,7 +6,8 @@ const vm = require('node:vm');
 
 const webDir = path.join(__dirname, '../../main/assets/web');
 const appJs = fs.readFileSync(path.join(webDir, 'app.js'), 'utf8');
-const appCss = fs.readFileSync(path.join(webDir, 'app.css'), 'utf8');
+// v1.19.0: media/lightbox/file-bubble styles live in chat.css now, not app.css.
+const appCss = fs.readFileSync(path.join(webDir, 'chat.css'), 'utf8');
 const appHtml = fs.readFileSync(path.join(webDir, 'app.html'), 'utf8');
 
 const start = appJs.indexOf('function mediaKind');

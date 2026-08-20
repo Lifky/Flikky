@@ -6,7 +6,8 @@ const vm = require('node:vm');
 
 const webDir = path.join(__dirname, '../../main/assets/web');
 const appJs = fs.readFileSync(path.join(webDir, 'app.js'), 'utf8');
-const appCss = fs.readFileSync(path.join(webDir, 'app.css'), 'utf8');
+// v1.19.0: save-all FAB/dropdown styles live in chat.css now, not app.css.
+const appCss = fs.readFileSync(path.join(webDir, 'chat.css'), 'utf8');
 const start = appJs.indexOf('function computeSaveAllState');
 assert.ok(start >= 0, 'save-all state helper not found in app.js');
 const end = appJs.indexOf('    const ua', start);
@@ -107,8 +108,18 @@ test('saving individually downloads every received file on every click', async (
 });
 
 test('save-all dropdown creates a positioned box above the chat list', () => {
+    // v1.19.0: the dropdown moved from its own absolutely-positioned box floating
+    // over .chat-list-shell into .fk-dock-row, which is itself already
+    // position:absolute + display:flex above the chat list. The dropdown only
+    // needs a real box (mdui defaults custom elements to display:contents) that
+    // won't get squeezed by the flexible input dock next to it.
     const rule = appCss.match(/#save-all-dropdown\s*\{[^}]*\}/)?.[0] ?? '';
-
     assert.match(rule, /display:\s*inline-block/);
-    assert.match(rule, /position:\s*absolute/);
+    assert.match(rule, /flex-shrink:\s*0/);
+
+    const dockRow = appCss.match(/\.fk-dock-row\s*\{[^}]*\}/)?.[0] ?? '';
+    assert.match(dockRow, /position:\s*absolute/);
+    assert.match(dockRow, /display:\s*flex/);
+
+    assert.match(appCss, /#save-all-dropdown\[hidden\]\s*\{[^}]*display:\s*none/);
 });

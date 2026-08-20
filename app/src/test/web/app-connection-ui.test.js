@@ -5,7 +5,8 @@ const test = require('node:test');
 
 const webDir = path.join(__dirname, '../../main/assets/web');
 const appJs = fs.readFileSync(path.join(webDir, 'app.js'), 'utf8');
-const appCss = fs.readFileSync(path.join(webDir, 'app.css'), 'utf8');
+// v1.19.0: connection dialog / chat-list-shell styles live in chat.css now.
+const appCss = fs.readFileSync(path.join(webDir, 'chat.css'), 'utf8');
 const appHtml = fs.readFileSync(path.join(webDir, 'app.html'), 'utf8');
 
 test('connection loss uses a blurred dialog that users cannot dismiss', () => {

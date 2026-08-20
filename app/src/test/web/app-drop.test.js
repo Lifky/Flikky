@@ -5,7 +5,8 @@ const test = require('node:test');
 const vm = require('node:vm');
 
 const appJs = fs.readFileSync(path.join(__dirname, '../../main/assets/web/app.js'), 'utf8');
-const appCss = fs.readFileSync(path.join(__dirname, '../../main/assets/web/app.css'), 'utf8');
+// v1.19.0: drop-overlay styles live in chat.css now, not app.css.
+const appCss = fs.readFileSync(path.join(__dirname, '../../main/assets/web/chat.css'), 'utf8');
 const appHtml = fs.readFileSync(path.join(__dirname, '../../main/assets/web/app.html'), 'utf8');
 const start = appJs.indexOf('function isDirectoryItem');
 const end = appJs.indexOf('function setDropOverlayVisible');
