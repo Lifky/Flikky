@@ -43,4 +43,77 @@
   /* ── 气泡圆角（默认值；运行时由 app.js 从 peer-info 的 bubbleCornerRadius 覆写）──
    * 「一个设计决策一处改动两端生效」的活样例：手机拖 slider → 浏览器实时改圆角。 */
   --flikky-bubble-radius: 10px;
+
+  /* ── Expressive 新增 shape 档位（本地 MD3 Shape.md；App 侧尚未使用）── */
+  --flikky-shape-xl-increased: 32px;
+  --flikky-shape-xxl: 48px;
+
+  /* ── 语义表面层级 ──
+   * 本地 MD3 文档没有「哪层做页面底、哪层做浮起面板」的规则，这里显式定义：
+   * 浅色下面板比页面亮（白纸浮在染色底上），深色下反过来（越高越亮，符合 MD3 暗色逻辑）。
+   * 两种模式都保证面板与页面差一档明度 → 层级关系一致。 */
+  --flikky-page-bg: rgb(var(--mdui-color-surface-container));
+  --flikky-pillar-bg: rgb(var(--mdui-color-surface-container-lowest));
+  --flikky-raised-bg: rgb(var(--mdui-color-surface-container-high));
+
+  /* ── 动效速度层。数值语义与 App 的 LocalMotionScale 一致：越大越慢，0 = 关闭。── */
+  --flikky-motion-scale: 1;
+
+  /* ── 完整 type scale（对齐 Type.kt，含 line-height 与 letter-spacing）──
+   * 主变量编码为 "size/line-height"，配合 font 简写使用：
+   * font: var(--flikky-type-title-medium) var(--flikky-font-family); */
+  --flikky-type-display-large: 57px/64px;
+  --flikky-type-display-large-tracking: -0.25px;
+  --flikky-type-display-medium: 45px/52px;
+  --flikky-type-display-medium-tracking: 0px;
+  --flikky-type-display-small: 36px/44px;
+  --flikky-type-display-small-tracking: 0px;
+  --flikky-type-headline-large: 32px/40px;
+  --flikky-type-headline-large-tracking: 0px;
+  --flikky-type-headline-medium: 28px/36px;
+  --flikky-type-headline-medium-tracking: 0px;
+  --flikky-type-headline-small: 24px/32px;
+  --flikky-type-headline-small-tracking: 0px;
+  --flikky-type-title-large: 22px/28px;
+  --flikky-type-title-large-tracking: 0px;
+  --flikky-type-title-medium: 16px/24px;
+  --flikky-type-title-medium-tracking: 0.15px;
+  --flikky-type-title-small: 14px/20px;
+  --flikky-type-title-small-tracking: 0.1px;
+  --flikky-type-body-large: 16px/24px;
+  --flikky-type-body-large-tracking: 0.5px;
+  --flikky-type-body-medium: 14px/20px;
+  --flikky-type-body-medium-tracking: 0.25px;
+  --flikky-type-body-small: 12px/16px;
+  --flikky-type-body-small-tracking: 0.4px;
+  --flikky-type-label-large: 14px/20px;
+  --flikky-type-label-large-tracking: 0.1px;
+  --flikky-type-label-medium: 12px/16px;
+  --flikky-type-label-medium-tracking: 0.5px;
+  --flikky-type-label-small: 11px/16px;
+  --flikky-type-label-small-tracking: 0.5px;
+}
+
+.mdui-theme-dark {
+  --flikky-page-bg: rgb(var(--mdui-color-surface-container-lowest));
+  --flikky-pillar-bg: rgb(var(--mdui-color-surface-container));
+}
+
+@media (prefers-color-scheme: dark) {
+  .mdui-theme-auto {
+    --flikky-page-bg: rgb(var(--mdui-color-surface-container-lowest));
+    --flikky-pillar-bg: rgb(var(--mdui-color-surface-container));
+  }
+}
+
+/* AMOLED：页面底纯黑，面板用 surface-container 抬起。
+   用 container 而不是 container-lowest —— 后者在暗色是 N4，压在纯黑上几乎看不出边界。 */
+[data-amoled="1"] {
+  --flikky-page-bg: #000;
+  --flikky-pillar-bg: rgb(var(--mdui-color-surface-container));
+}
+
+/* 系统级 reduce-motion 直接把速度层压到 0，与 App「animatorDurationScale==0 强制关闭」同语义 */
+@media (prefers-reduced-motion: reduce) {
+  :root { --flikky-motion-scale: 0; }
 }
