@@ -108,6 +108,18 @@ class Element {
   focus() {}
   click() {}
 
+  // Node.prototype.contains — ancestor-or-self check, distinct from
+  // classList.contains(name) above (same method name, different object).
+  // v1.19.0 fix round 2 (G5) needs this on app.js's real DOM; the mock lacked it entirely.
+  contains(other) {
+    let node = other;
+    while (node) {
+      if (node === this) return true;
+      node = node.parentNode;
+    }
+    return false;
+  }
+
   closest(selector) {
     let node = this;
     while (node) {
@@ -183,6 +195,10 @@ function createDocument() {
     addEventListener() {},
     removeEventListener() {},
   };
+  // Real browsers default document.activeElement to <body> when nothing has focus;
+  // this mock never had the property at all. focus() above is a no-op, so this stays
+  // static — good enough since nothing here exercises focus-shifting behavior.
+  document.activeElement = document.body;
   document.body.dataset.actionStyle = 'INLINE';
 
   [

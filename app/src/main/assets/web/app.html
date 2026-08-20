@@ -71,19 +71,21 @@
                 </div>
                 <button class="fk-fab" id="save-all-fab" type="button" hidden
                         aria-label="保存所有文件" data-i18n-aria-label="app.save_all"
-                        aria-haspopup="menu" aria-expanded="false">
+                        aria-controls="save-all-dropdown" aria-expanded="false">
                     <span class="material-symbols-outlined">download</span>
                 </button>
             </div>
 
             <!-- 自绘菜单：视觉比 mdui-menu 更贴这套设计（用户明确要求保留原型这版）。
-                 mdui 免费给的 Esc / 点外部关闭 / role 语义在下面的 app.js 里手工补齐。 -->
-            <div class="fk-fab-menu" id="save-all-dropdown" role="menu" hidden>
-                <button class="fk-fab-menu-item" id="save-all-each" type="button" role="menuitem" style="--i:0">
+                 这其实是个普通的 disclosure，不是 ARIA menu——两个原生 <button> 走
+                 Tab 顺序、Enter 激活、Esc 关闭，没有方向键导航/roving tabindex，
+                 所以不声称 menu / menuitem 那套角色语义，只用 aria-controls 关联容器。 -->
+            <div class="fk-fab-menu" id="save-all-dropdown" hidden>
+                <button class="fk-fab-menu-item" id="save-all-each" type="button" style="--i:0">
                     <span class="material-symbols-outlined">file_download</span>
                     <span id="save-all-each-label"></span>
                 </button>
-                <button class="fk-fab-menu-item" id="save-all-zip" type="button" role="menuitem" style="--i:1">
+                <button class="fk-fab-menu-item" id="save-all-zip" type="button" style="--i:1">
                     <span class="material-symbols-outlined">folder_zip</span>
                     <span data-i18n="app.save_all_zip">打包为 ZIP</span>
                 </button>

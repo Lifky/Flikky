@@ -105,7 +105,7 @@ test('the FAB morphs rounder on press — opposite direction from circles', () =
   // 但过渡的是原生 border-radius 的写法也一起误判为踩坑。
   assert.equal(
     false,
-    /(?:transition:|,)\s*--[\w-]+\s/.test(withoutKnownException),
+    /(?:transition(?:-property)?:|,)\s*--[\w-]+[\s;]/.test(withoutKnownException),
     'no transition on a custom property outside the known .msg-actions carve-out (the F1 bug class)',
   );
 });
@@ -149,4 +149,25 @@ test('the save-all trigger is a plain button, not mdui-fab (F1a)', () => {
   // 按压形变做不出来——必须是能原生 transition border-radius 的普通元素。
   assert.match(appHtml, /class="fk-fab" id="save-all-fab"/);
   assert.equal(false, /<mdui-fab/.test(appHtml));
+});
+
+test('the save-all menu describes what it actually is: a disclosure, not an ARIA menu (G4)', () => {
+  // ARIA 的 menu 契约要求方向键导航 / Home-End / roving tabindex——一概没实现。
+  // 两个按钮走原生 Tab 顺序就够了；FAB 用 aria-controls 关联菜单容器即可，
+  // 不再谎称 role="menu"。
+  assert.match(appHtml, /id="save-all-fab"[^>]*aria-controls="save-all-dropdown"/s);
+  assert.equal(false, /role="menu"/.test(appHtml), 'no element should promise ARIA menu semantics we do not implement');
+});
+
+test('below 840px the dock and FAB menu rise above the fixed navbar (G1)', () => {
+  // 绝对定位元素的 bottom 相对父级 padding box 解析，shell.css 给 .fk-pillar--chat
+  // 加的 padding-bottom 对它无效——.fk-dock-row 必须在 chat.css 自己的移动端媒体
+  // 查询里叠加 --flikky-navbar-h + safe-area-inset-bottom，否则输入坞和 FAB 会被
+  // 固定导航栏整个盖住。
+  const media = chat.match(/@media \(max-width: 839px\) \{[\s\S]*\}\s*$/);
+  assert.ok(media, 'mobile (<840px) media block not found');
+  const block = media[0];
+  const dockRow = block.match(/\.fk-dock-row\s*\{[^}]*\}/)?.[0] ?? '';
+  assert.match(dockRow, /bottom:[^;]*--flikky-navbar-h/, 'dock row must clear the fixed navbar height');
+  assert.match(dockRow, /bottom:[^;]*safe-area-inset-bottom/, 'dock row must clear the home-indicator inset');
 });

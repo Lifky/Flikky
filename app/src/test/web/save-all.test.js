@@ -119,5 +119,38 @@ test('save-all dropdown is a self-drawn menu anchored above the FAB', () => {
     assert.match(rule, /display:\s*flex/);
     assert.match(rule, /flex-direction:\s*column/);
 
-    assert.match(appCss, /#save-all-dropdown\[hidden\]\s*\{[^}]*display:\s*none/);
+    assert.match(appCss, /\.fk-fab-menu\[hidden\]\s*\{[^}]*display:\s*none/);
+});
+
+test('refreshSaveAllFab closes the menu when the FAB disappears (G7 desync guard)', () => {
+    // actionsSlice 只切到 saveAllAsZip 之前，closeSaveAllMenu 定义在它之后——
+    // 之前只有 2 文件场景测过 refreshSaveAllFab，state.visible 恒为 true，
+    // `if (!state.visible) closeSaveAllMenu()` 这条分支从没被跑到过。
+    // 1 文件场景会让它跑到，vm 里没有 closeSaveAllMenu 就会抛 ReferenceError。
+    let closed = 0;
+    const bubbles = [
+        {
+            dataset: { fileId: 'a', name: 'a.txt' },
+            classList: { contains: () => false },
+        },
+    ];
+    const context = {
+        list: { querySelectorAll: () => bubbles },
+        saveAllFab: { hidden: false },
+        saveAllEachLabel: { textContent: '' },
+        closeSaveAllMenu: () => { closed += 1; },
+        t: (_key, values) => String(values.count),
+    };
+    vm.createContext(context);
+    vm.runInContext(
+        `${slice}
+        ${actionsSlice}
+        globalThis.runScenario = () => { refreshSaveAllFab(); };
+        `,
+        context,
+    );
+
+    context.runScenario();
+    assert.equal(closed, 1, 'closeSaveAllMenu should run exactly once when the FAB becomes hidden');
+    assert.equal(context.saveAllFab.hidden, true);
 });

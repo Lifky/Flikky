@@ -825,7 +825,7 @@ body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
   gap: var(--flikky-space-sm);
   z-index: 20;
 }
-#save-all-dropdown[hidden] { display: none; }
+.fk-fab-menu[hidden] { display: none; }
 
 .fk-fab-menu-item {
   position: relative;
@@ -865,6 +865,9 @@ body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
   from { opacity: 0; transform: translateY(12px) scale(.9); }
   to   { opacity: 1; transform: none; }
 }
+@media (prefers-reduced-motion: reduce) {
+  .fk-fab-menu-item { animation-duration: 0ms; }
+}
 
 /* ── 移动端（<840px，与 shell.css 的断点统一，取代旧版分裂的 600px/480px） ── */
 
@@ -874,5 +877,17 @@ body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
   }
   .file-bubble.media .thumb {
     max-width: calc(100vw - 120px);
+  }
+
+  /* 绝对定位元素的 bottom 相对 padding box 解析，父级的 padding-bottom 对它无效——
+     所以输入坞、FAB 菜单、列表底部留白都得自己让开固定导航栏（含安全区）。 */
+  .fk-dock-row {
+    bottom: calc(var(--flikky-dock-inset) + var(--flikky-navbar-h) + env(safe-area-inset-bottom, 0px));
+  }
+  .fk-fab-menu {
+    bottom: calc(var(--flikky-dock-inset) + var(--flikky-navbar-h) + env(safe-area-inset-bottom, 0px) + 68px);
+  }
+  .chat-list {
+    padding-bottom: calc(var(--flikky-dock-inset) * 2 + 64px + var(--flikky-navbar-h) + env(safe-area-inset-bottom, 0px));
   }
 }

@@ -96,8 +96,8 @@ test('the raised-surface shadow token exists per theme mode and hover never goes
   assert.match(tokens, /\.mdui-theme-dark\s*\{[^}]*--flikky-raised-shadow:/s);
   assert.match(tokens, /\[data-amoled="1"\]\s*\{[^}]*--flikky-raised-shadow:/s);
 
-  const rootShadow = tokens.match(/:root\s*\{([^}]*)\}/s)[1];
-  const rootAlpha = maxAlpha(rootShadow);
+  const rootShadowDecl = tokens.match(/--flikky-raised-shadow:\s*([^;]+);/)[1];
+  const rootAlpha = maxAlpha(rootShadowDecl);
   assert.ok(rootAlpha <= 0.15, `:root raised-shadow alpha too strong: ${rootAlpha}`);
 
   const hoverRule = chat.match(/\.fk-fab:hover\s*\{[^}]*\}/s)[0];

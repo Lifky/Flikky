@@ -807,9 +807,13 @@
         link.remove();
     }
 
-    function closeSaveAllMenu() {
+    function closeSaveAllMenu(options) {
+        // 只有当焦点还在菜单里时才收回 FAB —— 点外部关闭时用户的焦点已经在别处，别抢。
+        const restore = (options && options.restoreFocus)
+            || saveAllDropdown.contains(document.activeElement);
         saveAllDropdown.hidden = true;
         saveAllFab.setAttribute('aria-expanded', 'false');
+        if (restore && !saveAllFab.hidden) saveAllFab.focus();
     }
 
     function toggleSaveAllMenu() {
@@ -1981,7 +1985,11 @@
         if (!saveAllDropdown.hidden && !saveAllDropdown.contains(e.target)) closeSaveAllMenu();
     });
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !saveAllDropdown.hidden) { closeSaveAllMenu(); saveAllFab.focus(); }
+        if (e.key !== 'Escape' || saveAllDropdown.hidden) return;
+        // 连接丢失对话框是程序化弹出的（app.js:1471），可能在菜单开着时出现；
+        // 此时 Esc 属于对话框，别把焦点抢到 scrim 后面的 FAB 上。
+        if (document.querySelector('mdui-dialog[open]')) return;
+        closeSaveAllMenu({ restoreFocus: true });
     });
     saveAllEachItem.addEventListener('click', () => { closeSaveAllMenu(); saveAllIndividually(); });
     saveAllZipItem.addEventListener('click', () => { closeSaveAllMenu(); saveAllAsZip(); });
