@@ -14,21 +14,21 @@
    * 肉眼无变化，最后一瞬突然跳变。按下用更长的 ease-out，松开走基础规则自带的
    * spring（各选择器自己 transition 里已经声明），二者时长/曲线不同。 */
   --flikky-morph-round: 50%;
-  --flikky-morph-round-pressed: 38%;
+  --flikky-morph-round-pressed: 28%;
   --flikky-morph-sq: 28%;
   --flikky-morph-sq-pressed: 50%;
-  --flikky-morph-press-dur: 300ms;
+  --flikky-morph-press-dur: 400ms;
   --flikky-morph-press-ease: cubic-bezier(0.2, 0, 0, 1);
 
   --flikky-message-enter-duration: 300ms;
+  --flikky-stagger: calc(40ms * var(--flikky-motion-scale));
 
-  --flikky-dock-inset: 20px;
+  --flikky-dock-inset: var(--flikky-space-lg);
   --flikky-dock-bg: rgb(var(--mdui-color-surface-container-highest));
   --flikky-bubble-max: 78%;
   --flikky-bubble-radius-tight: 4px;
   --flikky-size-touch: 48px;
   --flikky-size-file-icon: 40px;
-  --flikky-raised-shadow: 0px 1px 3px 0px rgba(0, 0, 0, .3), 0px 4px 8px 3px rgba(0, 0, 0, .15);
 }
 
 /* ── 消息列表容器 ────────────────────────────────────────────────────────── */
@@ -45,7 +45,6 @@
   height: 100%;
   box-sizing: border-box;
   overflow-y: auto;
-  scroll-behavior: smooth;
   padding: var(--flikky-space-screen-edge);
   /* 底部额外留白，给悬浮输入坞 + FAB 让位，最后一条消息不会被压住。 */
   padding-bottom: calc(var(--flikky-dock-inset) * 2 + 64px);
@@ -115,6 +114,9 @@
   clip-path: url(#flikky-cookie9);
   background: rgb(var(--mdui-color-secondary-container));
   color: rgb(var(--mdui-color-on-secondary-container));
+}
+.file-bubble .file-icon .material-symbols-outlined {
+  font-size: 24px;
 }
 .bubble-row.me .file-bubble .file-icon {
   background: rgba(var(--mdui-color-on-primary), .18);
@@ -768,31 +770,101 @@ body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
 }
 
 /* 静止是圆角正方形，按下更圆——圆的变方、方的变圆，两者朝对立形状走。
-   --shape-corner-normal 是 mdui-fab size="normal" 的圆角穿透属性。 */
+   用原生 border-radius 而不是 mdui 的 --shape-corner-normal：未注册的自定义属性
+   不可插值，transition 上去只会在时长结束时突跳一下，形变根本不发生。
+   （本仓库唯一注册过的自定义属性是 base.css:22 的 --flikky-icon-fill。）
+   官方 mdui-fab 做不出这个效果，所以这里照原型用普通 button 自绘。 */
 .fk-fab {
-  height: 56px;
+  position: relative;
+  overflow: hidden;
+  flex: none;
   width: 56px;
-  --shape-corner-normal: var(--flikky-morph-sq);
+  height: 56px;
+  border: 0;
+  border-radius: var(--flikky-morph-sq);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  background: rgb(var(--mdui-color-primary-container));
+  color: rgb(var(--mdui-color-on-primary-container));
   box-shadow: var(--flikky-raised-shadow);
-  transition: box-shadow var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
-}
-.fk-fab:hover {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, .12), 0 6px 14px rgba(0, 0, 0, .08);
+  transition:
+    box-shadow var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    border-radius var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default);
 }
 .fk-fab:active {
-  --shape-corner-normal: var(--flikky-morph-sq-pressed);
-  transition: --shape-corner-normal var(--flikky-morph-press-dur) var(--flikky-morph-press-ease);
+  border-radius: var(--flikky-morph-sq-pressed);
+  transition: border-radius var(--flikky-morph-press-dur) var(--flikky-morph-press-ease);
 }
+/* 官方 hover 8% / pressed 12% state layer */
+.fk-fab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--flikky-spring-effects-fast-dur) var(--flikky-spring-effects-fast);
+}
+.fk-fab:hover::before { opacity: .08; }
+.fk-fab:active::before { opacity: .12; }
+.fk-fab:hover { box-shadow: 0 2px 6px rgba(0, 0, 0, .12), 0 6px 14px rgba(0, 0, 0, .08); }
+.fk-fab .material-symbols-outlined { position: relative; }
+/* display:grid 会盖掉 hidden 属性的默认 display:none，必须显式写回 */
+.fk-fab[hidden] { display: none; }
 
-/* save-all 下拉现在是 .fk-dock-row（已 position:absolute + display:flex）里的一个
-   flex item，不再自己绝对定位——旧版 #chat-list-shell #save-all-dropdown 的
-   right/bottom/z-index 已随之作废。mdui 自定义元素默认 display:contents，这里给它
-   一个真实的盒子（inline-block）以免撑散布局，并防止被可伸展的输入坞挤扁。 */
-.fk-dock-row #save-all-dropdown {
-  display: inline-block;
-  flex-shrink: 0;
+/* ── 保存全部：自绘 FAB 菜单（用户点名保留原型这版视觉，不换 mdui-menu）───── */
+
+.fk-fab-menu {
+  position: absolute;
+  right: var(--flikky-dock-inset);
+  bottom: calc(var(--flikky-dock-inset) + 68px);   /* 贴在 FAB 上方 */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--flikky-space-sm);
+  z-index: 20;
 }
 #save-all-dropdown[hidden] { display: none; }
+
+.fk-fab-menu-item {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  height: 44px;
+  padding: 0 var(--flikky-space-lg);
+  /* 静态药丸形，不参与形变动画——「半径别写 999px」那条规则只约束会插值的半径。 */
+  border-radius: 999px;
+  background: rgb(var(--mdui-color-primary-container));
+  color: rgb(var(--mdui-color-on-primary-container));
+  box-shadow: var(--flikky-raised-shadow);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--flikky-space-sm);
+  font: var(--flikky-type-label-large) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-label-large-tracking);
+  white-space: nowrap;
+  animation: flikky-fab-item-in var(--flikky-spring-spatial-default-dur)
+             var(--flikky-spring-spatial-default) both;
+  animation-delay: calc(var(--flikky-stagger) * var(--i, 0));
+}
+.fk-fab-menu-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--flikky-spring-effects-fast-dur) var(--flikky-spring-effects-fast);
+}
+.fk-fab-menu-item:hover::before { opacity: .08; }
+.fk-fab-menu-item:active::before { opacity: .12; }
+.fk-fab-menu-item > * { position: relative; }
+
+@keyframes flikky-fab-item-in {
+  from { opacity: 0; transform: translateY(12px) scale(.9); }
+  to   { opacity: 1; transform: none; }
+}
 
 /* ── 移动端（<840px，与 shell.css 的断点统一，取代旧版分裂的 600px/480px） ── */
 

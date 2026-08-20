@@ -7,6 +7,15 @@ const WEB = path.join(__dirname, '../../main/assets/web');
 const tokens = fs.readFileSync(path.join(WEB, 'tokens.css'), 'utf8');
 const springs = fs.readFileSync(path.join(WEB, 'springs.css'), 'utf8');
 const shapes = fs.readFileSync(path.join(WEB, 'shapes.svg.html'), 'utf8');
+const chat = fs.readFileSync(path.join(WEB, 'chat.css'), 'utf8');
+
+// rgba(0, 0, 0, .10) -> 0.1; takes the last comma-separated component of every rgba(...).
+function maxAlpha(str) {
+  const alphas = [...str.matchAll(/rgba\(([^)]*)\)/g)]
+    .map((m) => parseFloat(m[1].split(',').pop()));
+  assert.ok(alphas.length > 0, `no rgba() found in: ${str}`);
+  return Math.max(...alphas);
+}
 
 test('generated files carry a do-not-edit banner', () => {
   assert.match(tokens, /DO NOT EDIT BY HAND/);
@@ -78,4 +87,23 @@ test('type tokens carry an explicit font-weight so the font shorthand never rese
   assert.match(tokens, /--flikky-type-display-large:\s*400\s+57px\/64px;/, 'Normal -> 400');
   assert.match(tokens, /--flikky-type-title-medium:\s*500\s+16px\/24px;/, 'Medium -> 500');
   assert.match(tokens, /--flikky-type-label-large:\s*500\s+14px\/20px;/, 'Medium -> 500');
+});
+
+test('the raised-surface shadow token exists per theme mode and hover never goes darker than rest (F3)', () => {
+  // 阴影 token 挪进生成器之后，三种模式都要真的定义；且静止阴影必须比 hover 阴影更弱——
+  // 否则会出现「越亮越重」的反直觉手感（数值比较，不能把两边都写成硬编码字面量）。
+  assert.match(tokens, /:root\s*\{[^}]*--flikky-raised-shadow:/s);
+  assert.match(tokens, /\.mdui-theme-dark\s*\{[^}]*--flikky-raised-shadow:/s);
+  assert.match(tokens, /\[data-amoled="1"\]\s*\{[^}]*--flikky-raised-shadow:/s);
+
+  const rootShadow = tokens.match(/:root\s*\{([^}]*)\}/s)[1];
+  const rootAlpha = maxAlpha(rootShadow);
+  assert.ok(rootAlpha <= 0.15, `:root raised-shadow alpha too strong: ${rootAlpha}`);
+
+  const hoverRule = chat.match(/\.fk-fab:hover\s*\{[^}]*\}/s)[0];
+  const hoverAlpha = maxAlpha(hoverRule);
+  assert.ok(
+    hoverAlpha > rootAlpha,
+    `hover shadow (${hoverAlpha}) must be strictly darker than resting :root shadow (${rootAlpha})`,
+  );
 });

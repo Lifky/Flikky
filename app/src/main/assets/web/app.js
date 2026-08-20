@@ -4,6 +4,8 @@
     const saveAllDropdown = document.getElementById('save-all-dropdown');
     const saveAllEachItem = document.getElementById('save-all-each');
     const saveAllZipItem = document.getElementById('save-all-zip');
+    const saveAllFab = document.getElementById('save-all-fab');
+    const saveAllEachLabel = document.getElementById('save-all-each-label');
     const input = document.getElementById('text-input');
     const sendBtn = document.getElementById('send-btn');
     const fileBtn = document.getElementById('file-btn');
@@ -781,8 +783,10 @@
 
     function refreshSaveAllFab() {
         const state = computeSaveAllState(collectReceivedCompletedFiles());
-        saveAllDropdown.hidden = !state.visible;
-        saveAllEachItem.textContent = t('app.save_all_each', { count: state.fileCount });
+        saveAllFab.hidden = !state.visible;
+        // FAB 消失时菜单必须一起收起，否则会留下一个悬空的菜单。
+        if (!state.visible) closeSaveAllMenu();
+        saveAllEachLabel.textContent = t('app.save_all_each', { count: state.fileCount });
     }
 
     async function saveAllIndividually() {
@@ -801,6 +805,17 @@
         document.body.appendChild(link);
         link.click();
         link.remove();
+    }
+
+    function closeSaveAllMenu() {
+        saveAllDropdown.hidden = true;
+        saveAllFab.setAttribute('aria-expanded', 'false');
+    }
+
+    function toggleSaveAllMenu() {
+        const open = saveAllDropdown.hidden;
+        saveAllDropdown.hidden = !open;
+        saveAllFab.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 
     async function copyBubbleText(bubble) {
@@ -1961,8 +1976,15 @@
         } catch (e) { /* 隐私模式禁读，忽略 */ }
     }
 
-    saveAllEachItem.addEventListener('click', saveAllIndividually);
-    saveAllZipItem.addEventListener('click', saveAllAsZip);
+    saveAllFab.addEventListener('click', (e) => { e.stopPropagation(); toggleSaveAllMenu(); });
+    document.addEventListener('click', (e) => {
+        if (!saveAllDropdown.hidden && !saveAllDropdown.contains(e.target)) closeSaveAllMenu();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !saveAllDropdown.hidden) { closeSaveAllMenu(); saveAllFab.focus(); }
+    });
+    saveAllEachItem.addEventListener('click', () => { closeSaveAllMenu(); saveAllIndividually(); });
+    saveAllZipItem.addEventListener('click', () => { closeSaveAllMenu(); saveAllAsZip(); });
     sendBtn.addEventListener('click', sendText);
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }

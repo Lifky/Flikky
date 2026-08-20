@@ -82,6 +82,8 @@ test('saving individually downloads every received file on every click', async (
         list: { querySelectorAll: () => bubbles },
         saveAllDropdown: { hidden: true },
         saveAllEachItem: { textContent: '' },
+        saveAllFab: { hidden: false },
+        saveAllEachLabel: { textContent: '' },
         setTimeout: (callback) => callback(),
         t: (_key, values) => String(values.count),
         downloads,
@@ -107,19 +109,15 @@ test('saving individually downloads every received file on every click', async (
     ]);
 });
 
-test('save-all dropdown creates a positioned box above the chat list', () => {
-    // v1.19.0: the dropdown moved from its own absolutely-positioned box floating
-    // over .chat-list-shell into .fk-dock-row, which is itself already
-    // position:absolute + display:flex above the chat list. The dropdown only
-    // needs a real box (mdui defaults custom elements to display:contents) that
-    // won't get squeezed by the flexible input dock next to it.
-    const rule = appCss.match(/#save-all-dropdown\s*\{[^}]*\}/)?.[0] ?? '';
-    assert.match(rule, /display:\s*inline-block/);
-    assert.match(rule, /flex-shrink:\s*0/);
-
-    const dockRow = appCss.match(/\.fk-dock-row\s*\{[^}]*\}/)?.[0] ?? '';
-    assert.match(dockRow, /position:\s*absolute/);
-    assert.match(dockRow, /display:\s*flex/);
+test('save-all dropdown is a self-drawn menu anchored above the FAB', () => {
+    // v1.19.0 fix round 1: #save-all-dropdown is no longer the mdui-dropdown wrapper —
+    // it is now the plain .fk-fab-menu itself (a column of pill buttons floating above
+    // the FAB), because mdui-menu can't reproduce the prototype's per-item stagger-in
+    // animation the user explicitly asked to keep.
+    const rule = appCss.match(/\.fk-fab-menu\s*\{[^}]*\}/)?.[0] ?? '';
+    assert.match(rule, /position:\s*absolute/);
+    assert.match(rule, /display:\s*flex/);
+    assert.match(rule, /flex-direction:\s*column/);
 
     assert.match(appCss, /#save-all-dropdown\[hidden\]\s*\{[^}]*display:\s*none/);
 });
