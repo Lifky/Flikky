@@ -67,55 +67,6 @@
         return 'draft';
     }
 
-
-    // ── M9b: Avatar constants ─────────────────────────────────────────────
-    /*
-    // Order matches PRESET_AVATARS in Avatar.kt (indices 0-11).
-    const AVATAR_BG = [
-        '#FF7043', // 0 Person      deep orange
-        '#F4B400', // 1 Star        amber
-        '#E91E63', // 2 Favorite    pink
-        '#43A047', // 3 Home        green
-        '#1E88E5', // 4 Email       blue
-        '#00ACC1', // 5 Call        cyan
-        '#7E57C2', // 6 Phone       purple
-        '#EF6C00', // 7 ShoppingCart orange
-        '#039BE5', // 8 ThumbUp     light blue
-        '#D81B60', // 9 Place       raspberry
-        '#6D4C41', // 10 Notifications brown
-        '#546E7A', // 11 Settings   blue-grey
-    ];
-    const AVATAR_EMOJI = [
-        '👤', // Person
-        '⭐', // Star
-        '❤️', // Favorite
-        '🏠', // Home
-        '✉️', // Email
-        '📞', // Call
-        '☎️', // Phone
-        '🛒', // ShoppingCart
-        '👍', // ThumbUp
-        '📍', // Place
-        '🔔', // Notifications
-        '⚙️', // Settings
-    ];
-
-    // Own avatar: loaded from localStorage, default 0.
-    let myAvatarId = Math.max(0, Math.min(11, Number(localStorage.getItem('flikky_avatar') ?? 0)));
-    // Peer (phone) avatar — set after peer-info fetch.
-    let phoneAvatarId = 0;
-
-    // Build an avatar circle element (does not attach to DOM).
-    function makeAvatarEl(avatarId) {
-        const idx = Math.max(0, Math.min(11, avatarId));
-        const el = document.createElement('div');
-        el.className = 'avatar-circle';
-        el.style.backgroundColor = AVATAR_BG[idx];
-        el.textContent = AVATAR_EMOJI[idx];
-        return el;
-    }
-
-    */
     const AVATAR_DEFAULT_BROWSER = 'icon:desktop_windows';
     const AVATAR_DEFAULT_PHONE = 'icon:smartphone';
     const AVATAR_LEGACY_KEYS = [
@@ -701,6 +652,21 @@
     function setSendEnabled(enabled) {
         sendBtn.disabled = !enabled;
         fileBtn.disabled = !enabled;
+        refreshSendReady();
+    }
+
+    // 单行起步，按内容长高到 CSS 的 max-height(120px) 为止；超出后自己出滚动条。
+    // 先归零再读 scrollHeight —— 不归零的话高度只会单调增长，删字不会缩回去。
+    function autoGrowInput() {
+        input.style.height = 'auto';
+        input.style.height = `${input.scrollHeight}px`;
+    }
+
+    // data-ready 只反映"有没有可发的内容"；能不能点由 setSendEnabled 的连接态决定。
+    // 断线时输入框里有字也不能显示成可发送的主色按钮，所以两个条件都要满足。
+    function refreshSendReady() {
+        const ready = !sendBtn.disabled && input.value.trim() !== '';
+        sendBtn.dataset.ready = ready ? 'true' : 'false';
     }
 
     function formatSize(b) {
@@ -1685,6 +1651,7 @@
                     }
                 } catch (_) { /* ignore parse errors */ }
                 input.value = '';
+                autoGrowInput();
             }
         } catch (e) {
             if (window.flikky && window.flikky.showError) {
@@ -1996,6 +1963,10 @@
     sendBtn.addEventListener('click', sendText);
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }
+    });
+    input.addEventListener('input', () => {
+        autoGrowInput();
+        refreshSendReady();
     });
     fileBtn.addEventListener('click', () => filePicker.click());
     filePicker.addEventListener('change', () => {

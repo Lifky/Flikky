@@ -2,10 +2,12 @@ const test = require('node:test');
 const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const WEB = path.join(__dirname, '../../main/assets/web');
 const chat = fs.readFileSync(path.join(WEB, 'chat.css'), 'utf8');
 const appHtml = fs.readFileSync(path.join(WEB, 'app.html'), 'utf8');
+const appJs = fs.readFileSync(path.join(WEB, 'app.js'), 'utf8');
 
 function rule(sel) {
   const re = new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{[^}]*\\}');
@@ -170,4 +172,80 @@ test('below 840px the dock and FAB menu rise above the fixed navbar (G1)', () =>
   const dockRow = block.match(/\.fk-dock-row\s*\{[^}]*\}/)?.[0] ?? '';
   assert.match(dockRow, /bottom:[^;]*--flikky-navbar-h/, 'dock row must clear the fixed navbar height');
   assert.match(dockRow, /bottom:[^;]*safe-area-inset-bottom/, 'dock row must clear the home-indicator inset');
+});
+
+test('the dead pre-v1.2 avatar block is deleted (B1)', () => {
+  // AVATAR_BG / AVATAR_EMOJI / myAvatarId / phoneAvatarId (the let) / makeAvatarEl
+  // only ever existed inside the commented-out M9b block. AVATAR_BG/AVATAR_EMOJI
+  // are the two identifiers unique to that block (myAvatarId has no other users
+  // either, but phoneAvatarId also names an unrelated JSON field on the
+  // peer-info payload, so it is not safe to grep bare here).
+  assert.equal(false, /AVATAR_BG/.test(appJs));
+  assert.equal(false, /AVATAR_EMOJI/.test(appJs));
+});
+
+function sliceFunction(startMarker, endMarker) {
+  const start = appJs.indexOf(startMarker);
+  assert.ok(start >= 0, `${startMarker} not found in app.js`);
+  const end = appJs.indexOf(endMarker, start);
+  assert.ok(end > start, `${startMarker} is incomplete`);
+  return appJs.slice(start, end);
+}
+
+test('autoGrowInput resets height before reading scrollHeight, so shrinking works (B2)', () => {
+  const slice = sliceFunction('function autoGrowInput', 'function refreshSendReady');
+
+  // 证明"先归零"真的有意义：函数体必须对 height 赋值两次。只赋值一次（不归零直接
+  // 读 scrollHeight）会让高度只单调增长、删字不缩回去，这条断言就会失败。
+  const assignments = slice.match(/\.style\.height\s*=/g) || [];
+  assert.equal(assignments.length, 2, 'autoGrowInput must reset height before reading scrollHeight');
+
+  const input = { style: {}, scrollHeight: 60 };
+  const context = { input };
+  vm.createContext(context);
+  vm.runInContext(`${slice}\nautoGrowInput();`, context);
+  assert.equal(context.input.style.height, '60px');
+});
+
+test('the input dock grows on the input event, not keyup (B2)', () => {
+  // input 而不是 keyup：粘贴、IME 拼字、自动填充都不会触发 keyup。
+  assert.match(
+    appJs,
+    /input\.addEventListener\('input',\s*\(\)\s*=>\s*\{[^}]*autoGrowInput\(\)[^}]*\}\);/,
+  );
+  assert.equal(false, /input\.addEventListener\('keyup'/.test(appJs));
+});
+
+test('refreshSendReady requires both a live connection and non-empty content (B3)', () => {
+  function computeReady(disabled, value) {
+    const slice = sliceFunction('function refreshSendReady', 'function formatSize');
+    const sendBtn = { disabled, dataset: {} };
+    const input = { value };
+    const context = { sendBtn, input };
+    vm.createContext(context);
+    vm.runInContext(`${slice}\nrefreshSendReady();`, context);
+    return context.sendBtn.dataset.ready;
+  }
+
+  assert.equal(computeReady(true, ''), 'false', 'disconnected + empty');
+  // The case that fails if someone drops the `!sendBtn.disabled` term: there is
+  // text, so a content-only check would say true, but disconnected must win.
+  assert.equal(computeReady(true, 'hi'), 'false', 'disconnected + text must still read as not-ready');
+  assert.equal(computeReady(false, ''), 'false', 'connected + empty');
+  assert.equal(computeReady(false, 'hi'), 'true', 'connected + text');
+});
+
+test('refreshSendReady treats whitespace-only input as empty (B3)', () => {
+  const slice = sliceFunction('function refreshSendReady', 'function formatSize');
+  const sendBtn = { disabled: false, dataset: {} };
+  const input = { value: '   ' };
+  const context = { sendBtn, input };
+  vm.createContext(context);
+  vm.runInContext(`${slice}\nrefreshSendReady();`, context);
+  assert.equal(context.sendBtn.dataset.ready, 'false');
+});
+
+test('setSendEnabled resets the send-ready state on every connection change (B3)', () => {
+  const slice = sliceFunction('function setSendEnabled', 'function autoGrowInput');
+  assert.match(slice, /refreshSendReady\(\);/);
 });

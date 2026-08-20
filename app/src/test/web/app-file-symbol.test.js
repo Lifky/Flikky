@@ -8,7 +8,9 @@ const webDir = path.join(__dirname, '../../main/assets/web');
 const appJs = fs.readFileSync(path.join(webDir, 'app.js'), 'utf8');
 
 const start = appJs.indexOf('const DOCUMENT_MIMES');
-const end = appJs.indexOf('M9b: Avatar constants');
+// End marker used to be the (now-deleted, B1) dead avatar block's header comment;
+// the const declared right after that dead block is a stable boundary instead.
+const end = appJs.indexOf('const AVATAR_DEFAULT_BROWSER');
 assert.ok(start >= 0 && end > start, 'file symbol helpers not found in app.js');
 const slice = appJs.slice(start, appJs.lastIndexOf('\n', end));
 
