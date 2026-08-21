@@ -5,45 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title data-i18n="export.title">Flikky 导出</title>
     <link rel="stylesheet" href="/static/vendor/mdui.css">
+    <link rel="stylesheet" href="/static/base.css">
+    <link rel="stylesheet" href="/static/springs.css">
     <link rel="stylesheet" href="/static/tokens.css">
-    <link rel="stylesheet" href="/static/app.css">
+    <link rel="stylesheet" href="/static/pages.css">
 </head>
 <body>
-    <div class="export-wrap">
-        <mdui-top-app-bar scroll-behavior="elevate">
-            <mdui-top-app-bar-title data-i18n="export.title">Flikky 导出</mdui-top-app-bar-title>
-        </mdui-top-app-bar>
-
-        <main class="export-main">
-            <!-- v1.3 B9 (T27): health-probe disconnect banner. Toggled by
-                 export.js via the `hidden` attribute; text written through
-                 textContent (no innerHTML, per browser red lines). -->
-            <div id="export-banner" class="export-banner" role="status" aria-live="polite" hidden></div>
-
-            <mdui-card id="summary-card" variant="filled" class="export-card">
-                <h2 class="export-card-title" data-i18n="export.pending">即将下载</h2>
-                <div id="summary" class="export-summary" data-i18n="export.loading">读取中…</div>
-            </mdui-card>
-
-            <mdui-card variant="outlined" id="sessions-card" class="export-card" hidden>
-                <h3 class="export-card-title" data-i18n="export.session_list">会话清单</h3>
-                <mdui-list id="session-list"></mdui-list>
-            </mdui-card>
-
-            <div class="export-actions">
-                <mdui-button id="download-btn" data-i18n="export.preparing" variant="filled" disabled>准备中…</mdui-button>
+    <div class="fk-single">
+        <main class="fk-card fk-card--wide">
+            <div class="fk-export-head">
+                <img class="fk-export-logo" src="/static/flikky-logo.svg" alt="">
+                <h1 class="fk-export-title" data-i18n="export.title">Flikky 导出</h1>
             </div>
 
-            <p class="export-hint" id="export-hint" data-i18n="export.hint">
+            <!-- v1.3 B9 (T27): health-probe disconnect banner. Toggled by
+                 export.js via the `hidden` attribute; text written through
+                 textContent (no innerHTML, per browser red lines).
+                 元素内必须为空 —— export.js 整体赋 textContent，任何子元素
+                 都会在第一次状态更新时被抹掉。 -->
+            <div id="export-banner" class="fk-banner" role="status" aria-live="polite" hidden></div>
+
+            <div class="fk-summary">
+                <span class="fk-summary-label" data-i18n="export.pending">即将下载</span>
+                <span class="fk-summary-value" id="summary" data-i18n="export.loading">读取中…</span>
+            </div>
+
+            <div class="fk-sessions" id="sessions-card" hidden>
+                <p class="fk-subtitle" data-i18n="export.session_list">会话清单</p>
+                <!-- export.js:108-120 用 headline/description 属性建行，
+                     库在这个场合是合适的，不换自研行。 -->
+                <mdui-list id="session-list"></mdui-list>
+            </div>
+
+            <button class="fk-btn" id="download-btn" type="button"
+                    data-i18n="export.preparing" disabled>准备中…</button>
+
+            <p class="fk-hint" id="export-hint" data-i18n="export.hint">
                 提示：下载由浏览器处理，开始后可保持此页面开启直至保存完成。
             </p>
         </main>
     </div>
 
+    <!-- placement="bottom"：这一页底部没有任何常驻部件（会话页有输入坞，所以那边
+         是 top）。M3 的 snackbar 默认就在底部，没有理由在这里偏离。 -->
     <mdui-snackbar id="snackbar" placement="bottom"></mdui-snackbar>
 
     <mdui-dialog id="export-cancel-dialog" close-on-overlay-click="true" close-on-esc="true" headline="导出已取消" data-i18n-headline="export.cancelled_title">
-        <div data-i18n="export.cancelled_body" style="padding: 0 24px 8px;">手机端已取消本次导出，如需重新导出请回到手机端操作。</div>
+        <div class="fk-dialog-body" data-i18n="export.cancelled_body">手机端已取消本次导出，如需重新导出请回到手机端操作。</div>
         <mdui-button slot="action" data-action="ok" data-i18n="common.got_it" variant="text">我知道了</mdui-button>
     </mdui-dialog>
 

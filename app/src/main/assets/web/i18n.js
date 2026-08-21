@@ -6,8 +6,10 @@
             'common.got_it': '我知道了',
 
             'login.title': 'Flikky 登录',
-            'login.heading': '输入 PIN 码',
+            // v1.19.0 起登录页只有一行说明文字（原来的 <h2>「输入 PIN 码」连同
+            // login.heading 一起删了：logo + 这句话已经说清楚要做什么）。
             'login.description': '请在手机屏幕上查看 6 位 PIN 码。',
+            'login.pin_group': 'PIN 码',
             'login.submit': '进入',
             'login.invalid_pin': '请输入 6 位 PIN',
             'login.locked': '尝试过多，请 30 秒后再试',
@@ -148,8 +150,8 @@
             'common.got_it': 'Got it',
 
             'login.title': 'Flikky sign in',
-            'login.heading': 'Enter PIN',
             'login.description': 'Find the 6-digit PIN on your phone.',
+            'login.pin_group': 'PIN',
             'login.submit': 'Continue',
             'login.invalid_pin': 'Enter the 6-digit PIN',
             'login.locked': 'Too many attempts. Try again in 30 seconds.',

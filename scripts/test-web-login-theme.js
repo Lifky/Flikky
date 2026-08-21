@@ -9,8 +9,12 @@ class Element {
   constructor() {
     this.listeners = new Map();
     this.value = '';
-    this.error = false;
-    this.helper = '';
+    // v1.19.0: the PIN field is a plain <input> now, not an <mdui-text-field>.
+    // Errors go to #helper's textContent and #pin's data-error, so the stand-in
+    // needs both — without dataset, login.js throws before the theme fetch and
+    // this whole script fails on an unrelated change.
+    this.textContent = '';
+    this.dataset = {};
     this.disabled = false;
     this.focusCalls = 0;
   }
@@ -41,6 +45,8 @@ async function runLoginThemeTest() {
     'pin-form': new Element(),
     'pin-input': new Element(),
     'submit-btn': new Element(),
+    pin: new Element(),
+    helper: new Element(),
   };
   const calls = [];
   const mdui = {
@@ -58,6 +64,12 @@ async function runLoginThemeTest() {
     document: {
       getElementById(id) {
         return elements[id] || null;
+      },
+      // The six .fk-pin-cell divs are display-only. Returning none is a valid
+      // shape for this script — it asserts theme-sync ordering, not rendering —
+      // and login.js must tolerate it rather than assume six cells exist.
+      querySelectorAll() {
+        return [];
       },
       addEventListener() {},
     },

@@ -5,28 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title data-i18n="login.title">Flikky 登录</title>
     <link rel="stylesheet" href="/static/vendor/mdui.css">
+    <link rel="stylesheet" href="/static/base.css">
+    <link rel="stylesheet" href="/static/springs.css">
     <link rel="stylesheet" href="/static/tokens.css">
-    <link rel="stylesheet" href="/static/app.css">
+    <link rel="stylesheet" href="/static/pages.css">
 </head>
 <body>
-    <div class="login-wrap">
-        <mdui-card variant="filled">
-            <h2 data-i18n="login.heading" style="margin:0 0 16px; font-size:22px;">输入 PIN 码</h2>
+    <div class="fk-single">
+        <main class="fk-card">
+            <div class="fk-login-brand">
+                <img class="fk-login-logo" src="/static/flikky-logo.svg" alt="Flikky">
+            </div>
+            <p class="fk-login-sub" data-i18n="login.description">请在手机屏幕上查看 6 位 PIN 码。</p>
+
             <form id="pin-form" autocomplete="off" novalidate>
-                <mdui-text-field
-                    id="pin-input"
-                    class="pin-field"
-                    variant="outlined"
-                    type="tel"
-                    label="PIN"
-                    maxlength="6"
-                    autofocus>
-                </mdui-text-field>
-                <mdui-button id="submit-btn" data-i18n="login.submit" type="submit" variant="filled" full-width style="margin-top:16px;">
-                    进入
-                </mdui-button>
+                <!-- 6 个格子只是显示层；真正接收输入的是下面那个透明 input。
+                     点格子会把焦点交回给它（login.js），所以格子本身不可聚焦。
+                     aria-hidden：格子里的数字和 input 的 value 是同一份内容，
+                     两边都暴露会让读屏把 PIN 念两遍。语义全部由 input 承担。 -->
+                <div class="fk-pin" id="pin" data-error="false" aria-hidden="true">
+                    <div class="fk-pin-cell" data-filled="false" data-active="true"></div>
+                    <div class="fk-pin-cell" data-filled="false"></div>
+                    <div class="fk-pin-cell" data-filled="false"></div>
+                    <div class="fk-pin-cell" data-filled="false"></div>
+                    <div class="fk-pin-cell" data-filled="false"></div>
+                    <div class="fk-pin-cell" data-filled="false"></div>
+                </div>
+                <input class="fk-pin-input" id="pin-input" type="tel" inputmode="numeric"
+                       maxlength="6" autocomplete="one-time-code" autofocus
+                       aria-label="PIN 码" data-i18n-aria-label="login.pin_group">
+
+                <div class="fk-helper" id="helper" role="alert" aria-live="assertive"></div>
+                <button class="fk-btn" id="submit-btn" type="submit"
+                        data-i18n="login.submit" disabled>进入</button>
             </form>
-        </mdui-card>
+        </main>
     </div>
 
     <script src="/static/vendor/mdui.global.js"></script>

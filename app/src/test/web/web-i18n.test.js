@@ -53,16 +53,31 @@ test('translations never use innerHTML', () => {
     assert.equal(source.includes('innerHTML'), false);
 });
 
-test('PIN login card does not render helper tip paragraphs', () => {
+test('PIN login card carries no privacy advisory', () => {
+    // faa22ba 的决定是「登录页不放隐私/安全劝告」（原文是「建议使用无痕窗口」）。
+    // 那次顺带钉上的 login.description 是附带品 —— 它当时本来就没被任何页面引用。
+    // v1.19.0 删掉了 <h2>「输入 PIN 码」，说明文字成了页面上唯一一句告诉用户
+    // 该做什么的话，所以这一条放开；隐私劝告的禁令原样保留。
     const html = fs.readFileSync(
         path.resolve(__dirname, '../../main/assets/web/login.html'),
         'utf8',
     );
     const { source: i18nSource } = loadI18n();
 
-    assert.equal(html.includes('data-i18n="login.description"'), false);
     assert.equal(html.includes('data-i18n="login.privacy_tip"'), false);
     assert.equal(i18nSource.includes("'login.privacy_tip'"), false);
+});
+
+test('the login page explains itself in exactly one line', () => {
+    // 六个空格子 + 一个灰掉的按钮，不配文字就是一道谜题。反过来，说明多于一句
+    // 又会把这页变回旧版那种「标题 + 说明 + 提示」三段式。
+    const html = fs.readFileSync(
+        path.resolve(__dirname, '../../main/assets/web/login.html'),
+        'utf8',
+    );
+    const paragraphs = html.match(/<p\b[^>]*data-i18n="[^"]+"/g) || [];
+    assert.equal(paragraphs.length, 1, `login.html renders ${paragraphs.length} explanatory paragraphs`);
+    assert.match(html, /data-i18n="login\.description"/);
 });
 
 test('polling the same language does not overwrite dynamic page state', () => {

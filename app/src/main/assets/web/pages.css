@@ -1,0 +1,264 @@
+/* ============================================================================
+ * 独立页面：登录 / 导出
+ * 与会话页同一套语言 —— 一块浮岛居中，只是柱数从三变一。
+ *
+ * 依赖边界：这两页只加载 base.css → springs.css → tokens.css → pages.css，
+ * **不加载 shell.css**。所以 shell.css 里那几个组件级几何量（--flikky-shape-full /
+ * --flikky-pillar-radius / --flikky-shell-pad）在这里不可见，引用它们会静默退化成
+ * 「无圆角、无留白」而不是报错。下面按 shell.css 的同一批底层 token 重新算出所需值，
+ * 守卫单测见 pages-visual.test.js「pages.css is self-contained」。
+ *
+ * 字号只用三档：24（页标题 / PIN 数字）、16（主文本：摘要值、按钮）、
+ * 14（次要：标签、提示、错误）。旧导出页混了 28/24/18/16/15/14 六档，一页之内
+ * 层级读不出来，只显得乱。这条由单测钉死。
+ * ==========================================================================*/
+
+:root {
+  /* 胶囊/全圆。shell.css 里同名 token 注释写明「组件级几何，不进生成的
+     tokens.css」——那份归会话页外壳，这份归独立页，两张表从不同时加载。 */
+  --flikky-shape-full: 999px;
+
+  /* 按压形变的时长与缓动。chat.css 声明了同名的一对给会话页的圆形按钮用，
+     值相同但各自持有：tokens.css 是脚本生成的（scripts/gen_web_tokens.mjs），
+     放不进去；挪进 base.css 则会撞上 app-chat-visual.test.js 钉在 chat.css 上的
+     断言。两张表永不同时加载，所以重复是安全的，只是要一起改。 */
+  --flikky-morph-press-dur: 400ms;
+  --flikky-morph-press-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+body {
+  background: var(--flikky-page-bg);
+  color: rgb(var(--mdui-color-on-surface));
+  font-family: var(--flikky-font-family);
+}
+
+.fk-single {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: var(--flikky-space-xl);
+}
+
+.fk-card {
+  width: min(440px, 100%);
+  background: var(--flikky-pillar-bg);
+  border-radius: var(--flikky-shape-xl-increased);
+  box-shadow: none;                      /* 与会话页一致：一块面，不是悬浮卡片 */
+  padding: var(--flikky-space-xxxl);
+}
+.fk-card--wide { width: min(680px, 100%); }
+
+/* ── 登录 ────────────────────────────────────────────────────────────── */
+
+/* 品牌区：整体居中、放大。logo 自己就是标识，不再补一行「Flikky」文字。 */
+.fk-login-brand {
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--flikky-space-xxl);
+}
+.fk-login-logo {
+  width: 128px;
+  height: 128px;
+  display: block;
+}
+.fk-login-sub {
+  font: var(--flikky-type-body-large) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-large-tracking);
+  color: rgb(var(--mdui-color-on-surface-variant));
+  margin: 0 0 var(--flikky-space-xxxl);
+  text-align: center;
+}
+
+/* PIN：6 格连接式按钮组 —— 首尾全圆、中间 8px、格间 2px（MD3 connected group 规则）。
+   焦点所在格放大并染主色，是「当前在这一格」最直接的表达。 */
+.fk-pin {
+  display: flex;
+  gap: 2px;
+  margin-bottom: var(--flikky-space-xl);
+}
+.fk-pin-cell {
+  flex: 1 1 0;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  background: rgb(var(--mdui-color-surface-container-high));
+  color: rgb(var(--mdui-color-on-surface));
+  border-radius: var(--flikky-shape-xs);
+  /* 原型这里是 `500 32px/1`。硬编码字号会把这一页拉出第四档字号，
+     且绕开 type 层；headline-small（24px）是 MD3 里最接近的一档。 */
+  font: var(--flikky-type-headline-small) var(--flikky-font-family);
+  transition:
+    background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    transform var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    border-radius var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default);
+}
+.fk-pin-cell:first-child {
+  border-start-start-radius: var(--flikky-shape-xl);
+  border-end-start-radius: var(--flikky-shape-xl);
+}
+.fk-pin-cell:last-child {
+  border-start-end-radius: var(--flikky-shape-xl);
+  border-end-end-radius: var(--flikky-shape-xl);
+}
+.fk-pin-cell[data-filled="true"] {
+  background: rgb(var(--mdui-color-primary));
+  color: rgb(var(--mdui-color-on-primary));
+}
+.fk-pin-cell[data-active="true"] {
+  transform: scaleY(1.08);
+  background: rgb(var(--mdui-color-secondary-container));
+  color: rgb(var(--mdui-color-on-secondary-container));
+}
+.fk-pin[data-error="true"] .fk-pin-cell {
+  background: rgb(var(--mdui-color-error-container));
+  color: rgb(var(--mdui-color-on-error-container));
+  animation: flikky-shake 320ms var(--flikky-spring-effects-default);
+}
+@keyframes flikky-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  45% { transform: translateX(6px); }
+  70% { transform: translateX(-3px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* 错误抖动是纯装饰；错误态本身靠配色已经表达清楚了。 */
+  .fk-pin[data-error="true"] .fk-pin-cell { animation: none; }
+  .fk-pin-cell { transition: none; }
+}
+
+/* 真正接收输入的 <input>。绝不能用 display:none / visibility:hidden —— 那样它
+   拿不到焦点，6 个格子就永远填不进字符。透明 + 不吃指针，点击穿透到格子上。 */
+.fk-pin-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.fk-helper {
+  font: var(--flikky-type-body-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-medium-tracking);
+  /* 固定高度：错误出现/消失时按钮不会上下跳。 */
+  min-height: 20px;
+  margin-bottom: var(--flikky-space-xl);
+  color: rgb(var(--mdui-color-error));
+  text-align: center;
+}
+
+.fk-btn {
+  width: 100%;
+  height: 56px;
+  border: 0;
+  border-radius: var(--flikky-shape-full);
+  background: rgb(var(--mdui-color-primary));
+  color: rgb(var(--mdui-color-on-primary));
+  font: var(--flikky-type-title-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-title-medium-tracking);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--flikky-space-sm);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    border-radius var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
+}
+/* 宽胶囊按压形变不能用 50%（会变椭圆），按 56 高给具体像素值，28→14 全程可见。
+   border-radius 是原生可插值属性，这里的 transition 才真的补间。 */
+.fk-btn:active:not(:disabled) {
+  border-radius: 14px;
+  transition: border-radius var(--flikky-morph-press-dur) var(--flikky-morph-press-ease);
+}
+.fk-btn:disabled {
+  background: rgba(var(--mdui-color-on-surface), .12);
+  color: rgba(var(--mdui-color-on-surface), .38);
+  cursor: default;
+}
+
+/* ── 导出 ────────────────────────────────────────────────────────────── */
+
+.fk-export-head {
+  display: flex;
+  align-items: center;
+  gap: var(--flikky-space-lg);
+  margin-bottom: var(--flikky-space-xxl);
+}
+.fk-export-logo {
+  width: 48px;
+  height: 48px;
+  display: block;
+}
+.fk-export-title {
+  font: var(--flikky-type-headline-small) var(--flikky-font-family);
+  margin: 0;
+}
+
+.fk-summary {
+  padding: var(--flikky-space-xl);
+  border-radius: var(--flikky-shape-md);
+  background: rgb(var(--mdui-color-secondary-container));
+  color: rgb(var(--mdui-color-on-secondary-container));
+  margin-bottom: var(--flikky-space-xl);
+}
+.fk-summary-label {
+  display: block;
+  font: var(--flikky-type-body-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-medium-tracking);
+  opacity: .8;
+}
+.fk-summary-value {
+  display: block;
+  font: var(--flikky-type-body-large) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-large-tracking);
+  font-weight: 500;
+  margin-top: var(--flikky-space-xs);
+}
+
+.fk-subtitle {
+  font: var(--flikky-type-body-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-medium-tracking);
+  color: rgb(var(--mdui-color-on-surface-variant));
+  margin: 0 0 var(--flikky-space-sm);
+}
+
+.fk-sessions { margin-bottom: var(--flikky-space-xl); }
+.fk-sessions[hidden] { display: none; }
+
+.fk-banner {
+  padding: var(--flikky-space-md) var(--flikky-space-lg);
+  border-radius: var(--flikky-shape-md);
+  background: rgb(var(--mdui-color-error-container));
+  color: rgb(var(--mdui-color-on-error-container));
+  margin-bottom: var(--flikky-space-lg);
+  font: var(--flikky-type-body-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-medium-tracking);
+  text-align: center;
+}
+.fk-banner[hidden] { display: none; }
+
+.fk-hint {
+  font: var(--flikky-type-body-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-medium-tracking);
+  color: rgb(var(--mdui-color-on-surface-variant));
+  text-align: center;
+  margin: var(--flikky-space-lg) 0 0;
+}
+
+/* mdui-dialog 的正文槽默认无内边距，与 headline 的 24px 对不齐。
+   原先写成 export.html 上的 style="" 内联属性，搬到这里。 */
+.fk-dialog-body {
+  padding: 0 var(--flikky-space-xxl) var(--flikky-space-sm);
+}
+
+@media (max-width: 599px) {
+  /* 窄屏把浮岛铺满：一块 32px 圆角的卡片挤在 4px 边距里只会显得局促。 */
+  .fk-single { padding: 0; }
+  .fk-card {
+    width: 100%;
+    min-height: 100vh;
+    border-radius: 0;
+    padding: var(--flikky-space-xl);
+  }
+  .fk-login-logo { width: 96px; height: 96px; }
+}

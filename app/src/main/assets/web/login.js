@@ -1,7 +1,14 @@
 (function () {
     const form = document.getElementById('pin-form');
     const pinField = document.getElementById('pin-input');
+    const pinGroup = document.getElementById('pin');
+    const helperEl = document.getElementById('helper');
     const btn = document.getElementById('submit-btn');
+    // 6 个格子只是显示层，真正持有值的是 #pin-input。querySelectorAll 在这里
+    // 取一次就够——格子是静态标签，不会增删。
+    const cells = Array.prototype.slice.call(
+        (document.querySelectorAll && document.querySelectorAll('.fk-pin-cell')) || [],
+    );
     const i18n = window.flikkyI18n;
     const t = (key, values) => i18n.t(key, values);
     let currentError = null;
@@ -34,26 +41,48 @@
 
     fetchPublicTheme();
 
+    // 把当前值画到 6 个格子上，并把「下一个待输入」的格子标成活跃。
+    // 输满 6 位时没有待输入格 —— 活跃态全部清掉，视觉上落在「已完成」。
+    function syncCells() {
+        const value = pinField.value || '';
+        for (let i = 0; i < cells.length; i += 1) {
+            const ch = value.charAt(i);
+            cells[i].textContent = ch;
+            cells[i].dataset.filled = ch ? 'true' : 'false';
+            if (i === value.length && value.length < cells.length) cells[i].dataset.active = 'true';
+            else delete cells[i].dataset.active;
+        }
+        btn.disabled = value.length !== 6;
+    }
+
     function showError(key, values) {
         currentError = { key, values };
-        pinField.error = true;
-        pinField.helper = t(key, values);
+        helperEl.textContent = t(key, values);
+        pinGroup.dataset.error = 'true';
     }
     function clearError() {
+        if (!currentError) return;
         currentError = null;
-        pinField.error = false;
-        pinField.helper = '';
+        helperEl.textContent = '';
+        pinGroup.dataset.error = 'false';
     }
 
     i18n.onChange(() => {
-        if (currentError) pinField.helper = t(currentError.key, currentError.values);
+        if (currentError) helperEl.textContent = t(currentError.key, currentError.values);
     });
 
     pinField.addEventListener('input', () => {
         const cleaned = (pinField.value || '').replace(/\D/g, '').slice(0, 6);
         if (cleaned !== pinField.value) pinField.value = cleaned;
-        if (pinField.error) clearError();
+        clearError();
+        syncCells();
     });
+
+    // 格子不可聚焦（它们是 <div>），点在上面必须把焦点还给那个透明 input，
+    // 否则用户点了「输入框」却打不出字。
+    if (pinGroup && pinGroup.addEventListener) {
+        pinGroup.addEventListener('click', () => pinField.focus());
+    }
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -81,12 +110,15 @@
         } catch (_) {
             showError('login.network_error');
         } finally {
-            btn.disabled = false;
             pinField.value = '';
+            // 清空后必须重画：syncCells 顺带把提交键恢复成 disabled。直接改
+            // btn.disabled 会和「输满 6 位才可提交」这条规则分叉。
+            syncCells();
             pinField.focus();
         }
     });
 
+    syncCells();
     setTimeout(() => pinField.focus(), 0);
 })();
 
