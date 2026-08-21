@@ -89,10 +89,43 @@ test('polling the same language does not overwrite dynamic page state', () => {
     assert.equal(element.textContent, 'Working…');
 });
 
-test('all page translation keys exist in both dictionaries', () => {
-    const { i18n } = loadI18n();
+// 从 i18n.js 的字典字面量里直接取 key 集合，而不是走 t()。
+// 原因见下面那条断言的注释：entryFor 的 zh-CN 回退让 t() 永远看不出「只缺英文」。
+function dictionaryKeys(source) {
+    const zhStart = source.indexOf("'zh-CN': {");
+    const enStart = source.indexOf('\n        en: {');
+    const dictEnd = source.indexOf('\n    };');
+    assert.ok(zhStart >= 0 && enStart > zhStart && dictEnd > enStart, 'dictionary layout changed');
+    const keysIn = (block) =>
+        new Set([...block.matchAll(/^\s*'([a-z0-9_.]+)':/gm)].map((m) => m[1]));
+    return {
+        'zh-CN': keysIn(source.slice(zhStart, enStart)),
+        en: keysIn(source.slice(enStart, dictEnd)),
+    };
+}
+
+test('both dictionaries define exactly the same keys', () => {
+    // 这条替代了旧的 `assert.notEqual(i18n.t(key), key)` 写法，那种写法查不出
+    // 「只缺英文」：entryFor 是 translations[cur][key] ?? translations['zh-CN'][key] ?? key，
+    // 缺英文时 t() 返回的是中文原文，!== key，断言照样通过。整份英文字典全删都能绿。
+    const { source } = loadI18n();
+    const dicts = dictionaryKeys(source);
+    const onlyZh = [...dicts['zh-CN']].filter((k) => !dicts.en.has(k));
+    const onlyEn = [...dicts.en].filter((k) => !dicts['zh-CN'].has(k));
+    assert.deepEqual(onlyZh, [], `missing from en: ${onlyZh.join(', ')}`);
+    assert.deepEqual(onlyEn, [], `missing from zh-CN: ${onlyEn.join(', ')}`);
+});
+
+test('every translation key referenced by a page exists in the dictionaries', () => {
     const webDir = path.resolve(__dirname, '../../main/assets/web');
-    const pageFiles = ['login.html', 'login.js', 'app.html', 'app.js', 'export.html', 'export.js'];
+    // 自动枚举而不是硬编码清单：写死清单的失败方式是「新增了 panel-*.js 却忘了加进来」，
+    // 于是新文件里的拼错 key 完全没人管。i18n.js 自己是字典而不是消费方，排除。
+    const pageFiles = fs
+        .readdirSync(webDir)
+        .filter((f) => (f.endsWith('.js') || f.endsWith('.html')) && f !== 'i18n.js')
+        .sort();
+    assert.ok(pageFiles.length >= 8, `expected to find the page files, got ${pageFiles.join(', ')}`);
+
     const keyPattern = /['"]((?:common|login|app|export)\.[a-z0-9_]+(?:\.[a-z0-9_]+)*)['"]/g;
     const keys = new Set();
     for (const file of pageFiles) {
@@ -100,11 +133,11 @@ test('all page translation keys exist in both dictionaries', () => {
         for (const match of source.matchAll(keyPattern)) keys.add(match[1]);
     }
 
-    for (const language of ['zh-CN', 'en']) {
-        i18n.setLanguage(language);
-        for (const key of keys) {
-            assert.notEqual(i18n.t(key), key, `${language} is missing ${key}`);
-        }
+    const { source } = loadI18n();
+    const dicts = dictionaryKeys(source);
+    for (const key of keys) {
+        assert.ok(dicts['zh-CN'].has(key), `zh-CN is missing ${key}`);
+        assert.ok(dicts.en.has(key), `en is missing ${key}`);
     }
 });
 
