@@ -115,7 +115,10 @@ test('the login page keeps the three ids the theme harness depends on', () => {
 test('the login page has no redundant wordmark', () => {
   // logo 自己就是标识；再加一行「Flikky」是重复。
   assert.equal(/<h1/.test(login), false);
-  assert.match(login, /src="\/static\/flikky-logo\.svg"/);
+  // 登录页用 quick 版（2.7s）、其余页面用 slow 版（7s）—— 用户指定的分配。
+  assert.match(login, /src="\/static\/flikky-logo-quick\.svg"/);
+  assert.match(exportHtml, /src="\/static\/flikky-logo-slow\.svg"/);
+  assert.match(read('app.html'), /src="\/static\/flikky-logo-slow\.svg"/);
 });
 
 test('the export page keeps every id export.js reaches for', () => {

@@ -14,7 +14,9 @@
     <div class="fk-single">
         <main class="fk-card">
             <div class="fk-login-brand">
-                <img class="fk-login-logo" src="/static/flikky-logo.svg" alt="Flikky">
+                <!-- 登录页用 quick 版（2.7s）；其余页面用 slow 版（7s）。
+                     两份 SVG 是同一枚标识的两种节奏，按用户指定分配，内容不改。 -->
+                <img class="fk-login-logo" src="/static/flikky-logo-quick.svg" alt="Flikky">
             </div>
             <p class="fk-login-sub" data-i18n="login.description">请在手机屏幕上查看 6 位 PIN 码。</p>
 
