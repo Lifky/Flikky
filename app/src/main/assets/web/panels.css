@@ -325,3 +325,10 @@
   letter-spacing: var(--flikky-type-title-medium-tracking);
   color: rgb(var(--mdui-color-on-surface));
 }
+
+/* .fk-error 在整套面板样式里原本缺失（Task 5 只搬了空态）——收藏面板的加载失败态
+   复用 .fk-empty 的骨架，只需把图标从中性的 outline 色换成 error 色，
+   跟「真的没有/功能关闭」在视觉上分开。这是本任务唯一新增的 CSS 规则。 */
+.fk-error .material-symbols-outlined {
+  color: rgb(var(--mdui-color-error));
+}

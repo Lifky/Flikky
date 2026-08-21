@@ -237,6 +237,11 @@ body {
 
 .fk-rail-item:active .fk-rail-icon { transform: scale(.94); }
 
+/* favoriteBetaEnabled 默认关闭，所以「收藏」入口默认不该出现。
+   用 CSS 而不是给每个导航项写 JS：入口是两处（rail + navbar），
+   而 app.js 已经把开关发布成 body 的 data 属性，选择器直接读就行。 */
+body[data-favorite-enabled="0"] [data-dest="favorites"] { display: none; }
+
 /* 导航项要真正垂直居中，所以头像不参与 flex 流，改绝对定位钉在底部 */
 .fk-rail-avatar {
   position: absolute;

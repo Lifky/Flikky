@@ -522,6 +522,11 @@
         if (typeof data.appVersion === 'string' && data.appVersion) {
             document.body.dataset.appVersion = data.appVersion;
         }
+        if (Object.prototype.hasOwnProperty.call(data, 'favoriteEnabled')) {
+            document.body.dataset.favoriteEnabled = data.favoriteEnabled ? '1' : '0';
+            if (!data.favoriteEnabled && shell && shell.dataset.panel !== 'hidden'
+                && !document.getElementById('view-favorites').hidden) selectDest('settings');
+        }
         reflowMessageAvatars();
     }
 

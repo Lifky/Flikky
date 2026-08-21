@@ -97,7 +97,36 @@
              aria-orientation="vertical" tabindex="0"></div>
 
         <section class="fk-pillar fk-pillar--panel" aria-label="功能面板">
-            <div class="fk-view" id="view-favorites"></div>
+            <div class="fk-view" id="view-favorites">
+                <header class="fk-panel-head">
+                    <h1 class="fk-panel-title" data-i18n="app.nav.favorites">收藏</h1>
+                    <button class="fk-icon-btn" id="fav-refresh" type="button"
+                            aria-label="刷新" data-i18n-aria-label="app.favorites.refresh">
+                        <span class="material-symbols-outlined">refresh</span>
+                    </button>
+                </header>
+                <div class="fk-panel-body flikky-scroll">
+                    <div class="fk-search">
+                        <span class="material-symbols-outlined">search</span>
+                        <input type="text" id="fav-search"
+                               aria-label="搜索收藏" data-i18n-aria-label="app.favorites.search"
+                               placeholder="搜索收藏" data-i18n-placeholder="app.favorites.search">
+                    </div>
+                    <div class="fk-chips" id="fav-chips"></div>
+                    <div id="fav-list"></div>
+                </div>
+                <div class="fk-toolbar" id="fav-toolbar" hidden>
+                    <span class="fk-toolbar-count" id="fav-count"></span>
+                    <button class="fk-icon-btn" id="fav-save-selected" type="button"
+                            aria-label="保存所选" data-i18n-aria-label="app.favorites.saveSelected">
+                        <span class="material-symbols-outlined">download</span>
+                    </button>
+                    <button class="fk-icon-btn" id="fav-clear" type="button"
+                            aria-label="清除选择" data-i18n-aria-label="app.favorites.clear">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+            </div>
             <div class="fk-view" id="view-settings" hidden></div>
         </section>
     </div>
@@ -153,5 +182,6 @@
     <script src="/static/snackbar.js"></script>
     <script src="/static/app.js"></script>
     <script src="/static/panel-settings.js"></script>
+    <script src="/static/panel-favorites.js"></script>
 </body>
 </html>
