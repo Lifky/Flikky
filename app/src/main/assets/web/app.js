@@ -524,8 +524,12 @@
         }
         if (Object.prototype.hasOwnProperty.call(data, 'favoriteEnabled')) {
             document.body.dataset.favoriteEnabled = data.favoriteEnabled ? '1' : '0';
+            // navigate:false —— 这是兜底，不是导航。窄屏上把 mobileDest 一起改
+            // 会在 peer-info 到达的瞬间把用户从会话页甩进设置页。
             if (!data.favoriteEnabled && shell && shell.dataset.panel !== 'hidden'
-                && !document.getElementById('view-favorites').hidden) selectDest('settings');
+                && !document.getElementById('view-favorites').hidden) {
+                selectDest('settings', { navigate: false });
+            }
         }
         reflowMessageAvatars();
     }
@@ -1903,31 +1907,58 @@
         try { localStorage.setItem('flikky_panel', shown ? '1' : '0'); } catch (e) { /* 隐私模式禁写，忽略 */ }
     }
 
+    // 底部导航的选中态不自己记，一律从「这一栏此刻真的在显示什么」推出来：
+    // mobileDest 是 chat 就选中会话，否则选中那个没被 hidden 的 .fk-view。
+    // 各处调用点各自 setAttribute 会立刻分叉出「显示 A 高亮 B」的状态——
+    // 兜底切换那条路径就是这么错的（见 selectDest 的 navigate 注释）。
+    function syncNavbarSelection() {
+        if (!shell) return;
+        let active = 'chat';
+        if (shell.dataset.mobileDest !== 'chat') {
+            const shown = document.querySelector('.fk-view:not([hidden])');
+            if (shown) active = shown.id.replace('view-', '');
+        }
+        document.querySelectorAll('.fk-navbar-item').forEach((btn) => {
+            btn.setAttribute('aria-selected', btn.dataset.dest === active ? 'true' : 'false');
+        });
+    }
+
+    // 窄屏是单栏，一次只显示一个目的地。这里只管「显示哪一栏」，不碰 .fk-view
+    // 的 hidden——那是 selectDest 的职责，两者的分工是「哪一栏」对「栏里是谁」。
+    function setMobileDest(dest) {
+        if (!shell) return;
+        shell.dataset.mobileDest = dest === 'chat' ? 'chat' : 'panel';
+        syncNavbarSelection();
+    }
+
     // 点任一导航目的地：顺带展开功能栏（折叠的是功能栏，rail 永远常驻），
-    // 同步 rail/navbar 的 aria-selected，并在两个 .fk-view 之间切换 hidden。
+    // 同步 rail 的 aria-selected，并在两个 .fk-view 之间切换 hidden。
     // "chat" 是特例：它只在移动端底部导航出现（桌面 rail 没有这个目的地），
-    // 且没有对应的 .fk-view —— 提前 return，只切 mobileDest + navbar 的
-    // aria-selected，绝不动 data-panel 或任何 .fk-view 的 hidden。
-    function selectDest(dest) {
+    // 且没有对应的 .fk-view —— 提前 return，只切 mobileDest，绝不动
+    // data-panel 或任何 .fk-view 的 hidden。
+    function selectDest(dest, options) {
         if (!shell) return;
         if (dest === 'chat') {
-            shell.dataset.mobileDest = 'chat';
-            document.querySelectorAll('.fk-navbar-item').forEach((btn) => {
-                btn.setAttribute('aria-selected', btn.dataset.dest === dest ? 'true' : 'false');
-            });
+            setMobileDest('chat');
             return;
         }
         setPanel(true);
-        shell.dataset.mobileDest = 'panel';
-        document.querySelectorAll('.fk-rail-item, .fk-navbar-item').forEach((btn) => {
+        document.querySelectorAll('.fk-rail-item').forEach((btn) => {
             btn.setAttribute('aria-selected', btn.dataset.dest === dest ? 'true' : 'false');
         });
         document.querySelectorAll('.fk-view').forEach((view) => {
             view.hidden = view.id !== `view-${dest}`;
         });
+        // favoriteEnabled 关掉时的兜底切换不是一次导航，只是把一个已经无效的视图
+        // 换掉。窄屏上要是连 mobileDest 一起改，用户会在 peer-info 到达的那一刻
+        // 被从会话页甩进设置页——他并没有点任何东西。视图还是要换，所以底部导航
+        // 的选中态照样重算一遍。
+        if (options && options.navigate === false) syncNavbarSelection();
+        else setMobileDest(dest);
     }
     window.setPanel = setPanel;
     window.selectDest = selectDest;
+    window.setMobileDest = setMobileDest;
 
     if (shell && shellSplitter && chatPane && panelPane) {
         let dragging = false;
