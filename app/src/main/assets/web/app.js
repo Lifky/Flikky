@@ -519,6 +519,9 @@
         if (Object.prototype.hasOwnProperty.call(data, 'sessionTimestampEnabled')) {
             document.body.dataset.timestamps = data.sessionTimestampEnabled ? 'on' : 'off';
         }
+        if (typeof data.appVersion === 'string' && data.appVersion) {
+            document.body.dataset.appVersion = data.appVersion;
+        }
         reflowMessageAvatars();
     }
 

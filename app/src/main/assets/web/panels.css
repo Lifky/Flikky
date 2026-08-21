@@ -1,0 +1,327 @@
+/* ============================================================================
+ * 功能柱：收藏 / 设置
+ * 核心语言 = 分段列表组（connected group）：每行独立圆角、行间 2px、
+ * 组内首尾大圆角中间小圆角、按下时该行圆角收缩且相邻行被挤压。
+ * 与 App 设置页/收藏页同一套观感 —— 双端一致优先。
+ * 从原型 docs/others/prototypes/v1.19.0-web/css/panels.css 移植，
+ * 变量前缀 --fk- → --flikky-，.msym → .material-symbols-outlined，
+ * .fk-scroll → .flikky-scroll（scrollbar 处理已在 shell.css，这里不重复声明）。
+ * .fk-panel-head/.fk-panel-title/.fk-panel-body 在原型里挂在 shell.css，
+ * 这里随面板内容一起落地（shell.css 只留了 .fk-panel-collapse 的收起规则）。
+ * ==========================================================================*/
+
+:root {
+  /* 这几个 token 生产环境没有对应值，声明在本文件里 */
+  --flikky-listgroup-radius-outer: var(--flikky-shape-lg);
+  --flikky-listgroup-radius-inner: var(--flikky-shape-xs);
+  --flikky-listgroup-gap: 2px;
+  --flikky-press-squeeze-row: 0.96;
+  --flikky-size-row-min: 56px;
+}
+
+/* ── 功能柱头部 + 面板体 ─────────────────────────────────────────────────── */
+
+.fk-panel-head {
+  flex: none;
+  padding: var(--flikky-space-xxl) var(--flikky-space-xxl) var(--flikky-space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--flikky-space-md);
+}
+
+.fk-panel-title {
+  font: var(--flikky-type-headline-small) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-headline-small-tracking);
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fk-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--flikky-space-xxl) var(--flikky-space-xxl);
+}
+
+/* ── 搜索框（outlined，全圆） ────────────────────────────────────────────── */
+
+.fk-search {
+  display: flex;
+  align-items: center;
+  gap: var(--flikky-space-md);
+  height: var(--flikky-size-touch);
+  padding: 0 var(--flikky-space-lg);
+  border-radius: var(--flikky-shape-full);
+  background: rgb(var(--mdui-color-surface-container-high));
+  color: rgb(var(--mdui-color-on-surface-variant));
+  transition: background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
+}
+.fk-search:focus-within { background: rgb(var(--mdui-color-surface-container-highest)); }
+.fk-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: rgb(var(--mdui-color-on-surface));
+  font: var(--flikky-type-body-large) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-large-tracking);
+}
+
+/* ── 过滤 chips ──────────────────────────────────────────────────────────── */
+
+.fk-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--flikky-space-sm);
+  margin: var(--flikky-space-lg) 0;
+}
+.fk-chip {
+  height: 32px;
+  padding: 0 var(--flikky-space-lg);
+  border: 1px solid rgb(var(--mdui-color-outline-variant));
+  border-radius: var(--flikky-shape-xs);   /* MD3 filter chip = 8dp */
+  background: none;
+  color: rgb(var(--mdui-color-on-surface-variant));
+  font: var(--flikky-type-label-large) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-label-large-tracking);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition:
+    background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    border-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    transform var(--flikky-spring-spatial-fast-dur) var(--flikky-spring-spatial-fast);
+}
+.fk-chip .material-symbols-outlined { font-size: 18px; }
+.fk-chip[aria-pressed="true"] {
+  background: rgb(var(--mdui-color-secondary-container));
+  color: rgb(var(--mdui-color-on-secondary-container));
+  border-color: transparent;
+}
+.fk-chip:active { transform: scale(.96); }
+
+/* ── 分段列表组 ──────────────────────────────────────────────────────────── */
+
+/* 分组标题用 onSurfaceVariant，不用 primary：
+   行本身已经是染色容器，标题再上主色会让整块过饱和（红色系主题下尤其明显）。 */
+.fk-section-title {
+  font: var(--flikky-type-label-large) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-label-large-tracking);
+  color: rgb(var(--mdui-color-on-surface-variant));
+  margin: var(--flikky-space-xxl) 0 var(--flikky-space-sm);
+  padding-inline-start: var(--flikky-space-lg);
+}
+.fk-section-title:first-child { margin-top: 0; }
+
+.fk-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--flikky-listgroup-gap);
+}
+
+.fk-item {
+  display: flex;
+  align-items: center;
+  gap: var(--flikky-space-md);
+  min-height: var(--flikky-size-row-min);
+  padding: var(--flikky-space-md) var(--flikky-space-lg);
+  background: rgb(var(--mdui-color-surface-container));
+  color: rgb(var(--mdui-color-on-surface));
+  border: 0;
+  width: 100%;
+  text-align: start;
+  cursor: pointer;
+  border-radius: var(--flikky-listgroup-radius-inner);
+  transition:
+    border-radius var(--flikky-spring-spatial-fast-dur) var(--flikky-spring-spatial-fast),
+    transform var(--flikky-spring-spatial-fast-dur) var(--flikky-spring-spatial-fast),
+    background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
+}
+
+/* 组内首尾外圆角 */
+.fk-group > .fk-item:first-child {
+  border-start-start-radius: var(--flikky-listgroup-radius-outer);
+  border-start-end-radius: var(--flikky-listgroup-radius-outer);
+}
+.fk-group > .fk-item:last-child {
+  border-end-start-radius: var(--flikky-listgroup-radius-outer);
+  border-end-end-radius: var(--flikky-listgroup-radius-outer);
+}
+.fk-group > .fk-item:only-child { border-radius: var(--flikky-listgroup-radius-outer); }
+
+.fk-item:hover { background: rgb(var(--mdui-color-surface-container-high)); }
+
+/* 按下形变：本行圆角收缩，上下相邻行被挤压（MD3 connected group childSizeChange） */
+.fk-item:active { border-radius: var(--flikky-listgroup-radius-inner); transform: scale(.985); }
+.fk-item:active + .fk-item,
+.fk-item:has(+ .fk-item:active) { transform: scaleY(var(--flikky-press-squeeze-row)); }
+
+.fk-item[aria-selected="true"] {
+  background: rgb(var(--mdui-color-secondary-container));
+  color: rgb(var(--mdui-color-on-secondary-container));
+}
+
+/* 行首视觉：文件用官方异形容器，与会话里的文件泡、App 的文件行完全同形 */
+.fk-item-lead {
+  width: var(--flikky-size-file-icon);
+  height: var(--flikky-size-file-icon);
+  flex: none;
+  display: grid;
+  place-items: center;
+  clip-path: url(#flikky-cookie9);
+  background: rgb(var(--mdui-color-secondary-container));
+  color: rgb(var(--mdui-color-on-secondary-container));
+}
+.fk-item-lead--thumb { clip-path: none; border-radius: var(--flikky-shape-xs); overflow: hidden; }  /* App FileLeadingSpec.thumbnailShape = 8dp */
+.fk-item-lead--thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fk-item-lead--plain {
+  clip-path: none;
+  background: none;
+  color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+/* 这三个在 DOM 里是 span（为了语义上仍属一行），必须显式 block，
+   否则默认 inline 会让标题和副标题挤在同一行（"xxx.txt298.3 KB · 07-22" 就是这么来的）。 */
+.fk-item-text { flex: 1 1 auto; min-width: 0; display: block; }
+.fk-item-title {
+  display: block;
+  font: var(--flikky-type-body-large) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-large-tracking);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fk-item-title--wrap { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.fk-item-sub {
+  display: block;
+  margin-top: 2px;
+  font: var(--flikky-type-body-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-medium-tracking);
+  color: rgb(var(--mdui-color-on-surface-variant));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fk-item-trail {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--flikky-space-xs);
+  color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+.fk-icon-btn {
+  width: var(--flikky-size-touch);
+  height: var(--flikky-size-touch);
+  border: 0;
+  border-radius: var(--flikky-shape-full);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  border-radius: var(--flikky-morph-round);
+  transition:
+    background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    border-radius var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default);
+}
+.fk-icon-btn:hover { background: rgba(var(--mdui-color-on-surface), .08); }
+.fk-icon-btn:active {
+  background: rgba(var(--mdui-color-on-surface), .12);
+  border-radius: var(--flikky-morph-round-pressed);
+  transition: border-radius var(--flikky-morph-press-dur) var(--flikky-morph-press-ease);
+}
+.fk-icon-btn--filled {
+  background: rgb(var(--mdui-color-secondary-container));
+  color: rgb(var(--mdui-color-on-secondary-container));
+}
+
+/* 复选框（多选态） */
+.fk-check {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 6px;
+  border: 2px solid rgb(var(--mdui-color-outline));
+  display: grid;
+  place-items: center;
+  color: transparent;
+  transition:
+    background-color var(--flikky-spring-effects-fast-dur) var(--flikky-spring-effects-fast),
+    border-color var(--flikky-spring-effects-fast-dur) var(--flikky-spring-effects-fast),
+    transform var(--flikky-spring-spatial-fast-dur) var(--flikky-spring-spatial-fast);
+}
+.fk-check .material-symbols-outlined { font-size: 16px; }
+.fk-item[aria-selected="true"] .fk-check {
+  background: rgb(var(--mdui-color-primary));
+  border-color: rgb(var(--mdui-color-primary));
+  color: rgb(var(--mdui-color-on-primary));
+  transform: scale(1.08);
+}
+
+/* ── 多选浮动工具条（MD3 floating toolbar：全圆、surface-container）──────── */
+
+.fk-toolbar {
+  position: absolute;   /* 定位祖先是 .fk-view（撑满可见面板），不是整根 pillar */
+  left: 50%;
+  bottom: var(--flikky-space-xl);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--flikky-space-xs);
+  padding: var(--flikky-space-sm);
+  padding-inline-start: var(--flikky-space-lg);
+  border-radius: var(--flikky-shape-full);
+  /* 比列表行高一档，否则和 surface-container 的行同色、糊在一起 */
+  background: rgb(var(--mdui-color-surface-container-high));
+  box-shadow: var(--flikky-raised-shadow);
+  z-index: 30;
+  animation: fk-toolbar-in var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default) both;
+}
+.fk-toolbar[hidden] { display: none; }
+@keyframes fk-toolbar-in {
+  from { opacity: 0; transform: translate(-50%, 20px) scale(.9); }
+  to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+.fk-toolbar-count {
+  font: var(--flikky-type-label-large) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-label-large-tracking);
+  margin-inline-end: var(--flikky-space-sm);
+  white-space: nowrap;
+}
+
+/* ── 设置行控件 ──────────────────────────────────────────────────────────── */
+
+/* 开关改用 mdui-switch（自带焦点/键盘/aria），自绘版本已删除 */
+
+.fk-value {
+  font: var(--flikky-type-body-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-medium-tracking);
+  color: rgb(var(--mdui-color-on-surface-variant));
+  white-space: nowrap;
+}
+
+/* ── 空态 ────────────────────────────────────────────────────────────────── */
+
+.fk-empty {
+  display: grid;
+  place-items: center;
+  gap: var(--flikky-space-md);
+  padding: 64px var(--flikky-space-xl);
+  text-align: center;
+  color: rgb(var(--mdui-color-on-surface-variant));
+}
+.fk-empty .material-symbols-outlined {
+  font-size: 48px;
+  color: rgb(var(--mdui-color-outline));
+}
+.fk-empty-title {
+  font: var(--flikky-type-title-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-title-medium-tracking);
+  color: rgb(var(--mdui-color-on-surface));
+}
