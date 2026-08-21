@@ -59,6 +59,10 @@ android {
     }
     buildFeatures {
         compose = true
+        // AGP 8 起 BuildConfig 默认不生成。开它是为了让 versionName 有唯一事实源：
+        // 发版只改本文件的 versionName，浏览器「关于」面板的版本号自动跟随
+        // （PeerInfoDto.appVersion ← BuildConfig.VERSION_NAME）。
+        buildConfig = true
     }
     androidResources {
         generateLocaleConfig = true

@@ -13,6 +13,7 @@ import android.os.Binder
 import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
+import com.example.flikky.BuildConfig
 import com.example.flikky.R
 import com.example.flikky.data.AndroidThumbnailGenerator
 import com.example.flikky.data.SessionRepository
@@ -753,6 +754,10 @@ class TransferService : Service() {
                 messageActionStyle = messageActionStyle.name,
                 animationSpeed = animationSpeed.name,
                 sessionTimestampEnabled = sessionTimestampEnabled,
+                // 直接读生成常量，不走参数：只有一个正确取值，让调用点「可以传别的」
+                // 反而制造了漏传的可能。BuildConfig 是编译期常量，既不是 Context，
+                // 也不在 server/ 包里，不违反依赖红线。
+                appVersion = BuildConfig.VERSION_NAME,
                 recallEnabled = recallBetaEnabled,
                 allowPeerRecall = allowPeerRecall,
                 favoriteEnabled = favoriteBetaEnabled,

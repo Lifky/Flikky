@@ -160,6 +160,10 @@ data class PeerInfoDto(
     val messageActionStyle: String = "INLINE",
     val animationSpeed: String = "STANDARD",
     val sessionTimestampEnabled: Boolean = false,
+    // 手机端 App 版本号。浏览器端是这个 App 的客户端，「关于」面板要回答的正是
+    // 「我连的是哪个版本」，而 peer-info 之外没有任何端点携带它。默认空串是为了
+    // 让现有的 DTO 构造点（主要是测试夹具）不受影响。
+    val appVersion: String = "",
     val recallEnabled: Boolean,
     val allowPeerRecall: Boolean = true,
     /** v1.19.0 fix wave: 收藏 tab 的 beta 开关状态；浏览器据此决定是否渲染收藏入口。 */

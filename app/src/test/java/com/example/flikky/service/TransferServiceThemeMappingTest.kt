@@ -1,5 +1,6 @@
 package com.example.flikky.service
 
+import com.example.flikky.BuildConfig
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.DarkMode
@@ -87,5 +88,17 @@ class TransferServiceThemeMappingTest {
             FlikkySettings().toPeerInfoDto(systemDark = false, defaultDeviceName = "Phone")
         }
         assertFalse(fresh.amoled)
+    }
+
+    @Test
+    fun `peer info reports the real build version, never a hardcoded literal`() {
+        // 版本号故意不做成参数：只有一个正确取值，参数化只会制造漏传的可能。
+        // 这条断言盯的是两件事——字段没被忘掉（非空），以及没人把版本写成字面量
+        // （发版改了 build.gradle 却忘了改这里，会立刻红）。
+        val dto = with(TransferService.Companion) {
+            FlikkySettings().toPeerInfoDto(systemDark = false, defaultDeviceName = "Phone")
+        }
+        assertEquals(BuildConfig.VERSION_NAME, dto.appVersion)
+        assertTrue(dto.appVersion.isNotBlank())
     }
 }

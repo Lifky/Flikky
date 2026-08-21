@@ -41,6 +41,7 @@ class PeerInfoRoutesTest {
         backgroundValue = "sunset",
         recallEnabled = true,
         allowPeerRecall = true,
+        appVersion = "9.9.9",
     )
 
     private fun setupApp(provider: () -> PeerInfoDto): io.ktor.server.application.Application.() -> Unit = {
@@ -109,6 +110,21 @@ class PeerInfoRoutesTest {
         val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
         assertEquals(true, body["recallEnabled"]!!.jsonPrimitive.boolean)
         assertEquals(true, body["allowPeerRecall"]!!.jsonPrimitive.boolean)
+    }
+
+    @Test
+    fun `peer-info carries the phone app version for the browser About panel`() = testApplication {
+        // 浏览器端是这个 App 的客户端，「关于」面板要回答的正是「我连的是哪个版本」。
+        // 除了 peer-info 之外没有任何端点携带版本号，所以这条就是它唯一的来源。
+        application(setupApp { testPeerInfo.copy(appVersion = "1.19.0") })
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        val resp: HttpResponse = http.get("/api/peer-info")
+        assertEquals(HttpStatusCode.OK, resp.status)
+
+        val body = Json.parseToJsonElement(resp.bodyAsText()).jsonObject
+        assertEquals("1.19.0", body["appVersion"]!!.jsonPrimitive.content)
     }
 
     @Test
