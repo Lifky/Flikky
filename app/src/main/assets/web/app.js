@@ -1971,6 +1971,13 @@
         btn.addEventListener('click', () => selectDest(btn.dataset.dest));
     });
 
+    // 「收起功能栏」按钮每个面板一个，而面板脚本在 app.js 之后加载、有的还是运行时
+    // 建出来的——直接 querySelectorAll 绑定会漏掉它们。用一个委派监听器覆盖全部，
+    // 顺带让 shell.dataset.panel 只有 setPanel 这一个写入方：面板只负责画按钮。
+    document.addEventListener('click', (e) => {
+        if (e.target && e.target.closest && e.target.closest('.fk-panel-collapse')) setPanel(false);
+    });
+
     // 布局偏好来自上一次会话；分栏比例与折叠态都是非敏感的纯展示状态，可以放 localStorage。
     if (shell) {
         try {

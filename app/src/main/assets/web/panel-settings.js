@@ -7,9 +7,9 @@
  * D1：面板不向 app.js 要任何新接口。三个布局状态（rail-side / pane-swap /
  * split 宽度 / panel 折叠）都是 app.js 只在 init 时读一次的纯 DOM + localStorage
  * 状态，app.js 之后再也不会写它们——面板是它们唯一的写者，没有竞态。
- * 唯一接受的重复：收起按钮复刻 app.js 里 setPanel() 的两行，为的是不在 app.js
- * 上开一个导出面。如果将来出现第三个写 shell 状态的地方，那就是把这些收进
- * window.flikky.shell 的信号。
+ * 例外是「收起功能栏」：panel 状态 app.js 自己也写（setPanel），所以收起按钮这里
+ * 只画不绑——app.js 有一个针对 .fk-panel-collapse 的委派 click 监听器统一处理。
+ * 原先这里复刻过 setPanel 的两行，收藏面板要出现第三份时改成了委派。
  *
  * D2：语言行只读——手机是外观的唯一事实源（i18n.refresh() 拉 /api/web-theme
  * 并 setLanguage），浏览器端不提供切换入口，所以没有 chevron，没有点击。
@@ -26,7 +26,6 @@
 
     const STORAGE_RAIL_SIDE = 'flikky_rail_side';
     const STORAGE_PANE_SWAP = 'flikky_pane_swap';
-    const STORAGE_PANEL = 'flikky_panel';
     const STORAGE_SPLIT_CHAT = 'flikky_split_chat';
     const GITHUB_URL = 'https://github.com/Lifky/Flikky';
 
@@ -208,7 +207,7 @@
         return group;
     }
 
-    function buildHeader(shell) {
+    function buildHeader() {
         const header = document.createElement('header');
         header.className = 'fk-panel-head';
         const title = document.createElement('h1');
@@ -217,12 +216,13 @@
         const collapse = document.createElement('button');
         collapse.type = 'button';
         collapse.className = 'fk-icon-btn fk-panel-collapse';
+        // 纯图标按钮必须有可访问名：否则读屏念的是图标字体的连字文本（'close'），
+        // 换个图标就会念出 'restart_alt' 这种内部标识符。
+        collapse.setAttribute('aria-label', t('app.settings.collapse'));
         collapse.appendChild(icon('close'));
-        collapse.addEventListener('click', () => {
-            // D1 唯一接受的重复：复刻 app.js 里 setPanel(false) 的两行。
-            shell.dataset.panel = 'hidden';
-            try { localStorage.setItem(STORAGE_PANEL, '0'); } catch (e) { /* 隐私模式禁写，忽略 */ }
-        });
+        // 不在这里绑 click：app.js 有一个针对 .fk-panel-collapse 的委派监听器，
+        // 收起动作统一走它的 setPanel(false)。面板只负责画按钮，shell.dataset.panel
+        // 保持单一写入方（原先这里复刻过 setPanel 的两行，收藏面板要第三份时改掉了）。
         header.appendChild(title);
         header.appendChild(collapse);
         return header;
@@ -242,7 +242,7 @@
         body.appendChild(sectionTitle(t('app.settings.about')));
         body.appendChild(buildAboutGroup());
 
-        root.appendChild(buildHeader(shell));
+        root.appendChild(buildHeader());
         root.appendChild(body);
     }
 

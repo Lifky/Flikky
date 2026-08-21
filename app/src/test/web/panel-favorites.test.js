@@ -87,7 +87,16 @@ function load({
     // onChange 必须像真实 i18n.js 一样「订阅时立刻同步调用一次」——面板依赖这一点
     // 完成「mount 后第一时间画出 loading」，而不依赖 fetch 的 await 先返回
     // （这正是 Task 5 的教训：面板脱离 peer-info 的到达顺序自己站得住）。
-    flikkyI18n: { t: (key) => key, onChange(cb) { cb(); return () => {}; } },
+    // t() 必须像真实 i18n.js 一样做 {placeholder} 插值：选中计数走的是
+    // t('app.favorites.selected', { count }) 而不是字符串拼接，中英两种语言
+    // 数字的位置不同（「已选 N 项」/「N selected」），拼接表达不了。
+    flikkyI18n: {
+      t: (key, values) => {
+        const template = key === 'app.favorites.selected' ? '已选 {count} 项' : key;
+        return values ? template.replace(/\{(\w+)\}/g, (_m, k) => values[k]) : template;
+      },
+      onChange(cb) { cb(); return () => {}; },
+    },
   };
   ctx.window = ctx;
   ctx.globalThis = ctx;

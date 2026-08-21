@@ -104,6 +104,10 @@
                             aria-label="刷新" data-i18n-aria-label="app.favorites.refresh">
                         <span class="material-symbols-outlined">refresh</span>
                     </button>
+                    <button class="fk-icon-btn fk-panel-collapse" type="button"
+                            aria-label="收起功能栏" data-i18n-aria-label="app.settings.collapse">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
                 </header>
                 <div class="fk-panel-body flikky-scroll">
                     <div class="fk-search">
@@ -117,13 +121,14 @@
                 </div>
                 <div class="fk-toolbar" id="fav-toolbar" hidden>
                     <span class="fk-toolbar-count" id="fav-count"></span>
-                    <button class="fk-icon-btn" id="fav-save-selected" type="button"
-                            aria-label="保存所选" data-i18n-aria-label="app.favorites.saveSelected">
-                        <span class="material-symbols-outlined">download</span>
-                    </button>
                     <button class="fk-icon-btn" id="fav-clear" type="button"
                             aria-label="清除选择" data-i18n-aria-label="app.favorites.clear">
                         <span class="material-symbols-outlined">close</span>
+                    </button>
+                    <!-- 主操作排在最后（最右），并用 --filled 变体，与原型一致 -->
+                    <button class="fk-icon-btn fk-icon-btn--filled" id="fav-save-selected" type="button"
+                            aria-label="保存所选" data-i18n-aria-label="app.favorites.saveSelected">
+                        <span class="material-symbols-outlined">download</span>
                     </button>
                 </div>
             </div>

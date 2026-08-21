@@ -324,13 +324,22 @@ test('rail-side and pane-swap switches reflect current shell state on render, an
     assert.equal(localStorage.getItem('flikky_pane_swap'), '0');
 });
 
-test('the collapse button hides the panel by writing shell.dataset.panel and flikky_panel (mirrors setPanel, D1)', () => {
+test('the collapse button is rendered and named, but the panel does not write shell state itself', () => {
+    // Task 6 起收起动作统一由 app.js 的 .fk-panel-collapse 委派监听器处理
+    // （setPanel 是 shell.dataset.panel 的唯一写入方）。面板只负责画按钮 ——
+    // 收藏面板要出现第三份复制品时改的。
     const { shell, root, localStorage } = loadPanel();
     const collapseButton = findDescendant(root, (n) => n.tagName === 'button' && n.className.includes('fk-panel-collapse'));
     assert.ok(collapseButton, 'collapse button must exist');
+    assert.ok(
+        collapseButton.attributes['aria-label'],
+        'an icon-only button needs an accessible name — otherwise a screen reader announces the icon ligature',
+    );
+
     collapseButton.fire('click');
-    assert.equal(shell.dataset.panel, 'hidden');
-    assert.equal(localStorage.getItem('flikky_panel'), '0');
+    assert.equal(shell.dataset.panel, 'shown', 'the panel must not write shell.dataset.panel itself');
+    assert.equal(localStorage.getItem('flikky_panel'), null);
+    assert.equal(SRC.includes('flikky_panel'), false, 'the panel must not know the panel-state storage key');
 });
 
 test('the About row shows no version placeholder until peer-info lands, then shows it on the next render', () => {

@@ -370,7 +370,7 @@
         // 数字不走 t() 的插值——手机端/浏览器端所有既有面板都只有 t(key) 这一种
         // 调用形态，没有 count()/values 插值那一套（那是 app.js 顶层聊天区独有的
         // {one, other} 复数形态）；数字直接拼在 JS 侧，翻译只负责后缀那几个字。
-        countEl.textContent = `${selected.size} ${t('app.favorites.selected')}`;
+        countEl.textContent = t('app.favorites.selected', { count: selected.size });
     }
 
     function render() {

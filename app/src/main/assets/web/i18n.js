@@ -70,6 +70,7 @@
             'app.save_all_each': '逐个保存 ({count})',
             'app.save_all_zip': '打包为 ZIP',
 
+            'app.settings.collapse': '收起功能栏',
             'app.settings.title': '设置',
             'app.settings.layout': '布局',
             'app.settings.railSide': '侧边栏靠右',
@@ -98,7 +99,7 @@
             'app.favorites.copy': '复制',
             'app.favorites.save': '保存',
             'app.favorites.copied': '已复制',
-            'app.favorites.selected': '项已选中',
+            'app.favorites.selected': '已选 {count} 项',
             'app.favorites.saveSelected': '保存所选',
             'app.favorites.clear': '清除选择',
             'app.favorites.empty': '暂无收藏',
@@ -211,6 +212,7 @@
             'app.save_all_each': 'Save each ({count})',
             'app.save_all_zip': 'Download as ZIP',
 
+            'app.settings.collapse': 'Collapse panel',
             'app.settings.title': 'Settings',
             'app.settings.layout': 'Layout',
             'app.settings.railSide': 'Sidebar on the right',
@@ -239,7 +241,7 @@
             'app.favorites.copy': 'Copy',
             'app.favorites.save': 'Save',
             'app.favorites.copied': 'Copied',
-            'app.favorites.selected': 'selected',
+            'app.favorites.selected': '{count} selected',
             'app.favorites.saveSelected': 'Save selected',
             'app.favorites.clear': 'Clear selection',
             'app.favorites.empty': 'No favorites yet',

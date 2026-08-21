@@ -126,3 +126,16 @@ test('every /static/ href and src referenced by a page exists on disk', () => {
     }
   }
 });
+
+test('collapse buttons are wired by one delegated handler, so panels only draw them', () => {
+  // 每个面板一个「收起功能栏」按钮，而面板脚本在 app.js 之后加载、设置面板的按钮
+  // 还是运行时建出来的 —— 用 querySelectorAll 在 init 时绑定会全部漏掉。委派监听器
+  // 同时让 setPanel 保持 shell.dataset.panel 的唯一写入方。
+  const appJs = fs.readFileSync(path.join(WEB, 'app.js'), 'utf8');
+  assert.match(appJs, /closest\('\.fk-panel-collapse'\)\)\s*setPanel\(false\)/);
+
+  // 两个面板都必须真的有这个按钮，否则委派监听器是死代码。
+  assert.match(html, /class="fk-icon-btn fk-panel-collapse"/);
+  const settingsJs = fs.readFileSync(path.join(WEB, 'panel-settings.js'), 'utf8');
+  assert.match(settingsJs, /fk-icon-btn fk-panel-collapse/);
+});
