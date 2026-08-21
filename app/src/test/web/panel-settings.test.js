@@ -93,7 +93,9 @@ function loadPanel({ language = 'zh-CN', railSide = 'left', swap = '0', timestam
     shell.dataset.panel = 'shown';
 
     const body = makeElement('body');
-    body.dataset.timestamps = timestamps;
+    // 两个都只在有值时才写：peer-info 到达前这两个属性根本不存在，
+    // 无条件写会让「属性缺失」这个真实状态在测试里无法表达。
+    if (timestamps) body.dataset.timestamps = timestamps;
     if (appVersion) body.dataset.appVersion = appVersion;
 
     const root = makeElement('div');
@@ -118,6 +120,16 @@ function loadPanel({ language = 'zh-CN', railSide = 'left', swap = '0', timestam
         },
     };
 
+    // app.js 把 peer-info 的结果写到 <body> dataset 上，而面板在那之前就渲染完了。
+    // 面板靠 MutationObserver 观察这些属性来重渲染，所以这里得有个能手动触发的替身：
+    // observed 记下它观察了谁、过滤了哪些属性，fire() 模拟属性变化。
+    const observed = [];
+    function MutationObserverStub(callback) {
+        this.callback = callback;
+        this.observe = (target, options) => { observed.push({ target, options, fire: () => callback([]) }); };
+        this.disconnect = () => {};
+    }
+
     const context = {
         document: {
             createElement: (tag) => makeElement(tag),
@@ -126,13 +138,17 @@ function loadPanel({ language = 'zh-CN', railSide = 'left', swap = '0', timestam
         },
         localStorage,
         console,
+        MutationObserver: MutationObserverStub,
     };
     context.window = context;
     context.window.flikkyI18n = i18n;
     vm.createContext(context);
     vm.runInContext(SRC, context);
 
-    return { context, shell, root, body, localStorage, get renderCount() { return listenerCalls; } };
+    return {
+        context, shell, root, body, localStorage, observed,
+        get renderCount() { return listenerCalls; },
+    };
 }
 
 test('mount is exported and invoked exactly once at load (D4)', () => {
@@ -325,4 +341,43 @@ test('the About row shows no version placeholder until peer-info lands, then sho
     const withVersion = loadPanel({ appVersion: '1.19.0' });
     const versionSub = findDescendant(withVersion.root, (n) => typeof n.textContent === 'string' && n.textContent.includes('1.19.0'));
     assert.ok(versionSub, 'once document.body.dataset.appVersion is set, a render must show it');
+});
+
+test('the panel re-renders when app.js publishes peer-info onto body, not just at load', () => {
+    // 这是生产环境真正走的时序：panel-settings.js 在文件末尾同步渲染，而
+    // app.js 的 applyPeerAppearance 要等 fetchPeerInfo() 的 await 回来才写 dataset，
+    // 严格晚于首渲染。所以「渲染时 dataset 里已经有版本号」这个前提在真实页面上
+    // 永远不成立——上一条用例正是靠预置 dataset 才绿的，它证明不了版本号会显示。
+    const { root, body, observed } = loadPanel({ appVersion: '' });
+
+    assert.equal(
+        findDescendant(root, (n) => typeof n.textContent === 'string' && n.textContent.includes('1.19.0')),
+        null,
+        'version must be absent before peer-info lands',
+    );
+
+    const watcher = observed.find((o) => o.target === body);
+    assert.ok(watcher, 'the panel must observe <body> for the state app.js publishes there');
+    assert.ok(
+        watcher.options.attributeFilter.includes('data-app-version'),
+        'the observer must watch data-app-version',
+    );
+
+    body.dataset.appVersion = '1.19.0';
+    watcher.fire();
+
+    assert.ok(
+        findDescendant(root, (n) => typeof n.textContent === 'string' && n.textContent.includes('1.19.0')),
+        'after peer-info lands the panel must re-render and show the version',
+    );
+});
+
+test('the timestamps row reads an absent attribute as OFF, matching the phone default', () => {
+    // FlikkySettings.sessionTimestampEnabled 默认 false。写成 `!== 'off'` 会在
+    // peer-info 到达前把默认值猜反，显示「已开启」，而且之后再也不纠正。
+    const { root } = loadPanel({ timestamps: '' });
+    assert.ok(
+        findDescendant(root, (n) => n.textContent === 'app.settings.timestampsSubOff'),
+        'with no data-timestamps attribute the row must read as off',
+    );
 });

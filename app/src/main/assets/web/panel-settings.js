@@ -153,7 +153,9 @@
         theme.item.appendChild(buildTrailIcon('smartphone'));
         group.appendChild(theme.item);
 
-        const timestampsOn = document.body.dataset.timestamps !== 'off';
+        // 属性缺失时读作「关」，与 FlikkySettings.sessionTimestampEnabled 的默认值一致。
+        // 写成 !== 'off' 会在 peer-info 到达前把默认值猜反，显示「已开启」。
+        const timestampsOn = document.body.dataset.timestamps === 'on';
         const timestamps = buildRow('div', 'schedule');
         timestamps.item.style.cursor = 'default';
         timestamps.title.textContent = t('app.settings.timestamps');
@@ -244,11 +246,28 @@
         root.appendChild(body);
     }
 
+    // app.js 发布到 <body> dataset 的那几项都是 peer-info 到达后才写的，而本脚本
+    // 在文件末尾就渲染了一次——严格早于 fetchPeerInfo() 的 await 返回。所以只订阅
+    // i18n 的话，「关于」区永远拿不到版本号、时间戳行永远停在初始猜测上。
+    // 这里不让 app.js 反过来通知面板（那会让 app.js 知道面板存在），而是观察它已经
+    // 发布出来的 DOM 状态——正是 D1 定的方向：app.js 只管发布，面板自己读。
+    // 观察的是 <body>，面板写的是 #shell 和自己的子树，不会自激。
+    const PUBLISHED_ATTRS = ['data-app-version', 'data-timestamps'];
+
+    function observePublishedState(root) {
+        if (typeof MutationObserver !== 'function') return;
+        new MutationObserver(() => render(root)).observe(document.body, {
+            attributes: true,
+            attributeFilter: PUBLISHED_ATTRS,
+        });
+    }
+
     function mount(root) {
         if (!root || !window.flikkyI18n) return;
         // onChange 订阅时会立即用当前语言调用一次监听器——这就是初次渲染，
         // 不要在这之外再手动调用一次 render，否则面板会渲染两遍。
         window.flikkyI18n.onChange(() => render(root));
+        observePublishedState(root);
     }
 
     window.flikkyPanels = window.flikkyPanels || {};
