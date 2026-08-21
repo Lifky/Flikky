@@ -52,6 +52,13 @@ test('the file icon container reuses the official Cookie9Sided shape', () => {
   assert.match(rule('.file-bubble .file-icon'), /clip-path:\s*url\(#flikky-cookie9\)/);
 });
 
+test('the dead bare-icon file rule is gone now that the icon is wrapped (C3)', () => {
+  // Until app.js wrapped the icon in <span class="file-icon">, this selector
+  // kept the pre-wrap render legible; it now matches nothing and must be gone.
+  assert.equal(false, /\.file-bubble > \.material-symbols-outlined/.test(chat));
+  assert.equal(false, /\.file-bubble > mdui-icon/.test(chat));
+});
+
 test('the dock keeps one constant radius and matches the FAB height', () => {
   // 「单行全圆 ↔ 多行 28px」的形变已删除：插值区间几乎全落在肉眼无差别的大半径段，
   // 观感就是最后一下突然跳变。
@@ -94,22 +101,27 @@ test('the FAB morphs rounder on press — opposite direction from circles', () =
   assert.match(chat, /--flikky-morph-sq:\s*28%/);
   assert.match(chat, /--flikky-morph-sq-pressed:\s*50%/);
   // F1 那整类 bug 的守门员：未注册的自定义属性不可插值，transition 挂上去只会在
-  // 时长结束时突跳，不是形变。.msg-actions mdui-button-icon 上的 --shape-corner 是
-  // 已知、记录在案、留给 Task 4b 处理的同类缺陷（本轮 F1d 明确要求不动它），所以这里
-  // 先剥掉那条已知例外，再断言剩下的 chat.css 里不会再出现同类写法。
-  const withoutKnownException = chat.replace(
-    /\.msg-actions mdui-button-icon(?::active)?\s*\{[^}]*\}/g,
-    '',
-  );
+  // 时长结束时突跳，不是形变。.msg-actions 的动作按钮 (Task 4b) 是这类 bug 最后
+  // 一处留存，Task 4b 已经把它从 mdui-button-icon 换成普通 button 并接上真正的
+  // border-radius，所以这里不再需要例外——整份 chat.css 都不能出现同类写法。
   // 只抓「被过渡的属性名本身是自定义属性」（transition: --x 或列表里 , --x），
   // 不能用 /transition:[^;]*--/ 之类的宽松写法——那会连
   // `transition: border-radius var(--flikky-...)` 这种完全正常、值里引用了变量
   // 但过渡的是原生 border-radius 的写法也一起误判为踩坑。
   assert.equal(
     false,
-    /(?:transition(?:-property)?:|,)\s*--[\w-]+[\s;]/.test(withoutKnownException),
-    'no transition on a custom property outside the known .msg-actions carve-out (the F1 bug class)',
+    /(?:transition(?:-property)?:|,)\s*--[\w-]+[\s;]/.test(chat),
+    'no transition on a custom property anywhere in chat.css (the F1 bug class)',
   );
+});
+
+test('the message action buttons are plain elements whose press morph is a real border-radius (C4)', () => {
+  // Same defect class as the FAB (F1a): mdui-button-icon exposes its corner
+  // only through --shape-corner, an unregistered custom property that cannot
+  // interpolate. Task 4b swaps it for a plain <button> driven by border-radius.
+  assert.equal(false, /mdui-button-icon/.test(appJs), 'app.js must no longer create mdui-button-icon');
+  const active = chat.match(/\.msg-actions button:active\s*\{[^}]*\}/)?.[0] ?? '';
+  assert.match(active, /border-radius:\s*var\(--flikky-morph-round-pressed\)/);
 });
 
 test('enter animation is scoped to newly added rows only', () => {

@@ -200,6 +200,10 @@
         return `${p(d.getFullYear() % 100)}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
     }
 
+    // 组内/组间标记通过时间分隔线打断：真正插入分隔线（而非跳过）时才置位，
+    // appendBubbleRow 消费后立刻清零，避免误伤下一条正常消息。
+    let pendingGroupBreak = false;
+
     function maybeInsertTimeDivider(ts) {
         if (!Number.isFinite(ts)) return;
         if (lastDividerBaseTs === null || ts - lastDividerBaseTs >= TIME_DIVIDER_GAP_MS) {
@@ -211,12 +215,17 @@
             row.appendChild(pill);
             list.appendChild(row);
             lastDividerBaseTs = ts;
+            pendingGroupBreak = true;
         }
     }
 
     // Track last rendered origin for consecutive same-origin suppression.
     // 'PHONE' | 'BROWSER' | null
     let lastBubbleOrigin = null;
+
+    // loadHistory() 回放历史时走的是同一条 appendBubbleRow 路径；回放不是「到达」，
+    // 不该播入场动画，否则每次打开页面整屏消息一起飞进来。
+    let replayingHistory = false;
 
     // Wrap a bubble div in a bubble-row that includes the appropriate avatar
     // or spacer. `origin` is 'PHONE' | 'BROWSER'.
@@ -228,6 +237,8 @@
 
         const row = document.createElement('div');
         row.className = 'bubble-row ' + (mine ? 'me' : 'them');
+        if (!replayingHistory) row.classList.add('bubble-row--enter');
+        if (pendingGroupBreak) { row.dataset.groupBreak = '1'; pendingGroupBreak = false; }
 
         if (isContinuation) {
             // Same origin in a row: show spacer instead of avatar.
@@ -289,6 +300,14 @@
         }
     }
 
+    // 组内/组间标记。singleton 不加类：完整圆角 + 16px 间距就是它该有的样子。
+    function applyGroupingClasses(row, sameAsPrev, sameAsNext) {
+        row.classList.remove('grouped-start', 'grouped-mid', 'grouped-end');
+        if (sameAsPrev && sameAsNext) row.classList.add('grouped-mid');
+        else if (sameAsNext) row.classList.add('grouped-start');
+        else if (sameAsPrev) row.classList.add('grouped-end');
+    }
+
     function reflowMessageAvatars() {
         const rows = Array.from(list.querySelectorAll('.bubble-row'));
         let previousOrigin = null;
@@ -297,6 +316,10 @@
             if (!origin) return;
             const nextOrigin = rowOrigin(rows[index + 1]);
             setRowAvatarMarker(row, origin, shouldShowAvatarForRow(origin, previousOrigin, nextOrigin));
+            const breakBefore = (r) => !!(r && r.dataset && r.dataset.groupBreak);
+            const sameAsPrev = origin === previousOrigin && !breakBefore(row);
+            const sameAsNext = origin === nextOrigin && !breakBefore(rows[index + 1]);
+            applyGroupingClasses(row, sameAsPrev, sameAsNext);
             previousOrigin = origin;
         });
         lastBubbleOrigin = previousOrigin;
@@ -822,8 +845,8 @@
         const bar = document.createElement('div');
         bar.className = 'msg-actions';
         for (const action of actions) {
-            const button = document.createElement('mdui-button-icon');
-            button.setAttribute('variant', 'tonal');
+            const button = document.createElement('button');
+            button.type = 'button';
             if (action.danger) button.classList.add('danger');
             const label = t(action.labelKey);
             button.setAttribute('title', label);
@@ -854,8 +877,11 @@
         const size = document.createElement('span');
         size.className = 'size';
         size.textContent = formatSize(sizeBytes);
-        // 文件图标：与 App 文件气泡/文件总览同款分类图标。
-        bubble.appendChild(materialSymbolEl(fileSymbolName(bubble.dataset.mime), false));
+        // 文件图标：与 App 文件气泡/文件总览同款分类图标，包一层 Cookie9Sided 容器。
+        const iconWrap = document.createElement('span');
+        iconWrap.className = 'file-icon';
+        iconWrap.appendChild(materialSymbolEl(fileSymbolName(bubble.dataset.mime), false));
+        bubble.appendChild(iconWrap);
         bubble.appendChild(a);
         bubble.appendChild(size);
     }
@@ -1378,43 +1404,49 @@
         const data = await r.json();
         // 服务端 v1.2 起新增 `ordered`（按 timestamp 升序的混合列表）。优先用它，
         // 否则回退到 texts+files 各自顺序——但回退路径会丢失跨 kind 的时间顺序，
-        // 仅做兼容。
-        if (Array.isArray(data.ordered) && data.ordered.length) {
-            for (const m of data.ordered) {
-                if (m.kind === 'text') {
-                    const key = `text_added:${m.id}`;
-                    if (seen.has(key)) continue;
-                    seen.add(key);
-                    renderText(m, m.origin === 'BROWSER');
-                } else if (m.kind === 'file') {
-                    const key = `file_added:${m.id}`;
-                    if (seen.has(key)) continue;
-                    seen.add(key);
-                    if (m.status === 'IN_PROGRESS') {
-                        renderTransferringBubble(m);
-                    } else {
-                        const bubble = renderFile(m, m.origin === 'BROWSER');
-                        if (bubble) bubble.dataset.fileId = m.fileId;
+        // 仅做兼容。两条回放分支全程同步（无 await），finally 确保提前 return 或抛出
+        // 都不会让标记卡在 true 上。
+        replayingHistory = true;
+        try {
+            if (Array.isArray(data.ordered) && data.ordered.length) {
+                for (const m of data.ordered) {
+                    if (m.kind === 'text') {
+                        const key = `text_added:${m.id}`;
+                        if (seen.has(key)) continue;
+                        seen.add(key);
+                        renderText(m, m.origin === 'BROWSER');
+                    } else if (m.kind === 'file') {
+                        const key = `file_added:${m.id}`;
+                        if (seen.has(key)) continue;
+                        seen.add(key);
+                        if (m.status === 'IN_PROGRESS') {
+                            renderTransferringBubble(m);
+                        } else {
+                            const bubble = renderFile(m, m.origin === 'BROWSER');
+                            if (bubble) bubble.dataset.fileId = m.fileId;
+                        }
                     }
                 }
+                refreshSaveAllFab();
+                return;
+            }
+            for (const t of data.texts) {
+                const key = `text_added:${t.id}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                renderText(t, t.origin === 'BROWSER');
+            }
+            for (const f of data.files) {
+                const key = `file_added:${f.id}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                const bubble = renderFile(f, f.origin === 'BROWSER');
+                if (bubble) bubble.dataset.fileId = f.fileId;
             }
             refreshSaveAllFab();
-            return;
+        } finally {
+            replayingHistory = false;
         }
-        for (const t of data.texts) {
-            const key = `text_added:${t.id}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            renderText(t, t.origin === 'BROWSER');
-        }
-        for (const f of data.files) {
-            const key = `file_added:${f.id}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            const bubble = renderFile(f, f.origin === 'BROWSER');
-            if (bubble) bubble.dataset.fileId = f.fileId;
-        }
-        refreshSaveAllFab();
     }
 
     let currentConnKey = 'app.connecting';

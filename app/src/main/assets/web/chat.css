@@ -97,14 +97,6 @@
   color: rgb(var(--mdui-color-on-primary));
   align-self: flex-end;
 }
-/* 裸图标：当前 app.js 渲染的文件泡没有包装元素，图标是 .file-bubble 的直接子节点。
-   保留这条规则维持现状渲染；下面 .file-icon 是官方 Cookie9Sided 容器，供未来
-   app.js 包一层 <span class="file-icon"> 后启用（见任务报告）。 */
-.file-bubble > mdui-icon,
-.file-bubble > .material-symbols-outlined {
-  flex-shrink: 0;
-  font-size: 24px;
-}
 .file-bubble .file-icon {
   width: var(--flikky-size-file-icon);
   height: var(--flikky-size-file-icon);
@@ -358,8 +350,8 @@
   align-self: flex-start;
 }
 
-/* 组内 4px、组间 16px。分组由 app.js 按发送者+时间窗打上 grouped-start/-mid/-end
-   （尚未接线，见任务报告）——这里先把 CSS 立好，接线是后续任务。 */
+/* 组内 4px、组间 16px。分组由 app.js 在 reflowMessageAvatars 里按发送者+时间窗
+   打上 grouped-start/-mid/-end（见 applyGroupingClasses）。 */
 .bubble-row.grouped-start,
 .bubble-row.grouped-mid {
   margin-bottom: var(--flikky-space-xs);
@@ -399,7 +391,8 @@
 }
 
 /* 新增行的入场动效——只挂在这个修饰类上，不挂在 .bubble-row 本身，否则每次
-   重建列表整屏消息都会重播一次入场，观感是「闪一下」。同理尚未接线，见报告。 */
+   重建列表整屏消息都会重播一次入场，观感是「闪一下」。app.js 在 appendBubbleRow
+   里只对非历史回放的行加这个类（见 replayingHistory）。 */
 .bubble-row--enter {
   animation-name: flikky-message-enter;
   animation-duration: var(--flikky-message-enter-duration);
@@ -604,29 +597,57 @@ body[data-timestamps="on"] .time-divider { display: flex; }
 /* v1.17.0 §12 message actions. One DOM node (.msg-actions inside each
    .bubble-row), two CSS presentations switched by body[data-action-style] —
    style changes from the phone apply instantly with zero re-render.
-   Buttons are official mdui-button-icon variant=tonal sized to the App's
+   Buttons are plain <button> elements (not mdui-button-icon: its --shape-corner
+   is an unregistered custom property, so a press-morph transition on it cannot
+   interpolate — same defect class as the FAB, see Task 4a) sized to the App's
    CircleActionButton (36dp circle / 22dp icon / secondary-container). */
 .msg-actions {
   display: flex;
   gap: var(--flikky-space-sm);
   align-items: center;
 }
-.msg-actions mdui-button-icon {
+.msg-actions button {
+  position: relative;
+  overflow: hidden;
   width: 36px;
   height: 36px;
-  --shape-corner: var(--flikky-morph-round);
-  transition: --shape-corner var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default);
+  border: 0;
+  border-radius: var(--flikky-morph-round);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  background: rgb(var(--mdui-color-secondary-container));
+  color: rgb(var(--mdui-color-on-secondary-container));
+  transition:
+    background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    border-radius var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default);
 }
-.msg-actions mdui-button-icon:active {
-  --shape-corner: var(--flikky-morph-round-pressed);
-  transition: --shape-corner var(--flikky-morph-press-dur) var(--flikky-morph-press-ease);
+.msg-actions button:active {
+  border-radius: var(--flikky-morph-round-pressed);
+  transition: border-radius var(--flikky-morph-press-dur) var(--flikky-morph-press-ease);
+}
+.msg-actions button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity var(--flikky-spring-effects-fast-dur) var(--flikky-spring-effects-fast);
+}
+.msg-actions button:hover::before {
+  opacity: .08;
+}
+.msg-actions button:active::before {
+  opacity: .12;
 }
 .msg-actions .material-symbols-outlined {
   font-size: 22px;
+  position: relative;
 }
 /* danger（撤回）：局部把 secondary-container 令牌重映射到 error-container——
-   shadow DOM 从宿主继承 custom property，不需要 ::part 侵入官方组件。 */
-.msg-actions mdui-button-icon.danger {
+   button 的 background/color 读的就是这两个 token，重映射后原样生效，不需要
+   单独的 .danger 背景规则。 */
+.msg-actions button.danger {
   --mdui-color-secondary-container: var(--mdui-color-error-container);
   --mdui-color-on-secondary-container: var(--mdui-color-on-error-container);
 }
