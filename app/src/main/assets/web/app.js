@@ -441,10 +441,17 @@
     // mdui 与手机端 MDC 同用 Material Color Utilities，同一 seed 产同一色相，双端观感对齐；
     // seed 为空（手机用动态色/Material You，浏览器拿不到壁纸）时清回 mdui 默认配色，仅跟深浅。
     let lastThemeKey = null;
-    function applyTheme(seed, dark) {
-        const key = (dark ? 'd' : 'l') + '|' + (seed || '');
+    function applyTheme(seed, dark, amoled) {
+        // AMOLED 只是深色的一个变体：浅色 + amoled 仍然是浅色。
+        const on = !!dark && amoled === true;
+        // key 必须含 amoled 位。只拼 dark|seed 的话，「只切 AMOLED」会被下面的
+        // 缓存判定当成同一主题提前 return —— 手机上点了开关，浏览器毫无反应。
+        const key = (dark ? 'd' : 'l') + (on ? 'a' : '') + '|' + (seed || '');
         if (key === lastThemeKey) return;   // peer-info 可能多次拉取，避免反复重建调色板
         lastThemeKey = key;
+        // 写在 mdui 短路之前：纯黑底色来自 tokens.css 的 [data-amoled="1"]，
+        // 跟 mdui 在不在无关。写在 return 之后，mdui 加载失败时页面会停在深灰。
+        document.documentElement.setAttribute('data-amoled', on ? '1' : '0');
         if (!window.mdui) return;
         try {
             if (typeof mdui.setTheme === 'function') mdui.setTheme(dark ? 'dark' : 'light');
@@ -511,7 +518,11 @@
         avatarGrouping = normalizeAvatarGrouping(data.avatarGrouping);
         renderPeerHeader(name, phoneAvatarKey);
         applyBackground(data.backgroundMode || 'DEFAULT', data.backgroundValue || '', name);
-        applyTheme(typeof data.themeSeed === 'string' ? data.themeSeed : null, !!data.themeDark);
+        applyTheme(
+            typeof data.themeSeed === 'string' ? data.themeSeed : null,
+            !!data.themeDark,
+            data.amoled === true,
+        );
         applyBubbleRadius(data.bubbleCornerRadius);
         if (Object.prototype.hasOwnProperty.call(data, 'animationSpeed')) {
             applyAnimationSpeed(data.animationSpeed);

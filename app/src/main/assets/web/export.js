@@ -23,10 +23,14 @@
     };
 
     let lastThemeKey = null;
-    function applyTheme(seed, dark) {
-        const key = (dark ? 'd' : 'l') + '|' + (seed || '');
+    function applyTheme(seed, dark, amoled) {
+        // AMOLED 只在深色下有意义，且 key 要含它 —— 否则只切 AMOLED 会被缓存挡掉。
+        const on = !!dark && amoled === true;
+        const key = (dark ? 'd' : 'l') + (on ? 'a' : '') + '|' + (seed || '');
         if (key === lastThemeKey) return;
         lastThemeKey = key;
+        // 在 mdui 短路之前写：纯黑底色由 tokens.css 的 [data-amoled="1"] 提供。
+        document.documentElement.setAttribute('data-amoled', on ? '1' : '0');
         const mduiApi = window.mdui;
         if (!mduiApi) return;
         try {
@@ -58,7 +62,7 @@
         if (!resp.ok) return;
         try {
             const data = await resp.json();
-            applyTheme(data.themeSeed, !!data.themeDark);
+            applyTheme(data.themeSeed, !!data.themeDark, data.amoled === true);
         } catch (_) {
             // Ignore malformed appearance data; the export content still matters more.
         }

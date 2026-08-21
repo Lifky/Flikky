@@ -60,8 +60,15 @@ async function runLoginThemeTest() {
       calls.push(['removeColorScheme']);
     },
   };
+  const themeAttrs = {};
   const context = {
     document: {
+      // v1.19.0: applyTheme 还要往 <html> 上写 data-amoled。少了这个替身，
+      // 它会在触及 mdui 之前抛异常，下面那条 calls 断言就只是空数组比空数组。
+      documentElement: {
+        setAttribute(name, value) { themeAttrs[name] = String(value); },
+        getAttribute(name) { return name in themeAttrs ? themeAttrs[name] : null; },
+      },
       getElementById(id) {
         return elements[id] || null;
       },
@@ -110,6 +117,13 @@ async function runLoginThemeTest() {
     calls.filter((call) => call[0] !== 'fetch'),
     [['setTheme', 'dark'], ['setColorScheme', '#6750A4']],
     'login page should apply App theme through MDUI APIs',
+  );
+  // The stubbed /api/web-theme response carries themeDark without amoled, so the
+  // page must land on plain dark — a missing field may not read as "on".
+  assertDeepEqual(
+    themeAttrs['data-amoled'],
+    '0',
+    'login page should treat a missing amoled field as off',
   );
 }
 

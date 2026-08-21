@@ -13,7 +13,10 @@
     const t = (key, values) => i18n.t(key, values);
     let currentError = null;
 
-    function applyTheme(seed, dark) {
+    function applyTheme(seed, dark, amoled) {
+        // AMOLED 只在深色下有意义。登录页只调用一次，没有缓存键要维护。
+        // 在 mdui 短路之前写：纯黑底色由 tokens.css 的 [data-amoled="1"] 提供。
+        document.documentElement.setAttribute('data-amoled', (!!dark && amoled === true) ? '1' : '0');
         const mduiApi = window.mdui;
         if (!mduiApi) return;
         try {
@@ -33,7 +36,7 @@
             const resp = await fetch('/api/web-theme');
             if (!resp.ok) return;
             const data = await resp.json();
-            applyTheme(data.themeSeed, !!data.themeDark);
+            applyTheme(data.themeSeed, !!data.themeDark, data.amoled === true);
         } catch (_) {
             // Keep the PIN page usable even if the theme endpoint is unavailable.
         }
