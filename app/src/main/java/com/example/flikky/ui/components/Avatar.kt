@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -152,21 +153,29 @@ fun Avatar(avatarKey: String?, size: Dp, modifier: Modifier = Modifier) {
             .background(MaterialTheme.colorScheme.secondaryContainer),
         contentAlignment = Alignment.Center,
     ) {
-        when (content) {
-            is AvatarContent.Icon -> Text(
-                text = materialSymbolName(content.name),
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                fontFamily = materialSymbolsFontFamily(content.filled),
-                fontSize = (size.value * 0.58f).sp,
-                lineHeight = (size.value * 0.58f).sp,
-            )
-            is AvatarContent.Char -> Text(
-                text = content.value,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = (size.value * 0.46f).sp,
-                lineHeight = (size.value * 0.46f).sp,
-            )
+        // 头像的两种内容都是 Text：图标那种画的是 Material Symbols 的**连字文本**，
+        // 字符那种画的是一个字。会话页与历史页把整个消息列表包在 SelectionContainer
+        // 里（ServingScreen.kt / HistoryScreen.kt），于是这两个 Text 一起被收进划词
+        // 选择范围 —— 长按头像能选中并复制出 "desktop_windows" 这种内部标识符。
+        // DisableSelection 就是 Compose 侧的 user-select:none，放在 Avatar 内部，
+        // 所有调用点（消息行、设置页、头像选择器）一次都修好。
+        DisableSelection {
+            when (content) {
+                is AvatarContent.Icon -> Text(
+                    text = materialSymbolName(content.name),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    fontFamily = materialSymbolsFontFamily(content.filled),
+                    fontSize = (size.value * 0.58f).sp,
+                    lineHeight = (size.value * 0.58f).sp,
+                )
+                is AvatarContent.Char -> Text(
+                    text = content.value,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = (size.value * 0.46f).sp,
+                    lineHeight = (size.value * 0.46f).sp,
+                )
+            }
         }
     }
 }

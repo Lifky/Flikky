@@ -35,6 +35,28 @@ html, body {
   padding: 0;
 }
 
+/* ── 可选中范围：默认关，内容显式开 ──────────────────────────────────────────
+ * 这是一个应用界面，不是文档。图标、按钮标签、导航项、面板标题、统计数字被选中
+ * 除了误触没有任何用处，而 Material Symbols 的图标**本体就是文本**（连字），
+ * 长按会选出 "arrow_upward" 这种内部标识符——用户实测把它当成消息发出去过。
+ *
+ * 所以取「默认不可选 + 内容白名单」而不是「默认可选 + 逐个图标关掉」：后者要在
+ * 每次新增元素时记得关，漏一个就复现；前者漏一个只是少了一处可复制，量级完全不同。
+ * 白名单在各自的表里（chat.css 气泡、panels.css 收藏行、pages.css 导出摘要）。 */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 输入类控件必须显式开回来。祖先的 user-select:none 在部分引擎里会连输入框内的
+   选词、拖选一起禁掉（编辑本身不受影响，但选不动就没法改中间一段）。 */
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
   font-weight: normal;
@@ -47,7 +69,15 @@ html, body {
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
+  /* -webkit- 前缀不是冗余：原先只有无前缀那条，小米自带浏览器这类较旧的 Chromium
+     分支不认，于是长按图标照样能选中并复制出连字名（用户实测把 "arrow_upward"
+     当消息发出去过）。
+     这条是**直接声明**，而 user-select 是继承属性 —— 所以内容白名单把祖先设成
+     text 不会渗进图标里，无需在每处白名单再关一遍。前提是白名单不写 `*`。 */
+  -webkit-user-select: none;
   user-select: none;
+  /* iOS 长按弹出的「拷贝/查找」浮层单靠 user-select 关不掉 */
+  -webkit-touch-callout: none;
   font-variation-settings: 'FILL' var(--flikky-icon-fill, 0), 'wght' 400, 'GRAD' 0, 'opsz' 24;
   transition: font-variation-settings var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
 }

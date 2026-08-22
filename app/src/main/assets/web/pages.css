@@ -220,6 +220,18 @@ body {
   margin-top: var(--flikky-space-xs);
 }
 
+/* ── 可选中白名单（默认关在 base.css）────────────────────────────────────────
+ * 导出页只有两处是内容：摘要那行数字（会话数/消息数/大小，用户会抄下来核对）
+ * 和会话清单里的会话名。清单行是 mdui-list-item，正文在它的 shadow root 里，
+ * 而 user-select 是继承属性，写在宿主上就能穿进去。
+ * 登录页整页都不在白名单里 —— PIN 格子只是那个透明 input 的显示镜像，选中它
+ * 毫无意义（真正的值在 input 里，而 input 由 base.css 单独开着）。 */
+.fk-summary-value,
+#session-list {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .fk-subtitle {
   font: var(--flikky-type-body-medium) var(--flikky-font-family);
   letter-spacing: var(--flikky-type-body-medium-tracking);

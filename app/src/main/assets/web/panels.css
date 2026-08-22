@@ -187,6 +187,18 @@
   text-overflow: ellipsis;
 }
 
+/* ── 可选中白名单（默认关在 base.css）────────────────────────────────────────
+ * 收藏行的标题/副标题是用户存进来的内容（文本片段、文件名），必须能选能复制 ——
+ * 行上虽然有复制按钮，但「只要中间一段」这个需求按钮满足不了。
+ * 设置面板的行不在白名单里（那些是界面标签），只有两处例外单独开：
+ * 「关于」的版本号（提 issue 要贴）和 GitHub 地址。 */
+#fav-list .fk-item-title,
+#fav-list .fk-item-sub,
+#view-settings .fk-item-sub {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .fk-item-trail {
   flex: none;
   display: flex;
