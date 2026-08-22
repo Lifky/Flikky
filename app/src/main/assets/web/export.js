@@ -121,6 +121,20 @@
             });
             item.setAttribute('description', desc);
             item.setAttribute('rounded', '');
+            // 行首图标（原型有，之前漏了）。走 slot="icon" 而不是 mdui 的 icon 属性：
+            // 后者渲染 <mdui-icon>，依赖 mdui 自带的 Material Icons 字体，而本项目
+            // 离线打包的是 Material Symbols，那个字形取不到。
+            // 用圆角方容器而不是文件泡的 Cookie9 异形：会话不是文件（异形容器在这套
+            // 设计里专属文件图标），而且 #flikky-cookie9 的 clipPath 只内联在
+            // app.html 里，导出页引用不到。
+            const lead = document.createElement('span');
+            lead.setAttribute('slot', 'icon');
+            lead.className = 'fk-list-lead';
+            const leadIcon = document.createElement('span');
+            leadIcon.className = 'material-symbols-outlined';
+            leadIcon.textContent = 'forum';
+            lead.appendChild(leadIcon);
+            item.appendChild(lead);
             listEl.appendChild(item);
         }
     }

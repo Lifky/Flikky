@@ -2,6 +2,8 @@ package com.example.flikky.server.routes
 
 import com.example.flikky.server.PinAuth
 import com.example.flikky.session.Message
+import com.example.flikky.session.Origin
+import com.example.flikky.util.IdGen
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
 import io.ktor.client.HttpClient
@@ -171,15 +173,42 @@ class FileRoutesTest {
         assertEquals(0, h.events.size)
     }
 
+    /**
+     * 往会话里塞一条「手机发过来的」已完成文件消息，并真的落一个文件。
+     * 上传接口 `/api/files` 记的是 BROWSER origin（浏览器自己发出去的），
+     * 而 ZIP 只该打包接收方向 —— 所以 archive 的用例必须用这个而不是 uploadFile。
+     */
+    private fun Harness.addPhoneFile(name: String, body: String) {
+        // id 必须走真正的分配器。IdGen.messageCounter 是进程级 AtomicLong，同一次
+        // JVM 运行里跨测试持续递增，所以手写 1L/2L 会撞上上传接口分配到的 id ——
+        // 而 fileRoutes 的 `updateMessage(msgId) { completedMsg }` 的 transform
+        // 忽略入参、无条件返回浏览器那条消息，撞上就把这条手机消息整条覆盖掉。
+        val id = IdGen.newMessageId()
+        val fileId = "phone-$id"
+        File(filesDir, fileId).writeBytes(body.toByteArray())
+        session.addMessage(
+            Message.File(
+                id = id,
+                origin = Origin.PHONE,
+                timestamp = 0L,
+                fileId = fileId,
+                name = name,
+                sizeBytes = body.length.toLong(),
+                mime = "text/plain",
+                status = Message.File.Status.COMPLETED,
+            ),
+        )
+    }
+
     @Test
-    fun `archive streams all completed files as zip with deduped names`() = testApplication {
+    fun `archive streams all completed received files as zip with deduped names`() = testApplication {
         val h = Harness(tmp.root)
         application {
             install(ContentNegotiation) { json() }
             routing { installFileRoutes(h) }
         }
-        client.uploadFile("a.txt", "one".toByteArray())
-        client.uploadFile("a.txt", "two".toByteArray())
+        h.addPhoneFile("a.txt", "one")
+        h.addPhoneFile("a.txt", "two")
 
         val response = client.get("/api/files/archive")
 
@@ -196,6 +225,46 @@ class FileRoutesTest {
         }
         assertEquals(listOf("a.txt", "a (1).txt"), names)
         assertEquals(listOf("one", "two"), contents)
+    }
+
+    @Test
+    fun `archive excludes files the browser itself uploaded`() = testApplication {
+        // 用户报的缺陷：己方（浏览器）发出去的文件会被装进「打包为 ZIP」，
+        // 等于把自己刚发出去的东西又下载回来一份。逐个下载没有这个问题 ——
+        // 它在浏览器端只收集 .file-bubble.them（接收方向）。
+        val h = Harness(tmp.root)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { installFileRoutes(h) }
+        }
+        h.addPhoneFile("from-phone.txt", "received")
+        client.uploadFile("from-browser.txt", "sent".toByteArray())
+
+        val response = client.get("/api/files/archive")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val names = mutableListOf<String>()
+        ZipInputStream(ByteArrayInputStream(response.bodyAsBytes())).use { zin ->
+            while (true) {
+                val entry = zin.nextEntry ?: break
+                names += entry.name
+                zin.readBytes()
+            }
+        }
+        assertEquals(listOf("from-phone.txt"), names)
+    }
+
+    @Test
+    fun `archive returns 404 when the only completed files are browser uploads`() = testApplication {
+        // 过滤掉发送方向后一个都不剩，必须是 404，而不是一个空 ZIP。
+        val h = Harness(tmp.root)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { installFileRoutes(h) }
+        }
+        client.uploadFile("only-mine.txt", "sent".toByteArray())
+
+        assertEquals(HttpStatusCode.NotFound, client.get("/api/files/archive").status)
     }
 
     @Test

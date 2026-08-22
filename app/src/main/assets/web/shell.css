@@ -111,9 +111,9 @@ body {
   position: absolute;
   top: var(--flikky-space-xl);
   left: 50%;
-  width: 40px;
-  height: 40px;
-  margin-left: -20px;
+  width: 52px;
+  height: 52px;
+  margin-left: -26px;
   display: block;
   pointer-events: none;
 }
@@ -242,14 +242,19 @@ body {
    而 app.js 已经把开关发布成 body 的 data 属性，选择器直接读就行。 */
 body[data-favorite-enabled="0"] [data-dest="favorites"] { display: none; }
 
-/* 导航项要真正垂直居中，所以头像不参与 flex 流，改绝对定位钉在底部 */
-.fk-rail-avatar {
+/* 导航项要真正垂直居中，所以头像不参与 flex 流，改绝对定位钉在底部。
+   选择器带上 .avatar-circle：app.js 的 renderAvatar 会给这个按钮加上该类，
+   而 chat.css 的 .avatar-circle（36px / display:flex）在 shell.css 之后加载、
+   特异性相同，靠源码顺序把这里的尺寸和布局整个顶掉。0,2,0 才拿得回来。 */
+.fk-rail-avatar,
+.fk-rail-avatar.avatar-circle {
   position: absolute;
   bottom: var(--flikky-space-xl);
   left: 50%;
-  margin-left: -20px;
-  width: 40px;
-  height: 40px;
+  margin-left: -24px;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
   border-radius: var(--flikky-shape-full);
   border: 0;
   padding: 0;
@@ -258,8 +263,13 @@ body[data-favorite-enabled="0"] [data-dest="favorites"] { display: none; }
   place-items: center;
   background: rgb(var(--mdui-color-surface-container-high));
   color: rgb(var(--mdui-color-on-surface-variant));
+  /* 字符头像的字号。同样必须写在这个 0,2,0 的选择器里，否则被 .avatar-circle 的
+     18px（那是给消息行里 36px 头像定的）顶掉，48px 的容器里会显得空。 */
+  font-size: 22px;
   transition: background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
 }
+/* 图标头像同理：.avatar-symbol 的 22px 是配 36px 容器的 */
+.fk-rail-avatar .avatar-symbol { font-size: 26px; }
 .fk-rail-avatar:hover { background: rgb(var(--mdui-color-surface-container-highest)); }
 
 /* ── 功能柱：视图切换转场 ────────────────────────────────────────────────── */
@@ -289,16 +299,22 @@ body[data-favorite-enabled="0"] [data-dest="favorites"] { display: none; }
   cursor: pointer;
 }
 
-/* ── 滚动条：常态隐形、hover 才显现 ──
+/* ── 滚动条：常态隐形，滚动时才显现 ──
  * 一直挂一条实心滚动条太抢眼，也和「面板是干净色块」的语言冲突。
+ * 原先只用 :hover 门控 —— 鼠标停在面板里不动，滚动条也一直亮着；反过来用触摸板/
+ * 滚轮快速掠过时又可能根本没触发 hover。真正的触发条件是「正在滚动」，那是个
+ * 事件而不是 CSS 状态，所以由 app.js 一个 capture 阶段的 scroll 委派监听器在
+ * 元素上打 data-scrolling，静止约 900ms 后摘掉。:hover 保留作为鼠标用户的兜底。
  * Firefox 走 scrollbar-color，Chromium 走 ::-webkit。 */
 .flikky-scroll {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
   transition: scrollbar-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
 }
+.flikky-scroll[data-scrolling],
 .flikky-scroll:hover,
 .flikky-scroll:focus-within { scrollbar-color: rgba(var(--mdui-color-on-surface), .28) transparent; }
+/* 轨道宽度常驻：thumb 透明也占位，所以显隐不会引起内容重排 */
 .flikky-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
 .flikky-scroll::-webkit-scrollbar-track { background: transparent; }
 .flikky-scroll::-webkit-scrollbar-thumb {
@@ -308,6 +324,7 @@ body[data-favorite-enabled="0"] [data-dest="favorites"] { display: none; }
   background-clip: content-box;
   transition: background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
 }
+.flikky-scroll[data-scrolling]::-webkit-scrollbar-thumb,
 .flikky-scroll:hover::-webkit-scrollbar-thumb,
 .flikky-scroll:focus-within::-webkit-scrollbar-thumb {
   background: rgba(var(--mdui-color-on-surface), .28);
@@ -348,8 +365,13 @@ body[data-favorite-enabled="0"] [data-dest="favorites"] { display: none; }
     pointer-events: auto;
   }
   /* 单栏布局下「收起功能栏」无处可收，按钮直接隐藏；
-     回会话走底部导航的「会话」项，那才是窄屏该有的动线。 */
-  .fk-panel-collapse { display: none; }
+     回会话走底部导航的「会话」项，那才是窄屏该有的动线。
+     必须写成 .fk-shell .fk-panel-collapse（0,2,0）：panels.css 的
+     .fk-icon-btn { display: grid } 与它同为 0,1,0，且 panels.css 在 shell.css
+     之后加载，靠源码顺序把这条顶掉了 —— 按钮照常显示，点下去 setPanel(false)
+     写的 data-panel="hidden" 又被本媒体查询上面那条中和，于是「点了没反应」。
+     媒体查询不增加特异性，这是同一个坑的第二次。 */
+  .fk-shell .fk-panel-collapse { display: none; }
 }
 
 .fk-navbar {

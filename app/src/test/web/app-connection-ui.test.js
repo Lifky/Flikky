@@ -27,7 +27,8 @@ test('connection loss uses a blurred dialog that users cannot dismiss', () => {
 });
 
 test('default connection watermark stays centered in the chat viewport while messages scroll', () => {
-    assert.match(appHtml, /<div id="chat-list-shell" class="chat-list-shell">\s*<div id="list" class="chat-list"><\/div>/);
+    // 见 app-shell.test.js 同名断言：钉父子关系，不钉 class 字面量。
+    assert.match(appHtml, /<div id="chat-list-shell" class="chat-list-shell">\s*<div id="list" class="[^"]*\bchat-list\b[^"]*"><\/div>/);
     assert.match(appCss, /\.chat-list-shell\s*\{[^}]*position:\s*relative[^}]*overflow:\s*hidden/);
     assert.match(appCss, /\.chat-list\s*\{[^}]*height:\s*100%[^}]*overflow-y:\s*auto/);
     assert.match(appJs, /listShell\.appendChild\(wm\)/);

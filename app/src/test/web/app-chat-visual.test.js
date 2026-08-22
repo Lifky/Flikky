@@ -274,3 +274,67 @@ test('sendText recomputes the ready state on every exit path (B3)', () => {
     /finally \{[\s\S]*?sendBtn\.disabled = !wsConnected;[\s\S]*?refreshSendReady\(\);/,
   );
 });
+
+// ---------------------------------------------------------------------------
+// v1.19.0 验收轮修复。以下每一条对应一个「测试全绿但界面是坏的」的实例。
+// ---------------------------------------------------------------------------
+
+test('the chat header lays out as one row (the rules that went missing)', () => {
+  // 移植 chat.css 时 .fk-chat-head / .fk-chat-peer / .fk-chat-stats 整段丢了，
+  // 头部退化成块级堆叠：头像、名字、统计各占一行（Screenshot_21）。
+  // 套件里当时没有一条断言碰到它们，所以一路全绿。
+  const head = rule('.fk-chat-head');
+  assert.match(head, /display:\s*flex/);
+  assert.match(head, /align-items:\s*center/);
+
+  const peer = rule('.fk-chat-peer');
+  // flex:1 + min-width:0 —— 少了后者，里面 header-peer-name 的省略号永远不生效。
+  assert.match(peer, /flex:\s*1 1 auto/);
+  assert.match(peer, /min-width:\s*0/);
+
+  const stats = rule('.fk-chat-stats');
+  assert.match(stats, /white-space:\s*nowrap/);
+});
+
+test('the header stats are separated, and the separator is not in the markup', () => {
+  // 三个 span 的内容由 app.js 各自 textContent 写入（#uptime/#count/#rate），
+  // 任何写进 markup 的分隔符都会被下一次更新抹掉 —— 所以必须由 CSS 生成。
+  assert.match(chat, /\.fk-chat-stats\s*>\s*span\s*\+\s*span::before\s*\{[^}]*content:/);
+  const statsMarkup = appHtml.match(/<span class="fk-chat-stats">[\s\S]*?<\/span>\s*<\/span>/);
+  assert.ok(statsMarkup, 'could not locate the stats markup');
+  assert.equal(/·/.test(statsMarkup[0]), false, 'separators must not live in the markup');
+});
+
+test('the connected-bubble radius only applies to the floating action style', () => {
+  // INLINE 常驻按钮会在每条消息旁占一格，把气泡之间那条连续的边打断，
+  // 收紧的角就只剩零碎感。用户裁决：只在 FLOATING 下触发。
+  const groupedRadius = chat.match(/^[^\n]*\.bubble-row\.grouped-(?:start|mid|end)[^\n]*\.bubble,$/gm) || [];
+  assert.ok(groupedRadius.length >= 3, `expected the grouped radius selectors, found ${groupedRadius.length}`);
+  for (const sel of groupedRadius) {
+    assert.match(sel, /body\[data-action-style="FLOATING"\]/, `ungated grouped-radius selector: ${sel.trim()}`);
+  }
+  // 间距分组不受门控：连续消息挨得更近是所有聊天软件的常规，与角的处理是两件事。
+  assert.match(chat, /^\.bubble-row\.grouped-start,\n\.bubble-row\.grouped-mid \{/m);
+});
+
+test('the input dock has a rest state distinct from its focus state', () => {
+  // 原先静止色直接给了 surface-container-highest —— 那正是收藏页搜索框的「聚焦色」，
+  // 于是输入坞看起来永远像被 hover 着，真正聚焦时又毫无变化。
+  assert.match(chat, /--flikky-dock-bg:\s*rgb\(var\(--mdui-color-surface-container-high\)\)/);
+  assert.match(chat, /--flikky-dock-bg-focus:\s*rgb\(var\(--mdui-color-surface-container-highest\)\)/);
+  const focus = rule('.fk-dock:focus-within');
+  assert.match(focus, /background:\s*var\(--flikky-dock-bg-focus\)/);
+  assert.match(focus, /border-color:\s*rgb\(var\(--mdui-color-primary\)\)/);
+  // 边框必须常驻（透明→主色），否则 border-box 下聚焦瞬间内容区缩 2px。
+  assert.match(rule('.fk-dock'), /border:\s*2px solid transparent/);
+});
+
+test('the save-all FAB animates in when it appears', () => {
+  assert.match(chat, /\.fk-fab:not\(\[hidden\]\)\s*\{[^}]*animation:\s*flikky-fab-in/);
+  assert.match(chat, /@keyframes flikky-fab-in/);
+  // 无限/一次性动画都必须让位于系统的减弱动态效果设置。
+  assert.match(
+    chat,
+    /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.fk-fab:not\(\[hidden\]\)\s*\{\s*animation:\s*none/,
+  );
+});

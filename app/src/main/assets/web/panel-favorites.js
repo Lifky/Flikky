@@ -79,13 +79,21 @@
         return date;
     }
 
+    // 分类图标必须与手机端一致（App 侧是 FilesListBuilder.categoryOf →
+    // FileCategory.iconResource()）。这里曾经自带一份简化映射，缺 audio 分支、
+    // 也没有 svg 特例，于是 mp3 显示成文档、svg 显示成图片，两端对不上。
+    // 现在统一取 app.js 发布的那一份 —— 会话页文件泡用的就是它。
     function fileIconFor(item) {
         const mime = item.mime || '';
         const name = item.fileName || '';
-        if (mime.indexOf('image/') === 0) return 'image';
+        // apk 与 zip 是收藏页特有的两个细分（会话页的文件泡没有这个需求），
+        // 它们落在共享映射的 'draft' 兜底里，在这之前先判掉。
         if (mime === 'application/vnd.android.package-archive' || /\.apk$/i.test(name)) return 'android';
         if (mime.indexOf('zip') !== -1 || /\.zip$/i.test(name)) return 'folder_zip';
-        return 'description';
+        if (window.flikky && typeof window.flikky.fileSymbolName === 'function') {
+            return window.flikky.fileSymbolName(mime);
+        }
+        return 'draft';
     }
 
     /** filterFavorites 是纯函数、单独导出——不依赖 DOM，测试直接喂数组即可验证。 */
@@ -247,18 +255,20 @@
         return wrap;
     }
 
+    // 官方 mdui-chip，filter 变体。自绘的那版还得自己补选中态配色、check 图标的
+    // 出现、按压涟漪与键盘语义，而 mdui 现成的这些都做得更好 —— 这正是「库比自己写强
+    // 的地方就用库」（决策 D30）。
     function buildChip(id, label) {
-        const chip = document.createElement('button');
-        chip.type = 'button';
-        chip.className = 'fk-chip';
+        const chip = document.createElement('mdui-chip');
+        chip.setAttribute('variant', 'filter');
+        chip.setAttribute('selectable', '');
         chip.setAttribute('data-group-id', id);
-        const isSelected = String(groupId) === String(id);
-        chip.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-        if (isSelected) chip.appendChild(icon('check'));
-        const labelSpan = document.createElement('span');
-        labelSpan.textContent = label;
-        chip.appendChild(labelSpan);
-        chip.addEventListener('click', () => {
+        if (String(groupId) === String(id)) chip.setAttribute('selected', '');
+        chip.textContent = label;
+        // 这是一组单选筛选，而 mdui 的 selectable 是各自独立开关：点已选中的那个会把它
+        // 关掉，剩下一个都没选中的空状态。所以不直接采信组件的 selected，而是把点击
+        // 一律当成「切到这一组」，再由 render() 重画出唯一的选中项。
+        chip.addEventListener('change', () => {
             groupId = id;
             render();
         });

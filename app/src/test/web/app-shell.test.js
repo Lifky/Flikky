@@ -9,6 +9,8 @@ const shell = fs.readFileSync(path.join(WEB, 'shell.css'), 'utf8');
 const base = fs.readFileSync(path.join(WEB, 'base.css'), 'utf8');
 const tokens = fs.readFileSync(path.join(WEB, 'tokens.css'), 'utf8');
 const springs = fs.readFileSync(path.join(WEB, 'springs.css'), 'utf8');
+const appJsSource = fs.readFileSync(path.join(WEB, 'app.js'), 'utf8');
+const panelSettingsSource = fs.readFileSync(path.join(WEB, 'panel-settings.js'), 'utf8');
 
 test('shell carries the four layout state attributes', () => {
   const m = html.match(/<div id="shell"[^>]*>/);
@@ -19,7 +21,9 @@ test('shell carries the four layout state attributes', () => {
 });
 
 test('chat-list-shell still directly wraps #list', () => {
-  assert.match(html, /<div id="chat-list-shell" class="chat-list-shell">\s*<div id="list" class="chat-list"><\/div>/);
+  // 钉的是「shell 直接包着 #list」这个父子关系，不是 class 属性的字面量 ——
+  // #list 后来还要挂 flikky-scroll（滚动条显隐）之类的类。
+  assert.match(html, /<div id="chat-list-shell" class="chat-list-shell">\s*<div id="list" class="[^"]*\bchat-list\b[^"]*"><\/div>/);
 });
 
 test('panels round only their top corners and sit flush to the bottom edge', () => {
@@ -138,4 +142,81 @@ test('collapse buttons are wired by one delegated handler, so panels only draw t
   assert.match(html, /class="fk-icon-btn fk-panel-collapse"/);
   const settingsJs = fs.readFileSync(path.join(WEB, 'panel-settings.js'), 'utf8');
   assert.match(settingsJs, /fk-icon-btn fk-panel-collapse/);
+});
+
+// ---------------------------------------------------------------------------
+// v1.19.0 验收轮修复
+// ---------------------------------------------------------------------------
+
+test('the mobile collapse-button hide outranks the panels.css button rule', () => {
+  // 这是同一个坑的第二次：媒体查询不增加特异性。
+  // shell.css 里 .fk-panel-collapse { display: none } 与 panels.css 里
+  // .fk-icon-btn { display: grid } 同为 0,1,0，而 panels.css 在 shell.css **之后**
+  // 加载，靠源码顺序把它顶掉 —— 窄屏上按钮照常显示，点下去写的 data-panel="hidden"
+  // 又被同一个媒体查询里的中和规则吃掉，于是「点了没反应」。
+  const mobileBlocks = shell.match(/@media \(max-width:\s*839px\)\s*\{[\s\S]*?\n\}/g) || [];
+  const mobile = mobileBlocks.join('\n');
+  const hide = mobile.match(/([^\n{]*\.fk-panel-collapse[^\n{]*)\{\s*display:\s*none/);
+  assert.ok(hide, 'no mobile hide rule for .fk-panel-collapse');
+  const classCount = (hide[1].match(/\./g) || []).length;
+  assert.ok(
+    classCount >= 2,
+    `the hide rule must carry at least two class selectors to outrank .fk-icon-btn, got: ${hide[1].trim()}`,
+  );
+
+  // 顺序前提也钉住：panels.css 在 shell.css 之后加载，正是上面为何需要 0,2,0。
+  const sheets = [...html.matchAll(/href="\/static\/([a-z-]+\.css)"/g)].map((m) => m[1]);
+  assert.ok(
+    sheets.indexOf('panels.css') > sheets.indexOf('shell.css'),
+    `sheet order changed (${sheets.join(' → ')}) — recheck why the compound selector is needed`,
+  );
+});
+
+test('the rail avatar keeps its own size against chat.css .avatar-circle', () => {
+  // app.js 的 renderAvatar 会给 #my-avatar-btn 加上 avatar-circle 类，而
+  // chat.css 的 .avatar-circle（36px / display:flex）同特异性、后加载。
+  const compound = shell.match(/\.fk-rail-avatar\.avatar-circle\s*\{[^}]*\}|\.fk-rail-avatar,\s*\n\.fk-rail-avatar\.avatar-circle\s*\{[^}]*\}/);
+  assert.ok(compound, '.fk-rail-avatar must also be declared with .avatar-circle to win on specificity');
+  assert.match(compound[0], /width:\s*48px/);
+  // 字符头像的字号同理会被 .avatar-circle 的 18px 顶掉，必须写在这个复合选择器里。
+  assert.match(compound[0], /font-size:\s*22px/);
+});
+
+test('the rail brand mark and avatar are sized for a 80dp rail', () => {
+  const logo = shell.match(/\.fk-rail-logo\s*\{[^}]*\}/)[0];
+  assert.match(logo, /width:\s*52px/);
+  // margin-left 必须是宽度的一半取负 —— 它靠 left:50% + 负 margin 居中。
+  assert.match(logo, /margin-left:\s*-26px/);
+});
+
+test('scrollbars appear while scrolling, not merely on hover', () => {
+  // 只用 :hover 门控时，鼠标停在面板里不动滚动条也一直亮着；用滚轮快速掠过又可能
+  // 根本没触发 hover。真正的触发条件是「正在滚动」，那是事件不是 CSS 状态。
+  assert.match(shell, /\.flikky-scroll\[data-scrolling\][\s\S]{0,200}scrollbar-color:/);
+  assert.match(shell, /\.flikky-scroll\[data-scrolling\]::-webkit-scrollbar-thumb/);
+  // scroll 事件不冒泡，委派监听器必须挂在 capture 阶段，否则子元素的滚动收不到。
+  assert.match(
+    appJsSource,
+    /document\.addEventListener\('scroll',[\s\S]{0,600}?\}, true\)/,
+    'the scroll listener must be registered in the capture phase',
+  );
+  assert.match(appJsSource, /dataset\.scrolling = '1'/);
+  // 聊天列表是最长的滚动容器，它必须也挂上这个类。
+  assert.match(html, /<div id="list" class="[^"]*\bflikky-scroll\b/);
+});
+
+test('the two layout axes animate through a FLIP wrapper', () => {
+  // rail 靠右 / 两栏对调都是切 flex order，而 order 不可插值 —— 直接写属性只会跳位。
+  assert.match(appJsSource, /function animateShellLayout\(/);
+  assert.match(appJsSource, /window\.flikky\.animateShellLayout = animateShellLayout/);
+  const start = appJsSource.indexOf('function animateShellLayout(');
+  const body = appJsSource.slice(start, appJsSource.indexOf('\n    }', start));
+  assert.match(body, /getBoundingClientRect\(\)\.left/, 'FLIP needs the pre-mutation geometry');
+  assert.match(body, /prefers-reduced-motion/);
+  // 强制一次布局读取，否则设置 transform 与清除 transform 会被合并成无变化。
+  assert.match(body, /void shell\.offsetWidth/);
+
+  // 面板脚本必须经这个包装器改状态 —— 它拿不到「改之前」的几何。
+  assert.match(panelSettingsSource, /animateLayout\(\(\) => \{ shell\.dataset\.railSide = next; \}\)/);
+  assert.match(panelSettingsSource, /animateLayout\(\(\) => \{ shell\.dataset\.swap = next; \}\)/);
 });

@@ -77,32 +77,9 @@
   gap: var(--flikky-space-sm);
   margin: var(--flikky-space-lg) 0;
 }
-.fk-chip {
-  height: 32px;
-  padding: 0 var(--flikky-space-lg);
-  border: 1px solid rgb(var(--mdui-color-outline-variant));
-  border-radius: var(--flikky-shape-xs);   /* MD3 filter chip = 8dp */
-  background: none;
-  color: rgb(var(--mdui-color-on-surface-variant));
-  font: var(--flikky-type-label-large) var(--flikky-font-family);
-  letter-spacing: var(--flikky-type-label-large-tracking);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition:
-    background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
-    color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
-    border-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
-    transform var(--flikky-spring-spatial-fast-dur) var(--flikky-spring-spatial-fast);
-}
-.fk-chip .material-symbols-outlined { font-size: 18px; }
-.fk-chip[aria-pressed="true"] {
-  background: rgb(var(--mdui-color-secondary-container));
-  color: rgb(var(--mdui-color-on-secondary-container));
-  border-color: transparent;
-}
-.fk-chip:active { transform: scale(.96); }
+/* .fk-chip 已删除：筛选 chips 换成官方 mdui-chip（variant="filter"）。
+   自绘那版要自己补选中态配色、check 图标、涟漪与键盘语义，mdui 现成的更好。
+   容器 .fk-chips 保留 —— 它只管排布，与用什么 chip 无关。 */
 
 /* ── 分段列表组 ──────────────────────────────────────────────────────────── */
 
@@ -135,6 +112,9 @@
   width: 100%;
   text-align: start;
   cursor: pointer;
+  /* 「关于」区的 GitHub 行是真 <a href>，浏览器默认会给它整行加下划线，
+     连副标题和两个图标的基线都被划上（见 Screenshot_22）。列表行不是正文链接。 */
+  text-decoration: none;
   border-radius: var(--flikky-listgroup-radius-inner);
   transition:
     border-radius var(--flikky-spring-spatial-fast-dur) var(--flikky-spring-spatial-fast),

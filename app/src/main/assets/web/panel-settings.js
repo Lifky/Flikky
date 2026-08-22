@@ -33,6 +33,16 @@
         return window.flikkyI18n ? window.flikkyI18n.t(key, values) : key;
     }
 
+    // app.js 提供的 FLIP 包装器。它不在时（单测沙箱、加载顺序意外）直接执行改动——
+    // 没有动画也要保证开关本身是好的。
+    function animateLayout(mutate) {
+        if (window.flikky && typeof window.flikky.animateShellLayout === 'function') {
+            window.flikky.animateShellLayout(mutate);
+            return;
+        }
+        mutate();
+    }
+
     function icon(name) {
         const span = document.createElement('span');
         span.className = 'material-symbols-outlined';
@@ -92,7 +102,9 @@
         railSwitch.checked = shell.dataset.railSide === 'right';
         railSwitch.addEventListener('change', () => {
             const next = railSwitch.checked ? 'right' : 'left';
-            shell.dataset.railSide = next;
+            // 经 animateShellLayout 包一层：这两个轴改的是 flex order，而 order 不可
+            // 插值，直接写属性只会瞬间跳位。包装器负责 FLIP，状态仍由这里写。
+            animateLayout(() => { shell.dataset.railSide = next; });
             try { localStorage.setItem(STORAGE_RAIL_SIDE, next); } catch (e) { /* 隐私模式禁写，忽略 */ }
         });
         rail.item.appendChild(railSwitch);
@@ -107,7 +119,7 @@
         swapSwitch.checked = shell.dataset.swap === '1';
         swapSwitch.addEventListener('change', () => {
             const next = swapSwitch.checked ? '1' : '0';
-            shell.dataset.swap = next;
+            animateLayout(() => { shell.dataset.swap = next; });
             try { localStorage.setItem(STORAGE_PANE_SWAP, next); } catch (e) { /* 隐私模式禁写，忽略 */ }
         });
         swap.item.appendChild(swapSwitch);

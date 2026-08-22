@@ -199,6 +199,20 @@ svg { overflow: visible; }
   transform-origin: 0 0;
   animation: kf_Shape_Set_transform_0 7s linear infinite;
 }
+
+/* v1.19.0：深色适配。白色摆动块（#shape）在深色面板上是一块刺眼的亮斑。
+   <img> 引用的 SVG 读不到宿主页面的 CSS，但能读 prefers-color-scheme，所以
+   配色只能跟随浏览器所在系统的深浅设置，而不是手机推过来的 themeDark。
+   两者不一致时（手机深色 + 系统浅色）退化成原样，不会比现在更差。
+   动画一行没碰。 */
+#shape { fill: #fff; }
+@media (prefers-color-scheme: dark) {
+  #shape { fill: #26242b; }
+}
+/* 无限循环的动画在开启「减弱动态效果」时必须停。默认行为完全不变。 */
+@media (prefers-reduced-motion: reduce) {
+  #Shape_Set { animation: none; }
+}
 </style>
 <g id="Frame_2">
 <g id="Shape_Set" filter="url(#filter0_d_149_188)">

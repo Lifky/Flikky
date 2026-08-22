@@ -176,6 +176,12 @@ test('group chips come from the response and lead with an all-items chip', async
   assert.equal(chips[0].getAttribute('data-group-id'), 'all');
   assert.deepEqual(chips.slice(1).map((c) => c.getAttribute('data-group-id')), ['3', '5']);
   assert.deepEqual(chips.slice(1).map((c) => c.textContent), ['常用片段', '安装包']);
+  // 官方 mdui-chip 的 filter 变体，不是自绘按钮（决策 D30：库更强的地方用库）。
+  // tagName 是大写的（与真实 DOM 一致）
+  assert.deepEqual(chips.map((c) => c.tagName), new Array(chips.length).fill('MDUI-CHIP'));
+  assert.deepEqual(chips.map((c) => c.getAttribute('variant')), new Array(chips.length).fill('filter'));
+  assert.equal(chips[0].getAttribute('selected'), '', 'the all-items chip starts selected');
+  assert.equal(chips[1].getAttribute('selected'), null);
 });
 
 test('searching and chip filtering compose', async () => {
@@ -187,7 +193,8 @@ test('searching and chip filtering compose', async () => {
 
   search.value = '';
   search.dispatch('input');
-  doc.getElementById('fav-chips').children[1].click();   // 「常用片段」
+  // mdui-chip 的选中变化走 change，不是 click。
+  doc.getElementById('fav-chips').children[1].dispatch('change');   // 「常用片段」
   assert.deepEqual(rowsOf(doc).map((r) => r.getAttribute('data-fav-id')), ['11']);
 });
 
@@ -357,4 +364,21 @@ test('new favorites i18n keys exist in both languages', () => {
     const hits = [...i18n.matchAll(new RegExp(`'${key.replace(/\./g, '\\.')}'`, 'g'))];
     assert.ok(hits.length >= 2, `${key} appears ${hits.length}× — need zh + en`);
   }
+});
+
+test('the favorites panel does not carry its own mime-to-icon mapping', () => {
+  // 它曾自带一份简化映射，缺 audio 分支、也没有 svg 特例，于是 mp3 显示成文档、
+  // svg 显示成图片 —— 与手机端（FilesListBuilder.categoryOf + iconResource）对不上。
+  // 唯一事实源是 app.js 的 fileSymbolName，经 window.flikky 发布。
+  assert.match(src, /window\.flikky\.fileSymbolName\(mime\)/);
+  for (const name of ["'image'", "'movie'", "'audio_file'", "'description'"]) {
+    assert.equal(src.includes(name), false,
+      `${name} is hard-coded here — the mapping must come from app.js`);
+  }
+  // apk / zip 是收藏页特有的细分，共享映射里没有，保留在本地判断。
+  assert.match(src, /'android'/);
+  assert.match(src, /'folder_zip'/);
+  // 发布点必须真的存在于 app.js，否则上面全是空转。
+  const appJs = fs.readFileSync(path.join(WEB, 'app.js'), 'utf8');
+  assert.match(appJs, /window\.flikky\.fileSymbolName = fileSymbolName/);
 });

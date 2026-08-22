@@ -24,7 +24,11 @@
   --flikky-stagger: calc(40ms * var(--flikky-motion-scale));
 
   --flikky-dock-inset: var(--flikky-space-lg);
-  --flikky-dock-bg: rgb(var(--mdui-color-surface-container-highest));
+  /* 静止用 container-high、聚焦才升到 container-highest —— 与收藏页搜索框同一梯度。
+     原先静止就直接给了 highest，也就是搜索框的「聚焦色」，于是输入坞看起来永远
+     像被 hover 着，而真正聚焦时又毫无变化。 */
+  --flikky-dock-bg: rgb(var(--mdui-color-surface-container-high));
+  --flikky-dock-bg-focus: rgb(var(--mdui-color-surface-container-highest));
   --flikky-bubble-max: 78%;
   --flikky-bubble-radius-tight: 4px;
   --flikky-size-touch: 48px;
@@ -228,6 +232,45 @@
   font-size: 22px;
 }
 
+/* ── 会话栏头部 ──────────────────────────────────────────────────────────
+ * 一行：头像 · 对方名（可伸缩）· 运行统计 · 连接状态 chip。
+ * 这三条规则在 v1.19.0 移植 chat.css 时整段漏掉了，头部退化成块级堆叠——
+ * 头像、名字、统计各占一行，统计三段还挤在一起（见 Screenshot_21）。
+ * 没有任何测试断言过它们，所以一路全绿。现在有了（app-chat-visual.test.js）。 */
+.fk-chat-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--flikky-space-md);
+  padding: var(--flikky-space-lg) var(--flikky-space-xl);
+  min-height: 72px;
+}
+
+/* 名字这一格吃掉剩余宽度，min-width:0 才能让里面的省略号真的生效 */
+.fk-chat-peer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 统计常驻显示（不收进 chip 里点开）——运行时长/文件数/速率与 App 会话页一样
+   是一直看得见的状态，不该藏在交互之后。 */
+.fk-chat-stats {
+  flex: none;
+  display: flex;
+  align-items: center;
+  font: var(--flikky-type-body-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-medium-tracking);
+  color: rgb(var(--mdui-color-on-surface-variant));
+  white-space: nowrap;
+}
+/* 分隔点由 CSS 生成而不是塞进 markup：三个 span 的内容由 app.js 各自
+   textContent 写入，任何写在里面的分隔符都会被下一次更新抹掉。 */
+.fk-chat-stats > span + span::before {
+  content: '·';
+  margin: 0 var(--flikky-space-sm);
+  opacity: .5;
+}
+
 /* Header: peer name, next to the peer avatar in .fk-chat-head */
 .header-peer-name {
   font: var(--flikky-type-title-medium) var(--flikky-font-family);
@@ -236,7 +279,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 160px;
+  display: block;
 }
 
 /* Avatar picker — the dialog chrome (overlay / panel / headline) is provided by
@@ -357,35 +400,41 @@
   margin-bottom: var(--flikky-space-xs);
 }
 
-/* 默认（me 侧）：贴近头像/尾部的一角收紧成 4px */
-.bubble-row.grouped-start .bubble,
-.bubble-row.grouped-start .file-bubble {
+/* ── 圆角收紧只在 FLOATING 下生效 ──
+ * 「连接式列表组」那套相邻角收紧靠的是气泡彼此紧贴。INLINE 常驻操作按钮会在每条
+ * 消息旁/下占一格，本来就把这条连续的边打断了，收紧的角只剩零碎感。
+ * 用 CSS 门控而不是在 applyGroupingClasses 里少加 class：手机切换操作样式时
+ * body 的 data-action-style 一变就即时生效，不需要重建整个列表。
+ * 分组间距（上面 4px / 16px 那条）不受门控——连续消息挨得更近是所有聊天软件的
+ * 常规，与角的处理是两件事。 */
+body[data-action-style="FLOATING"] .bubble-row.grouped-start .bubble,
+body[data-action-style="FLOATING"] .bubble-row.grouped-start .file-bubble {
   border-end-end-radius: var(--flikky-bubble-radius-tight);
 }
-.bubble-row.grouped-mid .bubble,
-.bubble-row.grouped-mid .file-bubble {
+body[data-action-style="FLOATING"] .bubble-row.grouped-mid .bubble,
+body[data-action-style="FLOATING"] .bubble-row.grouped-mid .file-bubble {
   border-start-end-radius: var(--flikky-bubble-radius-tight);
   border-end-end-radius: var(--flikky-bubble-radius-tight);
 }
-.bubble-row.grouped-end .bubble,
-.bubble-row.grouped-end .file-bubble {
+body[data-action-style="FLOATING"] .bubble-row.grouped-end .bubble,
+body[data-action-style="FLOATING"] .bubble-row.grouped-end .file-bubble {
   border-start-end-radius: var(--flikky-bubble-radius-tight);
 }
 /* them 侧：头像在左，收紧的是 start 角，end 角还原成完整圆角 */
-.bubble-row.them.grouped-start .bubble,
-.bubble-row.them.grouped-start .file-bubble {
+body[data-action-style="FLOATING"] .bubble-row.them.grouped-start .bubble,
+body[data-action-style="FLOATING"] .bubble-row.them.grouped-start .file-bubble {
   border-end-end-radius: var(--flikky-bubble-radius);
   border-end-start-radius: var(--flikky-bubble-radius-tight);
 }
-.bubble-row.them.grouped-mid .bubble,
-.bubble-row.them.grouped-mid .file-bubble {
+body[data-action-style="FLOATING"] .bubble-row.them.grouped-mid .bubble,
+body[data-action-style="FLOATING"] .bubble-row.them.grouped-mid .file-bubble {
   border-start-end-radius: var(--flikky-bubble-radius);
   border-end-end-radius: var(--flikky-bubble-radius);
   border-start-start-radius: var(--flikky-bubble-radius-tight);
   border-end-start-radius: var(--flikky-bubble-radius-tight);
 }
-.bubble-row.them.grouped-end .bubble,
-.bubble-row.them.grouped-end .file-bubble {
+body[data-action-style="FLOATING"] .bubble-row.them.grouped-end .bubble,
+body[data-action-style="FLOATING"] .bubble-row.them.grouped-end .file-bubble {
   border-start-end-radius: var(--flikky-bubble-radius);
   border-start-start-radius: var(--flikky-bubble-radius-tight);
 }
@@ -721,7 +770,17 @@ body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
   padding: var(--flikky-space-xs);
   border-radius: var(--flikky-shape-xl);
   background: var(--flikky-dock-bg);
-  transition: background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
+  /* 焦点指示环。MD3 filled text field 用底部一条 active indicator，但那条线在一个
+     全圆角的坞上读不出来；这里改成整圈描边，同样是「primary 色、聚焦才出现、2dp」。
+     边框常驻但透明：box-sizing 是 border-box，若聚焦时才加边框，内容区会瞬间缩 2px。 */
+  border: 2px solid transparent;
+  transition:
+    background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    border-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
+}
+.fk-dock:focus-within {
+  background: var(--flikky-dock-bg-focus);
+  border-color: rgb(var(--mdui-color-primary));
 }
 .fk-dock-btn {
   width: var(--flikky-size-touch);
@@ -833,6 +892,31 @@ body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
 .fk-fab .material-symbols-outlined { position: relative; }
 /* display:grid 会盖掉 hidden 属性的默认 display:none，必须显式写回 */
 .fk-fab[hidden] { display: none; }
+
+/* 出现动画：第 2 个接收文件就绪时 FAB 才现身，之前它是 display:none。
+   元素从 display:none 变为可显示时 animation 会重新播放，所以挂在 :not([hidden])
+   上就够了，不需要 JS 加 class。
+   退场没有对应动画——hidden 一置上 display:none 立刻生效，要补退场就得引入一套
+   「先播动画再真正隐藏」的状态机；出现才是用户真正会看到的那一次，先只做这边。 */
+.fk-fab:not([hidden]) {
+  animation: flikky-fab-in var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default);
+}
+@keyframes flikky-fab-in {
+  from {
+    opacity: 0;
+    /* 从更圆、更小的形状长成静止态的圆角方 —— 与按压形变同一套形状语言 */
+    transform: scale(.6);
+    border-radius: var(--flikky-morph-sq-pressed);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    border-radius: var(--flikky-morph-sq);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fk-fab:not([hidden]) { animation: none; }
+}
 
 /* ── 保存全部：自绘 FAB 菜单（用户点名保留原型这版视觉，不换 mdui-menu）───── */
 

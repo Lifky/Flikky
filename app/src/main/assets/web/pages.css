@@ -162,6 +162,7 @@ body {
   -webkit-tap-highlight-color: transparent;
   transition:
     border-radius var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    box-shadow var(--flikky-spring-effects-fast-dur) var(--flikky-spring-effects-fast),
     background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
 }
 /* 宽胶囊按压形变不能用 50%（会变椭圆），按 56 高给具体像素值，28→14 全程可见。
@@ -169,6 +170,17 @@ body {
 .fk-btn:active:not(:disabled) {
   border-radius: 14px;
   transition: border-radius var(--flikky-morph-press-dur) var(--flikky-morph-press-ease);
+}
+/* 官方 state layer：hover 8% / pressed 12%，颜色取内容色。会话页的按钮早就有这层，
+   这两页当初漏了，所以按下去只有形变、没有明暗反馈。
+   用 inset box-shadow 而不是 ::before 覆盖层：state layer 必须压在容器之上、文字
+   之下，而按钮标签是裸文本节点（export.js 整体赋 textContent，塞不了包装元素），
+   无法参与 z-index 排序。inset 阴影正好画在背景之上、内容之下。 */
+.fk-btn:hover:not(:disabled) {
+  box-shadow: inset 0 0 0 999px rgba(var(--mdui-color-on-primary), .08);
+}
+.fk-btn:active:not(:disabled) {
+  box-shadow: inset 0 0 0 999px rgba(var(--mdui-color-on-primary), .12);
 }
 .fk-btn:disabled {
   background: rgba(var(--mdui-color-on-surface), .12);
@@ -224,6 +236,18 @@ body {
 
 .fk-sessions { margin-bottom: var(--flikky-space-xl); }
 .fk-sessions[hidden] { display: none; }
+
+/* 会话行的行首图标容器。元素在 light DOM 里（slot="icon"），所以这里能直接定它的样式。 */
+.fk-list-lead {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--flikky-shape-sm);
+  background: rgb(var(--mdui-color-secondary-container));
+  color: rgb(var(--mdui-color-on-secondary-container));
+}
 
 .fk-banner {
   padding: var(--flikky-space-md) var(--flikky-space-lg);

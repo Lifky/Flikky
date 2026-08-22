@@ -25,10 +25,12 @@ test('the token layer actually exposes a type scale to read', () => {
 
 test('neither standalone page casts a shadow', () => {
   // 登录页与导出页也是「贴在染色底上的一块面」，不是悬浮卡片。
+  // inset 阴影不在此列：它画在元素内部，表达不出「浮起来」，而这是按钮 state layer
+  // 唯一能压在背景之上、裸文本标签之下的做法（见 .fk-btn:hover 注释）。
   const shadows = [...pages.matchAll(/box-shadow:\s*([^;]+);/g)]
     .map((m) => m[1].trim())
-    .filter((v) => v !== 'none');
-  assert.deepEqual(shadows, [], `unexpected shadows: ${shadows.join(' | ')}`);
+    .filter((v) => v !== 'none' && !v.startsWith('inset '));
+  assert.deepEqual(shadows, [], `unexpected elevation shadows: ${shadows.join(' | ')}`);
 });
 
 test('type is expressed only through tokens, never hard-coded px', () => {
@@ -167,4 +169,32 @@ test('login.js drives the segmented cells and writes errors through textContent'
   assert.match(loginJs, /pinGroup\.dataset\.error\s*=/);
   assert.match(loginJs, /dataset\.filled\s*=/);
   assert.equal(/innerHTML/.test(loginJs), false);
+});
+
+// ---------------------------------------------------------------------------
+// v1.19.0 验收轮修复
+// ---------------------------------------------------------------------------
+
+test('the standalone pages primary button has the state layer the chat page has', () => {
+  // 会话页的按钮早就有 hover 8% / pressed 12% 这层，这两页当初漏了，
+  // 所以按下去只有圆角形变、没有明暗反馈。
+  const hover = pages.match(/\.fk-btn:hover:not\(:disabled\)\s*\{[^}]*\}/);
+  assert.ok(hover, 'no hover state layer on .fk-btn');
+  assert.match(hover[0], /box-shadow:\s*inset [^;]*\.08\)/);
+  const active = pages.match(/\.fk-btn:active:not\(:disabled\)\s*\{[^}]*box-shadow[^}]*\}/);
+  assert.ok(active, 'no pressed state layer on .fk-btn');
+  assert.match(active[0], /\.12\)/);
+  // 形变本身也还在
+  assert.match(pages, /\.fk-btn:active:not\(:disabled\)\s*\{[^}]*border-radius:\s*14px/);
+});
+
+test('the export session rows carry a leading icon', () => {
+  // 原型有，之前漏了。走 slot="icon" 而不是 mdui 的 icon 属性 —— 后者渲染
+  // <mdui-icon>，依赖 mdui 自带的图标字体，而本项目打包的是 Material Symbols。
+  assert.match(exportJs, /setAttribute\('slot', 'icon'\)/);
+  assert.match(exportJs, /textContent = 'forum'/);
+  assert.match(pages, /\.fk-list-lead\s*\{[^}]*\}/);
+  // 不能用 #flikky-cookie9：那个 clipPath 只内联在 app.html 里，导出页引用不到。
+  assert.equal(/flikky-cookie9/.test(pages), false);
+  assert.equal(/flikky-cookie9/.test(exportHtml), false);
 });

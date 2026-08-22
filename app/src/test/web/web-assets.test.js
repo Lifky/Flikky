@@ -54,3 +54,22 @@ test('the bundled logo SVGs carry no network references either', () => {
     }
   }
 });
+
+test('the logo SVGs adapt to dark mode without losing their animation', () => {
+  // 白色摆动块（#shape fill）在深色面板上是一块刺眼亮斑。<img> 引用的 SVG 读不到
+  // 宿主页面的 CSS，但能读 prefers-color-scheme —— 所以配色跟随系统深浅，
+  // 而不是手机推过来的 themeDark。两者不一致时退化成原样，不会更差。
+  for (const file of ['flikky-logo-quick.svg', 'flikky-logo-slow.svg']) {
+    const svg = fs.readFileSync(path.join(WEB, file), 'utf8');
+    const style = svg.slice(svg.indexOf('<style>'), svg.indexOf('</style>'));
+    assert.ok(style, `${file} has no <style> block`);
+    assert.match(style, /@media \(prefers-color-scheme: dark\)[\s\S]{0,120}#shape\s*\{\s*fill:/,
+      `${file} does not recolor #shape for dark mode`);
+    // 动画必须留着 —— 用户明确要求保留（快版 2.7s / 慢版 7s）。
+    assert.match(style, /#Shape_Set\s*\{[\s\S]{0,160}animation:\s*kf_Shape_Set_transform_0/,
+      `${file} lost its animation`);
+    // 无限循环动画在「减弱动态效果」下必须停。
+    assert.match(style, /@media \(prefers-reduced-motion: reduce\)[\s\S]{0,120}animation:\s*none/,
+      `${file} does not honour prefers-reduced-motion`);
+  }
+});

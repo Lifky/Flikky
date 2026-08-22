@@ -228,6 +228,11 @@ fun Route.fileRoutes(
         val entries = session.snapshot.value.messages
             .filterIsInstance<Message.File>()
             .filter { it.status == Message.File.Status.COMPLETED }
+            // 只打包浏览器「收到」的文件，也就是手机发过来的那些。
+            // 浏览器端的一键保存 FAB 计数与逐个下载都只看 .file-bubble.them（接收方向），
+            // 而这里原先只过滤 COMPLETED，于是浏览器自己刚上传的文件也会被装进 ZIP ——
+            // 用户把自己发出去的东西又下载回来一份。
+            .filter { it.origin == Origin.PHONE }
             .mapNotNull { msg ->
                 val file = File(store.fileDir(sid), msg.fileId)
                 if (file.isFile) FilesZipWriter.Entry(msg.name, file) else null

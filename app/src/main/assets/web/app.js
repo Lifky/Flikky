@@ -66,6 +66,9 @@
         if (m.startsWith('text/') || DOCUMENT_MIMES.has(m)) return 'description';
         return 'draft';
     }
+    // 这一份是与 App 端 FilesListBuilder.categoryOf + FileCategory.iconResource() 对齐的
+    // 唯一事实源，收藏面板也取用它（发布点在文件末尾的 window.flikky 那一处——
+    // 不能写在这里：app-file-symbol.test.js 把这一段切出来在裸沙箱里跑，没有 window）。
 
     const AVATAR_DEFAULT_BROWSER = 'icon:desktop_windows';
     const AVATAR_DEFAULT_PHONE = 'icon:smartphone';
@@ -1918,6 +1921,55 @@
         try { localStorage.setItem('flikky_panel', shown ? '1' : '0'); } catch (e) { /* 隐私模式禁写，忽略 */ }
     }
 
+    // 「rail 靠右」与「两栏对调」都是靠切换 flex 的 order 实现的（shell.css:120-143），
+    // 而 order **不可插值** —— 直接改属性只会得到一次瞬间跳位。这里用 FLIP：先量旧位置，
+    // 让调用方改状态，再把每根柱子用 transform 拉回原处、随后过渡到 0。transform 是
+    // 合成器属性，不触发重排。
+    // 面板脚本不自己做这件事：它拿不到「改之前」的几何，FLIP 的前提就是那次测量。
+    // 所以对外只暴露这个包装器，状态仍然由面板写（D1 不变）。
+    function animateShellLayout(mutate) {
+        if (typeof mutate !== 'function') return;
+        const reduce = typeof window.matchMedia === 'function'
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const panes = shell ? Array.prototype.slice.call(shell.children) : [];
+        if (!shell || reduce || !panes.length || typeof panes[0].getBoundingClientRect !== 'function') {
+            mutate();
+            return;
+        }
+        const before = panes.map((el) => el.getBoundingClientRect().left);
+        mutate();
+        const moved = [];
+        panes.forEach((el, i) => {
+            // 窄屏（rail 与手柄 display:none、单栏）这两个轴本就失效，dx 全是 0，
+            // 于是这里自然什么都不做，不需要额外判断断点。
+            const dx = before[i] - el.getBoundingClientRect().left;
+            if (!dx) return;
+            el.style.transition = 'none';
+            el.style.transform = `translateX(${dx}px)`;
+            moved.push(el);
+        });
+        if (!moved.length) return;
+        // 读一次布局强制刷新样式，否则「设置 transform」与下一行「清掉 transform」
+        // 会被合并成同一帧的无变化，过渡根本不会启动。
+        void shell.offsetWidth;
+        const dur = getComputedStyle(shell)
+            .getPropertyValue('--flikky-spring-spatial-default-dur').trim() || '317ms';
+        const ease = getComputedStyle(shell)
+            .getPropertyValue('--flikky-spring-spatial-default').trim() || 'ease';
+        moved.forEach((el) => {
+            el.style.transition = `transform ${dur} ${ease}`;
+            el.style.transform = '';
+        });
+        // 过渡结束后清掉内联样式，别把 transition 长期留在元素上影响别的属性。
+        const ms = parseFloat(dur) || 317;
+        setTimeout(() => {
+            moved.forEach((el) => {
+                el.style.transition = '';
+                el.style.transform = '';
+            });
+        }, ms + 60);
+    }
+
     // 底部导航的选中态不自己记，一律从「这一栏此刻真的在显示什么」推出来：
     // mobileDest 是 chat 就选中会话，否则选中那个没被 hidden 的 .fk-view。
     // 各处调用点各自 setAttribute 会立刻分叉出「显示 A 高亮 B」的状态——
@@ -1970,6 +2022,22 @@
     window.setPanel = setPanel;
     window.selectDest = selectDest;
     window.setMobileDest = setMobileDest;
+    window.flikky = window.flikky || {};
+    window.flikky.animateShellLayout = animateShellLayout;
+    // 分类图标映射的唯一事实源，供收藏面板取用（见 fileSymbolName 处的注释）。
+    window.flikky.fileSymbolName = fileSymbolName;
+
+    // 滚动条只在真的滚动时露出（shell.css 的 [data-scrolling]）。scroll 事件不冒泡，
+    // 所以监听器必须挂在 capture 阶段——一个委派监听器覆盖全部 .flikky-scroll，
+    // 包括面板脚本运行时才建出来的那些。
+    const scrollIdleTimers = new WeakMap();
+    document.addEventListener('scroll', (e) => {
+        const el = e.target;
+        if (!el || !el.classList || !el.classList.contains('flikky-scroll')) return;
+        el.dataset.scrolling = '1';
+        clearTimeout(scrollIdleTimers.get(el));
+        scrollIdleTimers.set(el, setTimeout(() => { delete el.dataset.scrolling; }, 900));
+    }, true);
 
     if (shell && shellSplitter && chatPane && panelPane) {
         let dragging = false;
