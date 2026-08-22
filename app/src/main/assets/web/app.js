@@ -1918,6 +1918,8 @@
     function setPanel(shown) {
         if (!shell) return;
         shell.dataset.panel = shown ? 'shown' : 'hidden';
+        // 收起后 rail 不该再有高亮项 —— 见 syncRailSelection。
+        syncRailSelection();
         try { localStorage.setItem('flikky_panel', shown ? '1' : '0'); } catch (e) { /* 隐私模式禁写，忽略 */ }
     }
 
@@ -1986,6 +1988,20 @@
         });
     }
 
+    // rail 的选中态同理由 DOM 反推，而且多一个条件：功能栏收起时**没有**任何目的地
+    // 是当前项——那一栏根本没在显示。原先 selectDest 把 aria-selected 一写就不管了，
+    // 收起后指示器还亮着，指向一个看不见的面板。
+    function syncRailSelection() {
+        if (!shell) return;
+        const shown = shell.dataset.panel === 'hidden'
+            ? null
+            : document.querySelector('.fk-view:not([hidden])');
+        const active = shown ? shown.id.replace('view-', '') : null;
+        document.querySelectorAll('.fk-rail-item').forEach((btn) => {
+            btn.setAttribute('aria-selected', btn.dataset.dest === active ? 'true' : 'false');
+        });
+    }
+
     // 窄屏是单栏，一次只显示一个目的地。这里只管「显示哪一栏」，不碰 .fk-view
     // 的 hidden——那是 selectDest 的职责，两者的分工是「哪一栏」对「栏里是谁」。
     function setMobileDest(dest) {
@@ -2006,12 +2022,12 @@
             return;
         }
         setPanel(true);
-        document.querySelectorAll('.fk-rail-item').forEach((btn) => {
-            btn.setAttribute('aria-selected', btn.dataset.dest === dest ? 'true' : 'false');
-        });
         document.querySelectorAll('.fk-view').forEach((view) => {
             view.hidden = view.id !== `view-${dest}`;
         });
+        // 必须在切换 .fk-view 之后：它是从「哪个 view 没被 hidden」反推的。
+        // setPanel 里也调过一次，但那时视图还没切，读到的是上一个。
+        syncRailSelection();
         // favoriteEnabled 关掉时的兜底切换不是一次导航，只是把一个已经无效的视图
         // 换掉。窄屏上要是连 mobileDest 一起改，用户会在 peer-info 到达的那一刻
         // 被从会话页甩进设置页——他并没有点任何东西。视图还是要换，所以底部导航

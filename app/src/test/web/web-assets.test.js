@@ -55,6 +55,31 @@ test('the bundled logo SVGs carry no network references either', () => {
   }
 });
 
+test('every bundled SVG is well-formed XML', () => {
+  // SVG 是 XML，而 XML 里 <style> 的内容**仍按标记解析**（HTML 里它是 raw text，
+  // 这个直觉在这里不成立）。一句 CSS 注释里写了字面量的 <img> 就开了一个永不闭合的
+  // 元素，整个文件解析失败，页面上只剩一个破图占位 —— 而所有既有断言照样全绿，
+  // 因为它们查的都是文本。
+  for (const file of fs.readdirSync(WEB).filter((f) => f.endsWith('.svg'))) {
+    const svg = fs.readFileSync(path.join(WEB, file), 'utf8');
+    const opens = [...svg.matchAll(/<([a-zA-Z][\w:-]*)(\s[^>]*?)?(\/?)>/g)];
+    const stack = [];
+    for (const m of opens) {
+      if (m[3] === '/') continue;
+      stack.push(m[1]);
+    }
+    const closes = [...svg.matchAll(/<\/([a-zA-Z][\w:-]*)\s*>/g)].map((m) => m[1]);
+    // 每个非自闭合的开标签都要有对应的闭标签（数量相等即可，顺序由下面的解析兜底）。
+    const unclosed = stack.filter((tag) => {
+      const opened = stack.filter((t) => t === tag).length;
+      const closed = closes.filter((t) => t === tag).length;
+      return opened !== closed;
+    });
+    assert.deepEqual([...new Set(unclosed)], [],
+      `${file}: tags opened but never closed — angle brackets inside a <style> comment do this`);
+  }
+});
+
 test('the logo SVGs adapt to dark mode without losing their animation', () => {
   // 白色摆动块（#shape fill）在深色面板上是一块刺眼亮斑。<img> 引用的 SVG 读不到
   // 宿主页面的 CSS，但能读 prefers-color-scheme —— 所以配色跟随系统深浅，

@@ -29,6 +29,14 @@
      像被 hover 着，而真正聚焦时又毫无变化。 */
   --flikky-dock-bg: rgb(var(--mdui-color-surface-container-high));
   --flikky-dock-bg-focus: rgb(var(--mdui-color-surface-container-highest));
+  --flikky-dock-border: 2px;
+  /* 输入坞单行高度，同时也是一键保存 FAB 的边长 —— 两者必须等高，所以由同一个
+     token 算出来而不是各写一个数：内容(48) + 上下 padding(4×2) + 上下边框(2×2)。
+     坞在多行时会超过这个高度，FAB 保持单行高、靠 .fk-dock-row 的 align-items
+     贴底对齐。 */
+  --flikky-dock-h: calc(
+    var(--flikky-size-touch) + 2 * var(--flikky-space-xs) + 2 * var(--flikky-dock-border)
+  );
   --flikky-bubble-max: 78%;
   --flikky-bubble-radius-tight: 4px;
   --flikky-size-touch: 48px;
@@ -768,12 +776,13 @@ body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
   align-items: flex-end;
   gap: var(--flikky-space-xs);
   padding: var(--flikky-space-xs);
+  min-height: var(--flikky-dock-h);
   border-radius: var(--flikky-shape-xl);
   background: var(--flikky-dock-bg);
   /* 焦点指示环。MD3 filled text field 用底部一条 active indicator，但那条线在一个
      全圆角的坞上读不出来；这里改成整圈描边，同样是「primary 色、聚焦才出现、2dp」。
      边框常驻但透明：box-sizing 是 border-box，若聚焦时才加边框，内容区会瞬间缩 2px。 */
-  border: 2px solid transparent;
+  border: var(--flikky-dock-border) solid transparent;
   transition:
     background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
     border-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
@@ -858,8 +867,10 @@ body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
   position: relative;
   overflow: hidden;
   flex: none;
-  width: 56px;
-  height: 56px;
+  /* 与输入坞单行等高（同一个 token 算出来），两者不再一高一低。 */
+  width: var(--flikky-dock-h);
+  height: var(--flikky-dock-h);
+  min-width: 0;
   border: 0;
   border-radius: var(--flikky-morph-sq);
   display: grid;
@@ -868,10 +879,15 @@ body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
   background: rgb(var(--mdui-color-primary-container));
   color: rgb(var(--mdui-color-on-primary-container));
   box-shadow: var(--flikky-raised-shadow);
+  visibility: visible;
   transition:
     box-shadow var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
     background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
-    border-radius var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default);
+    border-radius var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    width var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    margin-left var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    opacity var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    visibility 0s;
 }
 .fk-fab:active {
   border-radius: var(--flikky-morph-sq-pressed);
@@ -890,32 +906,32 @@ body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
 .fk-fab:active::before { opacity: .12; }
 .fk-fab:hover { box-shadow: 0 2px 6px rgba(0, 0, 0, .12), 0 6px 14px rgba(0, 0, 0, .08); }
 .fk-fab .material-symbols-outlined { position: relative; }
-/* display:grid 会盖掉 hidden 属性的默认 display:none，必须显式写回 */
-.fk-fab[hidden] { display: none; }
-
-/* 出现动画：第 2 个接收文件就绪时 FAB 才现身，之前它是 display:none。
-   元素从 display:none 变为可显示时 animation 会重新播放，所以挂在 :not([hidden])
-   上就够了，不需要 JS 加 class。
-   退场没有对应动画——hidden 一置上 display:none 立刻生效，要补退场就得引入一套
-   「先播动画再真正隐藏」的状态机；出现才是用户真正会看到的那一次，先只做这边。 */
-.fk-fab:not([hidden]) {
-  animation: flikky-fab-in var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default);
-}
-@keyframes flikky-fab-in {
-  from {
-    opacity: 0;
-    /* 从更圆、更小的形状长成静止态的圆角方 —— 与按压形变同一套形状语言 */
-    transform: scale(.6);
-    border-radius: var(--flikky-morph-sq-pressed);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-    border-radius: var(--flikky-morph-sq);
-  }
+/* ── FAB 的显隐：宽度塌陷，而不是 display:none ──
+ * 输入坞是 .fk-dock-row 里 flex:1 1 auto 的兄弟。用 display:none 切换时坞的宽度
+ * 是一次突变，看起来很硬。让 FAB 的宽度可插值，坞就跟着连续伸缩 —— 这才是用户
+ * 要的那个「衔接过渡」，而且顺带就是 FAB 自己的出现/退场动画，不需要另一套 keyframes。
+ * 注意这里刻意不写 display:none：写了宽度就没得动画。 */
+.fk-fab[hidden] {
+  width: 0;
+  padding: 0;
+  opacity: 0;
+  box-shadow: none;
+  /* 抵掉 .fk-dock-row 的 gap，否则宽度塌到 0 之后右边还留 8px 空档 */
+  margin-left: calc(-1 * var(--flikky-space-sm));
+  /* 宽度动画走完再从可聚焦树与无障碍树里摘掉。visibility 不可插值，用
+     `0s + delay` 表达「到点切换」—— 少了这条，一个宽度为 0 的 FAB 仍然能被
+     Tab 聚焦，因为我们上面刻意没有 display:none。 */
+  visibility: hidden;
+  transition:
+    width var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    margin-left var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    opacity var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    box-shadow var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    visibility 0s linear var(--flikky-spring-spatial-default-dur);
 }
 @media (prefers-reduced-motion: reduce) {
-  .fk-fab:not([hidden]) { animation: none; }
+  .fk-fab,
+  .fk-fab[hidden] { transition: none; }
 }
 
 /* ── 保存全部：自绘 FAB 菜单（用户点名保留原型这版视觉，不换 mdui-menu）───── */
@@ -923,7 +939,8 @@ body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
 .fk-fab-menu {
   position: absolute;
   right: var(--flikky-dock-inset);
-  bottom: calc(var(--flikky-dock-inset) + 68px);   /* 贴在 FAB 上方 */
+  /* 贴在 FAB 上方。由 FAB 的实际高度算出来，改 --flikky-dock-h 时不会脱钩。 */
+  bottom: calc(var(--flikky-dock-inset) + var(--flikky-dock-h) + var(--flikky-space-md));
   display: flex;
   flex-direction: column;
   align-items: flex-end;

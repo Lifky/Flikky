@@ -18,12 +18,6 @@
      tokens.css」——那份归会话页外壳，这份归独立页，两张表从不同时加载。 */
   --flikky-shape-full: 999px;
 
-  /* 按压形变的时长与缓动。chat.css 声明了同名的一对给会话页的圆形按钮用，
-     值相同但各自持有：tokens.css 是脚本生成的（scripts/gen_web_tokens.mjs），
-     放不进去；挪进 base.css 则会撞上 app-chat-visual.test.js 钉在 chat.css 上的
-     断言。两张表永不同时加载，所以重复是安全的，只是要一起改。 */
-  --flikky-morph-press-dur: 400ms;
-  --flikky-morph-press-ease: cubic-bezier(0.2, 0, 0, 1);
 }
 
 body {
@@ -161,18 +155,17 @@ body {
   gap: var(--flikky-space-sm);
   -webkit-tap-highlight-color: transparent;
   transition:
-    border-radius var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
     box-shadow var(--flikky-spring-effects-fast-dur) var(--flikky-spring-effects-fast),
     background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
 }
-/* 宽胶囊按压形变不能用 50%（会变椭圆），按 56 高给具体像素值，28→14 全程可见。
-   border-radius 是原生可插值属性，这里的 transition 才真的补间。 */
-.fk-btn:active:not(:disabled) {
-  border-radius: 14px;
-  transition: border-radius var(--flikky-morph-press-dur) var(--flikky-morph-press-ease);
-}
+/* 这两个按钮**不做**按压形变（用户裁决）。会话页那些圆形按钮的形变靠的是
+   「圆的变方、方的变圆」这个对立形状；一个 56 高的宽胶囊只能沿半径滑一点点，
+   插值区间几乎全落在肉眼无差别的大半径段，读起来就是最后突然跳一下 —— 与其做得
+   将就，不如不做，明暗反馈交给下面的 state layer。
+   （--flikky-morph-press-dur/-ease 因此在本表里也不再需要，已删。） */
+
 /* 官方 state layer：hover 8% / pressed 12%，颜色取内容色。会话页的按钮早就有这层，
-   这两页当初漏了，所以按下去只有形变、没有明暗反馈。
+   这两页当初漏了，所以按下去毫无反馈。
    用 inset box-shadow 而不是 ::before 覆盖层：state layer 必须压在容器之上、文字
    之下，而按钮标签是裸文本节点（export.js 整体赋 textContent，塞不了包装元素），
    无法参与 z-index 排序。inset 阴影正好画在背景之上、内容之下。 */

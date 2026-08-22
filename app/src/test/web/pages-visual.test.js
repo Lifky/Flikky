@@ -184,8 +184,19 @@ test('the standalone pages primary button has the state layer the chat page has'
   const active = pages.match(/\.fk-btn:active:not\(:disabled\)\s*\{[^}]*box-shadow[^}]*\}/);
   assert.ok(active, 'no pressed state layer on .fk-btn');
   assert.match(active[0], /\.12\)/);
-  // 形变本身也还在
-  assert.match(pages, /\.fk-btn:active:not\(:disabled\)\s*\{[^}]*border-radius:\s*14px/);
+});
+
+test('the standalone pages primary button has no press morph (user ruling)', () => {
+  // 会话页那些圆形按钮的形变靠「圆的变方、方的变圆」这个对立形状；一个 56 高的
+  // 宽胶囊只能沿半径滑一点点，插值区间几乎全落在肉眼无差别的大半径段，读起来就是
+  // 最后突然跳一下。用户裁决：这两个按钮不做形变，反馈交给 state layer。
+  const decls = pages.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.equal(/\.fk-btn:active[^{]*\{[^}]*border-radius/.test(decls), false);
+  // 圆角本身仍是全圆胶囊，只是不随按压变化。
+  assert.match(decls, /\.fk-btn\s*\{[^}]*border-radius:\s*var\(--flikky-shape-full\)/);
+  // 这两个 token 只为形变而在本表声明，形变去掉后不该再留着（chat.css 那份不受影响）。
+  // 同样查剥注释后的文本：说明文字里提到 token 名不算「还在用」。
+  assert.equal(/--flikky-morph-press/.test(decls), false);
 });
 
 test('the export session rows carry a leading icon', () => {

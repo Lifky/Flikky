@@ -65,7 +65,10 @@ test('the dock keeps one constant radius and matches the FAB height', () => {
   const r = rule('.fk-dock');
   assert.match(r, /border-radius:\s*var\(--flikky-shape-xl\)/);
   assert.equal(false, /data-multiline[\s\S]{0,80}border-radius/.test(chat));
-  assert.match(rule('.fk-fab'), /height:\s*56px/);
+  // FAB 必须与输入坞单行等高，所以两者由同一个 token 算出（不再各写一个数）。
+  assert.match(rule('.fk-fab'), /height:\s*var\(--flikky-dock-h\)/);
+  assert.match(rule('.fk-dock'), /min-height:\s*var\(--flikky-dock-h\)/);
+  assert.match(chat, /--flikky-dock-h:\s*calc\(/);
 });
 
 test('the send button is a circle', () => {
@@ -153,9 +156,12 @@ test('the chat list does not smooth-scroll, so auto-scroll cannot fight the next
   assert.equal(false, /scroll-behavior/.test(chat));
 });
 
-test('the [hidden] attribute actually hides the FAB despite display:grid (F1c)', () => {
-  // display:grid 在特异性上盖掉 UA 自带的 [hidden] { display:none }，必须显式写回。
-  assert.match(rule('.fk-fab[hidden]'), /display:\s*none/);
+test('the FAB hidden state does not use display, so its width can animate (F1c)', () => {
+  // 刻意**不**写 display:none —— 显隐改成宽度塌陷，写了就没得动画（见下方用例）。
+  // 先剥掉注释再判：rule() 是纯文本匹配，规则里一句提到 display:none 的说明文字
+  // 就能让这条断言恒真。（第一版就是这么被自己的注释打败的。）
+  const decls = rule('.fk-fab[hidden]').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.equal(/display:\s*none/.test(decls), false);
 });
 
 test('the save-all trigger is a plain button, not mdui-fab (F1a)', () => {
@@ -326,15 +332,31 @@ test('the input dock has a rest state distinct from its focus state', () => {
   assert.match(focus, /background:\s*var\(--flikky-dock-bg-focus\)/);
   assert.match(focus, /border-color:\s*rgb\(var\(--mdui-color-primary\)\)/);
   // 边框必须常驻（透明→主色），否则 border-box 下聚焦瞬间内容区缩 2px。
-  assert.match(rule('.fk-dock'), /border:\s*2px solid transparent/);
+  assert.match(rule('.fk-dock'), /border:\s*var\(--flikky-dock-border\) solid transparent/);
 });
 
-test('the save-all FAB animates in when it appears', () => {
-  assert.match(chat, /\.fk-fab:not\(\[hidden\]\)\s*\{[^}]*animation:\s*flikky-fab-in/);
-  assert.match(chat, /@keyframes flikky-fab-in/);
-  // 无限/一次性动画都必须让位于系统的减弱动态效果设置。
+test('the FAB collapses its width so the dock resizes with it', () => {
+  // 用户要的不是 FAB 自己的出现动画，而是「FAB 显隐时输入坞的伸缩衔接」。
+  // 坞是 flex:1 1 auto 的兄弟：只要 FAB 的宽度可插值，坞就跟着连续变化。
+  // display:none 是一次突变，所以这里必须没有它（上一条用例已钉）。
+  const hidden = rule('.fk-fab[hidden]');
+  assert.match(hidden, /width:\s*0/);
+  // gap 要一起抵掉，否则塌到 0 之后右边还留一格空档。
+  assert.match(hidden, /margin-left:\s*calc\(-1 \* var\(--flikky-space-sm\)\)/);
+  // 宽度动画走完才从可聚焦树里摘掉；visibility 不可插值，用 0s + delay 表达。
+  assert.match(hidden, /visibility:\s*hidden/);
+  assert.match(hidden, /visibility 0s linear var\(--flikky-spring-spatial-default-dur\)/);
+  // 可见态也要声明 visibility，否则 hidden 态那条没有可回退的起始值。
+  assert.match(rule('.fk-fab'), /visibility:\s*visible/);
+  assert.match(rule('.fk-fab'), /width var\(--flikky-spring-spatial-default-dur\)/);
+  // 旧的 keyframes 出现动画已删：宽度过渡本身就是出现动画，两套会互相打。
+  assert.equal(/flikky-fab-in/.test(chat), false);
   assert.match(
     chat,
-    /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.fk-fab:not\(\[hidden\]\)\s*\{\s*animation:\s*none/,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]{0,80}?\.fk-fab\[hidden\]\s*\{\s*transition:\s*none/,
   );
+});
+
+test('the FAB popup menu is positioned from the FAB height, not a magic number', () => {
+  assert.match(rule('.fk-fab-menu'), /bottom:\s*calc\(var\(--flikky-dock-inset\) \+ var\(--flikky-dock-h\)/);
 });

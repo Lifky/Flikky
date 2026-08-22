@@ -204,7 +204,8 @@ svg { overflow: visible; }
 }
 
 /* v1.19.0：深色适配。白色摆动块（#shape）在深色面板上是一块刺眼的亮斑。
-   <img> 引用的 SVG 读不到宿主页面的 CSS，但能读 prefers-color-scheme，所以
+   img 标签引用的 SVG 读不到宿主页面的 CSS，但能读 prefers-color-scheme，所以
+   （注意：这段注释在 XML 里仍按标记解析，写尖括号会直接让整个文件解析失败）
    配色只能跟随浏览器所在系统的深浅设置，而不是手机推过来的 themeDark。
    两者不一致时（手机深色 + 系统浅色）退化成原样，不会比现在更差。
    动画一行没碰。 */

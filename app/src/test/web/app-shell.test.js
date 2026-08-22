@@ -220,3 +220,23 @@ test('the two layout axes animate through a FLIP wrapper', () => {
   assert.match(panelSettingsSource, /animateLayout\(\(\) => \{ shell\.dataset\.railSide = next; \}\)/);
   assert.match(panelSettingsSource, /animateLayout\(\(\) => \{ shell\.dataset\.swap = next; \}\)/);
 });
+
+test('collapsing the panel clears the rail selection', () => {
+  // 收起后功能栏根本没在显示，rail 却还亮着一个指示器，指向看不见的面板。
+  // 与底部导航同一套做法：从 DOM 反推，不在各调用点各写一遍 aria-selected。
+  assert.match(appJsSource, /function syncRailSelection\(/);
+  const start = appJsSource.indexOf('function syncRailSelection(');
+  const body = appJsSource.slice(start, appJsSource.indexOf('\n    }', start));
+  assert.match(body, /dataset\.panel === 'hidden'/, 'collapse state must feed the rail selection');
+  assert.match(body, /\.fk-view:not\(\[hidden\]\)/, 'it must read the visible view, not a parameter');
+  assert.match(body, /querySelectorAll\('\.fk-rail-item'\)/);
+
+  // setPanel 必须调它 —— 否则收起时选中态不会更新，这正是缺陷本身。
+  const setPanelStart = appJsSource.indexOf('function setPanel(');
+  const setPanelBody = appJsSource.slice(setPanelStart, appJsSource.indexOf('\n    }', setPanelStart));
+  assert.match(setPanelBody, /syncRailSelection\(\)/);
+
+  // rail 的 aria-selected 只能有一个写入方。
+  const writes = appJsSource.match(/querySelectorAll\('\.fk-rail-item'\)/g) || [];
+  assert.equal(writes.length, 1, 'exactly one place may write the rail selection');
+});
