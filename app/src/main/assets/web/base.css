@@ -57,6 +57,24 @@ textarea,
   user-select: text;
 }
 
+/* ── 图标：字形由 CSS 生成，不是 DOM 文本 ────────────────────────────────────
+ * Material Symbols 的图标靠连字渲染，所以「图标」原先就是一个真的文本节点
+ * （<span>download</span>）。手机浏览器的长按取词层——小米、华为、多数第三方
+ * Android 浏览器——直接读 DOM 文本，**不理 user-select**，于是照样能选中并复制出
+ * "download" 这种内部标识符。桌面浏览器守规矩，所以只在手机上复现。
+ *
+ * 与其继续加前缀跟它们博弈，不如让那段文本根本不存在：字形改由 ::before 的
+ * content: attr(data-icon) 生成。伪元素内容不属于 DOM 文本，规范层面就不可选中、
+ * 不可复制，也不会被「选中整条消息」一起复制走（这是顺带修掉的另一个问题：以前
+ * 复制一条带文件图标的消息会把图标名也粘出来）。连字照常成形——生成内容一样走
+ * 字体整形。
+ *
+ * 代价：每个图标 span 必须带 data-icon。漏了就是图标不显示——一眼可见的失败，
+ * 不是静默降级；web-selection.test.js 里有一条把所有 span 枚举出来的守卫。 */
+.material-symbols-outlined::before {
+  content: attr(data-icon);
+}
+
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
   font-weight: normal;

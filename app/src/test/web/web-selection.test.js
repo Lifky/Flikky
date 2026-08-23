@@ -20,6 +20,46 @@ function rule(css, sel) {
   return m[0];
 }
 
+test('icon glyphs are generated content, not DOM text', () => {
+  // 手机浏览器的长按取词层（小米、华为、多数第三方 Android 浏览器）直接读 DOM
+  // 文本，**不理 user-select** —— 桌面守规矩所以只在手机上复现。既然靠 CSS 拦不住，
+  // 就让那段文本不存在：字形改由 ::before 的 content: attr(data-icon) 生成，
+  // 伪元素内容规范层面就不可选中、不可复制。
+  assert.match(base, /\.material-symbols-outlined::before\s*\{\s*content:\s*attr\(data-icon\)/);
+
+  // 每个静态图标 span 都必须带 data-icon 且自身为空。漏一个是「图标不显示」——
+  // 一眼可见，不是静默降级，但还是钉住，免得改动时反复踩。
+  for (const page of fs.readdirSync(WEB).filter((f) => f.endsWith('.html'))) {
+    const html = fs.readFileSync(path.join(WEB, page), 'utf8');
+    for (const m of html.matchAll(/<span([^>]*class="material-symbols-outlined"[^>]*)>([^<]*)<\/span>/g)) {
+      assert.match(m[1], /data-icon="[a-z0-9_]+"/, `${page}: icon span without data-icon: ${m[0]}`);
+      assert.equal(m[2].trim(), '', `${page}: icon span still carries text: ${m[0]}`);
+    }
+  }
+
+  // 动态建的图标同理。按「变量名」查而不是按某个固定的工厂形状 —— export.js 是
+  // 内联建的、后面没有 return，第一版按形状匹配的断言在它上面直接找不到目标。
+  let iconVars = 0;
+  for (const js of ['app.js', 'export.js', 'panel-favorites.js', 'panel-settings.js']) {
+    const src = fs.readFileSync(path.join(WEB, js), 'utf8');
+    const named = [...src.matchAll(/(\w+)\.className = 'material-symbols-outlined'/g)].map((m) => m[1]);
+    assert.ok(named.length > 0, `${js}: no element is given the icon class — did it move?`);
+    for (const v of new Set(named)) {
+      iconVars += 1;
+      const esc = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      assert.equal(
+        new RegExp(`${esc}\\.textContent\\s*=`).test(src), false,
+        `${js}: ${v}.textContent is assigned — that puts the glyph back into DOM text`,
+      );
+      assert.match(
+        src, new RegExp(`${esc}\\.dataset\\.icon\\s*=`),
+        `${js}: ${v} never gets data-icon, so it would render as an empty box`,
+      );
+    }
+  }
+  assert.ok(iconVars >= 4, `expected at least one icon element per script, found ${iconVars}`);
+});
+
 test('icon ligatures cannot be selected, with the vendor prefix', () => {
   // Material Symbols 的图标**本体就是文本**（连字）。长按会选出 "arrow_upward"
   // 这种内部标识符 —— 用户实测把它当成消息发出去过（Screenshot_27）。

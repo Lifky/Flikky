@@ -39,7 +39,7 @@
     function icon(name) {
         const span = document.createElement('span');
         span.className = 'material-symbols-outlined';
-        span.textContent = name;
+        span.dataset.icon = name;
         return span;
     }
 

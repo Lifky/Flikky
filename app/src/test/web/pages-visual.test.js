@@ -203,7 +203,7 @@ test('the export session rows carry a leading icon', () => {
   // 原型有，之前漏了。走 slot="icon" 而不是 mdui 的 icon 属性 —— 后者渲染
   // <mdui-icon>，依赖 mdui 自带的图标字体，而本项目打包的是 Material Symbols。
   assert.match(exportJs, /setAttribute\('slot', 'icon'\)/);
-  assert.match(exportJs, /textContent = 'forum'/);
+  assert.match(exportJs, /dataset\.icon = 'forum'/);
   assert.match(pages, /\.fk-list-lead\s*\{[^}]*\}/);
   // 不能用 #flikky-cookie9：那个 clipPath 只内联在 app.html 里，导出页引用不到。
   assert.equal(/flikky-cookie9/.test(pages), false);

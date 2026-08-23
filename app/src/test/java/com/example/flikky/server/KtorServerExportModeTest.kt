@@ -19,6 +19,7 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsBytes
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import kotlinx.coroutines.runBlocking
@@ -123,6 +124,63 @@ class KtorServerExportModeTest {
             setBody("""{"pin":"000000"}""")
         }
         assertEquals(HttpStatusCode.OK, resp.status)
+    }
+
+    @Test
+    fun `export mode redirects a stale app URL to the export page`() = runBlocking {
+        // 用户实测：刚结束一次传输 → 手机端改为导出 → 浏览器停在 /app 直接刷新。
+        // authRoutes 在两种模式下都注册，而 /app 原先无条件发会话页，于是浏览器拿到
+        // 一个完整的会话页、随即去连导出模式下并不存在的 WebSocket —— 表现为无限
+        // 断开重连，必须手工把地址删回端口号才能走到导出页。
+        val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
+        val session = SessionState(nowMs = { 0L })
+        val s = buildServer(ServiceMode.Export, session, pin)
+        server = s
+        val port = s.start()
+
+        // followRedirects = false：要断言的是那一次 302 本身，跟到底就看不出区别了
+        // （/export 在这个测试的 assetLoader 下会回落到 STUB_EXPORT_HTML，也是 200）。
+        HttpClient(CIO) { install(HttpCookies); followRedirects = false }.use { http ->
+            authenticate(http, port)
+            val resp: HttpResponse = http.get("http://127.0.0.1:$port/app")
+            assertEquals(HttpStatusCode.Found, resp.status)
+            assertEquals("/export", resp.headers[HttpHeaders.Location])
+        }
+    }
+
+    @Test
+    fun `transfer mode redirects a stale export URL to the app page`() = runBlocking {
+        // 镜像方向：exportRoutes 只在 Export 模式注册，所以传输模式下停在 /export
+        // 刷新原先是个裸 404。
+        val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
+        val session = SessionState(nowMs = { 0L })
+        val s = buildServer(ServiceMode.Transfer, session, pin)
+        server = s
+        val port = s.start()
+
+        HttpClient(CIO) { install(HttpCookies); followRedirects = false }.use { http ->
+            authenticate(http, port)
+            val resp: HttpResponse = http.get("http://127.0.0.1:$port/export")
+            assertEquals(HttpStatusCode.Found, resp.status)
+            assertEquals("/app", resp.headers[HttpHeaders.Location])
+        }
+    }
+
+    @Test
+    fun `transfer mode still serves the app page itself`() = runBlocking {
+        // 上面那条模式判断绝不能把正常路径也一起转走。assetLoader 返回空字节，
+        // 所以这里断言的是「200 而不是 302」，不是页面内容。
+        val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
+        val session = SessionState(nowMs = { 0L })
+        val s = buildServer(ServiceMode.Transfer, session, pin)
+        server = s
+        val port = s.start()
+
+        HttpClient(CIO) { install(HttpCookies); followRedirects = false }.use { http ->
+            authenticate(http, port)
+            val resp: HttpResponse = http.get("http://127.0.0.1:$port/app")
+            assertEquals(HttpStatusCode.OK, resp.status)
+        }
     }
 
     @Test

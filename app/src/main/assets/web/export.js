@@ -132,7 +132,7 @@
             lead.className = 'fk-list-lead';
             const leadIcon = document.createElement('span');
             leadIcon.className = 'material-symbols-outlined';
-            leadIcon.textContent = 'forum';
+            leadIcon.dataset.icon = 'forum';
             lead.appendChild(leadIcon);
             item.appendChild(lead);
             listEl.appendChild(item);

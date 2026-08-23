@@ -74,6 +74,19 @@ fun Route.authRoutes(
             call.respondRedirect("/")
             return@get
         }
+        // 模式判断必须排在鉴权之后：需要 PIN 时，未授权请求应当回登录页，
+        // 而不是被转到 /export 再吃一个裸 401。
+        //
+        // authRoutes 在两种 ServiceMode 下都会注册，而这条路由原先无条件发会话页。
+        // 于是「刚结束一次传输 → 手机端改为导出 → 浏览器停在 /app 直接刷新」会拿到
+        // 一个完整的会话页，它随即去连一个导出模式下并不存在的 WebSocket ——
+        // 表现为无限断开重连，且面板里没有任何有效数据。用户必须手工把地址删回
+        // 端口号才能走到导出页。
+        val landing = redirectAfterLogin()
+        if (landing != "/app") {
+            call.respondRedirect(landing)
+            return@get
+        }
         val bytes = readAsset("web/app.html")
         call.respondBytes(bytes, ContentType.Text.Html)
     }

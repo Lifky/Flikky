@@ -15,7 +15,9 @@ test('connection loss uses a blurred dialog that users cannot dismiss', () => {
     assert.ok(dialogTag, 'connection dialog must exist');
     assert.doesNotMatch(dialogTag, /close-on-overlay-click/);
     assert.doesNotMatch(dialogTag, /close-on-esc/);
-    assert.match(appHtml, /slot="icon"[^>]*>signal_disconnected<\/span>/);
+    // 图标字形现在挂在 data-icon 上（base.css 用 ::before 生成，见那里的注释）——
+    // 不再是元素的文本内容。
+    assert.match(appHtml, /slot="icon"[^>]*data-icon="signal_disconnected"/);
     assert.doesNotMatch(appHtml, /slot="icon"[^>]*>wifi_off<\/span>/);
     assert.match(appCss, /#connection-dialog::part\(overlay\)\s*\{[^}]*backdrop-filter:\s*blur\(/);
     assert.match(appCss, /#connection-dialog::part\(header\)\s*\{[^}]*align-items:\s*center/);

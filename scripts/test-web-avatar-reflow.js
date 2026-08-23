@@ -296,7 +296,8 @@ function avatarMarkers(list) {
 
 function avatarSymbolText(el) {
   const symbol = el.querySelector('.avatar-symbol');
-  return symbol ? symbol.textContent : el.textContent;
+  // 图标字形现在挂在 data-icon 上（base.css 用 ::before 生成），不再是 textContent。
+  return symbol ? (symbol.dataset && symbol.dataset.icon) : el.textContent;
 }
 
 function watermarkText(list) {

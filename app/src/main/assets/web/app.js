@@ -42,7 +42,9 @@
         if (slot) icon.setAttribute('slot', slot);
         icon.style.fontVariationSettings =
             "'FILL' " + (filled ? 1 : 0) + ", 'wght' 400, 'GRAD' 0, 'opsz' 24";
-        icon.textContent = symbolName(name);
+        // 字形由 base.css 的 ::before content: attr(data-icon) 生成，不是 DOM 文本 ——
+        // 手机浏览器的长按取词层不理 user-select，只有「没有文本」才真的选不到。
+        icon.dataset.icon = symbolName(name);
         return icon;
     }
 

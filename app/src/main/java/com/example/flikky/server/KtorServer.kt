@@ -31,7 +31,9 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import kotlinx.serialization.json.Json
@@ -170,6 +172,11 @@ class KtorServer(
     }
 
     private fun Route.installTransferRoutes(authGate: AuthGate) {
+        // /app 的镜像方向：浏览器停在导出页、手机端改回传输模式后刷新，原先会拿到
+        // 一个裸 404（exportRoutes 只在 Export 模式注册）。这条只能装在传输模式这侧 ——
+        // 装进 authRoutes 会在导出模式下遮掉真正的 /export（authRoutes 先注册）。
+        // 不变量：每个页面路由都必须把「当前模式不该停在这一页」的请求送回正确的落地页。
+        get("/export") { call.respondRedirect("/app") }
         messageRoutes(
             session = session,
             authGate = authGate,

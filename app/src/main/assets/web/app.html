@@ -28,11 +28,11 @@
             <img class="fk-rail-logo" src="/static/flikky-logo-slow.svg" alt="Flikky">
             <div class="fk-rail-items" id="rail-items">
                 <button class="fk-rail-item" data-dest="favorites" aria-selected="true">
-                    <span class="fk-rail-icon"><span class="material-symbols-outlined">star</span></span>
+                    <span class="fk-rail-icon"><span class="material-symbols-outlined" data-icon="star"></span></span>
                     <span data-i18n="app.nav.favorites">收藏</span>
                 </button>
                 <button class="fk-rail-item" data-dest="settings" aria-selected="false">
-                    <span class="fk-rail-icon"><span class="material-symbols-outlined">settings</span></span>
+                    <span class="fk-rail-icon"><span class="material-symbols-outlined" data-icon="settings"></span></span>
                     <span data-i18n="app.nav.settings">设置</span>
                 </button>
             </div>
@@ -59,19 +59,19 @@
                 <div class="fk-dock" id="dock">
                     <input type="file" id="file-picker" multiple style="display:none">
                     <button class="fk-dock-btn" id="file-btn" aria-label="附件" data-i18n-aria-label="app.attach" type="button">
-                        <span class="material-symbols-outlined">attach_file</span>
+                        <span class="material-symbols-outlined" data-icon="attach_file"></span>
                     </button>
                     <textarea class="fk-dock-input" id="text-input" rows="1"
                               aria-label="消息" data-i18n-aria-label="app.message"
                               placeholder="输入消息" data-i18n-placeholder="app.message_placeholder"></textarea>
                     <button class="fk-send" id="send-btn" data-ready="false" aria-label="发送" data-i18n-aria-label="app.send" type="button">
-                        <span class="material-symbols-outlined">arrow_upward</span>
+                        <span class="material-symbols-outlined" data-icon="arrow_upward"></span>
                     </button>
                 </div>
                 <button class="fk-fab" id="save-all-fab" type="button" hidden
                         aria-label="保存所有文件" data-i18n-aria-label="app.save_all"
                         aria-controls="save-all-dropdown" aria-expanded="false">
-                    <span class="material-symbols-outlined">download</span>
+                    <span class="material-symbols-outlined" data-icon="download"></span>
                 </button>
             </div>
 
@@ -81,11 +81,11 @@
                  所以不声称 menu / menuitem 那套角色语义，只用 aria-controls 关联容器。 -->
             <div class="fk-fab-menu" id="save-all-dropdown" hidden>
                 <button class="fk-fab-menu-item" id="save-all-each" type="button" style="--i:0">
-                    <span class="material-symbols-outlined">file_download</span>
+                    <span class="material-symbols-outlined" data-icon="file_download"></span>
                     <span id="save-all-each-label"></span>
                 </button>
                 <button class="fk-fab-menu-item" id="save-all-zip" type="button" style="--i:1">
-                    <span class="material-symbols-outlined">folder_zip</span>
+                    <span class="material-symbols-outlined" data-icon="folder_zip"></span>
                     <span data-i18n="app.save_all_zip">打包为 ZIP</span>
                 </button>
             </div>
@@ -100,16 +100,16 @@
                     <h1 class="fk-panel-title" data-i18n="app.nav.favorites">收藏</h1>
                     <button class="fk-icon-btn" id="fav-refresh" type="button"
                             aria-label="刷新" data-i18n-aria-label="app.favorites.refresh">
-                        <span class="material-symbols-outlined">refresh</span>
+                        <span class="material-symbols-outlined" data-icon="refresh"></span>
                     </button>
                     <button class="fk-icon-btn fk-panel-collapse" type="button"
                             aria-label="收起功能栏" data-i18n-aria-label="app.settings.collapse">
-                        <span class="material-symbols-outlined">close</span>
+                        <span class="material-symbols-outlined" data-icon="close"></span>
                     </button>
                 </header>
                 <div class="fk-panel-body flikky-scroll">
                     <div class="fk-search">
-                        <span class="material-symbols-outlined">search</span>
+                        <span class="material-symbols-outlined" data-icon="search"></span>
                         <input type="text" id="fav-search"
                                aria-label="搜索收藏" data-i18n-aria-label="app.favorites.search"
                                placeholder="搜索收藏" data-i18n-placeholder="app.favorites.search">
@@ -121,12 +121,12 @@
                     <span class="fk-toolbar-count" id="fav-count"></span>
                     <button class="fk-icon-btn" id="fav-clear" type="button"
                             aria-label="清除选择" data-i18n-aria-label="app.favorites.clear">
-                        <span class="material-symbols-outlined">close</span>
+                        <span class="material-symbols-outlined" data-icon="close"></span>
                     </button>
                     <!-- 主操作排在最后（最右），并用 --filled 变体，与原型一致 -->
                     <button class="fk-icon-btn fk-icon-btn--filled" id="fav-save-selected" type="button"
                             aria-label="保存所选" data-i18n-aria-label="app.favorites.saveSelected">
-                        <span class="material-symbols-outlined">download</span>
+                        <span class="material-symbols-outlined" data-icon="download"></span>
                     </button>
                 </div>
             </div>
@@ -136,15 +136,15 @@
 
     <nav class="fk-navbar" id="navbar" aria-label="主导航">
         <button class="fk-navbar-item" data-dest="chat" aria-selected="true">
-            <span class="fk-navbar-icon"><span class="material-symbols-outlined">forum</span></span>
+            <span class="fk-navbar-icon"><span class="material-symbols-outlined" data-icon="forum"></span></span>
             <span data-i18n="app.nav.chat">会话</span>
         </button>
         <button class="fk-navbar-item" data-dest="favorites" aria-selected="false">
-            <span class="fk-navbar-icon"><span class="material-symbols-outlined">star</span></span>
+            <span class="fk-navbar-icon"><span class="material-symbols-outlined" data-icon="star"></span></span>
             <span data-i18n="app.nav.favorites">收藏</span>
         </button>
         <button class="fk-navbar-item" data-dest="settings" aria-selected="false">
-            <span class="fk-navbar-icon"><span class="material-symbols-outlined">settings</span></span>
+            <span class="fk-navbar-icon"><span class="material-symbols-outlined" data-icon="settings"></span></span>
             <span data-i18n="app.nav.settings">设置</span>
         </button>
     </nav>
@@ -155,7 +155,7 @@
     </mdui-dialog>
 
     <mdui-dialog id="connection-dialog">
-        <span slot="icon" class="material-symbols-outlined">signal_disconnected</span>
+        <span slot="icon" class="material-symbols-outlined" data-icon="signal_disconnected"></span>
         <div slot="headline" data-i18n="app.disconnected">已断开</div>
         <div id="connection-dialog-message" role="status" aria-live="assertive"></div>
     </mdui-dialog>
@@ -175,7 +175,7 @@
 
     <div id="lightbox" class="lightbox" hidden>
         <button id="lightbox-close" class="lightbox-close" aria-label="关闭预览" data-i18n-aria-label="app.close_preview" type="button">
-            <span class="material-symbols-outlined">close</span>
+            <span class="material-symbols-outlined" data-icon="close"></span>
         </button>
         <div id="lightbox-content" class="lightbox-content"></div>
     </div>

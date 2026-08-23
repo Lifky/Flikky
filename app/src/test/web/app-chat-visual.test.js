@@ -320,7 +320,9 @@ test('the connected-bubble radius only applies to the floating action style', ()
     assert.match(sel, /body\[data-action-style="FLOATING"\]/, `ungated grouped-radius selector: ${sel.trim()}`);
   }
   // 间距分组不受门控：连续消息挨得更近是所有聊天软件的常规，与角的处理是两件事。
-  assert.match(chat, /^\.bubble-row\.grouped-start,\n\.bubble-row\.grouped-mid \{/m);
+  // \r?\n 而不是 \n：仓库在 Windows 上带 core.autocrlf，工作区里这些表是 CRLF，
+  // 写死 \n 的断言会在 git 碰过文件之后莫名转红。
+  assert.match(chat, /^\.bubble-row\.grouped-start,\r?\n\.bubble-row\.grouped-mid \{/m);
 });
 
 test('the input dock has a rest state distinct from its focus state', () => {
