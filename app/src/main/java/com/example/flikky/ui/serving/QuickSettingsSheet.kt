@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -26,13 +27,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
-import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.AppLanguage
 import com.example.flikky.data.settings.AppLanguageManager
 import com.example.flikky.data.settings.AvatarGroupingMode
@@ -74,9 +75,9 @@ enum class QuickPicker { Theme, Avatar, Background }
  * 一度担心 `LocaleManager.applicationLocales` 会重建 Activity 把当前页面拆掉 ——
  * 不会：MainActivity 声明了 `configChanges` 含 `locale`（守卫见 MainActivityManifestTest）。
  *
- * 收录的 15 项（14 个 PeerInfoDto 字段 + 语言）：
- *   主题色 themeSeed · 深色模式 themeDark · AMOLED amoled · 动效速度 animationSpeed ·
- *   设备名 deviceName · 手机头像 phoneAvatarKey · 气泡圆角 bubbleCornerRadius ·
+ * 收录的 13 项（12 个 PeerInfoDto 字段 + 语言）：
+ *   主题色 themeSeed · 深色模式 themeDark · AMOLED amoled · 设备名 deviceName ·
+ *   两端头像 phoneAvatarKey/browserAvatarKey · 气泡圆角 bubbleCornerRadius ·
  *   头像显示 avatarGrouping · 会话背景 backgroundMode/Value · 会话时间戳
  *   sessionTimestampEnabled · 消息操作样式 messageActionStyle · 撤回 recallEnabled ·
  *   允许对方撤回 allowPeerRecall · 收藏 beta favoriteEnabled · 应用语言 languageTag
@@ -84,9 +85,10 @@ enum class QuickPicker { Theme, Avatar, Background }
  * 刻意不收：
  * - **不进 PeerInfoDto 的**（浏览器跟不了，放这里只是把设置页搬过来）：需要 PIN、
  *   历史保留、允许会话中返回、屏幕常亮、排序/分组、自动检查更新、对比度。
- *   对比度是唯一的例外——它长在复用的 ThemePickerSheet 里，见 ServingViewModel 的注释。
- * - **浏览器头像**：会话页顶栏点对方头像本来就能改（`showPeerAvatarPicker`），
- *   不重复放一个入口。
+ *   对比度原先作为「复用整张 ThemePickerSheet 的代价」被留下，现按用户裁决去掉了：
+ *   ThemePickerSheet 的 onSelectContrast 传 null 即不渲染那一段。
+ * - **动效速度**：会同步，但用户裁决「意义不大」，刻意不收（见 QuickSettingsCoverageTest
+ *   的 deliberatelyExcluded）。它在正式设置页照旧可调。
  *
  * 形状与设置页完全一致：同一批 [SettingSection] / [SettingItem] / [ChoiceDialog]，
  * 复杂选择器直接复用设置页那三张 sheet（主题色 / 头像 / 背景）。三者是
@@ -98,12 +100,16 @@ enum class QuickPicker { Theme, Avatar, Background }
 @Composable
 fun QuickSettingsSheet(
     settings: FlikkySettings,
+    /**
+     * 浏览器端头像。会话进行中取 session 的实时值而不是 `settings.browserAvatarKey`：
+     * 浏览器可以自己经 client_hello 选头像，此时 DataStore 里那份还没落地。
+     */
+    browserAvatarKey: String,
     defaultDeviceName: String,
     onSetBubbleCorner: (Int) -> Unit,
     onSetAvatarGrouping: (AvatarGroupingMode) -> Unit,
     onSetDarkMode: (DarkMode) -> Unit,
     onSetAmoled: (Boolean) -> Unit,
-    onSetAnimationSpeed: (AnimationSpeed) -> Unit,
     onSetDeviceName: (String) -> Unit,
     onSetSessionTimestamp: (Boolean) -> Unit,
     onSetMessageActionStyle: (MessageActionStyle) -> Unit,
@@ -119,7 +125,6 @@ fun QuickSettingsSheet(
     val appLanguage = AppLanguageManager.current(context)
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showDarkModeDialog by remember { mutableStateOf(false) }
-    var showAnimSpeedDialog by remember { mutableStateOf(false) }
     var showAvatarGroupingDialog by remember { mutableStateOf(false) }
     var showActionStyleDialog by remember { mutableStateOf(false) }
     var showDeviceNameDialog by remember { mutableStateOf(false) }
@@ -160,7 +165,7 @@ fun QuickSettingsSheet(
 
             // ─── 主题与外观 ───────────────────────────────────────────────────
             run {
-                val total = 4
+                val total = 3
                 SettingSection(title = stringResource(R.string.settings_section_theme_color)) {
                     val themeSubtitle = when (settings.themeMode) {
                         ThemeMode.DYNAMIC -> stringResource(R.string.settings_theme_follow_wallpaper)
@@ -190,13 +195,6 @@ fun QuickSettingsSheet(
                         },
                         index = 2, total = total,
                     )
-                    SettingItem(
-                        title = stringResource(R.string.settings_animation_speed),
-                        leadingIcon = painterResource(R.drawable.ic_animation),
-                        subtitle = settings.animationSpeed.localizedLabel(),
-                        onClick = { showAnimSpeedDialog = true },
-                        index = 3, total = total,
-                    )
                 }
             }
 
@@ -211,13 +209,20 @@ fun QuickSettingsSheet(
                         onClick = { showDeviceNameDialog = true },
                         index = 0, total = total,
                     )
-                    // 只放手机头像：浏览器头像在会话页顶栏点对方头像就能改，
-                    // 而且它走的是另一条通道（controller → session → 广播）。
+                    // 与设置页同一行：两个头像并排。原先只放手机头像，用户指出这会让人
+                    // 疑惑 —— 快捷设置处处像设置页，偏偏头像少一半，而浏览器头像的入口
+                    // （顶栏点对方头像）用户未必知道可点。顶栏那个入口保留，这里是第二个。
                     SettingItem(
                         title = stringResource(R.string.settings_avatar),
                         leadingIcon = painterResource(R.drawable.ic_account_circle),
                         trailing = {
-                            Avatar(avatarKey = settings.phoneAvatarKey, size = Sizes.avatar)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Avatar(avatarKey = settings.phoneAvatarKey, size = Sizes.avatar)
+                                Avatar(avatarKey = browserAvatarKey, size = Sizes.avatar)
+                            }
                         },
                         onClick = onOpenAvatarPicker,
                         index = 1, total = total,
@@ -287,8 +292,14 @@ fun QuickSettingsSheet(
 
             // ─── 会话行为 ─────────────────────────────────────────────────────
             run {
-                // 「允许对方撤回」跟着撤回开关折叠，所以总数随之变化——与设置页同一算法。
-                val total = if (settings.recallBetaEnabled) 5 else 4
+                // 「允许对方撤回」跟着撤回开关折叠，所以总数随之变化。
+                //
+                // 这里曾是 5/4 —— 照搬了设置页的数字，却没搬它那三行（需要 PIN、允许
+                // 会话中返回、屏幕常亮）。差一的后果不是少画一行，而是**最后一行永远
+                // 拿不到 index == total - 1**，于是「收藏功能」的底部圆角一直是中间行
+                // 的小圆角，跟首行「消息操作样式」的顶部大圆角不对称（用户截图 29）。
+                // 本区实际可见行数：操作样式 + 撤回 + [允许对端撤回] + 收藏。
+                val total = if (settings.recallBetaEnabled) 4 else 3
                 SettingSection(title = stringResource(R.string.settings_section_session_behavior)) {
                     SettingItem(
                         title = stringResource(R.string.settings_message_action_style),
@@ -356,21 +367,6 @@ fun QuickSettingsSheet(
                     label = mode.localizedLabel(),
                     selected = settings.darkMode == mode,
                     onClick = { onSetDarkMode(mode); showDarkModeDialog = false },
-                )
-            }
-        }
-    }
-
-    if (showAnimSpeedDialog) {
-        ChoiceDialog(
-            title = stringResource(R.string.settings_animation_speed),
-            onDismiss = { showAnimSpeedDialog = false },
-        ) {
-            AnimationSpeed.entries.forEach { speed ->
-                ChoiceRow(
-                    label = speed.localizedLabel(),
-                    selected = settings.animationSpeed == speed,
-                    onClick = { onSetAnimationSpeed(speed); showAnimSpeedDialog = false },
                 )
             }
         }

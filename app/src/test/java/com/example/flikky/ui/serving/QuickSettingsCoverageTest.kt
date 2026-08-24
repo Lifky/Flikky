@@ -37,12 +37,16 @@ class QuickSettingsCoverageTest {
         "darkMode" to "onSetDarkMode",
         "amoled" to "onSetAmoled",
         "phoneAvatarKey" to "onOpenAvatarPicker",
+        // 注意：browserAvatarKey **不在**这张表里，因为它不进 PeerInfoDto —— 它走另一条
+        // 通道（TransferController → session → `peer_avatar_changed` 事件）。快捷设置里
+        // 它跟手机头像共用同一个入口（那张 sheet 有 App / Browser 两个 tab），但本测试的
+        // 判据是「出现在 toPeerInfoDto 的映射里」，所以登记它会被 stale-row 那条正确判红。
+        // 也就是说：本测试覆盖的是 PeerInfoDto 这条通道，不是「所有会同步的东西」。
         "background" to "onOpenBackgroundPicker",
         "deviceName" to "onSetDeviceName",
         "bubbleCornerRadius" to "onSetBubbleCorner",
         "avatarGrouping" to "onSetAvatarGrouping",
         "messageActionStyle" to "onSetMessageActionStyle",
-        "animationSpeed" to "onSetAnimationSpeed",
         "sessionTimestampEnabled" to "onSetSessionTimestamp",
         "recallBetaEnabled" to "onSetRecallBeta",
         "allowPeerRecall" to "onSetAllowPeerRecall",
@@ -55,6 +59,17 @@ class QuickSettingsCoverageTest {
      */
     private val notUserAdjustable = setOf(
         "phoneAvatarId",   // 旧版数值头像，已被 phoneAvatarKey 取代，仅为兼容保留
+    )
+
+    /**
+     * 会同步、也确实由用户可调，但**经用户裁决刻意不放进快捷设置**的项。
+     *
+     * 与 [notUserAdjustable] 分开列：那个是「技术上不该由用户调」，这个是「产品上决定
+     * 不放」。混成一张表，一年后没人分得清某一项是哪种原因缺席的。
+     */
+    private val deliberatelyExcluded = mapOf(
+        // v1.19.0 用户裁决：动效速度「意义不大」，且要给快捷设置减项。正式设置页照旧可调。
+        "animationSpeed" to "用户裁决：意义不大，减少快捷设置项",
     )
 
     @Test
@@ -73,6 +88,7 @@ class QuickSettingsCoverageTest {
 
         val missing = referenced
             .filterNot { it in notUserAdjustable }
+            .filterNot { it in deliberatelyExcluded }
             .filterNot { prop ->
                 val evidence = syncedSettingToEvidence[prop]
                 evidence != null && quickSheet.contains(evidence)
@@ -81,9 +97,23 @@ class QuickSettingsCoverageTest {
             "这些设置会同步到浏览器，但快捷设置里没有入口。会话期间设置页锁着，" +
                 "所以它们整场会话都调不了。给 QuickSettingsSheet 补上对应入口，" +
                 "并在本测试的 syncedSettingToEvidence 里登记；确实不该由用户调的" +
-                "请登记到 notUserAdjustable 并说明理由。缺口：",
+                "请登记到 notUserAdjustable，产品上决定不放的登记到 " +
+                "deliberatelyExcluded，两者都要写理由。缺口：",
             emptyList<String>(),
             missing,
+        )
+    }
+
+    @Test
+    fun `deliberately excluded settings really are absent`() {
+        // 反方向：登记为「刻意不放」的项，如果其实还在 sheet 里，这张表就在说谎，
+        // 而下一个读它的人会据此以为那项调不了。
+        val quickSheet = quickSettingsSource()
+        val present = deliberatelyExcluded.keys.filter { quickSheet.contains(it) }
+        assertEquals(
+            "这些项登记为刻意排除，但快捷设置里还引用着它们：",
+            emptyList<String>(),
+            present,
         )
     }
 

@@ -5,6 +5,7 @@ import com.example.flikky.server.dto.FileMessageDto
 import com.example.flikky.server.dto.FileProgressDto
 import com.example.flikky.server.dto.FileReadyDto
 import com.example.flikky.server.dto.FileRemovedDto
+import com.example.flikky.server.dto.WireJson
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
@@ -115,7 +116,7 @@ fun Route.fileRoutes(
                         senderId = senderId,
                     )
                     broadcastEvent("file_added",
-                        Json.encodeToString(FileMessageDto.serializer(), inProgressDto))
+                        WireJson.encodeToString(FileMessageDto.serializer(), inProgressDto))
 
                     val input = part.provider()
                     var totalCopied = 0L
@@ -135,7 +136,7 @@ fun Route.fileRoutes(
                                     session.updateProgress(msgId, totalCopied.toFloat() / totalSize)
                                     val progressDto = FileProgressDto(msgId, totalCopied, totalSize)
                                     broadcastEvent("file_progress",
-                                        Json.encodeToString(FileProgressDto.serializer(), progressDto))
+                                        WireJson.encodeToString(FileProgressDto.serializer(), progressDto))
                                 }
                             }
                         }
@@ -152,7 +153,7 @@ fun Route.fileRoutes(
 
                     val readyDto = FileReadyDto(msgId, fileId, name, totalCopied)
                     broadcastEvent("file_ready",
-                        Json.encodeToString(FileReadyDto.serializer(), readyDto))
+                        WireJson.encodeToString(FileReadyDto.serializer(), readyDto))
 
                     completed += completedMsg
                     inFlightMsgId = 0L
@@ -171,7 +172,7 @@ fun Route.fileRoutes(
                 val removedDto = FileRemovedDto(inFlightMsgId)
                 runCatching {
                     broadcastEvent("file_removed",
-                        Json.encodeToString(FileRemovedDto.serializer(), removedDto))
+                        WireJson.encodeToString(FileRemovedDto.serializer(), removedDto))
                 }
             }
             return@post

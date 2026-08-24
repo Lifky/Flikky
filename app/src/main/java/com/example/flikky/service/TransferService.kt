@@ -36,6 +36,7 @@ import com.example.flikky.server.dto.PeerAvatarChangedDto
 import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.StatusDto
+import com.example.flikky.server.dto.WireJson
 import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
 import com.example.flikky.util.BrowserAvatarHelloDecision
@@ -199,7 +200,7 @@ class TransferService : Service() {
                         if (currentMode == ServiceMode.Transfer) {
                             ktor?.wsHub?.broadcast(
                                 "peer_avatar_changed",
-                                Json.encodeToString(
+                                WireJson.encodeToString(
                                     PeerAvatarChangedDto.serializer(),
                                     PeerAvatarChangedDto(browserAvatar),
                                 ),
@@ -207,7 +208,7 @@ class TransferService : Service() {
                         }
                     }
                     if (currentMode == ServiceMode.Transfer) {
-                        val payload = Json.encodeToString(
+                        val payload = WireJson.encodeToString(
                             PeerInfoDto.serializer(),
                             it.toPeerInfoDto(
                                 systemDark = isSystemDark(),
@@ -267,7 +268,7 @@ class TransferService : Service() {
                     bytesPerSecond = ServiceLocator.stats.bytesPerSecond(),
                     clientConnected = snap.clientConnected,
                 )
-                val payload = Json.encodeToString(StatusDto.serializer(), status)
+                val payload = WireJson.encodeToString(StatusDto.serializer(), status)
                 // 必须用 field-level [ktor] 取当前 wsHub —— 闭包捕获 startTransfer
                 // 局部 server.wsHub 会让 rebind 后 status 持续推到旧 hub，新 hub
                 // 永远收不到帧，浏览器心跳 4 秒超时 → close → reconnect 死循环。

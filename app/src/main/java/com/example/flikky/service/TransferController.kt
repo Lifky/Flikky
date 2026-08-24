@@ -12,6 +12,7 @@ import com.example.flikky.server.dto.FileReadyDto
 import com.example.flikky.server.dto.FileRemovedDto
 import com.example.flikky.server.dto.PeerAvatarChangedDto
 import com.example.flikky.server.dto.TextMessageDto
+import com.example.flikky.server.dto.WireJson
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
@@ -63,7 +64,7 @@ class TransferController(
         session.addMessage(msg)
         runCatching { repository.appendMessage(sid, msg) }
         val dto = TextMessageDto(msg.id, msg.origin.name, msg.timestamp, msg.content)
-        wsHub()?.broadcast("text_added", Json.encodeToString(TextMessageDto.serializer(), dto))
+        wsHub()?.broadcast("text_added", WireJson.encodeToString(TextMessageDto.serializer(), dto))
     }
 
     suspend fun offerFile(uri: Uri, resolver: ContentResolver) {
@@ -124,7 +125,7 @@ class TransferController(
             msg.id, msg.origin.name, msg.timestamp, msg.fileId,
             msg.name, msg.sizeBytes, msg.mime, msg.status.name,
         )
-        wsHub()?.broadcast("file_added", Json.encodeToString(FileMessageDto.serializer(), dto))
+        wsHub()?.broadcast("file_added", WireJson.encodeToString(FileMessageDto.serializer(), dto))
 
         scope.launch(Dispatchers.IO) {
             try {
@@ -151,7 +152,7 @@ class TransferController(
                                     session.updateProgress(msg.id, ratio)
                                     val progressDto = FileProgressDto(msg.id, totalCopied, totalSize)
                                     wsHub()?.broadcast("file_progress",
-                                        Json.encodeToString(FileProgressDto.serializer(), progressDto))
+                                        WireJson.encodeToString(FileProgressDto.serializer(), progressDto))
                                 }
                             }
                         }
@@ -166,7 +167,7 @@ class TransferController(
 
                 val readyDto = FileReadyDto(msg.id, fileId, name, realSize)
                 wsHub()?.broadcast("file_ready",
-                    Json.encodeToString(FileReadyDto.serializer(), readyDto))
+                    WireJson.encodeToString(FileReadyDto.serializer(), readyDto))
                 session.clearProgress(msg.id)
             } catch (e: Exception) {
                 session.updateMessage(msg.id) { m ->
@@ -178,7 +179,7 @@ class TransferController(
                 val removedDto = FileRemovedDto(msg.id)
                 runCatching {
                     wsHub()?.broadcast("file_removed",
-                        Json.encodeToString(FileRemovedDto.serializer(), removedDto))
+                        WireJson.encodeToString(FileRemovedDto.serializer(), removedDto))
                 }
             }
         }
@@ -214,6 +215,6 @@ class TransferController(
     suspend fun setPeerAvatarKey(key: String) {
         session.setPeerAvatarKey(key)
         val dto = PeerAvatarChangedDto(key)
-        wsHub()?.broadcast("peer_avatar_changed", Json.encodeToString(PeerAvatarChangedDto.serializer(), dto))
+        wsHub()?.broadcast("peer_avatar_changed", WireJson.encodeToString(PeerAvatarChangedDto.serializer(), dto))
     }
 }

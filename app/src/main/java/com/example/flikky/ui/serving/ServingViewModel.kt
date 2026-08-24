@@ -16,10 +16,8 @@ import com.example.flikky.R
 import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.SessionRepository
-import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.BackgroundSetting
-import com.example.flikky.data.settings.ContrastLevel
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.MessageActionStyle
 import com.example.flikky.data.settings.PresetTheme
@@ -203,20 +201,8 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { ServiceLocator.settingsRepository.setCustomThemeSeed(argb) }
     }
 
-    /**
-     * 对比度**不**进 PeerInfoDto，浏览器跟不了。它出现在这里只因为复用了设置页那张
-     * ThemePickerSheet——把它从共用组件里挖掉会让两处视觉分叉，代价大于收益。
-     */
-    fun setContrastLevel(level: ContrastLevel) {
-        viewModelScope.launch { ServiceLocator.settingsRepository.setContrastLevel(level) }
-    }
-
     fun setAmoled(enabled: Boolean) {
         viewModelScope.launch { ServiceLocator.settingsRepository.setAmoled(enabled) }
-    }
-
-    fun setAnimationSpeed(speed: AnimationSpeed) {
-        viewModelScope.launch { ServiceLocator.settingsRepository.setAnimationSpeed(speed) }
     }
 
     fun setDeviceName(name: String) {

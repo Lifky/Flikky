@@ -1,6 +1,7 @@
 package com.example.flikky.server.routes
 
 import com.example.flikky.server.dto.PeerAvatarChangedDto
+import com.example.flikky.server.dto.WireJson
 import com.example.flikky.session.SessionState
 import io.ktor.server.routing.Route
 import io.ktor.server.websocket.WebSocketServerSession
@@ -123,7 +124,7 @@ fun Route.wsRoutes(
                     if (pushBack != null) {
                         hub.broadcast(
                             "peer_avatar_changed",
-                            Json.encodeToString(
+                            WireJson.encodeToString(
                                 PeerAvatarChangedDto.serializer(),
                                 PeerAvatarChangedDto(pushBack),
                             ),

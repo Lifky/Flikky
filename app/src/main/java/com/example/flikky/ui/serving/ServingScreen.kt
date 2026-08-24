@@ -34,6 +34,9 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -140,6 +143,8 @@ fun ServingScreen(
     var showQuickSettings by remember { mutableStateOf(false) }
     // 快捷设置里「钻进去」的那三张复用 sheet，见下方托管处的注释。
     var quickPicker by remember { mutableStateOf<QuickPicker?>(null) }
+    // 头像选择器的 App / Browser tab，与设置页同一形状（0 = App，1 = Browser）。
+    var avatarSheetTab by remember { mutableStateOf(0) }
     var showPeerAvatarPicker by remember { mutableStateOf(false) }
     var previewImage by remember { mutableStateOf<java.io.File?>(null) }
     val clipboard = LocalClipboard.current
@@ -678,12 +683,12 @@ fun ServingScreen(
     if (showQuickSettings && quickPicker == null) {
         QuickSettingsSheet(
             settings = settings,
+            browserAvatarKey = peerAvatarKey,
             defaultDeviceName = stringResource(R.string.settings_default_device_name),
             onSetBubbleCorner = { viewModel.setBubbleCornerRadius(it) },
             onSetAvatarGrouping = { viewModel.setAvatarGrouping(it) },
             onSetDarkMode = { viewModel.setDarkMode(it) },
             onSetAmoled = { viewModel.setAmoled(it) },
-            onSetAnimationSpeed = { viewModel.setAnimationSpeed(it) },
             onSetDeviceName = { viewModel.setDeviceName(it) },
             onSetSessionTimestamp = { viewModel.setSessionTimestampEnabled(it) },
             onSetMessageActionStyle = { viewModel.setMessageActionStyle(it) },
@@ -691,7 +696,7 @@ fun ServingScreen(
             onSetAllowPeerRecall = { viewModel.setAllowPeerRecall(it) },
             onSetFavoriteBeta = { viewModel.setFavoriteBeta(it) },
             onOpenThemePicker = { quickPicker = QuickPicker.Theme },
-            onOpenAvatarPicker = { quickPicker = QuickPicker.Avatar },
+            onOpenAvatarPicker = { avatarSheetTab = 0; quickPicker = QuickPicker.Avatar },
             onOpenBackgroundPicker = { quickPicker = QuickPicker.Background },
             onDismiss = { showQuickSettings = false },
         )
@@ -703,16 +708,45 @@ fun ServingScreen(
             onSelectMode = { viewModel.setThemeMode(it) },
             onSelectPreset = { viewModel.setPresetTheme(it) },
             onSelectCustomSeed = { viewModel.setCustomThemeSeed(it) },
-            onSelectContrast = { viewModel.setContrastLevel(it) },
+            // null = 不渲染对比度段：对比度不进 PeerInfoDto，浏览器跟不了，
+            // 而快捷设置的承诺是「这里每一项都会同步」（用户裁决）。
+            onSelectContrast = null,
             onDismiss = { quickPicker = null },
         )
-        QuickPicker.Avatar -> AvatarPickerSheet(
-            title = stringResource(R.string.settings_avatar),
-            currentKey = settings.phoneAvatarKey,
-            fallbackKey = AvatarKey.DEFAULT_PHONE,
-            onSelect = { viewModel.setPhoneAvatarKey(it); quickPicker = null },
-            onDismiss = { quickPicker = null },
-        )
+        QuickPicker.Avatar -> {
+            // 与设置页逐字一致的两 tab 形状。浏览器侧走 viewModel.setPeerAvatarKey ——
+            // 它先更新 session 再落库，把改动实时推给浏览器并抑制回声广播；设置页那边
+            // 用的是只落库的 setBrowserAvatarKey，在会话中不够（浏览器不会立刻跟随）。
+            val isApp = avatarSheetTab == 0
+            AvatarPickerSheet(
+                currentKey = if (isApp) settings.phoneAvatarKey else peerAvatarKey,
+                fallbackKey = if (isApp) AvatarKey.DEFAULT_PHONE else AvatarKey.DEFAULT_PEER,
+                onSelect = {
+                    if (isApp) viewModel.setPhoneAvatarKey(it) else viewModel.setPeerAvatarKey(it)
+                    quickPicker = null
+                },
+                onDismiss = { quickPicker = null },
+                header = {
+                    // 专名直显，不进 i18n（spec §4.2）——与设置页同一处理。
+                    val tabs = listOf("App", "Browser")
+                    SingleChoiceSegmentedButtonRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = Spacing.md),
+                    ) {
+                        tabs.forEachIndexed { index, label ->
+                            SegmentedButton(
+                                selected = avatarSheetTab == index,
+                                onClick = { avatarSheetTab = index },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = tabs.size),
+                            ) {
+                                Text(label)
+                            }
+                        }
+                    }
+                },
+            )
+        }
         QuickPicker.Background -> BackgroundPickerSheet(
             current = settings.background,
             onSelect = { viewModel.setBackground(it) },

@@ -6,6 +6,7 @@ import com.example.flikky.server.dto.RecallResponse
 import com.example.flikky.server.dto.SendTextRequest
 import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.TextMessageDto
+import com.example.flikky.server.dto.WireJson
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
@@ -56,7 +57,7 @@ fun Route.messageRoutes(
         session.addMessage(msg)
         runCatching { onPersist(msg) }
         val dto = TextMessageDto(msg.id, msg.origin.name, msg.timestamp, msg.content, senderId = senderId)
-        broadcastEvent("text_added", kotlinx.serialization.json.Json.encodeToString(TextMessageDto.serializer(), dto))
+        broadcastEvent("text_added", WireJson.encodeToString(TextMessageDto.serializer(), dto))
         call.respond(dto.copy(senderId = null))
     }
 
@@ -132,7 +133,7 @@ fun Route.messageRoutes(
                 call.respond(HttpStatusCode.OK, resp)
                 broadcastEvent(
                     "message_recalled",
-                    kotlinx.serialization.json.Json.encodeToString(RecallResponse.serializer(), resp),
+                    WireJson.encodeToString(RecallResponse.serializer(), resp),
                 )
             }
             is ServerRecallOutcome.NotFound -> call.respond(HttpStatusCode.NotFound, mapOf("error" to "not_found"))

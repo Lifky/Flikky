@@ -65,7 +65,15 @@ fun ThemePickerSheet(
     onSelectMode: (ThemeMode) -> Unit,
     onSelectPreset: (PresetTheme) -> Unit,
     onSelectCustomSeed: (Long) -> Unit,
-    onSelectContrast: (ContrastLevel) -> Unit,
+    /**
+     * 对比度回调。传 null 即**不渲染**对比度那一段。
+     *
+     * 用「回调是否存在」当开关，而不是再加一个 showContrast 布尔：两个参数会造出
+     * 「隐藏了却还接着一个活回调」和「显示了却没有回调」这两种不可能状态。
+     * 会话中的快捷设置传 null —— 对比度不进 PeerInfoDto，浏览器跟不了，
+     * 而快捷设置的承诺是「这里每一项都会同步」（用户裁决）。
+     */
+    onSelectContrast: ((ContrastLevel) -> Unit)?,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -256,22 +264,24 @@ fun ThemePickerSheet(
                 }
 
                 // 对比度档：跟随系统 / 标准 / 中 / 高（每个主题都备有三套 role）。
-                Spacer(Modifier.height(Spacing.lg))
-                Text(
-                    text = stringResource(R.string.theme_contrast),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = Spacing.md),
-                )
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    val levels = ContrastLevel.entries
-                    levels.forEachIndexed { index, level ->
-                        SegmentedButton(
-                            selected = current.contrastLevel == level,
-                            onClick = { onSelectContrast(level) },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = levels.size),
-                        ) {
-                            Text(level.localizedLabel())
+                if (onSelectContrast != null) {
+                    Spacer(Modifier.height(Spacing.lg))
+                    Text(
+                        text = stringResource(R.string.theme_contrast),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = Spacing.md),
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        val levels = ContrastLevel.entries
+                        levels.forEachIndexed { index, level ->
+                            SegmentedButton(
+                                selected = current.contrastLevel == level,
+                                onClick = { onSelectContrast(level) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = levels.size),
+                            ) {
+                                Text(level.localizedLabel())
+                            }
                         }
                     }
                 }
