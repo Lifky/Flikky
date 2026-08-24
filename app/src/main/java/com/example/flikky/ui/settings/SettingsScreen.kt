@@ -84,6 +84,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.settings.AppLanguage
 import com.example.flikky.data.settings.AppLanguageManager
+import com.example.flikky.data.settings.DEVICE_NAME_MAX
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.AnimationSpeed
@@ -958,7 +959,7 @@ fun SettingsScreen(
             text = {
                 OutlinedTextField(
                     value = draft,
-                    onValueChange = { if (it.length <= 20) draft = it },
+                    onValueChange = { if (it.length <= DEVICE_NAME_MAX) draft = it },
                     singleLine = true,
                     label = { Text(stringResource(R.string.settings_device_name_limit)) },
                 )

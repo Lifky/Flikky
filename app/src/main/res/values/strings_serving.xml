@@ -38,6 +38,9 @@
     <string name="quick_settings_avatar_each">每条</string>
     <string name="quick_settings_dark_mode">深色模式</string>
     <string name="quick_settings_dark_system">跟随系统</string>
+    <!-- 收录标准是「会同步到浏览器」，不是「常用」——说清楚这一点，用户才不会
+         在这里找那些浏览器跟不了的设置（需要 PIN、历史保留、屏幕常亮等）。 -->
+    <string name="quick_settings_scope_hint">以下均为双端同步项，改动会立即同步到已连接的浏览器</string>
 
     <string name="favorite_quick_title">收藏</string>
     <string name="favorite_quick_recent">最近使用</string>

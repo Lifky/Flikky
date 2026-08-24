@@ -16,8 +16,14 @@ import com.example.flikky.R
 import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.SessionRepository
+import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.AvatarGroupingMode
+import com.example.flikky.data.settings.BackgroundSetting
+import com.example.flikky.data.settings.ContrastLevel
 import com.example.flikky.data.settings.DarkMode
+import com.example.flikky.data.settings.MessageActionStyle
+import com.example.flikky.data.settings.PresetTheme
+import com.example.flikky.data.settings.ThemeMode
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.service.TransferController
@@ -180,6 +186,69 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setDarkMode(mode: DarkMode) {
         viewModelScope.launch { ServiceLocator.settingsRepository.setDarkMode(mode) }
+    }
+
+    // 以下这些也都是「双端同步」项——都进了 PeerInfoDto，改动经 settings_changed
+    // 广播给已连接的浏览器。会话期间设置页锁着，不在快捷设置里就等于整场会话
+    // 都无法调整，双端同步这件事也就发挥不出来。
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setThemeMode(mode) }
+    }
+
+    fun setPresetTheme(theme: PresetTheme) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setPresetTheme(theme) }
+    }
+
+    fun setCustomThemeSeed(argb: Long) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setCustomThemeSeed(argb) }
+    }
+
+    /**
+     * 对比度**不**进 PeerInfoDto，浏览器跟不了。它出现在这里只因为复用了设置页那张
+     * ThemePickerSheet——把它从共用组件里挖掉会让两处视觉分叉，代价大于收益。
+     */
+    fun setContrastLevel(level: ContrastLevel) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setContrastLevel(level) }
+    }
+
+    fun setAmoled(enabled: Boolean) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setAmoled(enabled) }
+    }
+
+    fun setAnimationSpeed(speed: AnimationSpeed) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setAnimationSpeed(speed) }
+    }
+
+    fun setDeviceName(name: String) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setDeviceName(name) }
+    }
+
+    fun setPhoneAvatarKey(key: String) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setPhoneAvatarKey(key) }
+    }
+
+    fun setBackground(background: BackgroundSetting) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setBackground(background) }
+    }
+
+    fun setSessionTimestampEnabled(enabled: Boolean) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setSessionTimestampEnabled(enabled) }
+    }
+
+    fun setMessageActionStyle(style: MessageActionStyle) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setMessageActionStyle(style) }
+    }
+
+    fun setRecallBeta(enabled: Boolean) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setRecallBeta(enabled) }
+    }
+
+    fun setAllowPeerRecall(enabled: Boolean) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setAllowPeerRecall(enabled) }
+    }
+
+    fun setFavoriteBeta(enabled: Boolean) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setFavoriteBeta(enabled) }
     }
 
     fun setPeerAvatarKey(key: String) {

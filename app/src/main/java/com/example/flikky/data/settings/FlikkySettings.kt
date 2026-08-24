@@ -58,6 +58,9 @@ sealed class BackgroundSetting {
     // v1.6.0：移除 Gradient（效果不佳、不符 MD3 极浅规范）。历史存的 GRADIENT 解码回退 Default。
 }
 
+/** 设备名长度上限。设置页与会话页的快捷设置共用同一个上限，别各写一个 20。 */
+const val DEVICE_NAME_MAX = 20
+
 const val BUBBLE_CORNER_MIN = 8
 const val BUBBLE_CORNER_MAX = 28
 const val BUBBLE_CORNER_DEFAULT = 10

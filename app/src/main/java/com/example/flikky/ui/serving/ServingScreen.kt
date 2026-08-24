@@ -92,6 +92,8 @@ import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.settings.sheets.AvatarPickerSheet
+import com.example.flikky.ui.settings.sheets.BackgroundPickerSheet
+import com.example.flikky.ui.settings.sheets.ThemePickerSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import com.example.flikky.util.SessionTimestamp
@@ -136,6 +138,8 @@ fun ServingScreen(
     var showFavoriteQuickSheet by remember { mutableStateOf(false) }
     var showFilesQuickSheet by remember { mutableStateOf(false) }
     var showQuickSettings by remember { mutableStateOf(false) }
+    // 快捷设置里「钻进去」的那三张复用 sheet，见下方托管处的注释。
+    var quickPicker by remember { mutableStateOf<QuickPicker?>(null) }
     var showPeerAvatarPicker by remember { mutableStateOf(false) }
     var previewImage by remember { mutableStateOf<java.io.File?>(null) }
     val clipboard = LocalClipboard.current
@@ -667,16 +671,54 @@ fun ServingScreen(
         )
     }
 
-    if (showQuickSettings) {
+    // 快捷设置里的三个复杂选择器复用设置页那三张 sheet，而它们都是 ModalBottomSheet。
+    // 两层 ModalBottomSheet 叠加在 Compose M3 里不可靠（scrim / 焦点都会打架），所以
+    // 在这里托管：quickPicker 非空时不渲染快捷设置本体 —— 「钻进去，关掉再回来」，
+    // 全程只有一层 sheet。showQuickSettings 保持为 true，所以关掉选择器它自己就回来了。
+    if (showQuickSettings && quickPicker == null) {
         QuickSettingsSheet(
-            bubbleCornerRadius = settings.bubbleCornerRadius,
-            avatarGrouping = settings.avatarGrouping,
-            darkMode = settings.darkMode,
+            settings = settings,
+            defaultDeviceName = stringResource(R.string.settings_default_device_name),
             onSetBubbleCorner = { viewModel.setBubbleCornerRadius(it) },
             onSetAvatarGrouping = { viewModel.setAvatarGrouping(it) },
             onSetDarkMode = { viewModel.setDarkMode(it) },
+            onSetAmoled = { viewModel.setAmoled(it) },
+            onSetAnimationSpeed = { viewModel.setAnimationSpeed(it) },
+            onSetDeviceName = { viewModel.setDeviceName(it) },
+            onSetSessionTimestamp = { viewModel.setSessionTimestampEnabled(it) },
+            onSetMessageActionStyle = { viewModel.setMessageActionStyle(it) },
+            onSetRecallBeta = { viewModel.setRecallBeta(it) },
+            onSetAllowPeerRecall = { viewModel.setAllowPeerRecall(it) },
+            onSetFavoriteBeta = { viewModel.setFavoriteBeta(it) },
+            onOpenThemePicker = { quickPicker = QuickPicker.Theme },
+            onOpenAvatarPicker = { quickPicker = QuickPicker.Avatar },
+            onOpenBackgroundPicker = { quickPicker = QuickPicker.Background },
             onDismiss = { showQuickSettings = false },
         )
+    }
+
+    when (quickPicker) {
+        QuickPicker.Theme -> ThemePickerSheet(
+            current = settings,
+            onSelectMode = { viewModel.setThemeMode(it) },
+            onSelectPreset = { viewModel.setPresetTheme(it) },
+            onSelectCustomSeed = { viewModel.setCustomThemeSeed(it) },
+            onSelectContrast = { viewModel.setContrastLevel(it) },
+            onDismiss = { quickPicker = null },
+        )
+        QuickPicker.Avatar -> AvatarPickerSheet(
+            title = stringResource(R.string.settings_avatar),
+            currentKey = settings.phoneAvatarKey,
+            fallbackKey = AvatarKey.DEFAULT_PHONE,
+            onSelect = { viewModel.setPhoneAvatarKey(it); quickPicker = null },
+            onDismiss = { quickPicker = null },
+        )
+        QuickPicker.Background -> BackgroundPickerSheet(
+            current = settings.background,
+            onSelect = { viewModel.setBackground(it) },
+            onDismiss = { quickPicker = null },
+        )
+        null -> Unit
     }
 
     if (showPeerAvatarPicker) {
