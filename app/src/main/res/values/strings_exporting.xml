@@ -31,7 +31,7 @@
     <string name="export_destination_title">导出到</string>
     <string name="export_destination_local">保存到本机</string>
     <string name="export_destination_local_summary">选择位置保存 ZIP 归档</string>
-    <string name="export_destination_computer">在电脑下载</string>
+    <string name="export_destination_computer">浏览器下载</string>
     <string name="export_destination_computer_summary">通过同一 Wi-Fi 在浏览器下载</string>
     <string name="archive_read_failed">无法读取文件</string>
     <string name="archive_parse_failed">无法解析归档</string>

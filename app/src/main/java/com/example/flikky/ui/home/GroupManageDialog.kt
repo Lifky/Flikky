@@ -1,5 +1,6 @@
 package com.example.flikky.ui.home
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -50,7 +51,7 @@ fun GroupManageDialog(
     val trimmed = draft.trim()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.home_manage_group)) },
+        title = { Text(stringResource(wording.manageGroup)) },
         text = {
             Column {
                 OutlinedTextField(
@@ -63,7 +64,11 @@ fun GroupManageDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(Spacing.sm))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(stringResource(R.string.home_group_order), style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.width(Spacing.sm))
                     IconButton(onClick = onMoveUp, enabled = canMoveUp) {
@@ -79,12 +84,6 @@ fun GroupManageDialog(
                         )
                     }
                 }
-                TextButton(
-                    onClick = { onDelete(); onDismiss() },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
-                ) { Text(stringResource(wording.deleteGroup)) }
             }
         },
         confirmButton = {
@@ -97,7 +96,18 @@ fun GroupManageDialog(
             ) { Text(stringResource(R.string.home_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(
+                    onClick = { onDelete(); onDismiss() },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) { Text(stringResource(wording.deleteGroup)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+            }
         },
     )
 }

@@ -11,6 +11,7 @@ import com.example.flikky.R
  * 文案改成参数后，词汇归调用方决定，组件不再替谁说话。
  */
 data class GroupWording(
+    @StringRes val manageGroup: Int,
     @StringRes val newGroup: Int,
     @StringRes val groupName: Int,
     @StringRes val deleteGroup: Int,
@@ -20,6 +21,7 @@ data class GroupWording(
     companion object {
         /** 首页会话：「分组」。 */
         val Sessions = GroupWording(
+            manageGroup = R.string.home_manage_group,
             newGroup = R.string.home_new_group,
             groupName = R.string.home_group_name,
             deleteGroup = R.string.home_delete_group,
@@ -29,6 +31,7 @@ data class GroupWording(
 
         /** 收藏页：「合集」。 */
         val Favorites = GroupWording(
+            manageGroup = R.string.favorites_manage_group,
             newGroup = R.string.favorites_new_group,
             groupName = R.string.favorites_group_name,
             deleteGroup = R.string.favorites_delete_group,

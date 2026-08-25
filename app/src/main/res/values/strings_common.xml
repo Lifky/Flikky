@@ -15,7 +15,7 @@
     <string name="common_collapse">收起</string>
     <string name="common_more">更多</string>
     <string name="common_rename_session">重命名会话</string>
-    <string name="connection_open_in_browser">在电脑浏览器打开</string>
+    <string name="connection_open_in_browser">在浏览器中打开</string>
     <string name="connection_copy_address">复制地址</string>
     <string name="connection_method">连接方式</string>
     <string name="connection_without_pin">免 PIN 连接</string>

@@ -35,7 +35,7 @@
     <string name="export_destination_title">Export to</string>
     <string name="export_destination_local">Save on this device</string>
     <string name="export_destination_local_summary">Choose where to save the ZIP archive</string>
-    <string name="export_destination_computer">Download on computer</string>
+    <string name="export_destination_computer">Download in browser</string>
     <string name="export_destination_computer_summary">Download in a browser over the same Wi-Fi</string>
     <string name="archive_read_failed">Couldn\'t read the file</string>
     <string name="archive_parse_failed">Couldn\'t read the archive</string>

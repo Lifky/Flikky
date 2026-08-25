@@ -15,7 +15,7 @@
     <string name="common_collapse">Collapse</string>
     <string name="common_more">More</string>
     <string name="common_rename_session">Rename session</string>
-    <string name="connection_open_in_browser">Open in a computer browser</string>
+    <string name="connection_open_in_browser">Open in browser</string>
     <string name="connection_copy_address">Copy address</string>
     <string name="connection_method">Connection</string>
     <string name="connection_without_pin">Connect without PIN</string>
