@@ -5,6 +5,8 @@
     <string name="history_pin">Pin</string>
     <string name="history_unpin">Unpin</string>
     <string name="history_rename">Rename</string>
+    <string name="history_move_to_group">Move to group</string>
+    <string name="history_export">Export</string>
     <string name="history_delete">Delete</string>
     <string name="history_favorite">Favorite</string>
     <string name="history_unfavorite">Remove favorite</string>

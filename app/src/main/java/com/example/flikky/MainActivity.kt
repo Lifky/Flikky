@@ -273,6 +273,7 @@ class MainActivity : ComponentActivity() {
                                     HistoryScreen(
                                         sessionId = id,
                                         highlightMessageId = highlight,
+                                        onStartExport = { nav.navigate("exporting") },
                                         onBack = { nav.popBackStack() },
                                     )
                                 }

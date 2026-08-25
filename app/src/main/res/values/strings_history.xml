@@ -5,6 +5,8 @@
     <string name="history_pin">置顶</string>
     <string name="history_unpin">取消置顶</string>
     <string name="history_rename">重命名</string>
+    <string name="history_move_to_group">移动到分组</string>
+    <string name="history_export">导出</string>
     <string name="history_delete">删除</string>
     <string name="history_favorite">收藏</string>
     <string name="history_unfavorite">取消收藏</string>

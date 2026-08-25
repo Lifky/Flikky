@@ -2,6 +2,8 @@ package com.example.flikky.ui.history
 
 import android.content.Context
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
@@ -20,11 +22,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -74,10 +78,16 @@ import com.example.flikky.ui.components.setPlainText
 import com.example.flikky.ui.favorites.FavoriteGroupPickerSheet
 import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.FilesListBuilder
+import com.example.flikky.ui.exporting.ExportDestinationSheet
+import com.example.flikky.ui.home.HomeViewModel
+import com.example.flikky.ui.home.MoveToGroupSheet
+import com.example.flikky.export.ExportFileName
+import com.example.flikky.export.ExportScope
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import com.example.flikky.util.SessionTimestamp
 import androidx.compose.foundation.text.selection.SelectionContainer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -88,6 +98,7 @@ import kotlinx.coroutines.withContext
 fun HistoryScreen(
     sessionId: Long,
     onBack: () -> Unit,
+    onStartExport: () -> Unit = {},
     highlightMessageId: Long? = null,
 ) {
     val ctx = LocalContext.current
@@ -97,8 +108,10 @@ fun HistoryScreen(
             sessionId = sessionId,
         ),
     )
+    val homeViewModel: HomeViewModel = viewModel()
     val session by viewModel.session.collectAsState(initial = null)
     val messages by viewModel.messages.collectAsState()
+    val groups by homeViewModel.groups.collectAsState(initial = emptyList())
     val settings by ServiceLocator.settingsRepository.settings.collectAsState(initial = FlikkySettings())
     val timestampDividerIndices = remember(messages) {
         SessionTimestamp.dividerIndices(messages.map { it.timestamp })
@@ -106,6 +119,9 @@ fun HistoryScreen(
     var menuExpanded by remember { mutableStateOf(false) }
     var showRename by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
+    var showMoveSheet by remember { mutableStateOf(false) }
+    var showExportDestination by remember { mutableStateOf(false) }
+    var showExportProgress by remember { mutableStateOf(false) }
     val inProgress = session?.endedAt == null && session != null
     var actionTarget by remember { mutableStateOf<Long?>(null) }
     var pendingFavoriteMsg by remember { mutableStateOf<Message?>(null) }
@@ -113,6 +129,34 @@ fun HistoryScreen(
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val localExportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip"),
+    ) { uri ->
+        if (uri != null) {
+            showExportProgress = true
+            scope.launch {
+                val message = try {
+                    when (homeViewModel.saveExport(uri, listOf(sessionId))) {
+                        HomeViewModel.ExportStartResult.Success ->
+                            ctx.getString(R.string.home_export_saved)
+                        HomeViewModel.ExportStartResult.NoValidSessions ->
+                            ctx.getString(R.string.home_export_ineligible)
+                        HomeViewModel.ExportStartResult.EmptySelection ->
+                            ctx.getString(R.string.home_select_sessions_first)
+                        HomeViewModel.ExportStartResult.TransferRunning ->
+                            ctx.getString(R.string.home_save_failed)
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    ctx.getString(R.string.home_save_failed_location)
+                } finally {
+                    showExportProgress = false
+                }
+                snackbarHostState.showSnackbar(message)
+            }
+        }
+    }
     val favoriteLabel = stringResource(R.string.history_favorite)
     val unfavoriteLabel = stringResource(R.string.history_unfavorite)
     val copyLabel = stringResource(R.string.history_copy)
@@ -152,6 +196,8 @@ fun HistoryScreen(
     val deletePainter = painterResource(R.drawable.ic_delete)
     val pinPainter = painterResource(R.drawable.ic_push_pin)
     val editPainter = painterResource(R.drawable.ic_edit)
+    val movePainter = painterResource(R.drawable.ic_drive_file_move)
+    val exportPainter = painterResource(R.drawable.ic_upload)
     val starPainter = painterResource(R.drawable.ic_star)
     val starBorderPainter = painterResource(R.drawable.ic_star_border)
     val favoriteGroups by if (settings.favoriteBetaEnabled) {
@@ -321,9 +367,23 @@ fun HistoryScreen(
                             leadingIcon = { Icon(editPainter, contentDescription = null) },
                         )
                         DropdownMenuItem(
+                            text = { Text(stringResource(R.string.history_move_to_group)) },
+                            onClick = { menuExpanded = false; showMoveSheet = true },
+                            leadingIcon = { Icon(movePainter, contentDescription = null) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.history_export)) },
+                            onClick = { menuExpanded = false; showExportDestination = true },
+                            leadingIcon = { Icon(exportPainter, contentDescription = null) },
+                        )
+                        DropdownMenuItem(
                             text = { Text(stringResource(R.string.history_delete)) },
                             onClick = { menuExpanded = false; showDelete = true },
                             leadingIcon = { Icon(deletePainter, contentDescription = null) },
+                            colors = MenuDefaults.itemColors(
+                                textColor = MaterialTheme.colorScheme.error,
+                                leadingIconColor = MaterialTheme.colorScheme.error,
+                            ),
                         )
                     }
                 },
@@ -487,6 +547,73 @@ fun HistoryScreen(
             dismissButton = {
                 TextButton(onClick = { showDelete = false }) { Text(stringResource(R.string.common_cancel)) }
             },
+        )
+    }
+    if (showExportProgress) {
+        AlertDialog(
+            onDismissRequest = {},
+            confirmButton = {},
+            title = { Text(stringResource(R.string.home_saving)) },
+            text = {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            },
+        )
+    }
+    if (showMoveSheet) {
+        MoveToGroupSheet(
+            groups = groups,
+            onSelect = { targetGroupId ->
+                showMoveSheet = false
+                val targetName =
+                    if (targetGroupId == null) ctx.getString(R.string.home_all_groups)
+                    else groups.firstOrNull { it.id == targetGroupId }?.name
+                        ?: ctx.getString(R.string.home_group_fallback)
+                scope.launch {
+                    homeViewModel.moveSessionToGroup(sessionId, targetGroupId)
+                    snackbarHostState.showSnackbar(
+                        ctx.resources.getQuantityString(
+                            R.plurals.home_sessions_moved,
+                            1,
+                            1,
+                            targetName,
+                        ),
+                    )
+                }
+            },
+            onDismiss = { showMoveSheet = false },
+        )
+    }
+    if (showExportDestination) {
+        ExportDestinationSheet(
+            onSaveLocal = {
+                showExportDestination = false
+                localExportLauncher.launch(
+                    ExportFileName.build(ExportScope.SESSIONS, System.currentTimeMillis()),
+                )
+            },
+            onDownloadToComputer = {
+                showExportDestination = false
+                scope.launch {
+                    when (homeViewModel.startExport(listOf(sessionId))) {
+                        HomeViewModel.ExportStartResult.Success -> onStartExport()
+                        HomeViewModel.ExportStartResult.TransferRunning ->
+                            snackbarHostState.showSnackbar(
+                                ctx.getString(R.string.home_stop_service_first),
+                            )
+                        HomeViewModel.ExportStartResult.NoValidSessions ->
+                            snackbarHostState.showSnackbar(
+                                ctx.getString(R.string.home_export_ineligible),
+                            )
+                        HomeViewModel.ExportStartResult.EmptySelection ->
+                            snackbarHostState.showSnackbar(
+                                ctx.getString(R.string.home_select_sessions_first),
+                            )
+                    }
+                }
+            },
+            onDismiss = { showExportDestination = false },
         )
     }
     if (settings.favoriteBetaEnabled) pendingFavoriteMsg?.let { msg ->
