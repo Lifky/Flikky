@@ -199,13 +199,14 @@ test('the standalone pages primary button has no press morph (user ruling)', () 
   assert.equal(/--flikky-morph-press/.test(decls), false);
 });
 
-test('the export session rows carry a leading icon', () => {
-  // 原型有，之前漏了。走 slot="icon" 而不是 mdui 的 icon 属性 —— 后者渲染
-  // <mdui-icon>，依赖 mdui 自带的图标字体，而本项目打包的是 Material Symbols。
-  assert.match(exportJs, /setAttribute\('slot', 'icon'\)/);
-  assert.match(exportJs, /dataset\.icon = 'forum'/);
-  assert.match(pages, /\.fk-list-lead\s*\{[^}]*\}/);
-  // 不能用 #flikky-cookie9：那个 clipPath 只内联在 app.html 里，导出页引用不到。
+test("the export page never reaches for the chat pane's Cookie9 clip path", () => {
+  // 会话行的行首图标已按用户裁决移除（ac4c699 同时删掉了 export.js 的构建代码与
+  // pages.css 的 .fk-list-lead），所以不再断言它存在。
+  //
+  // 但这一条要留下：#flikky-cookie9 那个 clipPath 只内联在 app.html 里，导出页
+  // 引用它会静默拿到一个没有裁剪的方块 —— 属于「看着像写对了」的那类坑。
   assert.equal(/flikky-cookie9/.test(pages), false);
   assert.equal(/flikky-cookie9/.test(exportHtml), false);
+  // 同时钉住那份 CSS 真的清干净了，别留一条没人用的规则。
+  assert.equal(/\.fk-list-lead/.test(pages), false);
 });
