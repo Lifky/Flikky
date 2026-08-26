@@ -48,10 +48,10 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         FlikkySettings(
             themeMode = p[Keys.themeMode]?.let { ThemeMode.valueOf(it) } ?: ThemeMode.PRESET,
             // 旧版本可能存了已移除的预设名（CORAL/MUSHROOM/TEAL/MIST）——valueOf 会抛，
-            // runCatching 兜底回落到默认主题 DANSHU_RED（淡曙红，与旧 CORAL 同为暖红色系）。
+            // runCatching 兜底回落到默认主题 ANAN_BLUE（安安蓝）。
             presetTheme = p[Keys.preset]
                 ?.let { runCatching { PresetTheme.valueOf(it) }.getOrNull() }
-                ?: PresetTheme.DANSHU_RED,
+                ?: PresetTheme.ANAN_BLUE,
             customThemeSeedArgb = normalizeThemeSeedArgb(
                 p[Keys.customThemeSeed] ?: CUSTOM_THEME_SEED_DEFAULT,
             ),

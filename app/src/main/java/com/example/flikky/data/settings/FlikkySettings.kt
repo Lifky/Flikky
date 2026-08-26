@@ -64,11 +64,11 @@ const val DEVICE_NAME_MAX = 20
 const val BUBBLE_CORNER_MIN = 8
 const val BUBBLE_CORNER_MAX = 28
 const val BUBBLE_CORNER_DEFAULT = 10
-const val CUSTOM_THEME_SEED_DEFAULT = 0xFF8F4A4CL
+const val CUSTOM_THEME_SEED_DEFAULT = 0xFF33618DL
 
 data class FlikkySettings(
     val themeMode: ThemeMode = ThemeMode.PRESET,
-    val presetTheme: PresetTheme = PresetTheme.DANSHU_RED,
+    val presetTheme: PresetTheme = PresetTheme.ANAN_BLUE,
     val customThemeSeedArgb: Long = CUSTOM_THEME_SEED_DEFAULT,
     val contrastLevel: ContrastLevel = ContrastLevel.SYSTEM,
     val darkMode: DarkMode = DarkMode.SYSTEM,

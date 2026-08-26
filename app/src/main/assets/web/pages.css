@@ -242,18 +242,6 @@ body {
 .fk-sessions { margin-bottom: var(--flikky-space-xl); }
 .fk-sessions[hidden] { display: none; }
 
-/* 会话行的行首图标容器。元素在 light DOM 里（slot="icon"），所以这里能直接定它的样式。 */
-.fk-list-lead {
-  width: 40px;
-  height: 40px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  border-radius: var(--flikky-shape-sm);
-  background: rgb(var(--mdui-color-secondary-container));
-  color: rgb(var(--mdui-color-on-secondary-container));
-}
-
 .fk-banner {
   padding: var(--flikky-space-md) var(--flikky-space-lg);
   border-radius: var(--flikky-shape-md);

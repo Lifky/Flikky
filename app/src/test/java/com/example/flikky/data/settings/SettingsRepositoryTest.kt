@@ -29,12 +29,12 @@ class SettingsRepositoryTest {
         return SettingsRepository(ds)
     }
 
-    @Test fun in_memory_defaults_use_danshu_red_preset_theme() {
+    @Test fun in_memory_defaults_use_anan_blue_preset_theme() {
         val s = FlikkySettings()
 
         assertEquals(ThemeMode.PRESET, s.themeMode)
-        assertEquals(PresetTheme.DANSHU_RED, s.presetTheme)
-        assertEquals(0xFF8F4A4CL, s.customThemeSeedArgb)
+        assertEquals(PresetTheme.ANAN_BLUE, s.presetTheme)
+        assertEquals(0xFF33618DL, s.customThemeSeedArgb)
         assertEquals(10, s.bubbleCornerRadius)
         assertEquals(true, s.recallBetaEnabled)
         assertEquals(true, s.allowPeerRecall)
@@ -47,8 +47,8 @@ class SettingsRepositoryTest {
         val repo = makeRepo(this)
         val s = repo.settings.first()
         assertEquals(ThemeMode.PRESET, s.themeMode)
-        assertEquals(PresetTheme.DANSHU_RED, s.presetTheme)
-        assertEquals(0xFF8F4A4CL, s.customThemeSeedArgb)
+        assertEquals(PresetTheme.ANAN_BLUE, s.presetTheme)
+        assertEquals(0xFF33618DL, s.customThemeSeedArgb)
         assertEquals(20, s.historyRetainLimit)
         assertEquals(10, s.bubbleCornerRadius)
         assertEquals(true, s.recallBetaEnabled)
