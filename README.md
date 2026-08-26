@@ -20,8 +20,8 @@ Flikky is designed for trusted local networks and keeps the operational complexi
 
 | Channel | Revision | State |
 | --- | --- | --- |
-| Stable source | [`v1.18.0`](https://github.com/Lifky/Flikky/tree/v1.18.0) · 2026-08-15 | Session timestamp dividers on both ends, keep-screen-on during a session, and a browser save-all button with per-file and ZIP download. |
-| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.18.0...main) | No unreleased changes beyond the stable tag. |
+| Stable source | [`v1.19.0`](https://github.com/Lifky/Flikky/tree/v1.19.0) · 2026-08-26 | The browser client rebuilt in Material 3 Expressive (three-pane shell, bottom navigation on narrow windows), new favorites and settings panels in the browser, and in-session quick settings covering every synced setting. |
+| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.19.0...main) | No unreleased changes beyond the stable tag. |
 
 Use the stable tag for a reproducible build. Use `main` when evaluating the latest unreleased work. Per-release changes are documented in the [changelog](./docs/CHANGELOG.md); version history is available from the repository's [tags](https://github.com/Lifky/Flikky/tags).
 
@@ -126,6 +126,10 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 - [x] Session timestamp dividers (both ends)
 - [x] Keep screen on during a session
 - [x] Browser save-all (per-file / ZIP archive)
+- [x] Material 3 Expressive redesign of the browser client (three-pane shell / bottom navigation on narrow windows / draggable split)
+- [x] Favorites panel in the browser (search, category filters, multi-select batch save)
+- [x] Settings panel in the browser (layout preferences, read-only phone rows, About)
+- [x] Browser follows the AMOLED black theme
 - [ ] More... iterating...
 
 ## Security Model and Limits

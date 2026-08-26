@@ -37,13 +37,19 @@ test('icon glyphs are generated content, not DOM text', () => {
     }
   }
 
-  // 动态建的图标同理。按「变量名」查而不是按某个固定的工厂形状 —— export.js 是
-  // 内联建的、后面没有 return，第一版按形状匹配的断言在它上面直接找不到目标。
+  // 动态建的图标同理。按「变量名」查而不是按某个固定的工厂形状 —— 内联建的图标
+  // 后面没有 return，按形状匹配的断言在它上面直接找不到目标。
+  //
+  // 文件列表**扫出来**而不是写死：原先写死四个文件名，用户后来移除了 export.js 里
+  // 唯一的图标（ac4c699），于是守卫在一个「这个文件本来就该有图标」的错误前提上转红。
+  // 现在的规则是「谁建图标就查谁」，再用下面的总数下限兜住「一个都没扫到」这种空转。
   let iconVars = 0;
-  for (const js of ['app.js', 'export.js', 'panel-favorites.js', 'panel-settings.js']) {
+  const iconScripts = fs.readdirSync(WEB)
+    .filter((f) => f.endsWith('.js'))
+    .filter((f) => fs.readFileSync(path.join(WEB, f), 'utf8').includes("'material-symbols-outlined'"));
+  for (const js of iconScripts) {
     const src = fs.readFileSync(path.join(WEB, js), 'utf8');
     const named = [...src.matchAll(/(\w+)\.className = 'material-symbols-outlined'/g)].map((m) => m[1]);
-    assert.ok(named.length > 0, `${js}: no element is given the icon class — did it move?`);
     for (const v of new Set(named)) {
       iconVars += 1;
       const esc = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -57,7 +63,9 @@ test('icon glyphs are generated content, not DOM text', () => {
       );
     }
   }
-  assert.ok(iconVars >= 4, `expected at least one icon element per script, found ${iconVars}`);
+  // 下限防空转：真实值目前是 3（app.js / panel-favorites.js / panel-settings.js 各一个
+  // 工厂）。写 3 而不是文件数 —— 这条要防的是「扫描没命中任何东西却全绿」。
+  assert.ok(iconVars >= 3, `expected at least 3 icon-creating variables, found ${iconVars}`);
 });
 
 test('icon ligatures cannot be selected, with the vendor prefix', () => {
