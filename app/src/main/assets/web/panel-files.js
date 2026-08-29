@@ -18,7 +18,7 @@
 (function () {
     'use strict';
 
-    const t = (key) => (window.i18n && window.i18n.t ? window.i18n.t(key) : key);
+    const t = (key, values) => (window.flikkyI18n ? window.flikkyI18n.t(key, values) : key);
 
     /** 当前相对路径。只存内存：不敏感，但也没有跨会话价值，且重连必须回根目录。 */
     let currentPath = '';
@@ -59,50 +59,244 @@
         container.appendChild(bodyEl);
     }
 
+
     /** 中性提示（加载中 / 空文件夹）。错误与引导态在 Task 8 接。 */
-    function renderNotice(key) {
-        if (!bodyEl) return;
-        bodyEl.textContent = '';
+    function renderNotice(host, key) {
         const p = document.createElement('p');
         p.className = 'fk-panel-notice';
         p.textContent = t(key);
-        bodyEl.appendChild(p);
+        host.appendChild(p);
+    }
+
+    // ---- 面包屑 -------------------------------------------------------------
+
+    /**
+     * 从**左侧**折叠：首级恒显示、中间折叠为一个展开控件、末两级恒显示。
+     * 从右侧折叠会藏掉「我在哪」，方向反了。
+     *
+     * 返回的每一项是 { name, path }；name 为 null 表示根（渲染成「内部存储」）。
+     */
+    function breadcrumbSegments(relativePath) {
+        const parts = relativePath ? relativePath.split('/').filter(Boolean) : [];
+        const all = [{ name: null, path: '' }].concat(
+            parts.map((name, i) => ({ name: name, path: parts.slice(0, i + 1).join('/') })),
+        );
+        if (all.length <= 4) return { head: all, collapsed: [], tail: [] };
+        return { head: [all[0]], collapsed: all.slice(1, all.length - 2), tail: all.slice(-2) };
+    }
+
+    function crumbLabel(seg) {
+        return seg.name === null ? t('app.files.root') : seg.name;
+    }
+
+    function renderCrumb(list, seg, isCurrent) {
+        const li = document.createElement('li');
+        if (isCurrent) {
+            // 已经在这一级了，不该是个可点的东西。aria-current 是导航语境的正确属性。
+            const span = document.createElement('span');
+            span.className = 'fk-crumb';
+            span.setAttribute('aria-current', 'page');
+            span.textContent = crumbLabel(seg);
+            li.appendChild(span);
+        } else {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'fk-crumb';
+            btn.textContent = crumbLabel(seg);
+            btn.addEventListener('click', () => navigate(seg.path));
+            li.appendChild(btn);
+            const sep = icon('chevron_right');
+            sep.classList.add('fk-crumb-sep');
+            li.appendChild(sep);
+        }
+        list.appendChild(li);
+    }
+
+    function renderBreadcrumb(host, relativePath) {
+        const nav = document.createElement('nav');
+        nav.className = 'fk-crumbs';
+        nav.setAttribute('aria-label', t('app.files.breadcrumb'));
+        const list = document.createElement('ol');
+        nav.appendChild(list);
+
+        const seg = breadcrumbSegments(relativePath);
+        // 当前级 = 整条路径的最后一级，按 path 比对判定。
+        // 曾写成 `flat.length === 1`，那只在根目录成立，多级路径下没有任何一级被标成当前。
+        const shown = seg.head.concat(seg.tail);
+        const currentPathOfCrumb = shown[shown.length - 1].path;
+        const isCurrent = (x) => x.path === currentPathOfCrumb;
+        seg.head.forEach((s) => renderCrumb(list, s, isCurrent(s)));
+        if (seg.collapsed.length) {
+            // 折叠控件本身是一级：点它回到被折叠区间的最后一级（最近的祖先）。
+            const li = document.createElement('li');
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'fk-crumb fk-crumb--more';
+            btn.textContent = '…';
+            btn.setAttribute('aria-label', t('app.files.breadcrumbMore'));
+            const nearest = seg.collapsed[seg.collapsed.length - 1];
+            btn.addEventListener('click', () => navigate(nearest.path));
+            li.appendChild(btn);
+            const sep = icon('chevron_right');
+            sep.classList.add('fk-crumb-sep');
+            li.appendChild(sep);
+            list.appendChild(li);
+        }
+        seg.tail.forEach((s) => renderCrumb(list, s, isCurrent(s)));
+        host.appendChild(nav);
+    }
+
+    // ---- 列表 ---------------------------------------------------------------
+
+    /** 大小走 app.js 导出的唯一格式化器；本文件不再造第四份（见文件头注释）。 */
+    function formatSize(bytes) {
+        const f = window.flikky && window.flikky.formatSize;
+        return typeof f === 'function' ? f(bytes) : String(bytes);
+    }
+
+    function subtitleFor(entry) {
+        if (entry.restricted) return t('app.files.restrictedRow');
+        const when = entry.mtime ? new Date(entry.mtime).toLocaleString() : '';
+        if (entry.isDir) {
+            const n = typeof entry.childCount === 'number' ? entry.childCount : null;
+            return n === null ? when : t('app.files.itemCount', { count: n });
+        }
+        const size = typeof entry.size === 'number' ? formatSize(entry.size) : '';
+        return size && when ? size + ' · ' + when : (size || when);
+    }
+
+    function leadFor(entry) {
+        const wrap = document.createElement('div');
+        wrap.className = 'fk-item-lead fk-item-lead--plain';
+        // 目录用 folder；文件的分类图标取 app.js 导出的唯一事实源，
+        // 面板不许自带第二张 mime→图标映射表。
+        const name = entry.isDir
+            ? 'folder'
+            : ((window.flikky && window.flikky.fileSymbolName)
+                ? window.flikky.fileSymbolName(entry.mime)
+                : 'draft');
+        wrap.appendChild(icon(name));
+        return wrap;
+    }
+
+    function downloadUrl(relativePath) {
+        return '/api/storage/file?path=' + encodeURIComponent(relativePath);
+    }
+
+    function childPath(entry) {
+        return currentPath ? currentPath + '/' + entry.name : entry.name;
+    }
+
+    function renderRow(host, entry) {
+        const row = document.createElement('div');
+        row.className = 'fk-item';
+        if (entry.restricted) row.setAttribute('aria-disabled', 'true');
+
+        row.appendChild(leadFor(entry));
+
+        const text = document.createElement('div');
+        text.className = 'fk-item-text';
+        const title = document.createElement('div');
+        title.className = 'fk-item-title';
+        title.textContent = entry.name;
+        const sub = document.createElement('div');
+        sub.className = 'fk-item-sub';
+        sub.textContent = subtitleFor(entry);
+        text.appendChild(title);
+        text.appendChild(sub);
+        row.appendChild(text);
+
+        const trail = document.createElement('div');
+        trail.className = 'fk-item-trail';
+        // restricted 行既无 chevron 也无下载按钮：系统不给读，摆任何入口都是骗人。
+        if (!entry.restricted) {
+            if (entry.isDir) {
+                trail.appendChild(icon('chevron_right'));
+                row.addEventListener('click', () => navigate(childPath(entry)));
+            } else {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'fk-icon-btn';
+                // 可访问名必须含文件名——读屏连续听到十个「下载」无法分辨。
+                btn.setAttribute('aria-label', t('app.files.download', { name: entry.name }));
+                btn.appendChild(icon('download'));
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const a = document.createElement('a');
+                    a.href = downloadUrl(childPath(entry));
+                    a.setAttribute('download', entry.name);
+                    a.click();
+                });
+                trail.appendChild(btn);
+            }
+        }
+        row.appendChild(trail);
+        host.appendChild(row);
     }
 
     function render(state) {
         if (!bodyEl) return;
+        bodyEl.textContent = '';
         if (!state || !Array.isArray(state.entries)) {
-            renderNotice('app.files.loading');
+            renderNotice(bodyEl, 'app.files.loading');
             return;
         }
         currentPath = typeof state.path === 'string' ? state.path : '';
+        renderBreadcrumb(bodyEl, currentPath);
         if (state.entries.length === 0) {
-            renderNotice('app.files.empty');
+            renderNotice(bodyEl, 'app.files.empty');
             return;
         }
-        // Task 7 在这里画面包屑与列表。
-        renderNotice('app.files.loading');
+        const list = document.createElement('div');
+        list.className = 'fk-list';
+        state.entries.forEach((entry) => renderRow(list, entry));
+        bodyEl.appendChild(list);
+    }
+
+    // ---- 数据 ---------------------------------------------------------------
+
+    let lastState = null;
+
+    function navigate(relativePath) {
+        currentPath = typeof relativePath === 'string' ? relativePath : '';
+        load(currentPath);
+    }
+
+    async function load(relativePath) {
+        try {
+            const r = await fetch('/api/storage/list?path=' + encodeURIComponent(relativePath || ''));
+            if (!r.ok) {
+                // 错误分支在 Task 8 接；此刻先不清空已有列表。
+                return;
+            }
+            lastState = await r.json();
+            render(lastState);
+        } catch (e) {
+            // 断线时保留最后一次列表，不清空。
+        }
     }
 
     function mount(container) {
         if (!container) return;
         root = container;
         buildShell(root);
-        renderNotice('app.files.loading');
-        if (window.i18n && window.i18n.onChange) {
-            window.i18n.onChange(() => {
+        render(lastState);
+        if (window.flikkyI18n) {
+            window.flikkyI18n.onChange(() => {
                 buildShell(root);
-                render(null);
+                render(lastState);
             });
         }
+        load(currentPath);
     }
 
     window.flikkyPanels = window.flikkyPanels || {};
-    window.flikkyPanels.files = { mount: mount, render: render };
+    window.flikkyPanels.files = { mount: mount, render: render, navigate: navigate };
     window.flikky = window.flikky || {};
     window.flikky.renderFilesPanel = render;
+    window.flikky.navigateStorage = navigate;
     /** 断线重连后必须回根目录：服务端可能已换手机、换授权状态。 */
-    window.flikky.resetStorageBrowser = function () { currentPath = ''; };
+    window.flikky.resetStorageBrowser = function () { currentPath = ''; lastState = null; };
 
     const host = document.getElementById('view-files');
     if (host) mount(host);

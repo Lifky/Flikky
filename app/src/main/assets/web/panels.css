@@ -324,3 +324,63 @@
 .fk-error .material-symbols-outlined {
   color: rgb(var(--mdui-color-error));
 }
+
+/* ── 文件面板：面包屑与中性提示（v1.20.0） ──────────────────────────────────
+   面包屑是 MD3 里没有的组件（本地 44 个组件文档均无 breadcrumb），全自绘。
+   2026-08-29 裁决：type 用 label-large 档（它是导航 chrome 而非内容），
+   分隔符用官方 chevron_right 图标而非文本 › —— 文本字符的宽度与基线在不同
+   字体/语言下不稳定，且项目红线要求所有 icon 走官方库。
+   `.fk-item` 族一行都没动：文件行逐槽位复用它，视觉与文件总览页零差异。 */
+.fk-crumbs {
+  padding: var(--flikky-space-sm) 0;
+}
+.fk-crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fk-crumbs li {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.fk-crumb {
+  font: var(--flikky-type-label-large);
+  letter-spacing: var(--flikky-type-label-large-tracking);
+  color: rgb(var(--mdui-color-on-surface-variant));
+  background: none;
+  border: 0;
+  padding: 4px 6px;
+  border-radius: var(--flikky-shape-xs);
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+button.fk-crumb {
+  cursor: pointer;
+}
+button.fk-crumb:hover {
+  background: rgb(var(--mdui-color-surface-container-high));
+}
+/* 当前级：不是按钮，也不该看起来像能点。用主色加重，表达「你在这」。 */
+.fk-crumb[aria-current="page"] {
+  color: rgb(var(--mdui-color-on-surface));
+  font-weight: 600;
+}
+.fk-crumb-sep {
+  font-size: 16px;
+  color: rgb(var(--mdui-color-outline));
+  flex: 0 0 auto;
+}
+.fk-panel-notice {
+  margin: 0;
+  padding: var(--flikky-space-lg) var(--flikky-space-md);
+  text-align: center;
+  font: var(--flikky-type-body-medium);
+  color: rgb(var(--mdui-color-on-surface-variant));
+}

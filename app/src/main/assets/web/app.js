@@ -2079,6 +2079,9 @@
     window.flikky.animateShellLayout = animateShellLayout;
     // 分类图标映射的唯一事实源，供收藏面板取用（见 fileSymbolName 处的注释）。
     window.flikky.fileSymbolName = fileSymbolName;
+    // 字节格式化：本文件与 panel-favorites.js 各有一份语义相同的实现（backlog 待收敛）。
+    // 新面板一律用这个导出，不要再造第四份。
+    window.flikky.formatSize = formatSize;
 
     // 滚动条只在真的滚动时露出（shell.css 的 [data-scrolling]）。scroll 事件不冒泡，
     // 所以监听器必须挂在 capture 阶段——一个委派监听器覆盖全部 .flikky-scroll，
