@@ -1,0 +1,11 @@
+<!-- Material Symbols: folder_shared, opsz24 wght400 GRAD0, FILL@0. Verbatim official path (viewport 960).
+     注意：本文件的 path 已在 0..960 正区间（Android Studio 导出风味），**不要**像
+     ic_folder_open 那样再包 <group android:translateY="960"> —— 那份是 gstatic 风味、
+     path 在 -960..0 区间才需要平移。给这份加 group 会把图标推出画布。
+     着色去掉了原文件的 android:tint="?attr/colorControlNormal"：那是 Android 主题属性，
+     Compose 侧由 Icon(tint=) 接管，与项目其余图标一致。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="960" android:viewportHeight="960">
+    <path android:fillColor="#000000" android:pathData="M440,680L760,680L760,658Q760,613 716,586.5Q672,560 600,560Q528,560 484,586.5Q440,613 440,658L440,680ZM656.5,496.5Q680,473 680,440Q680,407 656.5,383.5Q633,360 600,360Q567,360 543.5,383.5Q520,407 520,440Q520,473 543.5,496.5Q567,520 600,520Q633,520 656.5,496.5ZM160,800Q127,800 103.5,776.5Q80,753 80,720L80,240Q80,207 103.5,183.5Q127,160 160,160L400,160L480,240L800,240Q833,240 856.5,263.5Q880,287 880,320L880,720Q880,753 856.5,776.5Q833,800 800,800L160,800ZM160,720L800,720Q800,720 800,720Q800,720 800,720L800,320Q800,320 800,320Q800,320 800,320L447,320L367,240L160,240Q160,240 160,240Q160,240 160,240L160,720Q160,720 160,720Q160,720 160,720ZM160,720Q160,720 160,720Q160,720 160,720L160,240Q160,240 160,240Q160,240 160,240L160,240L160,320L160,320Q160,320 160,320Q160,320 160,320L160,720Q160,720 160,720Q160,720 160,720Z"/>
+</vector>
