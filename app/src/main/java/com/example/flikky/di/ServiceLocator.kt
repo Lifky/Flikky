@@ -3,6 +3,8 @@ package com.example.flikky.di
 import android.content.Context
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.flikky.data.FavoriteFileStore
+import com.example.flikky.data.SharedStorageBrowser
+import com.example.flikky.server.routes.StorageBrowser
 import com.example.flikky.data.FavoritesRepository
 import com.example.flikky.data.SessionFileStore
 import com.example.flikky.data.SessionRepository
@@ -38,6 +40,15 @@ object ServiceLocator {
     lateinit var fileStore: SessionFileStore
         private set
     lateinit var favoriteFileStore: FavoriteFileStore
+        private set
+    /**
+     * 共享存储的只读浏览入口。**这里是全项目唯一认识 `Environment` 的地方**——
+     * `SharedStorageBrowser` 本身零 Android 依赖，可在 JVM 上测。
+     *
+     * 根用 `Environment.getExternalStorageDirectory()` 而非硬编码 `/storage/emulated/0`：
+     * 后者在多用户 / 工作资料下是错的（第二用户是 `/storage/emulated/10`）。
+     */
+    lateinit var storageBrowser: StorageBrowser
         private set
     lateinit var networkInfo: NetworkInfo
         private set
@@ -77,6 +88,7 @@ object ServiceLocator {
         stats = TransferStats(nowMs = System::currentTimeMillis)
         fileStore = SessionFileStore(filesDir = appContext.filesDir)
         favoriteFileStore = FavoriteFileStore(filesDir = appContext.filesDir)
+        storageBrowser = SharedStorageBrowser(android.os.Environment.getExternalStorageDirectory())
         networkInfo = NetworkInfo(appContext)
         database = FlikkyDatabase.build(appContext)
         settingsRepository = SettingsRepository(appContext.settingsDataStore)
