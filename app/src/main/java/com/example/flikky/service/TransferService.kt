@@ -762,6 +762,7 @@ class TransferService : Service() {
                 recallEnabled = recallBetaEnabled,
                 allowPeerRecall = allowPeerRecall,
                 favoriteEnabled = favoriteBetaEnabled,
+                storageBrowsingEnabled = storageBrowsingEnabled,
             )
         }
 

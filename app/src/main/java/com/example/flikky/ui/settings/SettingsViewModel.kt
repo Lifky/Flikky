@@ -90,6 +90,9 @@ class SettingsViewModel @JvmOverloads constructor(
     fun setKeepScreenOnDuringSession(value: Boolean) =
         viewModelScope.launch { repository.setKeepScreenOnDuringSession(value) }
 
+    fun setStorageBrowsingEnabled(value: Boolean) =
+        viewModelScope.launch { repository.setStorageBrowsingEnabled(value) }
+
     fun setBubbleCornerRadius(value: Int) =
         viewModelScope.launch { repository.setBubbleCornerRadius(value) }
 

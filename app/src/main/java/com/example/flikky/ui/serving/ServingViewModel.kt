@@ -237,6 +237,10 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { ServiceLocator.settingsRepository.setFavoriteBeta(enabled) }
     }
 
+    fun setStorageBrowsingEnabled(enabled: Boolean) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setStorageBrowsingEnabled(enabled) }
+    }
+
     fun setPeerAvatarKey(key: String) {
         viewModelScope.launch {
             val ctrl = controller

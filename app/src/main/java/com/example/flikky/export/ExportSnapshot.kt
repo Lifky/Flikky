@@ -76,6 +76,7 @@ data class SettingsExport(
     val allowBackDuringSession: Boolean? = null,
     val sessionTimestampEnabled: Boolean? = null,
     val keepScreenOnDuringSession: Boolean? = null,
+    val storageBrowsingEnabled: Boolean? = null,
     val sortMode: String? = null,
     val groupMode: String? = null,
     val animationSpeed: String? = null,

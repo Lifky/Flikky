@@ -33,6 +33,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val allowBackDuringSession = booleanPreferencesKey("allow_back_during_session")
         val sessionTimestampEnabled = booleanPreferencesKey("session_timestamp_enabled")
         val keepScreenOnDuringSession = booleanPreferencesKey("keep_screen_on_during_session")
+        val storageBrowsingEnabled = booleanPreferencesKey("storage_browsing_enabled")
         val sortMode = stringPreferencesKey("sort_mode")
         val groupMode = stringPreferencesKey("group_mode")
         val animationSpeed = stringPreferencesKey("animation_speed")
@@ -81,6 +82,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             allowBackDuringSession = p[Keys.allowBackDuringSession] ?: true,
             sessionTimestampEnabled = p[Keys.sessionTimestampEnabled] ?: false,
             keepScreenOnDuringSession = p[Keys.keepScreenOnDuringSession] ?: false,
+            storageBrowsingEnabled = p[Keys.storageBrowsingEnabled] ?: false,
             sortMode = p[Keys.sortMode]
                 ?.let { runCatching { SortMode.valueOf(it) }.getOrNull() }
                 ?: SortMode.TIME,
@@ -133,6 +135,8 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setAllowBackDuringSession(v: Boolean) = ds.edit { it[Keys.allowBackDuringSession] = v }
     suspend fun setSessionTimestampEnabled(v: Boolean) = ds.edit { it[Keys.sessionTimestampEnabled] = v }
     suspend fun setKeepScreenOnDuringSession(v: Boolean) = ds.edit { it[Keys.keepScreenOnDuringSession] = v }
+
+    suspend fun setStorageBrowsingEnabled(v: Boolean) = ds.edit { it[Keys.storageBrowsingEnabled] = v }
     suspend fun setSortMode(v: SortMode) = ds.edit { it[Keys.sortMode] = v.name }
     suspend fun setGroupMode(v: GroupMode) = ds.edit { it[Keys.groupMode] = v.name }
     suspend fun setAnimationSpeed(v: AnimationSpeed) = ds.edit { it[Keys.animationSpeed] = v.name }
@@ -206,6 +210,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             allowBackDuringSession = s.allowBackDuringSession,
             sessionTimestampEnabled = s.sessionTimestampEnabled,
             keepScreenOnDuringSession = s.keepScreenOnDuringSession,
+            storageBrowsingEnabled = s.storageBrowsingEnabled,
             sortMode = s.sortMode.name,
             groupMode = s.groupMode.name,
             animationSpeed = s.animationSpeed.name,
@@ -245,6 +250,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         backup.allowBackDuringSession?.let { prefs[Keys.allowBackDuringSession] = it }
         backup.sessionTimestampEnabled?.let { prefs[Keys.sessionTimestampEnabled] = it }
         backup.keepScreenOnDuringSession?.let { prefs[Keys.keepScreenOnDuringSession] = it }
+        backup.storageBrowsingEnabled?.let { prefs[Keys.storageBrowsingEnabled] = it }
         backup.sortMode?.enumNameOrNull<SortMode>()?.let { prefs[Keys.sortMode] = it }
         backup.groupMode?.enumNameOrNull<GroupMode>()?.let { prefs[Keys.groupMode] = it }
         backup.animationSpeed?.enumNameOrNull<AnimationSpeed>()

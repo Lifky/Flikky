@@ -101,4 +101,19 @@ class TransferServiceThemeMappingTest {
         assertEquals(BuildConfig.VERSION_NAME, dto.appVersion)
         assertTrue(dto.appVersion.isNotBlank())
     }
+
+    @Test
+    fun `storage browsing defaults to off and reaches the browser`() {
+        val off = with(TransferService.Companion) {
+            FlikkySettings().toPeerInfoDto(systemDark = false, defaultDeviceName = "Phone")
+        }
+        // 默认必须是关：浏览器据此决定不渲染「文件」目的地。开着才是危险的默认。
+        assertFalse(off.storageBrowsingEnabled)
+
+        val on = with(TransferService.Companion) {
+            FlikkySettings(storageBrowsingEnabled = true)
+                .toPeerInfoDto(systemDark = false, defaultDeviceName = "Phone")
+        }
+        assertTrue(on.storageBrowsingEnabled)
+    }
 }

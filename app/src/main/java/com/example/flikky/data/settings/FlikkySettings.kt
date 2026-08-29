@@ -92,6 +92,15 @@ data class FlikkySettings(
     val sessionTimestampEnabled: Boolean = false,
     /** 服务运行中停留在会话页时保持屏幕常亮。 */
     val keepScreenOnDuringSession: Boolean = false,
+    /**
+     * 允许已认证的浏览器浏览本机共享存储。默认关闭。
+     *
+     * 只门控**对端**：App 端自己的文件 tab 不受它约束（只受系统权限约束）。
+     * 关闭时浏览器不渲染文件目的地，且 storage 接口一律 404。
+     * （注意：KDoc 里不要写 "/api/storage" 加星号——Kotlin 块注释可嵌套，那个 "/" 加 "*"
+     * 会开一个内层注释，把后面整个文件吃掉。踩过一次。）
+     */
+    val storageBrowsingEnabled: Boolean = false,
     val sortMode: SortMode = SortMode.TIME,
     val groupMode: GroupMode = GroupMode.NONE,
     val animationSpeed: AnimationSpeed = AnimationSpeed.STANDARD,

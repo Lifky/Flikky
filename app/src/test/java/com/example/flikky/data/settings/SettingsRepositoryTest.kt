@@ -148,6 +148,22 @@ class SettingsRepositoryTest {
         assertEquals(0xFF33618DL, restored.customThemeSeedArgb)
     }
 
+    @Test fun storage_browsing_defaults_off_and_backup_roundtrips() = runTest {
+        val source = makeRepo(this)
+        // 默认必须是关：这是本版的安全裁决（spec 2.1），不是可有可无的初值。
+        assertEquals(false, source.settings.first().storageBrowsingEnabled)
+
+        source.setStorageBrowsingEnabled(true)
+        assertEquals(true, source.settings.first().storageBrowsingEnabled)
+
+        val backup = source.exportBackup()
+        assertEquals(true, backup.storageBrowsingEnabled)
+
+        val target = makeRepo(this)
+        target.importBackup(backup)
+        assertEquals(true, target.settings.first().storageBrowsingEnabled)
+    }
+
     @Test fun avatar_grouping_roundtrips() = runTest {
         val repo = makeRepo(this)
         assertEquals(AvatarGroupingMode.EACH, repo.settings.first().avatarGrouping)

@@ -168,6 +168,11 @@ data class PeerInfoDto(
     val allowPeerRecall: Boolean = true,
     /** v1.19.0 fix wave: 收藏 tab 的 beta 开关状态；浏览器据此决定是否渲染收藏入口。 */
     val favoriteEnabled: Boolean = false,
+    /**
+     * v1.20.0: 是否允许浏览器浏览手机共享存储。浏览器据此决定渲不渲染「文件」目的地。
+     * 默认 false 与 FlikkySettings 一致；DTO 不依赖 data 层，故此处内联默认值。
+     */
+    val storageBrowsingEnabled: Boolean = false,
 )
 
 @Serializable

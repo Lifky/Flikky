@@ -51,6 +51,7 @@ class QuickSettingsCoverageTest {
         "recallBetaEnabled" to "onSetRecallBeta",
         "allowPeerRecall" to "onSetAllowPeerRecall",
         "favoriteBetaEnabled" to "onSetFavoriteBeta",
+        "storageBrowsingEnabled" to "onSetStorageBrowsing",
     )
 
     /**

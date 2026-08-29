@@ -45,6 +45,8 @@
     <string name="settings_allow_back">Allow leaving an active session</string>
     <string name="settings_allow_back_summary">Back is blocked by default to protect the session. Turn this on to view history while a session runs; Settings remains locked.</string>
     <string name="settings_keep_screen_on">Keep screen on during session</string>
+    <string name="settings_storage_browsing">Let the computer browse phone storage</string>
+    <string name="settings_storage_browsing_summary">When on, the connected computer can browse and download files in your phone’s shared storage. Flikky only reads — it never writes, modifies, or deletes. Turning it off removes the entry on the computer immediately.</string>
 
     <string name="settings_section_data">Data</string>
     <string name="settings_history_limit">Saved session limit</string>

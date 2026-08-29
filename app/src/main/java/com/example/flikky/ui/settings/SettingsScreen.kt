@@ -499,7 +499,7 @@ fun SettingsScreen(
 
             // ─── 会话行为 ───────────────────────────────────────────────────────
             item {
-                val sectionItems = if (s.recallBetaEnabled) 7 else 6
+                val sectionItems = if (s.recallBetaEnabled) 8 else 7
                 SettingSection(title = stringResource(R.string.settings_section_session_behavior)) {
                     SettingItem(
                         title = stringResource(R.string.settings_require_pin),
@@ -586,6 +586,18 @@ fun SettingsScreen(
                             )
                         },
                         index = 5 + followingIndexOffset, total = sectionItems,
+                    )
+                    SettingItem(
+                        title = stringResource(R.string.settings_storage_browsing),
+                        leadingIcon = painterResource(R.drawable.ic_folder_open),
+                        infoText = stringResource(R.string.settings_storage_browsing_summary),
+                        trailing = {
+                            Switch(
+                                checked = s.storageBrowsingEnabled,
+                                onCheckedChange = viewModel::setStorageBrowsingEnabled,
+                            )
+                        },
+                        index = 6 + followingIndexOffset, total = sectionItems,
                     )
                 }
             }

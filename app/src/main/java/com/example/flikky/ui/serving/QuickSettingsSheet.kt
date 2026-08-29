@@ -116,6 +116,7 @@ fun QuickSettingsSheet(
     onSetRecallBeta: (Boolean) -> Unit,
     onSetAllowPeerRecall: (Boolean) -> Unit,
     onSetFavoriteBeta: (Boolean) -> Unit,
+    onSetStorageBrowsing: (Boolean) -> Unit,
     onOpenThemePicker: () -> Unit,
     onOpenAvatarPicker: () -> Unit,
     onOpenBackgroundPicker: () -> Unit,
@@ -298,8 +299,8 @@ fun QuickSettingsSheet(
                 // 会话中返回、屏幕常亮）。差一的后果不是少画一行，而是**最后一行永远
                 // 拿不到 index == total - 1**，于是「收藏功能」的底部圆角一直是中间行
                 // 的小圆角，跟首行「消息操作样式」的顶部大圆角不对称（用户截图 29）。
-                // 本区实际可见行数：操作样式 + 撤回 + [允许对端撤回] + 收藏。
-                val total = if (settings.recallBetaEnabled) 4 else 3
+                // 本区实际可见行数：操作样式 + 撤回 + [允许对端撤回] + 收藏 + 允许电脑浏览存储。
+                val total = if (settings.recallBetaEnabled) 5 else 4
                 SettingSection(title = stringResource(R.string.settings_section_session_behavior)) {
                     SettingItem(
                         title = stringResource(R.string.settings_message_action_style),
@@ -349,6 +350,20 @@ fun QuickSettingsSheet(
                             )
                         },
                         index = if (settings.recallBetaEnabled) 3 else 2, total = total,
+                    )
+                    // 会话运行中设置页是锁的，而「现在别让电脑再看我的文件」恰恰是最需要
+                    // 即时可达的操作——这是它必须出现在快捷设置里的产品理由。
+                    SettingItem(
+                        title = stringResource(R.string.settings_storage_browsing),
+                        leadingIcon = painterResource(R.drawable.ic_folder_open),
+                        subtitle = stringResource(R.string.settings_storage_browsing_summary),
+                        trailing = {
+                            Switch(
+                                checked = settings.storageBrowsingEnabled,
+                                onCheckedChange = onSetStorageBrowsing,
+                            )
+                        },
+                        index = if (settings.recallBetaEnabled) 4 else 3, total = total,
                     )
                 }
             }

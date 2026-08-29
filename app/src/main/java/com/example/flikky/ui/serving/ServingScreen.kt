@@ -695,6 +695,7 @@ fun ServingScreen(
             onSetRecallBeta = { viewModel.setRecallBeta(it) },
             onSetAllowPeerRecall = { viewModel.setAllowPeerRecall(it) },
             onSetFavoriteBeta = { viewModel.setFavoriteBeta(it) },
+            onSetStorageBrowsing = { viewModel.setStorageBrowsingEnabled(it) },
             onOpenThemePicker = { quickPicker = QuickPicker.Theme },
             onOpenAvatarPicker = { avatarSheetTab = 0; quickPicker = QuickPicker.Avatar },
             onOpenBackgroundPicker = { quickPicker = QuickPicker.Background },
