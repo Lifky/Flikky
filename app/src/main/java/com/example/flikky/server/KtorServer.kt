@@ -14,7 +14,9 @@ import com.example.flikky.server.routes.authRoutes
 import com.example.flikky.server.routes.exportRoutes
 import com.example.flikky.server.routes.favoriteRoutes
 import com.example.flikky.server.routes.fileRoutes
+import com.example.flikky.server.routes.StorageBrowser
 import com.example.flikky.server.routes.messageRoutes
+import com.example.flikky.server.routes.storageRoutes
 import com.example.flikky.server.routes.peerInfoRoutes
 import com.example.flikky.server.routes.wsRoutes
 import com.example.flikky.session.Message
@@ -100,6 +102,14 @@ class KtorServer(
         )
     },
     private val webLanguageTagProvider: () -> String = { "zh-CN" },
+    /**
+     * v1.20.0 存储浏览。三者都是 lambda：`storageBrowserProvider` 因为跨 rebind 存活的东西
+     * 不能直接持有实例（CLAUDE.md 的 rebind 引用规范）；另两个因为要现取当前设置与权限态。
+     * `hasStoragePermission` 由 service 层提供，**server 包里不出现 `Environment`**。
+     */
+    private val storageBrowserProvider: () -> StorageBrowser? = { null },
+    private val storageBrowsingEnabled: suspend () -> Boolean = { false },
+    private val hasStoragePermission: () -> Boolean = { false },
 ) {
     private var engine: EmbeddedServer<*, *>? = null
     var boundPort: Int = -1
@@ -204,6 +214,13 @@ class KtorServer(
             listProvider = favoritesProvider,
             fileResolver = favoriteRowFileResolver,
             enabled = favoriteEnabled,
+        )
+        // 挂在传输模式这侧而非 authRoutes：后者两种模式都注册，会让导出模式也暴露存储接口。
+        storageRoutes(
+            authGate = authGate,
+            enabled = storageBrowsingEnabled,
+            hasPermission = hasStoragePermission,
+            browser = storageBrowserProvider,
         )
         wsRoutes(authGate, session, wsHub, onClientHello)
     }

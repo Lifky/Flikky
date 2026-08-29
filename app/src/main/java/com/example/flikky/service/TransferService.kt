@@ -496,6 +496,11 @@ class TransferService : Service() {
             }
         },
         favoriteEnabled = { latestSettings.favoriteBetaEnabled },
+        // 存储浏览：主开关只门控对端（App 端自己的文件 tab 不受它约束）。
+        // Environment 只出现在这里与 ServiceLocator —— server 包不认识它。
+        storageBrowserProvider = { ServiceLocator.storageBrowser },
+        storageBrowsingEnabled = { latestSettings.storageBrowsingEnabled },
+        hasStoragePermission = { android.os.Environment.isExternalStorageManager() },
     )
 
     /**
