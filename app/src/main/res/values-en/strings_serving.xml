@@ -59,4 +59,11 @@
     <string name="attach_file_summary">Any file type</string>
     <string name="attach_image">Image</string>
     <string name="attach_image_summary">Choose from gallery</string>
+    <!-- v1.20.0 serving tabs and storage permission -->
+    <string name="serving_tab_chat">Chat</string>
+    <string name="serving_tab_files">Files</string>
+    <string name="serving_storage_permission_title">All files access required</string>
+    <string name="serving_storage_permission_body">Flikky needs the "All files access" permission to list the files on your phone. Android offers no read-only version of it, so the system grants write access too — Flikky only reads, and never writes, changes or deletes anything.</string>
+    <string name="serving_storage_permission_grant">Grant access</string>
+    <string name="serving_storage_empty">This folder is empty</string>
 </resources>

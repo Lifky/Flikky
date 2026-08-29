@@ -61,4 +61,11 @@
     <string name="attach_file_summary">任意类型</string>
     <string name="attach_image">图片</string>
     <string name="attach_image_summary">从相册选择</string>
+    <!-- v1.20.0 会话页 tab 与存储权限 -->
+    <string name="serving_tab_chat">会话</string>
+    <string name="serving_tab_files">文件</string>
+    <string name="serving_storage_permission_title">需要「所有文件访问」权限</string>
+    <string name="serving_storage_permission_body">Flikky 需要「所有文件访问」权限才能列出手机存储里的文件。Android 未提供只读版的该权限，因此系统会一并授予写入能力——Flikky 只读取，不写入、不修改、不删除。</string>
+    <string name="serving_storage_permission_grant">去授权</string>
+    <string name="serving_storage_empty">这个文件夹是空的</string>
 </resources>

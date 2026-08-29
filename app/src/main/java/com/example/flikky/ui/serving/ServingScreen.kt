@@ -1,5 +1,19 @@
 package com.example.flikky.ui.serving
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Environment
+import android.provider.Settings
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.flikky.ui.serving.storage.ServingStorageTab
 import android.app.Activity
 import android.view.WindowManager
 import androidx.compose.foundation.layout.Arrangement
@@ -104,8 +118,40 @@ fun ServingScreen(
     val fileSentMessage = stringResource(R.string.files_quick_sent)
 
     val allFiles by ServiceLocator.repository.observeAllFiles().collectAsState(initial = emptyList())
+
+    // ── v1.20.0 会话页两个 tab（会话 / 文件）
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    // 切 tab 必须清掉消息操作目标。现有清理只挂在列表滚动上（ServingChatTab 里那条
+    // LaunchedEffect(listState.isScrollInProgress)），pager 换页不触发它——
+    // 于是浮动工具栏会继续浮在文件列表上方，指向一条看不见的消息。
+    LaunchedEffect(pagerState.currentPage) { actionTarget = null }
+
+    // 「所有文件访问」是特殊权限，系统页没有回调，只能在回到前台时重查。
+    // 这里刻意不掺入 storageBrowsingEnabled：那个开关门控的是对端浏览器，
+    // App 端浏览自己的存储只受系统权限约束（spec §3.1 四态矩阵）。
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var hasStoragePermission by remember { mutableStateOf(Environment.isExternalStorageManager()) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasStoragePermission = Environment.isExternalStorageManager()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    // Task 13 接真实目录状态；本任务恒为「不能上一级」，第 3 级 BackHandler 照旧生效。
+    val storageCanGoUp = false
+    val onStorageGoUp: () -> Unit = {}
     // System-back dismisses the action target before exiting the screen.
     androidx.activity.compose.BackHandler(enabled = actionTarget != null) { actionTarget = null }
+    // 优先级 2：文件 tab 内先逐级返回目录。到根目录时不拦——交给下面第 3 级。
+    // **根目录时不切回会话 tab**：Android 的 tab 不参与返回栈是平台惯例，
+    // 做成「返回切回会话」反而与系统其他应用不一致（spec §6.4 的显式选择）。
+    // enabled 里必须含 actionTarget == null，否则会抢在第 1 级前面、工具栏关不掉。
+    androidx.activity.compose.BackHandler(
+        enabled = actionTarget == null && pagerState.currentPage == 1 && storageCanGoUp,
+    ) { onStorageGoUp() }
     // 会话进行中默认拦截返回，保护会话稳定（须点停止服务才离开）。开「允许会话中返回」后
     // 不拦截，系统返回正常弹回主页（服务仍运行，可从主页"继续服务"重进）。优先级低于上面关闭工具栏。
     androidx.activity.compose.BackHandler(
@@ -227,19 +273,55 @@ fun ServingScreen(
                 }
             }
 
-            ServingChatTab(
-                viewModel = viewModel,
-                ui = ui,
-                settings = settings,
-                progressMap = progressMap,
-                peerAvatarId = peerAvatarId,
-                peerAvatarKey = peerAvatarKey,
-                actionTarget = actionTarget,
-                onActionTargetChange = { actionTarget = it },
-                snackbarHostState = snackbarHostState,
-                scope = scope,
-                modifier = Modifier.weight(1f),
+            // Secondary tabs。裁决 A：指示器**贴文字宽**，所以必须显式传 indicator——
+            // Compose 的 SecondaryTabRow 默认铺满整个 tab 宽，用默认值就与裁决不符，
+            // 且没有任何测试会发现（Views 侧 tabIndicatorFullWidth 默认才是 false）。
+            val tabLabels = listOf(
+                stringResource(R.string.serving_tab_chat),
+                stringResource(R.string.serving_tab_files),
             )
+            SecondaryTabRow(
+                selectedTabIndex = pagerState.currentPage,
+                indicator = {
+                    TabRowDefaults.SecondaryIndicator(
+                        modifier = Modifier.tabIndicatorOffset(pagerState.currentPage, matchContentSize = true),
+                        height = 2.dp,
+                    )
+                },
+            ) {
+                tabLabels.forEachIndexed { index, label ->
+                    Tab(
+                        selected = pagerState.currentPage == index,
+                        onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                        text = { Text(label) },
+                    )
+                }
+            }
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f),
+            ) { page ->
+                when (page) {
+                    0 -> ServingChatTab(
+                        viewModel = viewModel,
+                        ui = ui,
+                        settings = settings,
+                        progressMap = progressMap,
+                        peerAvatarId = peerAvatarId,
+                        peerAvatarKey = peerAvatarKey,
+                        actionTarget = actionTarget,
+                        onActionTargetChange = { actionTarget = it },
+                        snackbarHostState = snackbarHostState,
+                        scope = scope,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    else -> ServingStorageTab(
+                        hasPermission = hasStoragePermission,
+                        onRequestPermission = { requestAllFilesAccess(ctx) },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
         }
         }
     }
@@ -343,5 +425,20 @@ fun ServingScreen(
             },
             onDismiss = { showFilesQuickSheet = false },
         )
+    }
+}
+
+/**
+ * 跳「所有文件访问」的系统授权页。必须带 `package:` data，否则打开的是全局应用列表、
+ * 用户得自己在几十个应用里翻到 Flikky。系统页没有结果回调，返回后靠 ON_RESUME 重查。
+ */
+private fun requestAllFilesAccess(ctx: android.content.Context) {
+    val intent = Intent(
+        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+        Uri.parse("package:" + ctx.packageName),
+    )
+    runCatching { ctx.startActivity(intent) }.onFailure {
+        // 极少数 ROM 不实现按包名的那个 action，退回全局列表总比什么都不发生好。
+        runCatching { ctx.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
     }
 }

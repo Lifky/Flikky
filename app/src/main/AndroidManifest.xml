@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 「所有文件访问」：列出手机共享存储需要它。Android 未提供只读版本，
+         系统会一并授予写入能力，Flikky 只读取（spec §3.3 的如实告知）。 -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
     <application
         android:name=".FlikkyApp"
