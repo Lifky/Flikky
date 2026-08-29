@@ -384,3 +384,29 @@ button.fk-crumb:hover {
   font: var(--flikky-type-body-medium);
   color: rgb(var(--mdui-color-on-surface-variant));
 }
+
+/* 引导态：需要用户去手机上操作的状态（缺权限 / 系统限制）。
+   刻意没有任何按钮——用户要做的事不在这个页面上，摆个按钮只会让人反复点它。 */
+.fk-guidance {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--flikky-space-sm);
+  padding: var(--flikky-space-xl) var(--flikky-space-lg);
+  text-align: center;
+}
+.fk-guidance-icon {
+  font-size: 40px;
+  color: rgb(var(--mdui-color-on-surface-variant));
+}
+.fk-guidance-title {
+  margin: 0;
+  font: var(--flikky-type-title-medium);
+  color: rgb(var(--mdui-color-on-surface));
+}
+.fk-guidance-body {
+  margin: 0;
+  max-width: 34ch;
+  font: var(--flikky-type-body-medium);
+  color: rgb(var(--mdui-color-on-surface-variant));
+}

@@ -253,26 +253,97 @@
         bodyEl.appendChild(list);
     }
 
+    // ---- 引导态 -------------------------------------------------------------
+
+    /**
+     * 需要用户去别处操作的状态（缺权限、系统限制）。
+     *
+     * **不给「重试」按钮**：用户要做的事在手机上，给了按钮会让人以为点它能解决。
+     * 也不弹 snackbar —— 这不是一次失败，是一个需要用户离开浏览器去处理的状态。
+     */
+    function renderGuidance(iconName, titleKey, bodyKey) {
+        if (!bodyEl) return;
+        bodyEl.textContent = '';
+        const box = document.createElement('div');
+        box.className = 'fk-guidance';
+        const ic = icon(iconName);
+        ic.classList.add('fk-guidance-icon');
+        box.appendChild(ic);
+        const h = document.createElement('p');
+        h.className = 'fk-guidance-title';
+        h.textContent = t(titleKey);
+        box.appendChild(h);
+        const b = document.createElement('p');
+        b.className = 'fk-guidance-body';
+        b.textContent = t(bodyKey);
+        box.appendChild(b);
+        bodyEl.appendChild(box);
+    }
+
+    function notifyError(text) {
+        if (window.flikky && typeof window.flikky.showError === 'function') {
+            window.flikky.showError(text);
+        }
+    }
+
     // ---- 数据 ---------------------------------------------------------------
 
+    /** 最后一次成功的列表。失败时用它重绘，绝不把面板留成空白。 */
     let lastState = null;
 
+    /**
+     * 处理一次失败的加载。
+     *
+     * **本函数绝不发新请求。** plan 原案是「400 退回根目录并重拉 / 404 重拉当前目录」，
+     * 那两条都会死循环：目录没了，重拉还是 404，再重拉……根目录本身 400 时同理。
+     * 正确做法是「报错 + 用内存里最后一次成功的列表重绘」，新请求只由用户动作触发。
+     */
+    function handleFailure(status, code) {
+        if (status === 403 && code === 'storage_permission_required') {
+            renderGuidance('folder_off', 'app.files.needPermission', 'app.files.needPermissionHow');
+            return;
+        }
+        if (status === 403 && code === 'storage_restricted') {
+            renderGuidance('lock', 'app.files.restricted', 'app.files.restrictedWhy');
+            return;
+        }
+        if (status === 400) {
+            // 客户端记着一个非法路径：退回最后一次成功的位置，别停在非法路径上。
+            notifyError(t('app.files.badPath'));
+            currentPath = lastState && typeof lastState.path === 'string' ? lastState.path : '';
+        } else {
+            // 404 及其它：这一处没了，但你还在原来的位置。
+            notifyError(t('app.files.gone'));
+        }
+        render(lastState);
+    }
+
     function navigate(relativePath) {
-        currentPath = typeof relativePath === 'string' ? relativePath : '';
-        load(currentPath);
+        load(typeof relativePath === 'string' ? relativePath : '');
     }
 
     async function load(relativePath) {
+        const target = relativePath || '';
         try {
-            const r = await fetch('/api/storage/list?path=' + encodeURIComponent(relativePath || ''));
+            const r = await fetch(
+                '/api/storage/list?path=' + encodeURIComponent(target),
+                { credentials: 'same-origin' },
+            );
             if (!r.ok) {
-                // 错误分支在 Task 8 接；此刻先不清空已有列表。
+                let code = '';
+                try {
+                    const body = await r.json();
+                    code = body && typeof body.code === 'string' ? body.code : '';
+                } catch (e) { /* 非 JSON 正文（400 就没有正文），当作无 code */ }
+                handleFailure(r.status, code);
                 return;
             }
             lastState = await r.json();
+            currentPath = typeof lastState.path === 'string' ? lastState.path : target;
             render(lastState);
         } catch (e) {
-            // 断线时保留最后一次列表，不清空。
+            // 断线：保留最后一次列表，不清空——清空会让用户以为文件都没了。
+            notifyError(t('app.files.offline'));
         }
     }
 
