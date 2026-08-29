@@ -544,9 +544,15 @@
             // 会在 peer-info 到达的瞬间把用户从会话页甩进设置页。
             if (!data.favoriteEnabled && shell && shell.dataset.panel !== 'hidden'
                 && !document.getElementById('view-favorites').hidden) {
-                selectDest('settings', { navigate: false });
+                selectDest(firstAvailableDest(), { navigate: false });
             }
         }
+        if (Object.prototype.hasOwnProperty.call(data, 'storageBrowsingEnabled')) {
+            applyStorageBrowsing(!!data.storageBrowsingEnabled);
+        }
+        // 默认焦点只施加一次。挂在本函数上而不加这道闸，等于每次 settings_changed
+        // 都把用户拽回第一个目的地 —— 与上面那条注释记的坑同一形状。
+        applyDefaultFocusOnce();
         reflowMessageAvatars();
     }
 
@@ -2037,6 +2043,35 @@
         if (options && options.navigate === false) syncNavbarSelection();
         else setMobileDest(dest);
     }
+    // 目的地按 rail 里的书写顺序排；本函数只回答「此刻第一个可用的是谁」。
+    // 不写死 'files'：主开关默认关闭，写死会让默认安装状态下功能栏空着。
+    function firstAvailableDest() {
+        const items = Array.prototype.slice.call(document.querySelectorAll('.fk-rail-item'));
+        const found = items.find((btn) => !btn.hidden);
+        return found ? found.dataset.dest : 'settings';
+    }
+
+    // 主开关驱动文件目的地的显隐。关掉时若用户正停在文件面板，换一个视图但
+    // **不动 mobileDest** —— 窄屏上那会在广播到达的瞬间把用户从会话页甩走。
+    function applyStorageBrowsing(enabled) {
+        document.body.dataset.storageBrowsing = enabled ? '1' : '0';
+        document.querySelectorAll('[data-dest="files"]').forEach((btn) => { btn.hidden = !enabled; });
+        const view = document.getElementById('view-files');
+        if (!enabled && view && !view.hidden) {
+            selectDest(firstAvailableDest(), { navigate: false });
+        }
+    }
+
+    // 连接成功后功能栏落在第一个可用目的地（spec 4.1）。只施加一次：
+    // peer-info 与 settings_changed 走同一个处理函数，不加闸就变成「每次改设置
+    // 都把用户拽回去」。
+    let defaultFocusApplied = false;
+    function applyDefaultFocusOnce() {
+        if (defaultFocusApplied) return;
+        defaultFocusApplied = true;
+        selectDest(firstAvailableDest(), { navigate: false });
+    }
+
     window.setPanel = setPanel;
     window.selectDest = selectDest;
     window.setMobileDest = setMobileDest;

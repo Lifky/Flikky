@@ -19,6 +19,10 @@
             'login.network_error': '网络错误',
 
             'app.nav.chat': '会话',
+            'app.nav.files': '文件',
+            'app.files.title': '文件',
+            'app.files.loading': '正在读取…',
+            'app.files.empty': '这个文件夹是空的',
             'app.nav.favorites': '收藏',
             'app.nav.settings': '设置',
             'app.avatar.change': '更换头像',
@@ -161,6 +165,10 @@
             'login.network_error': 'Network error',
 
             'app.nav.chat': 'Chat',
+            'app.nav.files': 'Files',
+            'app.files.title': 'Files',
+            'app.files.loading': 'Loading…',
+            'app.files.empty': 'This folder is empty',
             'app.nav.favorites': 'Favorites',
             'app.nav.settings': 'Settings',
             'app.avatar.change': 'Change avatar',

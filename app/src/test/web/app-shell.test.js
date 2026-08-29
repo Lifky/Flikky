@@ -236,7 +236,14 @@ test('collapsing the panel clears the rail selection', () => {
   const setPanelBody = appJsSource.slice(setPanelStart, appJsSource.indexOf('\n    }', setPanelStart));
   assert.match(setPanelBody, /syncRailSelection\(\)/);
 
-  // rail 的 aria-selected 只能有一个写入方。
-  const writes = appJsSource.match(/querySelectorAll\('\.fk-rail-item'\)/g) || [];
-  assert.equal(writes.length, 1, 'exactly one place may write the rail selection');
+  // rail 的选中态只能有一个**写入方**。
+  //
+  // 原判据是「querySelectorAll('.fk-rail-item') 只能出现一次」，那是拿「查询次数」
+  // 代理「写入次数」。v1.20.0 新增的 firstAvailableDest() 也要查 rail 项（找第一个未隐藏的），
+  // 但它只读、不写 —— 于是判据把一个合法的读者判成了违规。改成数真正写 aria 状态的地方。
+  const queries = [...appJsSource.matchAll(/querySelectorAll\('\.fk-rail-item'\)/g)];
+  const writers = queries.filter((m) =>
+    /setAttribute\('aria-(?:selected|current)'/.test(appJsSource.slice(m.index, m.index + 240)));
+  assert.equal(writers.length, 1, 'exactly one place may write the rail selection');
+  assert.ok(queries.length >= 1, 'the rail selection is never derived from the DOM at all');
 });

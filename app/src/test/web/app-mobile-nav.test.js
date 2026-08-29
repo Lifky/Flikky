@@ -18,12 +18,26 @@ test('the bottom navbar offers exactly three destinations, chat included', () =>
   const nav = html.match(/<nav class="fk-navbar"[\s\S]*?<\/nav>/);
   assert.ok(nav, 'app.html has no .fk-navbar');
   const dests = [...nav[0].matchAll(/data-dest="([a-z]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(dests, ['chat', 'favorites', 'settings']);
+  // v1.20.0 加入「文件」，排在会话之后、收藏之前。
+  assert.deepEqual(dests, ['chat', 'files', 'favorites', 'settings']);
 });
 
-test('no files destination ships before v1.20', () => {
-  // 不摆不可用入口（spec §4.1a）。
-  assert.equal(/data-dest="files"/.test(html), false);
+test('the files destination stays hidden until the switch turns it on', () => {
+  // 原断言是「v1.20 之前不发文件目的地」，前提已随本版推翻；但它守的原则
+  // 「不摆不可用入口」（spec §4.1a）仍然成立，这里换成 v1.20 的等价形式。
+  //
+  // 静态 HTML 必须自带 hidden：主开关默认关闭，且 peer-info 到达前若入口可见可点，
+  // 用户点进去会撞一个 404。默认隐藏是安全方向。
+  for (const kind of ['fk-rail-item', 'fk-navbar-item']) {
+    const re = new RegExp(`class="${kind}"[^>]*data-dest="files"[^>]*>`);
+    const m = html.match(re);
+    assert.ok(m, `no ${kind} for the files destination`);
+    assert.match(m[0], / hidden[ >]/, `${kind} for files must ship hidden`);
+  }
+  // 只有主开关那条路径才揭示它。
+  assert.match(appJs, /function applyStorageBrowsing\(/);
+  const body = appJs.slice(appJs.indexOf('function applyStorageBrowsing('));
+  assert.match(body.slice(0, 500), /\[data-dest="files"\][\s\S]*?hidden = !enabled/);
 });
 
 test('the navbar is the Expressive 64dp and clears the system gesture inset', () => {
@@ -92,7 +106,7 @@ test('the favoriteEnabled fallback is not treated as a navigation', () => {
   // 窄屏用户正在看消息，peer-info 一到就被甩进设置页，而他什么都没点。
   assert.match(
     appJs,
-    /selectDest\('settings',\s*\{\s*navigate:\s*false\s*\}\)/,
+    /selectDest\((?:'settings'|firstAvailableDest\(\)),\s*\{\s*navigate:\s*false\s*\}\)/,
     'the favoriteEnabled fallback must pass navigate:false',
   );
   assert.match(

@@ -27,6 +27,10 @@
         <nav class="fk-pillar fk-pillar--rail" aria-label="主导航">
             <img class="fk-rail-logo" src="/static/flikky-logo-slow.svg" alt="Flikky">
             <div class="fk-rail-items" id="rail-items">
+                <button class="fk-rail-item" data-dest="files" aria-selected="false" hidden>
+                    <span class="fk-rail-icon"><span class="material-symbols-outlined" data-icon="folder_shared" aria-hidden="true"></span></span>
+                    <span data-i18n="app.nav.files">文件</span>
+                </button>
                 <button class="fk-rail-item" data-dest="favorites" aria-selected="true">
                     <span class="fk-rail-icon"><span class="material-symbols-outlined" data-icon="star"></span></span>
                     <span data-i18n="app.nav.favorites">收藏</span>
@@ -95,6 +99,7 @@
              aria-orientation="vertical" tabindex="0"></div>
 
         <section class="fk-pillar fk-pillar--panel" aria-label="功能面板">
+            <div class="fk-view" id="view-files" hidden></div>
             <div class="fk-view" id="view-favorites">
                 <header class="fk-panel-head">
                     <h1 class="fk-panel-title" data-i18n="app.nav.favorites">收藏</h1>
@@ -138,6 +143,10 @@
         <button class="fk-navbar-item" data-dest="chat" aria-selected="true">
             <span class="fk-navbar-icon"><span class="material-symbols-outlined" data-icon="forum"></span></span>
             <span data-i18n="app.nav.chat">会话</span>
+        </button>
+        <button class="fk-navbar-item" data-dest="files" aria-selected="false" hidden>
+            <span class="fk-navbar-icon"><span class="material-symbols-outlined" data-icon="folder_shared" aria-hidden="true"></span></span>
+            <span data-i18n="app.nav.files">文件</span>
         </button>
         <button class="fk-navbar-item" data-dest="favorites" aria-selected="false">
             <span class="fk-navbar-icon"><span class="material-symbols-outlined" data-icon="star"></span></span>
@@ -186,5 +195,6 @@
     <script src="/static/app.js"></script>
     <script src="/static/panel-settings.js"></script>
     <script src="/static/panel-favorites.js"></script>
+    <script src="/static/panel-files.js"></script>
 </body>
 </html>
