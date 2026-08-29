@@ -48,7 +48,7 @@ test('the navbar is the Expressive 64dp and clears the system gesture inset', ()
 });
 
 test('the selected destination shows its indicator in place', () => {
-  const rule = shell.match(/\.fk-navbar-item\[aria-selected="true"\]\s+\.fk-navbar-icon\s*\{[^}]*\}/);
+  const rule = shell.match(/\.fk-navbar-item\[aria-current="page"\]\s+\.fk-navbar-icon\s*\{[^}]*\}/);
   assert.ok(rule, 'no selected-state rule for the navbar indicator');
   assert.match(rule[0], /secondary-container/);
   assert.match(rule[0], /--flikky-icon-fill:\s*1/);
@@ -117,7 +117,7 @@ test('the favoriteEnabled fallback is not treated as a navigation', () => {
 });
 
 test('the navbar selection is derived from what is actually shown, never set ad hoc', () => {
-  // 每个调用点各写一遍 aria-selected 就会分叉出「显示 A 高亮 B」。
+  // 每个调用点各写一遍 aria-current 就会分叉出「显示 A 高亮 B」。
   // 唯一的 navbar 写入方是 syncNavbarSelection，它从 DOM 反推当前目的地。
   // 注意锚到 querySelectorAll( 上：点击绑定用的是 '.fk-rail-item, .fk-navbar-item'，
   // 只匹配尾部 ".fk-navbar-item')" 会把它一起算进来。

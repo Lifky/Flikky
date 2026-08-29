@@ -221,17 +221,17 @@ body {
 }
 
 /* 指示器就地出现在选中项自己身上（官方 rail 行为），不做跨项滑动 */
-.fk-rail-item[aria-selected="true"] {
+.fk-rail-item[aria-current="page"] {
   color: rgb(var(--mdui-color-secondary));   /* Expressive：选中 label 用 secondary */
 }
-.fk-rail-item[aria-selected="true"] .fk-rail-icon {
+.fk-rail-item[aria-current="page"] .fk-rail-icon {
   background: rgb(var(--mdui-color-secondary-container));
   color: rgb(var(--mdui-color-on-secondary-container));
   --flikky-icon-fill: 1;
 }
 
 /* 未选中项 hover：指示器位没被占用时给一层极淡的态背景 */
-.fk-rail-item:not([aria-selected="true"]):hover .fk-rail-icon {
+.fk-rail-item:not([aria-current="page"]):hover .fk-rail-icon {
   background: rgba(var(--mdui-color-on-surface), .08);
 }
 
@@ -415,8 +415,8 @@ body[data-favorite-enabled="0"] [data-dest="favorites"] { display: none; }
     transform var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default);
 }
 
-.fk-navbar-item[aria-selected="true"] { color: rgb(var(--mdui-color-secondary)); }
-.fk-navbar-item[aria-selected="true"] .fk-navbar-icon {
+.fk-navbar-item[aria-current="page"] { color: rgb(var(--mdui-color-secondary)); }
+.fk-navbar-item[aria-current="page"] .fk-navbar-icon {
   background: rgb(var(--mdui-color-secondary-container));
   color: rgb(var(--mdui-color-on-secondary-container));
   --flikky-icon-fill: 1;

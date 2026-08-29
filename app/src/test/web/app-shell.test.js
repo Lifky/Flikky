@@ -223,7 +223,7 @@ test('the two layout axes animate through a FLIP wrapper', () => {
 
 test('collapsing the panel clears the rail selection', () => {
   // 收起后功能栏根本没在显示，rail 却还亮着一个指示器，指向看不见的面板。
-  // 与底部导航同一套做法：从 DOM 反推，不在各调用点各写一遍 aria-selected。
+  // 与底部导航同一套做法：从 DOM 反推，不在各调用点各写一遍 aria-current。
   assert.match(appJsSource, /function syncRailSelection\(/);
   const start = appJsSource.indexOf('function syncRailSelection(');
   const body = appJsSource.slice(start, appJsSource.indexOf('\n    }', start));

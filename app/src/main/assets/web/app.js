@@ -45,6 +45,10 @@
         // 字形由 base.css 的 ::before content: attr(data-icon) 生成，不是 DOM 文本 ——
         // 手机浏览器的长按取词层不理 user-select，只有「没有文本」才真的选不到。
         icon.dataset.icon = symbolName(name);
+        // 装饰性图标：字形来自 ::before 生成内容，多数读屏仍会朗读 `star` 这类内部
+        // 标识符。所有调用点的可访问名都来自兄弟 label 或控件自己的 aria-label，
+        // 因此在工厂里统一隐藏——新增调用点自动继承，不用逐处记得加。
+        icon.setAttribute('aria-hidden', 'true');
         return icon;
     }
 
@@ -1981,6 +1985,9 @@
     }
 
     // 底部导航的选中态不自己记，一律从「这一栏此刻真的在显示什么」推出来：
+    // 状态属性用 aria-current 而不是 aria-selected：aria-selected 只在 tab / option /
+    // row / gridcell 这类角色上有效，<nav> 里的裸 <button> 上读屏会直接忽略它——
+    // v1.19.0 起「当前在哪个目的地」其实从未被朗读过。与面包屑（panel-files.js）对齐。
     // mobileDest 是 chat 就选中会话，否则选中那个没被 hidden 的 .fk-view。
     // 各处调用点各自 setAttribute 会立刻分叉出「显示 A 高亮 B」的状态——
     // 兜底切换那条路径就是这么错的（见 selectDest 的 navigate 注释）。
@@ -1992,12 +1999,12 @@
             if (shown) active = shown.id.replace('view-', '');
         }
         document.querySelectorAll('.fk-navbar-item').forEach((btn) => {
-            btn.setAttribute('aria-selected', btn.dataset.dest === active ? 'true' : 'false');
+            btn.setAttribute('aria-current', btn.dataset.dest === active ? 'page' : 'false');
         });
     }
 
     // rail 的选中态同理由 DOM 反推，而且多一个条件：功能栏收起时**没有**任何目的地
-    // 是当前项——那一栏根本没在显示。原先 selectDest 把 aria-selected 一写就不管了，
+    // 是当前项——那一栏根本没在显示。原先 selectDest 把选中态一写就不管了，
     // 收起后指示器还亮着，指向一个看不见的面板。
     function syncRailSelection() {
         if (!shell) return;
@@ -2006,7 +2013,7 @@
             : document.querySelector('.fk-view:not([hidden])');
         const active = shown ? shown.id.replace('view-', '') : null;
         document.querySelectorAll('.fk-rail-item').forEach((btn) => {
-            btn.setAttribute('aria-selected', btn.dataset.dest === active ? 'true' : 'false');
+            btn.setAttribute('aria-current', btn.dataset.dest === active ? 'page' : 'false');
         });
     }
 
@@ -2019,7 +2026,7 @@
     }
 
     // 点任一导航目的地：顺带展开功能栏（折叠的是功能栏，rail 永远常驻），
-    // 同步 rail 的 aria-selected，并在两个 .fk-view 之间切换 hidden。
+    // 同步 rail 的 aria-current，并在两个 .fk-view 之间切换 hidden。
     // "chat" 是特例：它只在移动端底部导航出现（桌面 rail 没有这个目的地），
     // 且没有对应的 .fk-view —— 提前 return，只切 mobileDest，绝不动
     // data-panel 或任何 .fk-view 的 hidden。

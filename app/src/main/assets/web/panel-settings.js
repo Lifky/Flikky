@@ -47,6 +47,7 @@
         const span = document.createElement('span');
         span.className = 'material-symbols-outlined';
         span.dataset.icon = name;
+        span.setAttribute('aria-hidden', 'true');
         return span;
     }
 

@@ -62,8 +62,10 @@ test('the default destination is the first available one, applied only once', ()
   assert.match(appJs.slice(at, at + 260), /if \(defaultFocusApplied\) return;/);
 });
 
-test('every icon span in the shell is data-icon driven and hidden from AT', () => {
-  // 新增的两个图标从第一行就要写对，不要等 Task 9 回来补。
+test('every icon span in the shell is data-icon driven and carries no DOM text', () => {
+  // 这条只管 data-icon 驱动 + 无 DOM 文本（长按取词）。「对读屏隐藏」是另一件事，
+  // 由 app-a11y-nav.test.js 单独钉——原名号称 hidden from AT 但断言里根本没查，
+  // 又是一次「断言绿着、它命名的东西没被测」。
   for (const m of html.matchAll(/<span([^>]*class="material-symbols-outlined"[^>]*)>([^<]*)<\/span>/g)) {
     assert.match(m[1], /data-icon="[a-z0-9_]+"/, 'icon span without data-icon: ' + m[0]);
     assert.equal(m[2].trim(), '', 'icon span still carries text: ' + m[0]);
