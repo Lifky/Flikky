@@ -589,7 +589,7 @@ fun SettingsScreen(
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_storage_browsing),
-                        leadingIcon = painterResource(R.drawable.ic_folder_shared),
+                        leadingIcon = painterResource(R.drawable.ic_folder),
                         infoText = stringResource(R.string.settings_storage_browsing_summary),
                         trailing = {
                             Switch(

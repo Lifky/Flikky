@@ -355,7 +355,7 @@ fun QuickSettingsSheet(
                     // 即时可达的操作——这是它必须出现在快捷设置里的产品理由。
                     SettingItem(
                         title = stringResource(R.string.settings_storage_browsing),
-                        leadingIcon = painterResource(R.drawable.ic_folder_shared),
+                        leadingIcon = painterResource(R.drawable.ic_folder),
                         subtitle = stringResource(R.string.settings_storage_browsing_summary),
                         trailing = {
                             Switch(
