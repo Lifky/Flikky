@@ -23,6 +23,21 @@
     /** 当前相对路径。只存内存：不敏感，但也没有跨会话价值，且重连必须回根目录。 */
     let currentPath = '';
 
+    /**
+     * 主开关是否开启。**默认 false**：脚本加载时还没收到 peer-info，
+     * 此刻任何请求都会在开关关闭时撞上 404，并被 handleFailure 报成「目录没了」
+     * ——那正是装机验收 Screenshot_1 里那条 toast 的来路。
+     */
+    let enabled = false;
+
+    /**
+     * 是否已经成功加载过一次。
+     *
+     * handleFailure 用它区分「用户导航到的目录没了」与「面板还没成功过」：
+     * 后者说「这个位置已经不存在了」毫无意义——用户还没导航过任何位置。
+     */
+    let hasLoadedOnce = false;
+
     let root = null;
     let bodyEl = null;
 
@@ -313,6 +328,14 @@
             currentPath = lastState && typeof lastState.path === 'string' ? lastState.path : '';
         } else {
             // 404 及其它：这一处没了，但你还在原来的位置。
+            //
+            // 只有**导航过之后**才说得通。面板还没成功加载过时说「这个位置已经不存在了」
+            // 毫无意义——用户还没导航到任何位置（Screenshot_1 就是这个状态）。
+            // 那种情况下按引导态处理，不弹 snackbar。
+            if (!hasLoadedOnce) {
+                renderGuidance('folder_off', 'app.files.unavailable', 'app.files.unavailableWhy');
+                return;
+            }
             notifyError(t('app.files.gone'));
         }
         render(lastState);
@@ -323,6 +346,10 @@
     }
 
     async function load(relativePath) {
+        // 开关关闭时一律不请求。这是缺陷 1b 的正面修法：服务端按 D33 返回 404
+        // 且刻意不带 code（不暴露「功能存在但被关」），所以客户端分不清
+        // 「功能被关」与「路径不存在」——那就别让它撞上。
+        if (!enabled) return;
         const target = relativePath || '';
         try {
             const r = await fetch(
@@ -340,6 +367,7 @@
             }
             lastState = await r.json();
             currentPath = typeof lastState.path === 'string' ? lastState.path : target;
+            hasLoadedOnce = true;
             render(lastState);
         } catch (e) {
             // 断线：保留最后一次列表，不清空——清空会让用户以为文件都没了。
@@ -347,6 +375,14 @@
         }
     }
 
+    /**
+     * 建壳，**不发请求**。
+     *
+     * 这个函数在脚本末尾被调用一次，也就是「页面加载完」那一刻——那时 peer-info
+     * 还没到，主开关状态未知。在这里 load() 等于「不管开关一律请求一次」，
+     * 开关关闭时就是一条 404 加一句「这个位置已经不存在了」。
+     * 第一次请求交给 setEnabled(true) 发起。
+     */
     function mount(container) {
         if (!container) return;
         root = container;
@@ -358,11 +394,36 @@
                 render(lastState);
             });
         }
+    }
+
+    /**
+     * 主开关的唯一入口，由 app.js 的 applyStorageBrowsing 调用。
+     *
+     * 开 → 若还没加载过就拉根目录（重复调用不会重复请求）。
+     * 关 → 丢掉缓存的列表并回到根目录。不保留是刻意的：重新开启时可能已经换了手机、
+     *      换了授权状态，把上一次的目录画出来会让用户以为那些文件还在。
+     */
+    function setEnabled(next) {
+        const on = !!next;
+        if (on === enabled) return;
+        enabled = on;
+        if (!enabled) {
+            lastState = null;
+            hasLoadedOnce = false;
+            currentPath = '';
+            render(lastState);
+            return;
+        }
         load(currentPath);
     }
 
     window.flikkyPanels = window.flikkyPanels || {};
-    window.flikkyPanels.files = { mount: mount, render: render, navigate: navigate };
+    window.flikkyPanels.files = {
+        mount: mount,
+        render: render,
+        navigate: navigate,
+        setEnabled: setEnabled,
+    };
     window.flikky = window.flikky || {};
     window.flikky.renderFilesPanel = render;
     window.flikky.navigateStorage = navigate;

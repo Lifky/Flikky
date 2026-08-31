@@ -78,6 +78,10 @@ const guidance = (doc) => byClass(view(doc), 'fk-guidance')[0];
 async function mounted(opts) {
   const c = load(opts);
   c.api.mount(c.root);
+  // mount 刻意不发请求（装机验收缺陷 1b：它在 peer-info 之前跑，不知道主开关状态，
+  // 关闭时那一次请求会撞 404 并被报成「这个位置已经不存在了」）。
+  // 第一次加载由主开关驱动，测试里显式打开。
+  c.api.setEnabled(true);
   await flush();
   return c;
 }

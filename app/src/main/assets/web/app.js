@@ -2067,6 +2067,13 @@
         if (!enabled && view && !view.hidden) {
             selectDest(firstAvailableDest(), { navigate: false });
         }
+        // 面板自己不猜开关状态：它在脚本加载时（peer-info 之前）无从得知，
+        // 猜的结果就是关闭时也请求一次、撞上 404、报成「这个位置已经不存在了」。
+        // 本函数是开关状态的唯一写入点，顺手告诉它。
+        if (window.flikkyPanels && window.flikkyPanels.files
+            && typeof window.flikkyPanels.files.setEnabled === 'function') {
+            window.flikkyPanels.files.setEnabled(enabled);
+        }
     }
 
     // 连接成功后功能栏落在第一个可用目的地（spec 4.1）。只施加一次：
