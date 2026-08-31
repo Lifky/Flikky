@@ -80,4 +80,5 @@
     <string name="serving_storage_send_n">Send %1$d files · %2$s</string>
     <string name="serving_storage_actions">File actions</string>
     <string name="serving_storage_actions_close">Close</string>
+    <string name="serving_storage_items">%1$d items</string>
 </resources>

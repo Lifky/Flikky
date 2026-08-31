@@ -289,7 +289,10 @@ private fun StorageEntryRow(
         Text(
             text = when {
                 entry.restricted -> stringResource(R.string.serving_storage_restricted)
-                entry.isDir -> stringResource(R.string.serving_storage_folder)
+                // 项数而不是固定文案「文件夹」：与浏览器端同一句话（服务端 DTO 一直给项数）。
+                entry.isDir -> entry.childCount
+                    ?.let { stringResource(R.string.serving_storage_items, it) }
+                    ?: stringResource(R.string.serving_storage_folder)
                 else -> formatSize(entry.size) + " · " + formatEntryDate(entry.mtime)
             },
             style = MaterialTheme.typography.bodySmall,

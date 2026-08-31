@@ -21,6 +21,15 @@ data class LocalEntry(
     val mtime: Long,
     val mime: String?,
     val restricted: Boolean,
+    /**
+     * 目录的直接子项数；文件为 null。
+     *
+     * 两端副标题必须一致：服务端 DTO 一直给的是项数（浏览器显示「13 项」），
+     * 而 App 端首版显示的是固定文案「文件夹」——同一个目录在手机上和电脑上
+     * 说的不是一件事。代价是每个目录行一次 readdir，所以列举必须在 IO 上跑
+     * （见 ServingViewModel.openStorageDir）。
+     */
+    val childCount: Int? = null,
 )
 
 /** 操作条摘要。[skipped] 涵盖「路径非法 / 已被删 / 是目录」三种情况。 */
@@ -93,6 +102,8 @@ class LocalStorageBrowser(private val root: File) {
                     mtime = child.lastModified(),
                     mime = if (isDir) null else URLConnection.guessContentTypeFromName(child.name),
                     restricted = StorageListingPolicy.isRestricted(childPath),
+                    // list() 而不是 listFiles()：只要个数，不需要为每个子项建 File 对象。
+                    childCount = if (isDir) child.list()?.size else null,
                 )
             },
         )

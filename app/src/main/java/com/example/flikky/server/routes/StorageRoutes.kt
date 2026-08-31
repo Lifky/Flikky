@@ -13,6 +13,8 @@ import io.ktor.server.response.respond
 import io.ktor.server.response.respondOutputStream
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -91,7 +93,13 @@ fun Route.storageRoutes(
     get("/api/storage/list") {
         if (!call.passesGate()) return@get
         val b = browser() ?: run { call.respond(HttpStatusCode.ServiceUnavailable); return@get }
-        when (val result = b.list(call.request.queryParameters["path"].orEmpty())) {
+        // 列举是阻塞 I/O（listFiles + 每条目 3 次 stat + 每个子目录一次 readdir 算项数）。
+        // 大目录里这是几百毫秒到几秒；留在请求协程的默认调度器上会占住事件循环线程，
+        // 拖慢同一时刻的其它请求（消息、文件流）。
+        val listed = withContext(Dispatchers.IO) {
+            b.list(call.request.queryParameters["path"].orEmpty())
+        }
+        when (val result = listed) {
             is StorageResult.Ok -> call.respond(result.value)
             else -> call.respondFailure(result)
         }

@@ -100,6 +100,30 @@ class LocalStorageBrowserTest {
     }
 
     @Test
+    fun `a directory carries its child count so both ends say the same thing`() {
+        // 服务端 DTO 一直给项数（浏览器显示「13 项」），App 端首版显示固定文案「文件夹」——
+        // 同一个目录在手机上和电脑上说的不是一件事。
+        val (b, root) = browser()
+        File(root, "DCIM").mkdirs()
+        File(root, "DCIM/a.jpg").writeText("x")
+        File(root, "DCIM/b.jpg").writeText("y")
+        File(root, "note.txt").writeText("z")
+        val entries = b.list("")!!.entries.associateBy { it.name }
+        assertEquals(2, entries["DCIM"]!!.childCount)
+        // 文件没有子项数，不是 0 —— 0 会被 UI 显示成「0 项」。
+        assertNull(entries["note.txt"]!!.childCount)
+    }
+
+    @Test
+    fun `an empty directory reports zero, not null`() {
+        // null 与 0 在 UI 上是两句话：null 回落成「文件夹」，0 说「0 项」。
+        // 空目录确实是 0 项，不该退化成没有信息。
+        val (b, root) = browser()
+        File(root, "Empty").mkdirs()
+        assertEquals(0, b.list("")!!.entries.single().childCount)
+    }
+
+    @Test
     fun `an out-of-root path is refused instead of silently resolving`() {
         val (b, _) = browser()
         assertNull(b.list("../.."))

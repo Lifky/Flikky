@@ -82,4 +82,5 @@
     <string name="serving_storage_send_n">发送 %1$d 个文件 · %2$s</string>
     <string name="serving_storage_actions">文件操作</string>
     <string name="serving_storage_actions_close">收起</string>
+    <string name="serving_storage_items">%1$d 项</string>
 </resources>
