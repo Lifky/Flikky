@@ -86,6 +86,20 @@ class LocalStorageBrowserTest {
     }
 
     @Test
+    fun `entries carry an openable absolute path for thumbnails`() {
+        // Coil 只能用真实路径。缺了它，媒体行会静默回落成图标容器——
+        // 看起来只是"这个文件没缩略图"，不会有任何报错，也没人会发现整个缩略图功能没生效。
+        val (b, root) = browser()
+        File(root, "photo.jpg").writeText("x")
+        val e = b.list("")!!.entries.single()
+        assertTrue("absolutePath must point at a real file: " + e.absolutePath,
+            File(e.absolutePath).isFile)
+        // 且必须是绝对路径，不是相对路径换个字段名。
+        assertTrue("absolutePath must be absolute: " + e.absolutePath,
+            File(e.absolutePath).isAbsolute)
+    }
+
+    @Test
     fun `an out-of-root path is refused instead of silently resolving`() {
         val (b, _) = browser()
         assertNull(b.list("../.."))
@@ -130,5 +144,83 @@ class LocalStorageBrowserTest {
         assertEquals("DCIM/a.jpg", e.relativePath)
         // 根目录下的一级项没有前导斜杠。
         assertEquals("DCIM", b.list("")!!.entries.first { it.name == "DCIM" }.relativePath)
+    }
+}
+
+class StorageRowActionTest {
+
+    private fun entry(
+        name: String = "a.txt",
+        isDir: Boolean = false,
+        restricted: Boolean = false,
+    ) = LocalEntry(
+        name = name,
+        relativePath = name,
+        absolutePath = "/storage/emulated/0/" + name,
+        isDir = isDir,
+        size = 1L,
+        mtime = 0L,
+        mime = null,
+        restricted = restricted,
+    )
+
+    @Test
+    fun `a directory opens and never enters the selection`() {
+        assertEquals(StorageRowAction.OPEN, storageRowAction(entry("DCIM", isDir = true)))
+    }
+
+    @Test
+    fun `a file toggles on a single tap`() {
+        // 上游 D5 的裁决：单击即勾选（不是「单击打开、长按选」）。
+        assertEquals(StorageRowAction.TOGGLE, storageRowAction(entry("a.jpg")))
+    }
+
+    @Test
+    fun `a restricted entry is inert even though it is also a directory`() {
+        // restricted 必须先判。顺序颠倒 → Android/data 变成可进入的普通目录，
+        // 进去之后 list() 返回 null，UI 停在原地，看起来像「点了没反应」的 bug。
+        assertEquals(
+            StorageRowAction.NONE,
+            storageRowAction(entry("data", isDir = true, restricted = true)),
+        )
+        // 沙箱里的文件同理（理论上列不出来，但决策要自洽）。
+        assertEquals(StorageRowAction.NONE, storageRowAction(entry("x", restricted = true)))
+    }
+}
+
+class BreadcrumbSegmentsTest {
+
+    @Test
+    fun `the root alone is a single crumb`() {
+        assertEquals(listOf("内部存储"), breadcrumbSegments("", "内部存储").map { it?.label })
+    }
+
+    @Test
+    fun `up to four levels are all shown`() {
+        // 与浏览器端 panel-files.js 的 breadcrumbSegments 同构：≤ 4 级全显示。
+        val got = breadcrumbSegments("a/b/c", "Root")
+        assertEquals(listOf("Root", "a", "b", "c"), got.map { it?.label })
+        assertEquals(listOf("", "a", "a/b", "a/b/c"), got.map { it?.path })
+    }
+
+    @Test
+    fun `deeper paths collapse the middle into a single placeholder`() {
+        // 首级 + … + 末两级。null 就是那个 … 占位。
+        val got = breadcrumbSegments("a/b/c/d/e", "Root")
+        assertEquals(listOf("Root", null, "d", "e"), got.map { it?.label })
+        assertEquals(listOf("", null, "a/b/c/d", "a/b/c/d/e"), got.map { it?.path })
+    }
+
+    @Test
+    fun `each crumb carries the path to navigate to, not just its name`() {
+        // 只存 name 时点中间一级没法回去——这是面包屑唯一的功能。
+        val got = breadcrumbSegments("DCIM/Camera", "Root")
+        assertEquals("DCIM", got[1]!!.path)
+        assertEquals("DCIM/Camera", got[2]!!.path)
+    }
+
+    @Test
+    fun `leading and trailing slashes do not create empty crumbs`() {
+        assertEquals(listOf("Root", "a"), breadcrumbSegments("/a/", "Root").map { it?.label })
     }
 }

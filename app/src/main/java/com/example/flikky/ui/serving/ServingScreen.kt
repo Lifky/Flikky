@@ -140,9 +140,16 @@ fun ServingScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    // Task 13 接真实目录状态；本任务恒为「不能上一级」，第 3 级 BackHandler 照旧生效。
-    val storageCanGoUp = false
-    val onStorageGoUp: () -> Unit = {}
+    val storageState by viewModel.storageState.collectAsState()
+    // 根目录没有上一级 —— LocalStorageBrowser.parentOf 返回 null 的那一格。
+    // 写成常量 true 的后果是根目录按返回也被这一级吃掉，用户困在文件 tab 里出不去。
+    val storageCanGoUp = storageState.path.isNotEmpty()
+    val onStorageGoUp: () -> Unit = { viewModel.storageGoUp() }
+    // 授权完成后系统页没有回调，靠上面那个 ON_RESUME 观察者改 hasStoragePermission；
+    // 首次拿到权限时目录还是空的，这里补一次读取。
+    LaunchedEffect(hasStoragePermission) {
+        if (hasStoragePermission) viewModel.refreshStorage()
+    }
     // System-back dismisses the action target before exiting the screen.
     androidx.activity.compose.BackHandler(enabled = actionTarget != null) { actionTarget = null }
     // 优先级 2：文件 tab 内先逐级返回目录。到根目录时不拦——交给下面第 3 级。
@@ -318,6 +325,9 @@ fun ServingScreen(
                     else -> ServingStorageTab(
                         hasPermission = hasStoragePermission,
                         onRequestPermission = { requestAllFilesAccess(ctx) },
+                        state = storageState,
+                        onOpenDir = { viewModel.openStorageDir(it) },
+                        onToggleSelection = { viewModel.toggleStorageSelection(it) },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }

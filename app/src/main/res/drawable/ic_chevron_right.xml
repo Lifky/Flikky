@@ -1,0 +1,10 @@
+<!-- Material Symbols: chevron_right, opsz24 wght400 GRAD0, FILL@0. Verbatim official path (viewBox 0 -960 960 960).
+     gstatic 风味：path 在 -960..0 区间，必须包 <group android:translateY="960">，
+     与 ic_folder_open 同办法。不要手改坐标。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="960" android:viewportHeight="960">
+    <group android:translateY="960">
+        <path android:fillColor="#000000" android:pathData="M504-480 320-664l56-56 240 240-240 240-56-56 184-184Z"/>
+    </group>
+</vector>

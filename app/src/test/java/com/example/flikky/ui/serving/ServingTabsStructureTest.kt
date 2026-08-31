@@ -1,6 +1,7 @@
 package com.example.flikky.ui.serving
 
 import java.io.File
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -125,5 +126,104 @@ class ServingTabsStructureTest {
             "the indicator must use the content-width offset (matchContentSize): ${row.value}",
             row.value.contains("matchContentSize = true"),
         )
+    }
+
+    @Test
+    fun `the storage tab reuses the shared file row visuals`() {
+        // 「复用」的标准是视觉零差异。自己写一套 Box + Icon 就是 v1.17.1 花一整轮消掉的重复，
+        // 而它不会有任何测试转红——只有人眼并排比对才看得出行首大小/形状/对齐不一样。
+        // 这里退一步钉「用的是共用件」，把「零差异」变成结构事实而不是自觉。
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        for (shared in listOf("FileLeadingVisual(", "SegmentedListItem(",
+                              "ListItemDefaults.segmentedShapes", "ListItemDefaults.segmentedColors",
+                              "FileLeadingSpec.rowAlignment")) {
+            assertTrue("storage rows must reuse $shared like FilesScreen does", tab.contains(shared))
+        }
+        // 裁决 B：不用 checkbox。全项目 list 行没有一个，加进来会成为唯一的异类。
+        assertFalse(
+            "storage rows must not introduce a Checkbox (ruling B: reuse the tri-state leading)",
+            tab.contains("Checkbox("),
+        )
+        // 逼红实测：只查「文件里出现过 FileLeadingVisual」是不够的——把**目录行**的 leading
+        // 换成别的东西，文件行那处调用还在，断言照样绿。必须逐分支核算：
+        // leading 有三个 arm（沙箱 / 目录 / 文件），只有沙箱那个用锁图标，另两个必须走共用件。
+        val leadingAt = tab.indexOf("val leading: @Composable () -> Unit = {")
+        assertTrue("no leading lambda in the storage row", leadingAt > 0)
+        val leadingEnd = tab.indexOf("val supporting:", leadingAt)
+        assertTrue("cannot bound the leading lambda", leadingEnd > leadingAt)
+        val leading = tab.substring(leadingAt, leadingEnd)
+        assertEquals(
+            "both the directory arm and the file arm must use FileLeadingVisual",
+            2,
+            leading.windowed(20).count { it.startsWith("FileLeadingVisual(") },
+        )
+        assertEquals(
+            "only the restricted arm may use a bespoke leading",
+            1,
+            leading.windowed(15).count { it.startsWith("LockedLeading(") },
+        )
+    }
+
+    @Test
+    fun `row behaviour is dispatched through the shared policy, not re-derived in the UI`() {
+        // 三条规则（目录不可选 / 文件单击即选 / 沙箱行完全惰性）的事实源是 storageRowAction，
+        // 单测在 StorageRowActionTest。UI 里再自己判一遍 isDir/restricted 就会分叉出
+        // 「策略说 NONE、UI 照样让点」这种测试测不到的状态。
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        assertTrue("no storageRowAction dispatch found", tab.contains("storageRowAction(entry)"))
+        assertTrue(
+            "the row must branch on the policy result",
+            tab.contains("StorageRowAction.OPEN") && tab.contains("StorageRowAction.TOGGLE") &&
+                tab.contains("StorageRowAction.NONE"),
+        )
+        // 关键：点击回调不得绕过策略。目录分支只许 onOpenDir，文件分支只许 onToggleSelection。
+        val openBranch = Regex("""StorageRowAction\.OPEN -> SegmentedListItem\(([\s\S]*?)
+ {8}\)""")
+            .find(tab)
+        assertTrue("no OPEN branch", openBranch != null)
+        assertFalse(
+            "a directory row must not toggle selection: ${openBranch!!.value}",
+            openBranch.value.contains("onToggleSelection"),
+        )
+        val noneBranch = Regex("""StorageRowAction\.NONE -> SegmentedListItem\(([\s\S]*?)
+ {8}\)""")
+            .find(tab)
+        assertTrue("no NONE branch", noneBranch != null)
+        assertTrue(
+            "a restricted row must be disabled: ${noneBranch!!.value}",
+            noneBranch.value.contains("enabled = false"),
+        )
+        assertFalse(
+            "a restricted row must not open or select: ${noneBranch.value}",
+            noneBranch.value.contains("onOpenDir") || noneBranch.value.contains("onToggleSelection"),
+        )
+    }
+
+    @Test
+    fun `storageCanGoUp is derived from the path, not hard-coded`() {
+        // 写成常量 true 的后果：根目录按返回也被文件 tab 那一级吃掉，用户出不去。
+        // 写成常量 false 的后果：文件 tab 里返回键直接退出会话页，目录栈形同虚设。
+        val decl = Regex("""val storageCanGoUp = .*""").find(servingScreen)
+        assertTrue("no storageCanGoUp declaration", decl != null)
+        assertTrue(
+            "storageCanGoUp must be derived from the current path, found: ${decl!!.value}",
+            decl.value.contains("storageState.path"),
+        )
+    }
+
+    @Test
+    fun `the storage tab loads no remote image source`() {
+        // 红线：无运行时外联。Coil 只喂本地 File / StoredVideo model；
+        // 一旦有人传了 URL 字符串或加了 coil-network，缩略图就会去联网，而它不会报错。
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        assertFalse("no http URL may reach the thumbnail model", tab.contains("http://"))
+        assertFalse("no https URL may reach the thumbnail model", tab.contains("https://"))
+        val libs = File(mainJavaRoot().parentFile.parentFile.parentFile, "gradle/libs.versions.toml")
+        if (libs.isFile) {
+            assertFalse(
+                "coil-network must never be added (offline-only red line)",
+                libs.readText(Charsets.UTF_8).contains("coil-network"),
+            )
+        }
     }
 }

@@ -13,6 +13,8 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flikky.R
+import com.example.flikky.ui.serving.storage.LocalStorageBrowser
+import com.example.flikky.ui.serving.storage.LocalStorageState
 import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.SessionRepository
@@ -151,6 +153,50 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     fun recordRecentFavorite(favoriteId: Long) {
         viewModelScope.launch { ServiceLocator.settingsRepository.recordRecentFavorite(favoriteId) }
+    }
+
+    // ── v1.20.0 本机存储浏览（会话页「文件」tab）
+    //
+    // 路径与选择集合放这里而不是 `remember`：发送要用它（controller 在 ViewModel 手里），
+    // 且它必须跨配置变更存活——转屏后选择集合清空是明显的体验缺陷。
+    // 纯逻辑全在 LocalStorageBrowser，这里只持有状态并转发。
+    private val storageBrowser by lazy {
+        LocalStorageBrowser(android.os.Environment.getExternalStorageDirectory())
+    }
+    private val _storageState = MutableStateFlow(LocalStorageState(path = "", entries = emptyList()))
+    val storageState: StateFlow<LocalStorageState> = _storageState
+
+    /**
+     * 重新读当前目录。授权完成后、以及回到前台时调用。
+     *
+     * 选择集合**跨刷新保留**：用户可能在别处删了文件，但那不是清空整个选择的理由——
+     * 真正发送时 `resolveExisting` 会跳过不存在的并报数。
+     */
+    fun refreshStorage() {
+        openStorageDir(_storageState.value.path)
+    }
+
+    /** 进入某个目录。拿不到（非法 / 不存在 / 沙箱）就**停在原地**，不自动回退。 */
+    fun openStorageDir(relative: String) {
+        val next = storageBrowser.list(relative) ?: return
+        _storageState.value = next.copy(selected = _storageState.value.selected)
+    }
+
+    /** 返回上一级。根目录无上一级时什么都不做——由 UI 侧的 `storageCanGoUp` 先拦。 */
+    fun storageGoUp() {
+        val parent = storageBrowser.parentOf(_storageState.value.path) ?: return
+        openStorageDir(parent)
+    }
+
+    fun toggleStorageSelection(relativePath: String) {
+        val current = _storageState.value
+        _storageState.value = current.copy(
+            selected = storageBrowser.toggle(current.selected, relativePath),
+        )
+    }
+
+    fun clearStorageSelection() {
+        _storageState.value = _storageState.value.copy(selected = emptySet())
     }
 
     fun sendStoredFile(row: FileOverviewRow) {

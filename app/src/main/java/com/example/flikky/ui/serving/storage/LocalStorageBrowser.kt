@@ -5,10 +5,17 @@ import com.example.flikky.util.StoragePathPolicy
 import java.io.File
 import java.net.URLConnection
 
-/** 列表里的一项。`relativePath` 是 UI 的 key 与选择集合的元素，不能只用 [name]。 */
+/**
+ * 列表里的一项。
+ *
+ * [relativePath] 是 UI 的 key 与选择集合的元素，不能只用 [name]——两个不同目录下的同名文件
+ * 会互相顶掉。[absolutePath] 是 Coil 加载缩略图要用的真实路径：只有相对路径时 Coil 打不开文件，
+ * 而失败是**静默**的（回落成图标容器），媒体行看起来只是"没有缩略图"，没人会发现。
+ */
 data class LocalEntry(
     val name: String,
     val relativePath: String,
+    val absolutePath: String,
     val isDir: Boolean,
     val size: Long,
     val mtime: Long,
@@ -67,6 +74,7 @@ class LocalStorageBrowser(private val root: File) {
                 LocalEntry(
                     name = child.name,
                     relativePath = childPath,
+                    absolutePath = child.absolutePath,
                     isDir = isDir,
                     size = if (isDir) 0L else child.length(),
                     mtime = child.lastModified(),
@@ -114,5 +122,60 @@ class LocalStorageBrowser(private val root: File) {
             files += f
         }
         return files to skipped
+    }
+}
+
+/** 点一行会发生什么。UI 只许在这三个分支上分派，不许自己再判 `isDir` / `restricted`。 */
+enum class StorageRowAction {
+    /** 目录：进入。**不进选择集合**——裁决 B 保留「单击即勾选」但只对文件生效。 */
+    OPEN,
+
+    /** 文件：切换勾选。跨目录累积。 */
+    TOGGLE,
+
+    /** 系统锁死的沙箱目录：不可点、不可进、不可选。行仍要显示，用户得知道它存在。 */
+    NONE,
+}
+
+/**
+ * 行为决策抽成纯函数的理由：这三条（目录不可选 / 文件单击即选 / 沙箱行完全惰性）
+ * 全都是「写错了照样编译、照样跑」的规则，而验它们最自然的地方是仪器测试——
+ * 那要立整屏 + ViewModel + ServiceLocator。抽出来后在 `test/` 秒级可验，
+ * 且 UI 侧只剩一个 `when`，把「判断」和「渲染」分开。
+ *
+ * `restricted` 必须在 `isDir` **之前**判：沙箱目录同时满足两者，
+ * 顺序颠倒就会让 `Android/data` 变成可进入的普通目录。
+ */
+fun storageRowAction(entry: LocalEntry): StorageRowAction = when {
+    entry.restricted -> StorageRowAction.NONE
+    entry.isDir -> StorageRowAction.OPEN
+    else -> StorageRowAction.TOGGLE
+}
+
+/** 面包屑的一级。[path] 为空表示根。 */
+data class StorageCrumb(val label: String, val path: String)
+
+/**
+ * 面包屑的分级与折叠规则。**与浏览器端 `panel-files.js` 的 `breadcrumbSegments` 同构**：
+ * 总级数 ≤ 4 时全显示；超过则首级 + `…` + 末两级。
+ *
+ * 返回列表里的 `null` 就是那个 `…` 占位——UI 渲染成不可点的省略号。
+ * 两端各写一遍的后果是「手机上折叠、电脑上不折叠」，而两边测试都绿。
+ *
+ * [rootLabel] 由调用方给（i18n），纯函数本身不碰资源，所以能在 `test/` 直接跑。
+ */
+fun breadcrumbSegments(path: String, rootLabel: String): List<StorageCrumb?> {
+    val parts = path.trim().trim('/').split('/').filter { it.isNotEmpty() }
+    val all = buildList {
+        add(StorageCrumb(rootLabel, ""))
+        parts.forEachIndexed { i, name ->
+            add(StorageCrumb(name, parts.take(i + 1).joinToString("/")))
+        }
+    }
+    if (all.size <= 4) return all
+    return buildList {
+        add(all.first())
+        add(null)
+        addAll(all.takeLast(2))
     }
 }

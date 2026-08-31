@@ -66,4 +66,9 @@
     <string name="serving_storage_permission_body">Flikky needs the "All files access" permission to list the files on your phone. Android offers no read-only version of it, so the system grants write access too — Flikky only reads, and never writes, changes or deletes anything.</string>
     <string name="serving_storage_permission_grant">Grant access</string>
     <string name="serving_storage_empty">This folder is empty</string>
+    <string name="serving_storage_root">Internal storage</string>
+    <string name="serving_storage_restricted">Restricted by the system</string>
+    <string name="serving_storage_folder">Folder</string>
+    <string name="serving_storage_go_up">Go up one level</string>
+    <string name="serving_storage_breadcrumb_more">…</string>
 </resources>
