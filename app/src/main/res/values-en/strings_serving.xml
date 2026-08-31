@@ -71,4 +71,10 @@
     <string name="serving_storage_folder">Folder</string>
     <string name="serving_storage_go_up">Go up one level</string>
     <string name="serving_storage_breadcrumb_more">…</string>
+    <string name="serving_storage_selected">%1$d selected · %2$s</string>
+    <string name="serving_storage_clear">Clear</string>
+    <string name="serving_storage_send">Send</string>
+    <string name="serving_storage_sent">Sent %1$d files</string>
+    <string name="serving_storage_sent_skipped">Sent %1$d files, skipped %2$d (no longer there)</string>
+    <string name="serving_storage_send_none">No files left to send</string>
 </resources>

@@ -15,6 +15,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.flikky.R
 import com.example.flikky.ui.serving.storage.LocalStorageBrowser
 import com.example.flikky.ui.serving.storage.LocalStorageState
+import com.example.flikky.ui.serving.storage.StorageSelectionSummary
 import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.SessionRepository
@@ -42,6 +43,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -197,6 +200,57 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clearStorageSelection() {
         _storageState.value = _storageState.value.copy(selected = emptySet())
+    }
+
+    /**
+     * 操作条那一行的数据。与 [sendStorageSelection] 实际发出的量同源，见 selectionSummary 的 KDoc。
+     *
+     * **必须是派生 flow，不能做成 composable 里直接调的函数**：`selectionSummary` 要 stat 每个
+     * 选中文件（canonicalFile + length），而 `ServingScreen` 每秒都会因 `uptimeSeconds` 重组一次
+     * ——那就变成主线程上每秒 stat 一遍所有选中文件。这里按选择集合去重，只在真正变化时重算。
+     */
+    val storageSelectionSummary: StateFlow<StorageSelectionSummary> = _storageState
+        .map { it.selected }
+        .distinctUntilChanged()
+        .map { storageBrowser.selectionSummary(it) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            StorageSelectionSummary(0, 0L, 0),
+        )
+
+    /**
+     * 把选中的文件逐个发进当前会话。
+     *
+     * 走 [TransferController.offerStoredFile] —— 收藏发送与文件总览快发用的是同一个入口。
+     * 另开一条发送路径迟早会在状态机或落盘路径上与它们不一致。
+     *
+     * 发完**清空选择并留在文件 tab**：跳回会话 tab 会打断「继续挑下一批」的动线，
+     * 而消息已经在会话里、用户想看随时可以自己切过去。
+     * 跳过数如实报出（与 v1.17.1 收藏批量操作一致），不静默丢弃。
+     */
+    fun sendStorageSelection() {
+        val selection = _storageState.value.selected
+        if (selection.isEmpty()) return
+        viewModelScope.launch {
+            val (files, skipped) = storageBrowser.resolveExisting(selection)
+            var sent = 0
+            for (f in files) {
+                val mime = java.net.URLConnection.guessContentTypeFromName(f.name)
+                    ?: "application/octet-stream"
+                val ok = controller?.offerStoredFile(f, f.name, f.length(), mime) == true
+                if (ok) sent++
+            }
+            clearStorageSelection()
+            val app = getApplication<Application>()
+            _events.trySend(
+                when {
+                    sent == 0 -> app.getString(R.string.serving_storage_send_none)
+                    skipped > 0 -> app.getString(R.string.serving_storage_sent_skipped, sent, skipped)
+                    else -> app.getString(R.string.serving_storage_sent, sent)
+                },
+            )
+        }
     }
 
     fun sendStoredFile(row: FileOverviewRow) {

@@ -34,6 +34,9 @@ import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.ui.components.FileLeadingSpec
 import com.example.flikky.ui.components.FileLeadingVisual
+import com.example.flikky.ui.components.FlikkyFloatingToolbar
+import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
+import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.components.formatSize
 import com.example.flikky.ui.files.FileCategory
@@ -73,39 +76,67 @@ fun ServingStorageTab(
     hasPermission: Boolean,
     onRequestPermission: () -> Unit,
     state: LocalStorageState,
+    summary: StorageSelectionSummary,
     onOpenDir: (String) -> Unit,
     onToggleSelection: (String) -> Unit,
+    onClearSelection: () -> Unit,
+    onSendSelection: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (!hasPermission) {
         StoragePermissionCard(onRequestPermission = onRequestPermission, modifier = modifier)
         return
     }
-    Column(modifier = modifier.fillMaxSize()) {
-        StorageBreadcrumb(path = state.path, onNavigate = onOpenDir)
-        if (state.entries.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = stringResource(R.string.serving_storage_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+    // 操作条是**悬浮 overlay**，必须作为内容区 Box 的子节点并对齐 BottomCenter。
+    // 放进 Scaffold 的 bottomBar 槽位会预留等高空白把列表顶走
+    // （FlikkySelectingToolbarOverlay 的 KDoc 记着这个 bug）。
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            StorageBreadcrumb(path = state.path, onNavigate = onOpenDir)
+            if (state.entries.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stringResource(R.string.serving_storage_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    // 底部留出浮动操作条的高度，否则最后一行永远被它压住、选不到。
+                    contentPadding = PaddingValues(
+                        top = Spacing.sm,
+                        bottom = if (state.selected.isEmpty()) {
+                            Spacing.sectionGap
+                        } else {
+                            FlikkyFloatingToolbarLift
+                        },
+                    ),
+                ) {
+                    itemsIndexed(state.entries, key = { _, e -> e.relativePath }) { index, entry ->
+                        StorageEntryRow(
+                            entry = entry,
+                            index = index,
+                            count = state.entries.size,
+                            selected = entry.relativePath in state.selected,
+                            onOpenDir = onOpenDir,
+                            onToggleSelection = onToggleSelection,
+                        )
+                    }
+                }
             }
-            return@Column
         }
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            contentPadding = PaddingValues(top = Spacing.sm, bottom = Spacing.sectionGap),
+        FlikkySelectingToolbarOverlay(
+            visible = state.selected.isNotEmpty(),
+            modifier = Modifier.align(Alignment.BottomCenter),
         ) {
-            itemsIndexed(state.entries, key = { _, e -> e.relativePath }) { index, entry ->
-                StorageEntryRow(
-                    entry = entry,
-                    index = index,
-                    count = state.entries.size,
-                    selected = entry.relativePath in state.selected,
-                    onOpenDir = onOpenDir,
-                    onToggleSelection = onToggleSelection,
+            FlikkyFloatingToolbar {
+                StorageSelectionToolbar(
+                    summary = summary,
+                    onClear = onClearSelection,
+                    onSend = onSendSelection,
                 )
             }
         }

@@ -23,6 +23,13 @@ data class LocalEntry(
     val restricted: Boolean,
 )
 
+/** 操作条摘要。[skipped] 涵盖「路径非法 / 已被删 / 是目录」三种情况。 */
+data class StorageSelectionSummary(
+    val count: Int,
+    val totalBytes: Long,
+    val skipped: Int,
+)
+
 /** 一次目录列举的结果。[selected] 由调用方持有并跨目录累积，这里只做纯变换。 */
 data class LocalStorageState(
     val path: String,
@@ -101,6 +108,23 @@ class LocalStorageBrowser(private val root: File) {
     /** 单击勾选：在集合里就移除，不在就加入。跨目录累积由调用方持有集合实现。 */
     fun toggle(selected: Set<String>, relativePath: String): Set<String> =
         if (relativePath in selected) selected - relativePath else selected + relativePath
+
+    /**
+     * 操作条那一行「已选 N 项 · 合计大小」的数据，以及跳过数。
+     *
+     * **必须与 [resolveExisting] 算出同一个结果**——两处各判一遍是分叉的起点：
+     * 摘要说「已选 2 项 · 8 KB」而实际只发出 1 个文件，用户会以为传输丢了数据，
+     * 而两边各自的测试都能是绿的。因此这里直接复用 [resolveExisting]，不另写筛选。
+     * 守卫见 `StorageSendSummaryTest.the summary agrees with what resolveExisting will actually send`。
+     */
+    fun selectionSummary(selected: Collection<String>): StorageSelectionSummary {
+        val (files, skipped) = resolveExisting(selected)
+        return StorageSelectionSummary(
+            count = files.size,
+            totalBytes = files.sumOf { it.length() },
+            skipped = skipped,
+        )
+    }
 
     /**
      * 把选中的相对路径解析成真实文件，返回「存在的文件」与「跳过数」。

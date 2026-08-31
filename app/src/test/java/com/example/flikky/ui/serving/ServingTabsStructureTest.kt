@@ -41,10 +41,19 @@ class ServingTabsStructureTest {
         return f.readText(Charsets.UTF_8)
     }
 
-    /** 去掉行注释与块注释：注释里会提到这些规则，扫原文会在「注释提到它」上误判。 */
+    /**
+     * 去掉行注释、块注释与 import 行。
+     *
+     * 注释要去掉的理由：注释里会提到这些规则，扫原文会在「注释提到它」上误判。
+     *
+     * **import 也必须去掉**：逼红实测过一次——把 `contentPadding` 里的
+     * `FlikkyFloatingToolbarLift` 换成别的值，断言零条红，因为那行 import 还在，
+     * 文件级 `contains` 照样命中。「文件里提到过」不等于「代码里用了」。
+     */
     private fun stripComments(src: String): String = src
         .replace(Regex("""/\*[\s\S]*?\*/"""), "")
         .replace(Regex("""(?m)^\s*//.*$"""), "")
+        .replace(Regex("""(?m)^import .*$"""), "")
 
     private val servingScreen get() = stripComments(source("com/example/flikky/ui/serving/ServingScreen.kt"))
     private val chatTab get() = stripComments(source("com/example/flikky/ui/serving/ServingChatTab.kt"))
@@ -225,5 +234,63 @@ class ServingTabsStructureTest {
                 libs.readText(Charsets.UTF_8).contains("coil-network"),
             )
         }
+    }
+
+    @Test
+    fun `the selection summary is a derived flow, not recomputed per composition`() {
+        // selectionSummary 要 stat 每个选中文件。ServingScreen 每秒都因 uptimeSeconds 重组一次，
+        // 所以做成 composable 里直接调的函数 = 主线程每秒 stat 一遍所有选中文件。
+        // 实现时就是这么写的，靠这条钉住不再回退。
+        val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
+        assertTrue(
+            "storageSelectionSummary must be a StateFlow",
+            vm.contains("val storageSelectionSummary: StateFlow<StorageSelectionSummary>"),
+        )
+        assertTrue(
+            "it must dedupe on the selection set, or every state change re-stats every file",
+            vm.contains("distinctUntilChanged()"),
+        )
+        assertFalse(
+            "ServingScreen must read the flow, not call a summary function per composition",
+            servingScreen.contains("storageSelectionSummary()"),
+        )
+    }
+
+    @Test
+    fun `the selection toolbar is an overlay, never the bottomBar slot`() {
+        // FlikkySelectingToolbarOverlay 是悬浮 overlay。放进 Scaffold 的 bottomBar 槽位会预留
+        // 等高空白把列表顶走（该组件 KDoc 记着这个 bug）。必须是内容 Box 的子节点 + BottomCenter。
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        val at = tab.indexOf("FlikkySelectingToolbarOverlay(")
+        assertTrue("no selecting toolbar overlay in the storage tab", at > 0)
+        val call = tab.substring(at, minOf(at + 300, tab.length))
+        assertTrue(
+            "the overlay must align to BottomCenter inside the content Box: $call",
+            call.contains("Alignment.BottomCenter"),
+        )
+        assertFalse("the storage tab must not own a Scaffold", tab.contains("Scaffold("))
+        assertFalse("the toolbar must not go into a bottomBar slot", tab.contains("bottomBar"))
+        // 列表底部必须为浮动条留出高度，否则最后一行永远被压住、选不到。
+        assertTrue(
+            "the list must reserve room for the floating toolbar",
+            tab.contains("FlikkyFloatingToolbarLift"),
+        )
+    }
+
+    @Test
+    fun `sending goes through the single shared offerStoredFile entry point`() {
+        // 收藏发送与文件总览快发都走 offerStoredFile。另开一条路径迟早在状态机或落盘路径上分叉。
+        val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
+        val at = vm.indexOf("fun sendStorageSelection()")
+        assertTrue("no sendStorageSelection", at > 0)
+        val body = vm.substring(at, minOf(at + 1400, vm.length))
+        assertTrue("storage sending must reuse offerStoredFile", body.contains("offerStoredFile("))
+        // 发完必须清空选择，否则再点发送会重复发一遍同一批。
+        assertTrue("sending must clear the selection", body.contains("clearStorageSelection()"))
+        // 跳过数必须如实报出，不静默丢弃。
+        assertTrue(
+            "the skipped count must reach the user",
+            body.contains("serving_storage_sent_skipped"),
+        )
     }
 }

@@ -73,4 +73,10 @@
     <string name="serving_storage_folder">文件夹</string>
     <string name="serving_storage_go_up">返回上一级</string>
     <string name="serving_storage_breadcrumb_more">…</string>
+    <string name="serving_storage_selected">已选 %1$d 项 · %2$s</string>
+    <string name="serving_storage_clear">清除</string>
+    <string name="serving_storage_send">发送</string>
+    <string name="serving_storage_sent">已发送 %1$d 个文件</string>
+    <string name="serving_storage_sent_skipped">已发送 %1$d 个文件，%2$d 个已跳过（文件不存在）</string>
+    <string name="serving_storage_send_none">没有可发送的文件</string>
 </resources>

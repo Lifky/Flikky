@@ -141,6 +141,7 @@ fun ServingScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val storageState by viewModel.storageState.collectAsState()
+    val storageSummary by viewModel.storageSelectionSummary.collectAsState()
     // 根目录没有上一级 —— LocalStorageBrowser.parentOf 返回 null 的那一格。
     // 写成常量 true 的后果是根目录按返回也被这一级吃掉，用户困在文件 tab 里出不去。
     val storageCanGoUp = storageState.path.isNotEmpty()
@@ -326,8 +327,11 @@ fun ServingScreen(
                         hasPermission = hasStoragePermission,
                         onRequestPermission = { requestAllFilesAccess(ctx) },
                         state = storageState,
+                        summary = storageSummary,
                         onOpenDir = { viewModel.openStorageDir(it) },
                         onToggleSelection = { viewModel.toggleStorageSelection(it) },
+                        onClearSelection = { viewModel.clearStorageSelection() },
+                        onSendSelection = { viewModel.sendStorageSelection() },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
