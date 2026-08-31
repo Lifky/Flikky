@@ -2,6 +2,28 @@
  * 从 app.css 复制而不是搬移 —— app.css 到 Task 8 才整体删除，期间仍被多份测试
  * 按纯文本读取比对；这份才是真正会被 <head> 加载、渲染出来的版本。 */
 
+/* [hidden] 全局 reset。
+ *
+ * UA 样式表里的 `[hidden]{display:none}` 权重极低——作者样式里任何 `display:` 都压得过它。
+ * 于是给一个 `display:flex` 的元素设 hidden 属性，属性设上了、元素照样画出来。
+ * 本项目为此在 chat.css / pages.css / panels.css / shell.css 里补过 7 处
+ * `.xxx[hidden]{display:none}`，chat.css 那处还留了注释——但没有全局兜底，
+ * 于是每加一个新的可隐藏元素都得重新记得一次。v1.20.0 的「文件」导航入口就是这么漏的：
+ * 主开关关闭时 JS 已把 hidden 设上（firstAvailableDest 因此正确选了收藏），
+ * 而 `.fk-rail-item{display:flex}` 照样把它画在 rail 上（装机验收 Screenshot_1）。
+ *
+ * `!important` 不是偷懒：base.css 在 shell.css **之前**加载，同权重下后写的赢，
+ * 不加 !important 这条 reset 对 `.fk-rail-item{display:flex}` 无效。
+ * **例外靠 `data-hidden-animated` 显式声明，不靠碰巧**：`.fk-fab` 刻意不写 display:none，
+ * 因为它的隐藏态要让宽度可插值（塌缩动画，见 chat.css 那处注释）。这类元素标上
+ * `data-hidden-animated` 从 reset 里摘出去，并**必须自己用 `visibility:hidden`**
+ * 把自己从焦点树与无障碍树里摘掉——否则一个宽度为 0 的按钮仍然能被 Tab 聚焦。
+ *
+ * 守卫见 app/src/test/web/hidden-attribute.test.js。 */
+[hidden]:not([data-hidden-animated]) {
+  display: none !important;
+}
+
 :root {
   /* 不打包字体文件：只用系统已装字体栈，满足「所有字体离线打包，禁止 CDN」的红线
    * ——因为这里根本没有下载任何字体，用的是操作系统自带的。 */
