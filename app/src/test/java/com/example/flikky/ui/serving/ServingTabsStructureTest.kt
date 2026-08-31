@@ -257,23 +257,68 @@ class ServingTabsStructureTest {
     }
 
     @Test
-    fun `the selection toolbar is an overlay, never the bottomBar slot`() {
-        // FlikkySelectingToolbarOverlay 是悬浮 overlay。放进 Scaffold 的 bottomBar 槽位会预留
-        // 等高空白把列表顶走（该组件 KDoc 记着这个 bug）。必须是内容 Box 的子节点 + BottomCenter。
+    fun `the selection affordance floats over the list and never reserves layout height`() {
+        // 原则不变（放进 Scaffold 的 bottomBar 槽位会预留等高空白把列表顶走），
+        // 但载体从 floating toolbar 换成了官方 FAB 菜单：2026-08-31 用户裁决，
+        // 因为 FlikkyFloatingToolbar 的 content 契约是「一串 IconButton」，
+        // 塞进选中计数那类自由文本会把容器撑成巨型椭圆（装机验收 Screenshot_4）。
         val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
-        val at = tab.indexOf("FlikkySelectingToolbarOverlay(")
-        assertTrue("no selecting toolbar overlay in the storage tab", at > 0)
-        val call = tab.substring(at, minOf(at + 300, tab.length))
+        val at = tab.indexOf("StorageSelectionFab(")
+        assertTrue("no selection FAB in the storage tab", at > 0)
+        val call = tab.substring(at, minOf(at + 400, tab.length))
         assertTrue(
-            "the overlay must align to BottomCenter inside the content Box: $call",
-            call.contains("Alignment.BottomCenter"),
+            "the FAB must align inside the content Box, not sit in the layout flow: $call",
+            call.contains("Alignment.BottomEnd") || call.contains("Alignment.BottomCenter"),
         )
         assertFalse("the storage tab must not own a Scaffold", tab.contains("Scaffold("))
-        assertFalse("the toolbar must not go into a bottomBar slot", tab.contains("bottomBar"))
-        // 列表底部必须为浮动条留出高度，否则最后一行永远被压住、选不到。
+        assertFalse("the affordance must not go into a bottomBar slot", tab.contains("bottomBar"))
+        // 反向守卫：选择 UI 不许再回到 floating toolbar —— 那是 Screenshot_4 的来路。
+        //
+        // 匹配的是**调用**（`FlikkyFloatingToolbar {` / `(`），不是裸名字：
+        // `FlikkyFloatingToolbarLift` 是共用的「底部锚定内容该抬多少」尺寸常量，
+        // 名字里含同一个前缀但与那个组件无关，而且这里正当地在用它。
+        // 第一版查裸名字，被这个常量挡成了误报。
+        val usesToolbar = { src: String ->
+            src.contains("FlikkyFloatingToolbar {") || src.contains("FlikkyFloatingToolbar(")
+        }
+        assertFalse(
+            "the selection UI must not use FlikkyFloatingToolbar: its content slot is " +
+                "documented as icon buttons only, and free text blows the capsule up",
+            usesToolbar(tab),
+        )
+        val fab = stripComments(
+            source("com/example/flikky/ui/serving/storage/StorageSelectionFab.kt"),
+        )
+        assertFalse(
+            "StorageSelectionFab must not reintroduce the floating toolbar either",
+            usesToolbar(fab),
+        )
+        // 计数必须长在菜单项文案里，而不是作为自由文本塞进容器。
         assertTrue(
-            "the list must reserve room for the floating toolbar",
+            "the count belongs in a menu item label",
+            fab.contains("serving_storage_send_n"),
+        )
+        // 列表底部仍要留出高度，否则最后一行被 FAB 压住、选不到。
+        assertTrue(
+            "the list must reserve room for the floating affordance",
             tab.contains("FlikkyFloatingToolbarLift"),
+        )
+    }
+
+    @Test
+    fun `the selection FAB only exists while something is selected`() {
+        // 没选任何东西时它没有可做的事。常驻一个「清除选择（0 项）」是噪音。
+        val fab = stripComments(
+            source("com/example/flikky/ui/serving/storage/StorageSelectionFab.kt"),
+        )
+        assertTrue(
+            "visibility must be derived from the selection count",
+            fab.contains("summary.count > 0"),
+        )
+        // 选择被清空时菜单必须跟着收起，否则下次有选中时它是展开状态。
+        assertTrue(
+            "clearing the selection must collapse the menu",
+            fab.contains("expanded = false"),
         )
     }
 
@@ -383,5 +428,29 @@ class ServingTabsStructureTest {
         )
         assertTrue("the result must go through StorageNavigation.settle",
             open.contains("StorageNavigation.settle("))
+    }
+
+    @Test
+    fun `the storage list and breadcrumb are animated, not hard cuts`() {
+        // 用户装机验收：「双端文件栏无动画效果，太硬」。
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        // 行的增删移动走官方 item 动画。换目录、勾选重排时不再瞬间替换。
+        assertTrue("list rows must use animateItem()", tab.contains("animateItem()"))
+        // 面包屑是点击后第一个变化的东西（列表还在加载），它不动整个交互就显得没反应。
+        assertTrue("the breadcrumb must animate on path change", tab.contains("AnimatedContent("))
+        // 加载态要有进度，否则大目录里点击到列表出现之间界面毫无变化。
+        assertTrue(
+            "a loading listing must show progress",
+            tab.contains("LinearProgressIndicator") && tab.contains("state.loading"),
+        )
+        // 动效参数一律走 Motion（全局速度档 + prefers-reduced-motion 由它统辖），
+        // 不许写死 tween/spring：那样「动画速度」设置对这里就失效了。
+        assertTrue("motion must come from the Motion scheme", tab.contains("Motion."))
+        // 逼红实测：查 "tween(" 挡不住 `tween<Float>(200)` —— 中间还有类型实参。
+        // 按词查，不按调用形态查。
+        assertFalse(
+            "no hard-coded durations: the animation-speed setting must reach this screen",
+            tab.contains("tween") || tab.contains("spring"),
+        )
     }
 }

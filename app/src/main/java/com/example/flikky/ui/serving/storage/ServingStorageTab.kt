@@ -1,5 +1,11 @@
 package com.example.flikky.ui.serving.storage
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +25,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
@@ -30,18 +37,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.ui.components.FileLeadingSpec
 import com.example.flikky.ui.components.FileLeadingVisual
-import com.example.flikky.ui.components.FlikkyFloatingToolbar
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
-import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.components.formatSize
 import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.files.iconResource
+import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import java.io.File
 import java.text.SimpleDateFormat
@@ -93,7 +100,15 @@ fun ServingStorageTab(
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             StorageBreadcrumb(path = state.path, onNavigate = onOpenDir)
-            if (state.entries.isEmpty()) {
+            // 加载中：画一条线性进度。大目录列举要几百毫秒到几秒，没有它用户点了
+            // 完全看不出有反应（装机验收）。面包屑已经在上面先动了，这里补「正在做事」。
+            if (state.loading) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = Spacing.screenEdge, vertical = Spacing.xl),
+                )
+            } else if (state.entries.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         text = stringResource(R.string.serving_storage_empty),
@@ -116,6 +131,10 @@ fun ServingStorageTab(
                     ),
                 ) {
                     itemsIndexed(state.entries, key = { _, e -> e.relativePath }) { index, entry ->
+                        // 行的增删移动走官方 item 动画（换目录、勾选重排时不再硬切）。
+                        // 逐行 stagger 在几千行的目录里会拖成一场幻灯片，所以只用
+                        // animateItem 的默认位移/淡入，不自己叠延迟。
+                        Box(modifier = Modifier.animateItem()) {
                         StorageEntryRow(
                             entry = entry,
                             index = index,
@@ -124,22 +143,22 @@ fun ServingStorageTab(
                             onOpenDir = onOpenDir,
                             onToggleSelection = onToggleSelection,
                         )
+                        }
                     }
                 }
             }
         }
-        FlikkySelectingToolbarOverlay(
-            visible = state.selected.isNotEmpty(),
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) {
-            FlikkyFloatingToolbar {
-                StorageSelectionToolbar(
-                    summary = summary,
-                    onClear = onClearSelection,
-                    onSend = onSendSelection,
-                )
-            }
-        }
+        // 官方 MD3 FAB 菜单，右下角。**不是** floating toolbar：那个组件的 content
+        // 契约是「一串 IconButton」，塞进选中计数这类自由文本会把容器撑成一个
+        // 巨型椭圆（装机验收 Screenshot_4）。计数改放进菜单项文案，见 StorageSelectionFab。
+        StorageSelectionFab(
+            summary = summary,
+            onClear = onClearSelection,
+            onSend = onSendSelection,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(Spacing.lg),
+        )
     }
 }
 
@@ -150,6 +169,33 @@ fun ServingStorageTab(
  */
 @Composable
 private fun StorageBreadcrumb(path: String, onNavigate: (String) -> Unit) {
+    // 路径变化时整条淡入淡出 + 轻微横移，方向随「进/退」而定：
+    // 进目录时新面包屑从右滑入，返回时从左滑入。这一条是「不硬」的主要来源，
+    // 因为面包屑是点击后第一个变化的东西（列表还在加载）。
+    // spec 必须在 composable 体内先取：`transitionSpec` 不是 @Composable
+    // （与 ServingScreen 的连接头动画、NavTransitions 同一套路），
+    // 在里面调 Motion.xxx() 会编译不过。先取后闭包捕获。
+    val slideSpec = Motion.spatialFast<IntOffset>()
+    val enterFade = Motion.effects<Float>()
+    val exitFade = Motion.effectsFast<Float>()
+    AnimatedContent(
+        targetState = path,
+        transitionSpec = {
+            val forward = targetState.length > initialState.length
+            val shift = if (forward) 1 else -1
+            (slideInHorizontally(slideSpec) { it / 6 * shift } +
+                fadeIn(enterFade)) togetherWith
+                (slideOutHorizontally(slideSpec) { -it / 6 * shift } +
+                    fadeOut(exitFade))
+        },
+        label = "StorageCrumbs",
+    ) { shownPath ->
+        StorageBreadcrumbRow(shownPath, onNavigate)
+    }
+}
+
+@Composable
+private fun StorageBreadcrumbRow(path: String, onNavigate: (String) -> Unit) {
     val rootLabel = stringResource(R.string.serving_storage_root)
     val moreLabel = stringResource(R.string.serving_storage_breadcrumb_more)
     val crumbs = remember(path, rootLabel) { breadcrumbSegments(path, rootLabel) }
