@@ -38,8 +38,29 @@
      */
     let hasLoadedOnce = false;
 
+    /**
+     * 请求序号。每次 load 自增，只有**最新**那个序号的响应允许落地。
+     *
+     * 服务端列举大目录要几百毫秒（listFiles + 每条 stat + 每个子目录一次 readdir 算项数）。
+     * 期间用户可能已经点进别的目录，而 fetch 的完成顺序不保证与发起顺序一致——
+     * 旧响应后到就会把用户已经离开的目录重新画上来。App 端用协程取消解决，
+     * 浏览器端用序号：比 AbortController 更朴素，且**即使请求已发出也一定不会误画**。
+     */
+    let requestSeq = 0;
+
+    /** 正在加载的目标路径。有值时列表区画进度条，用户点了立刻有反应。 */
+    let loadingPath = null;
+
+    /**
+     * 已勾选的文件相对路径。**跨目录累积**，与 App 端同语义（上游 D5）。
+     * 只装文件：目录行单击是「进入」，不参与勾选。
+     */
+    const selected = new Set();
+
     let root = null;
     let bodyEl = null;
+    let toolbarEl = null;
+    let countEl = null;
 
     function icon(name) {
         const el = document.createElement('span');
@@ -72,6 +93,64 @@
         bodyEl = document.createElement('div');
         bodyEl.className = 'fk-panel-body flikky-scroll';
         container.appendChild(bodyEl);
+
+        // 批量下载工具条。**与收藏面板同一套外观与槽位顺序**（计数 → 清除 → 主操作，
+        // 主操作在最右且用 --filled 变体），复用 .fk-toolbar / .fk-toolbar-count /
+        // .fk-icon-btn --- 收藏那份是写在 app.html 里的静态骨架，这里随面板一起建，
+        // 但类名与顺序逐个对齐，不新写 CSS。
+        toolbarEl = document.createElement('div');
+        toolbarEl.className = 'fk-toolbar';
+        toolbarEl.hidden = true;
+
+        countEl = document.createElement('span');
+        countEl.className = 'fk-toolbar-count';
+        toolbarEl.appendChild(countEl);
+
+        const clear = document.createElement('button');
+        clear.type = 'button';
+        clear.className = 'fk-icon-btn';
+        clear.setAttribute('aria-label', t('app.files.clear'));
+        clear.appendChild(icon('close'));
+        clear.addEventListener('click', () => {
+            selected.clear();
+            render(lastState);
+        });
+        toolbarEl.appendChild(clear);
+
+        const save = document.createElement('button');
+        save.type = 'button';
+        save.className = 'fk-icon-btn fk-icon-btn--filled';
+        save.setAttribute('aria-label', t('app.files.saveSelected'));
+        save.appendChild(icon('download'));
+        save.addEventListener('click', () => saveSelected());
+        toolbarEl.appendChild(save);
+
+        container.appendChild(toolbarEl);
+    }
+
+    /**
+     * 逐个触发所选文件的下载，与收藏面板的批量保存同一做法
+     * （浏览器首次会问「允许下载多个文件」，属预期）。
+     *
+     * 发完**不清空选择**：与收藏一致，用户可能想再存一遍到别的位置。
+     * 名字从当前列表里取；取不到就用路径末段兜底（列表已翻页到别处时）。
+     */
+    function saveSelected() {
+        const byPath = new Map();
+        if (lastState && Array.isArray(lastState.entries)) {
+            lastState.entries.forEach((e) => byPath.set(childPath(e), e.name));
+        }
+        selected.forEach((p) => {
+            downloadOne(p, byPath.get(p) || p.split('/').pop());
+        });
+    }
+
+    /** 按当前选择刷新工具条。选中数为 0 时整条隐藏。 */
+    function syncToolbar() {
+        if (!toolbarEl || !countEl) return;
+        toolbarEl.hidden = selected.size === 0;
+        // 数字直接拼在 JS 侧：面板一律只用 t(key) 这一种调用形态（与收藏同）。
+        countEl.textContent = t('app.files.selected', { count: selected.size });
     }
 
 
@@ -180,16 +259,28 @@
         return size && when ? size + ' · ' + when : (size || when);
     }
 
+    /**
+     * 行首视觉。**与收藏行同一个类** `.fk-item-lead`（secondary-container 底 +
+     * 官方 cookie 异形容器），不是裸图标。
+     *
+     * 首版用的是 `fk-item-lead--plain`（无底色、无容器），于是文件面板成了全站唯一
+     * 一处「行首是光秃秃一个图标」的列表，与收藏页并排一看就不是一套东西
+     * （装机验收 Screenshot_3）。「复用」的标准是视觉零差异。
+     *
+     * 沙箱目录用 lock 图标但保留同一个容器：占位一致，headline 起点才不会左右跳。
+     */
     function leadFor(entry) {
-        const wrap = document.createElement('div');
-        wrap.className = 'fk-item-lead fk-item-lead--plain';
+        const wrap = document.createElement('span');
+        wrap.className = 'fk-item-lead';
         // 目录用 folder；文件的分类图标取 app.js 导出的唯一事实源，
         // 面板不许自带第二张 mime→图标映射表。
-        const name = entry.isDir
-            ? 'folder'
-            : ((window.flikky && window.flikky.fileSymbolName)
-                ? window.flikky.fileSymbolName(entry.mime)
-                : 'draft');
+        const name = entry.restricted
+            ? 'lock'
+            : (entry.isDir
+                ? 'folder'
+                : ((window.flikky && window.flikky.fileSymbolName)
+                    ? window.flikky.fileSymbolName(entry.mime)
+                    : 'draft'));
         wrap.appendChild(icon(name));
         return wrap;
     }
@@ -202,51 +293,97 @@
         return currentPath ? currentPath + '/' + entry.name : entry.name;
     }
 
+    /**
+     * 一行。结构与 `panel-favorites.js` 的行**逐个槽位对齐**：
+     * `.fk-item` > `.fk-item-lead` + `.fk-item-text`(title/sub) + `.fk-item-trail`。
+     * 文件行的 trail 是 `.fk-check` + `.fk-icon-btn`，与收藏文件行完全一致。
+     *
+     * 文件行**单击整行 = 勾选**（与收藏同交互，也与 App 端一致），
+     * 行尾下载按钮 `stopPropagation` 以免顺手勾上。目录行单击 = 进入，不参与勾选。
+     */
     function renderRow(host, entry) {
+        const p = childPath(entry);
+        const isFile = !entry.isDir && !entry.restricted;
         const row = document.createElement('div');
         row.className = 'fk-item';
         if (entry.restricted) row.setAttribute('aria-disabled', 'true');
+        // 多选语义用 aria-selected（列表行的正确属性；导航项才是 aria-current）。
+        if (isFile) row.setAttribute('aria-selected', selected.has(p) ? 'true' : 'false');
 
         row.appendChild(leadFor(entry));
 
-        const text = document.createElement('div');
+        const text = document.createElement('span');
         text.className = 'fk-item-text';
-        const title = document.createElement('div');
+        const title = document.createElement('span');
         title.className = 'fk-item-title';
         title.textContent = entry.name;
-        const sub = document.createElement('div');
+        const sub = document.createElement('span');
         sub.className = 'fk-item-sub';
         sub.textContent = subtitleFor(entry);
         text.appendChild(title);
         text.appendChild(sub);
         row.appendChild(text);
 
-        const trail = document.createElement('div');
+        const trail = document.createElement('span');
         trail.className = 'fk-item-trail';
         // restricted 行既无 chevron 也无下载按钮：系统不给读，摆任何入口都是骗人。
-        if (!entry.restricted) {
-            if (entry.isDir) {
-                trail.appendChild(icon('chevron_right'));
-                row.addEventListener('click', () => navigate(childPath(entry)));
-            } else {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'fk-icon-btn';
-                // 可访问名必须含文件名——读屏连续听到十个「下载」无法分辨。
-                btn.setAttribute('aria-label', t('app.files.download', { name: entry.name }));
-                btn.appendChild(icon('download'));
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const a = document.createElement('a');
-                    a.href = downloadUrl(childPath(entry));
-                    a.setAttribute('download', entry.name);
-                    a.click();
-                });
-                trail.appendChild(btn);
-            }
+        if (entry.restricted) {
+            row.appendChild(trail);
+            host.appendChild(row);
+            return;
+        }
+        if (entry.isDir) {
+            trail.appendChild(icon('chevron_right'));
+            row.addEventListener('click', () => navigate(p));
+        } else {
+            const check = document.createElement('span');
+            check.className = 'fk-check';
+            check.appendChild(icon('check'));
+            trail.appendChild(check);
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'fk-icon-btn';
+            // 可访问名必须含文件名——读屏连续听到十个「下载」无法分辨。
+            btn.setAttribute('aria-label', t('app.files.download', { name: entry.name }));
+            btn.appendChild(icon('download'));
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                downloadOne(p, entry.name);
+            });
+            trail.appendChild(btn);
+
+            row.addEventListener('click', () => {
+                if (selected.has(p)) selected.delete(p); else selected.add(p);
+                render(lastState);
+            });
         }
         row.appendChild(trail);
         host.appendChild(row);
+    }
+
+    /** 单个下载。`<a download>` 直连鉴权同源流式路由，不走 Blob。 */
+    function downloadOne(relativePath, name) {
+        const a = document.createElement('a');
+        a.href = downloadUrl(relativePath);
+        a.setAttribute('download', name);
+        a.click();
+    }
+
+    /**
+     * 加载中：面包屑照 [target] 先画出来（点击的即时反馈），列表区换成进度条。
+     *
+     * 不留旧列表：把上一个目录的内容画在新目录的面包屑下面是在骗人。
+     * 进度用 mdui 的 linear-progress（外壳、无障碍属性由库负责）。
+     */
+    function renderLoading(target) {
+        if (!bodyEl) return;
+        bodyEl.textContent = '';
+        renderBreadcrumb(bodyEl, target || '');
+        const bar = document.createElement('mdui-linear-progress');
+        bar.className = 'fk-files-progress';
+        bar.setAttribute('aria-label', t('app.files.loading'));
+        bodyEl.appendChild(bar);
     }
 
     function render(state) {
@@ -254,18 +391,26 @@
         bodyEl.textContent = '';
         if (!state || !Array.isArray(state.entries)) {
             renderNotice(bodyEl, 'app.files.loading');
+            syncToolbar();
             return;
         }
         currentPath = typeof state.path === 'string' ? state.path : '';
         renderBreadcrumb(bodyEl, currentPath);
         if (state.entries.length === 0) {
             renderNotice(bodyEl, 'app.files.empty');
+            syncToolbar();
             return;
         }
         const list = document.createElement('div');
-        list.className = 'fk-list';
+        // .fk-group 是收藏面板用的那个连接列表组（组间距 + 首尾外圆角 + 按下挤压）。
+        // 首版写的是 `.fk-list`，而那个类**在 panels.css 里根本不存在**——
+        // 于是只剩 .fk-item 的内圆角，整块看起来是一片扁平灰板（Screenshot_3）。
+        // 类名拼错不会报错、不会转红，只会静默退化，与 D31 记的「缺失的 CSS 自定义属性
+        // 静默降级」同一形状。守卫见 panel-files.test.js 的「行样式复用收藏那一套」。
+        list.className = 'fk-group fk-files-list';
         state.entries.forEach((entry) => renderRow(list, entry));
         bodyEl.appendChild(list);
+        syncToolbar();
     }
 
     // ---- 引导态 -------------------------------------------------------------
@@ -351,11 +496,20 @@
         // 「功能被关」与「路径不存在」——那就别让它撞上。
         if (!enabled) return;
         const target = relativePath || '';
+        const seq = ++requestSeq;
+        // 立即前进：面包屑先动、列表区画进度。大目录里服务端要几百毫秒，
+        // 没有这一步用户点了什么都不变，以为没点上（App 端同一个问题的浏览器版）。
+        loadingPath = target;
+        renderLoading(target);
         try {
             const r = await fetch(
                 '/api/storage/list?path=' + encodeURIComponent(target),
                 { credentials: 'same-origin' },
             );
+            // 过期响应一律丢弃。这一条要在**任何**分支之前判——包括失败分支，
+            // 否则一个旧目录的 404 会把用户已经打开的新目录报成「不存在了」。
+            if (seq !== requestSeq) return;
+            loadingPath = null;
             if (!r.ok) {
                 let code = '';
                 try {
@@ -370,8 +524,11 @@
             hasLoadedOnce = true;
             render(lastState);
         } catch (e) {
+            if (seq !== requestSeq) return;
+            loadingPath = null;
             // 断线：保留最后一次列表，不清空——清空会让用户以为文件都没了。
             notifyError(t('app.files.offline'));
+            render(lastState);
         }
     }
 
@@ -411,6 +568,7 @@
             lastState = null;
             hasLoadedOnce = false;
             currentPath = '';
+            selected.clear();
             render(lastState);
             return;
         }

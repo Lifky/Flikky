@@ -349,7 +349,7 @@
   min-width: 0;
 }
 .fk-crumb {
-  font: var(--flikky-type-label-large);
+  font: var(--flikky-type-label-large) var(--flikky-font-family);
   letter-spacing: var(--flikky-type-label-large-tracking);
   color: rgb(var(--mdui-color-on-surface-variant));
   background: none;
@@ -372,6 +372,13 @@ button.fk-crumb:hover {
   color: rgb(var(--mdui-color-on-surface));
   font-weight: 600;
 }
+/* 折叠控件（…）：不该跟具名层级一样占到 14ch，也不该长得像一段被截断的文字。 */
+.fk-crumb--more {
+  max-width: none;
+  padding-inline: var(--flikky-space-sm);
+  letter-spacing: 0;
+}
+
 .fk-crumb-sep {
   font-size: 16px;
   color: rgb(var(--mdui-color-outline));
@@ -381,7 +388,7 @@ button.fk-crumb:hover {
   margin: 0;
   padding: var(--flikky-space-lg) var(--flikky-space-md);
   text-align: center;
-  font: var(--flikky-type-body-medium);
+  font: var(--flikky-type-body-medium) var(--flikky-font-family);
   color: rgb(var(--mdui-color-on-surface-variant));
 }
 
@@ -401,12 +408,33 @@ button.fk-crumb:hover {
 }
 .fk-guidance-title {
   margin: 0;
-  font: var(--flikky-type-title-medium);
+  font: var(--flikky-type-title-medium) var(--flikky-font-family);
   color: rgb(var(--mdui-color-on-surface));
 }
 .fk-guidance-body {
   margin: 0;
   max-width: 34ch;
-  font: var(--flikky-type-body-medium);
+  font: var(--flikky-type-body-medium) var(--flikky-font-family);
   color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+/* ── 文件面板：加载进度与列表进出场 ─────────────────────────────────────────
+ * 大目录的列举在服务端要几百毫秒。装机验收里这段时间界面毫无变化，
+ * 用户以为没点上（App 端同一个问题）。面包屑立即前进 + 这条进度是「有反应」的来源。 */
+.fk-files-progress {
+  margin: var(--flikky-space-xl) var(--flikky-space-lg);
+}
+
+/* 列表进场：整组淡入 + 轻微上移。逐行 stagger 在几千行的目录里会把动画拉成
+ * 一场幻灯片，所以按组做一次，时长走 effects 档（内容切换用 effects，不用 spatial）。 */
+.fk-files-list {
+  animation: fk-files-in var(--flikky-spring-effects-default-dur)
+    var(--flikky-spring-effects-default) both;
+}
+@keyframes fk-files-in {
+  from { opacity: 0; transform: translateY(var(--flikky-space-sm)); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fk-files-list { animation: none; }
 }

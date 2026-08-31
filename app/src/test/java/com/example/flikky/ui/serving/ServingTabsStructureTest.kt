@@ -327,4 +327,61 @@ class ServingTabsStructureTest {
                 effect.take(240).contains("animateScrollToPage(0)"),
         )
     }
+
+    @Test
+    fun `every storage disk read is off the main thread`() {
+        // 装机验收：大目录点进去后界面整体冻住，点击排队，旧结果后到把界面拽回去。
+        // viewModelScope 的默认上下文是 Main，所以这三处 I/O 都必须显式切走。
+        val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
+        // 1. 目录列举
+        val open = vm.substring(vm.indexOf("fun openStorageDir("))
+            .take(1200)
+        assertTrue("openStorageDir must list on Dispatchers.IO; body head: " + open.take(500),
+            open.contains("withContext(Dispatchers.IO)"))
+        // 2. 选择摘要（每个选中文件一次 stat）
+        assertTrue(
+            "the selection summary flow must run off Main",
+            vm.contains("flowOn(Dispatchers.IO)"),
+        )
+        // 3. 发送前的存在性解析
+        val send = vm.substring(vm.indexOf("fun sendStorageSelection(")).take(900)
+        assertTrue("resolveExisting must run off Main; body head: " + send.take(400),
+            send.contains("withContext(Dispatchers.IO)"))
+    }
+
+    @Test
+    fun `a new navigation cancels the previous listing`() {
+        // 这是「点了别的文件夹，过一会儿又自己跳回刚才那个」的正面修法。
+        // 不取消的话旧列举完成后照样落地，把用户拽回他已经离开的目录。
+        val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
+        val open = vm.substring(vm.indexOf("fun openStorageDir(")).take(1200)
+        assertTrue(
+            "openStorageDir must cancel the in-flight job before starting a new one; head: " +
+                open.take(400),
+            open.contains("storageJob?.cancel()"),
+        )
+        // 取消必须在**发起之前**，否则新任务先跑起来、随后被自己的 cancel 干掉。
+        val cancelAt = open.indexOf("storageJob?.cancel()")
+        val launchAt = open.indexOf("viewModelScope.launch")
+        assertTrue("cancel must come before launch (" + cancelAt + " vs " + launchAt + ")",
+            cancelAt in 0 until launchAt)
+    }
+
+    @Test
+    fun `navigation advances the path before the listing returns`() {
+        // 只挪到后台线程还不够：点击到列表出现之间界面毫无变化，用户以为没点上。
+        // 路径必须立即前进（面包屑先动）并置 loading（画进度）。
+        val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
+        val open = vm.substring(vm.indexOf("fun openStorageDir(")).take(1200)
+        val beginAt = open.indexOf("StorageNavigation.begin(")
+        val launchAt = open.indexOf("viewModelScope.launch")
+        assertTrue("openStorageDir must call StorageNavigation.begin", beginAt >= 0)
+        assertTrue(
+            "the optimistic advance must happen before the coroutine starts (" +
+                beginAt + " vs " + launchAt + ")",
+            beginAt < launchAt,
+        )
+        assertTrue("the result must go through StorageNavigation.settle",
+            open.contains("StorageNavigation.settle("))
+    }
 }

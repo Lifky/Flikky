@@ -30,11 +30,17 @@ data class StorageSelectionSummary(
     val skipped: Int,
 )
 
-/** 一次目录列举的结果。[selected] 由调用方持有并跨目录累积，这里只做纯变换。 */
+/**
+ * 一次目录列举的结果。[selected] 由调用方持有并跨目录累积，这里只做纯变换。
+ *
+ * [loading] 是「正在列举」。大目录的列举要几百毫秒到几秒，没有这个标志用户点了
+ * 完全看不出有反应（装机验收实测），只能靠 UI 画一条进度。迁移规则见 [StorageNavigation]。
+ */
 data class LocalStorageState(
     val path: String,
     val entries: List<LocalEntry>,
     val selected: Set<String> = emptySet(),
+    val loading: Boolean = false,
 )
 
 /**

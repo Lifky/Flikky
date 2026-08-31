@@ -15,6 +15,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.flikky.R
 import com.example.flikky.ui.serving.storage.LocalStorageBrowser
 import com.example.flikky.ui.serving.storage.LocalStorageState
+import com.example.flikky.ui.serving.storage.StorageNavigation
 import com.example.flikky.ui.serving.storage.StorageSelectionSummary
 import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.data.db.entities.FavoriteEntity
@@ -33,6 +34,8 @@ import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
 import com.example.flikky.session.Origin
 import com.example.flikky.session.PendingMessageDeletes
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -43,10 +46,12 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -170,6 +175,19 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     val storageState: StateFlow<LocalStorageState> = _storageState
 
     /**
+     * 正在跑的列举任务。**每次导航都先取消上一个**。
+     *
+     * 少了这一步，大目录的旧结果会在用户已经离开之后才返回并落地，
+     * 把界面拽回他刚刚离开的目录——装机验收里「点了没反应，又点别的，
+     * 过一会儿自己跳回刚才那个大文件夹」就是这个（v1.20.0 首版是同步调用，
+     * 症状是主线程冻住 + 点击排队，同一个根因的另一种表现）。
+     */
+    private var storageJob: Job? = null
+
+    /** 最后一次**成功**的列举结果。失败时退回它，见 [StorageNavigation.settle]。 */
+    private var lastGoodStorage = LocalStorageState(path = "", entries = emptyList())
+
+    /**
      * 重新读当前目录。授权完成后、以及回到前台时调用。
      *
      * 选择集合**跨刷新保留**：用户可能在别处删了文件，但那不是清空整个选择的理由——
@@ -179,10 +197,26 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         openStorageDir(_storageState.value.path)
     }
 
-    /** 进入某个目录。拿不到（非法 / 不存在 / 沙箱）就**停在原地**，不自动回退。 */
+    /**
+     * 进入某个目录。
+     *
+     * 三件事一起做（成熟文件管理器的通用做法）：路径**立即**前进并置 loading（点击有反应）、
+     * 列举在 [Dispatchers.IO] 上跑（不冻主线程）、发起前**取消上一次**（旧结果绝不后到）。
+     * 迁移规则见 [StorageNavigation]，那三条容易写错的分支在 `test/` 里穷举。
+     */
     fun openStorageDir(relative: String) {
-        val next = storageBrowser.list(relative) ?: return
-        _storageState.value = next.copy(selected = _storageState.value.selected)
+        storageJob?.cancel()
+        _storageState.value = StorageNavigation.begin(_storageState.value, relative)
+        storageJob = viewModelScope.launch {
+            // listFiles() + 每条 3 次 stat。大目录里这是几百毫秒到几秒的阻塞调用，
+            // 绝不能留在主线程上。
+            val listed = withContext(Dispatchers.IO) {
+                storageBrowser.list(_storageState.value.path)
+            }
+            if (listed != null) lastGoodStorage = listed
+            _storageState.value =
+                StorageNavigation.settle(_storageState.value, listed, lastGoodStorage)
+        }
     }
 
     /** 返回上一级。根目录无上一级时什么都不做——由 UI 侧的 `storageCanGoUp` 先拦。 */
@@ -213,6 +247,9 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         .map { it.selected }
         .distinctUntilChanged()
         .map { storageBrowser.selectionSummary(it) }
+        // selectionSummary 要 stat 每个选中文件。viewModelScope 的默认上下文是 Main，
+        // 不加这行就是在主线程上做 I/O —— 选了 50 个文件时用户能感觉到卡一下。
+        .flowOn(Dispatchers.IO)
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
@@ -233,7 +270,10 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         val selection = _storageState.value.selected
         if (selection.isEmpty()) return
         viewModelScope.launch {
-            val (files, skipped) = storageBrowser.resolveExisting(selection)
+            // resolveExisting 逐个 canonicalFile + isFile，同样是 I/O。
+            val (files, skipped) = withContext(Dispatchers.IO) {
+                storageBrowser.resolveExisting(selection)
+            }
             var sent = 0
             for (f in files) {
                 val mime = java.net.URLConnection.guessContentTypeFromName(f.name)
