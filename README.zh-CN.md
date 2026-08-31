@@ -130,17 +130,23 @@ Flikky 面向可信局域网使用，并把配对、会话状态、历史记录�
 - [x] 浏览器端收藏面板（搜索、分类筛选、多选批量保存）
 - [x] 浏览器端设置面板（布局偏好、手机端只读项、关于）
 - [x] 浏览器端跟随 AMOLED 纯黑
+- [x] 会话页「文件」tab：浏览手机存储、跨目录多选发送
+- [x] 浏览器端「文件」面板：远程浏览手机存储并下载（挂在默认关闭的开关后面）
+- [x] 手机自己当热点时也能绑到正确地址
 - [ ] 更多...迭代中...
 
 ## 安全模型与边界
 
 Flikky 会减少暴露面，但不会把不可信局域网变成安全传输通道。
 
-- Server 只绑定当前 Wi-Fi IPv4，绝不监听 `0.0.0.0`，也不依赖 cloud backend。
+- Server 只绑定当前 Wi-Fi 或手机系统热点的具体私有 IPv4，绝不监听 `0.0.0.0`，绝不绑定蜂窝或 VPN 接口，也不依赖 cloud backend。
 - PIN 认证默认开启。PIN 成功使用一次后立即作废；连续错 3 次会锁定来源 IP 30 秒，错 5 次会停止服务。
 - 可在设置中关闭 PIN。关闭后，只要同一 LAN 内的设备能访问手机地址，就能直接打开服务。
 - 浏览器响应使用严格 CSP、`X-Frame-Options: DENY`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: no-referrer`、HttpOnly/SameSite Cookie、`textContent` 渲染和短生命周期 Blob 下载 URL。
 - 通知栏只展示连接 URL，不会在锁屏上暴露 PIN 或 token。
+- 「允许电脑浏览手机存储」是显式开关，**新安装默认关闭**。关闭时浏览器端不显示「文件」入口，且服务端所有存储接口一律返回 `404`。
+- 列出文件需要声明 `MANAGE_EXTERNAL_STORAGE`（所有文件访问）。**Android 未提供只读版的该权限**，因此授权时系统会一并授予写入能力——Flikky 只读取，不写入、不修改、不删除共享存储中的任何内容。`Android/data` 与 `Android/obb` 仍不可访问，那是系统锁死的，与本权限无关。
+- 这里用不了 SAF：Android 11+ 的 `ACTION_OPEN_DOCUMENT_TREE` 禁止授权内部存储根目录与 Download 目录，表达不出「浏览全部共享存储」。
 - 局域网之外唯一的网络请求是可选的检查更新，仅通过 HTTPS 访问 `https://api.github.com/repos/Lifky/Flikky/releases/latest`。只在手动触发或显式开启自动检查（默认关闭）后发起，不携带任何设备标识、账号或遥测数据。
 
 已知边界：

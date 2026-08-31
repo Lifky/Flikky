@@ -4,6 +4,21 @@
 
 This file records user-facing changes for each Flikky release, loosely following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow `x.y.z`: x for major architectural changes, y for new features, z for bug fixes. Dates are tag creation dates.
 
+## [v1.20.0](https://github.com/Lifky/Flikky/releases/tag/v1.20.0) · unreleased
+
+### Added
+- A **files tab in the session screen**: browse the phone's own storage, tap files to select them (selection accumulates across directories), and send the whole selection into the session in one go. Images and videos show local thumbnails. The tab sits next to the chat tab and swipes between them
+- A **files panel in the browser**: browse the phone's storage remotely, walk into directories through a collapsing breadcrumb, and download individual files. Sending from the phone is not required
+- A new **"let the computer browse phone storage" switch, off on a fresh install**. While it is off the browser shows no files destination at all, and every storage endpoint answers `404`. Listing files needs Android's "All files access" permission, which has no read-only variant — Flikky only ever reads. See the security section of the README
+- The server now **binds the hotspot address when the phone itself is the access point**. This case was in the stated security model from the start but had never worked: with no Wi-Fi network connected the app could not find an address and the service refused to start
+
+### Changed
+- Icons throughout the browser are now hidden from screen readers. A destination used to be read out as "star Favorites", because the icon glyph is generated content carrying an internal identifier
+- The browser's navigation reports the current destination with `aria-current` instead of `aria-selected`. The latter is ignored on a plain button inside a `<nav>`, so which destination you were on was never announced at all
+
+### Fixed
+- Nothing yet in this release; see the two entries above for behaviour that never worked rather than regressed
+
 ## [v1.19.0](https://github.com/Lifky/Flikky/releases/tag/v1.19.0) · 2026-08-26
 
 ### Added

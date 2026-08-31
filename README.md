@@ -130,17 +130,23 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 - [x] Favorites panel in the browser (search, category filters, multi-select batch save)
 - [x] Settings panel in the browser (layout preferences, read-only phone rows, About)
 - [x] Browser follows the AMOLED black theme
+- [x] Files tab in the session screen: browse the phone's own storage and send a multi-directory selection
+- [x] Files panel in the browser: browse the phone's storage remotely and download (behind a default-off switch)
+- [x] Binds the hotspot address when the phone itself is the access point
 - [ ] More... iterating...
 
 ## Security Model and Limits
 
 Flikky reduces exposure, but it does not turn an untrusted LAN into a secure transport.
 
-- The server binds only to the active Wi-Fi IPv4 address, never `0.0.0.0`, and does not depend on a cloud backend.
+- The server binds only to the concrete private IPv4 address of the active Wi-Fi network, or of the phone's own hotspot, never `0.0.0.0`, never a cellular or VPN interface, and does not depend on a cloud backend.
 - PIN authentication is enabled by default. A PIN is single-use; three wrong attempts lock the source IP for 30 seconds and five wrong attempts stop the service.
 - PIN authentication can be disabled in Settings. When disabled, anyone who can reach the phone on the same LAN can open the service.
 - Browser responses use a strict CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, HttpOnly/SameSite cookies, `textContent` rendering, and short-lived Blob download URLs.
 - Notifications show the connection URL but never expose the PIN or token on the lock screen.
+- Browsing the phone's storage from the browser is gated by an explicit switch that is **off on a fresh install**. While it is off the browser shows no files destination and every storage endpoint answers `404`.
+- To list files the app declares `MANAGE_EXTERNAL_STORAGE` (All files access). **Android provides no read-only variant of this permission**, so granting it also grants write access. Flikky only reads: it never writes, modifies or deletes anything in shared storage. `Android/data` and `Android/obb` stay inaccessible because the system locks them regardless.
+- SAF is not an option here: on Android 11+ `ACTION_OPEN_DOCUMENT_TREE` refuses to grant the internal-storage root and the Download directory, so it cannot express "browse all shared storage".
 - The only network request outside the LAN is the optional update check, which fetches `https://api.github.com/repos/Lifky/Flikky/releases/latest` over HTTPS. It runs only when triggered manually or when auto-check is explicitly enabled (off by default), and sends no device identifier, account, or telemetry data.
 
 Known boundaries:
