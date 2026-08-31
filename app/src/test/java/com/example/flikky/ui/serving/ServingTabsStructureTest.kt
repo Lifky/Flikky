@@ -293,4 +293,38 @@ class ServingTabsStructureTest {
             body.contains("serving_storage_sent_skipped"),
         )
     }
+
+    @Test
+    fun `the tab row and pager only exist once a browser is connected`() {
+        // 装机验收 Screenshot_2：等待连接时页面上就摆着「会话 / 文件」两个 tab，
+        // 还能左右滑。未连接时文件 tab 里能做的事全都要连接才有意义（发送要 controller），
+        // 摆在那里只是让用户滑过去看一眼空列表再滑回来。
+        // 判据是**结果**（tab 栏被连接状态门控），不是某一种写法：
+        // 第一版写死了 `if (ui.clientConnected)`，而实现用的是 AnimatedVisibility
+        // （顺带解决「切换太硬」那条），断言就误报了。这里只要求门控落在 tab 栏之前。
+        val rowAt = servingScreen.indexOf("SecondaryTabRow(")
+        assertTrue("no SecondaryTabRow in ServingScreen", rowAt > 0)
+        val gate = servingScreen.substring(maxOf(0, rowAt - 700), rowAt)
+        assertTrue(
+            "the tab row must be gated on ui.clientConnected; preceding code:" +
+                System.lineSeparator() + gate.takeLast(400),
+            gate.contains("visible = ui.clientConnected") ||
+                gate.contains("if (ui.clientConnected)"),
+        )
+        // pager 换页必须跟着禁掉，否则 tab 栏藏了、手势还在，用户能滑到一个看不见入口的页
+        assertTrue(
+            "the pager must refuse user scrolling while disconnected",
+            servingScreen.contains("userScrollEnabled = ui.clientConnected"),
+        )
+        // 断连时若停在文件 tab，必须回到会话 tab：否则用户看到的是一个没有 tab 栏、
+        // 也没有输入框的空白页，没有任何出路。
+        val effect = servingScreen.substringAfter("LaunchedEffect(ui.clientConnected)", "")
+        assertTrue("no LaunchedEffect(ui.clientConnected)", effect.isNotEmpty())
+        assertTrue(
+            "losing the connection must return to the chat page; effect head: " +
+                effect.take(240),
+            effect.take(240).contains("scrollToPage(0)") ||
+                effect.take(240).contains("animateScrollToPage(0)"),
+        )
+    }
 }

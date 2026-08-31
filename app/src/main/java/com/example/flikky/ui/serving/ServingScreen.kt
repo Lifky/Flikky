@@ -126,6 +126,15 @@ fun ServingScreen(
     // 于是浮动工具栏会继续浮在文件列表上方，指向一条看不见的消息。
     LaunchedEffect(pagerState.currentPage) { actionTarget = null }
 
+    // 断连时若停在文件 tab，必须回到会话 tab：tab 栏此时已经收起，
+    // 用户看到的会是一个没有 tab 栏、也没有输入框的空白页，没有任何出路。
+    // 用 scrollToPage 而不是 animate：这不是用户发起的导航，别演给他看。
+    LaunchedEffect(ui.clientConnected) {
+        if (!ui.clientConnected && pagerState.currentPage != 0) {
+            pagerState.scrollToPage(0)
+        }
+    }
+
     // 「所有文件访问」是特殊权限，系统页没有回调，只能在回到前台时重查。
     // 这里刻意不掺入 storageBrowsingEnabled：那个开关门控的是对端浏览器，
     // App 端浏览自己的存储只受系统权限约束（spec §3.1 四态矩阵）。
@@ -281,32 +290,50 @@ fun ServingScreen(
                 }
             }
 
-            // Secondary tabs。裁决 A：指示器**贴文字宽**，所以必须显式传 indicator——
-            // Compose 的 SecondaryTabRow 默认铺满整个 tab 宽，用默认值就与裁决不符，
-            // 且没有任何测试会发现（Views 侧 tabIndicatorFullWidth 默认才是 false）。
-            val tabLabels = listOf(
-                stringResource(R.string.serving_tab_chat),
-                stringResource(R.string.serving_tab_files),
-            )
-            SecondaryTabRow(
-                selectedTabIndex = pagerState.currentPage,
-                indicator = {
-                    TabRowDefaults.SecondaryIndicator(
-                        modifier = Modifier.tabIndicatorOffset(pagerState.currentPage, matchContentSize = true),
-                        height = 2.dp,
-                    )
-                },
+            // Tab 栏只在**已连接**时存在（装机验收 Screenshot_2）。未连接时文件 tab 里
+            // 能做的事全要连接才有意义（发送走 controller），摆着只是让用户滑过去看一眼
+            // 空列表再滑回来；顶部那张连接卡才是此刻唯一该看的东西。
+            // 用 AnimatedVisibility 而不是 if：tab 栏出现/消失时下方内容不该突然跳一下。
+            androidx.compose.animation.AnimatedVisibility(
+                visible = ui.clientConnected,
+                enter = androidx.compose.animation.expandVertically(Motion.spatial()) +
+                    androidx.compose.animation.fadeIn(Motion.effects()),
+                exit = androidx.compose.animation.shrinkVertically(Motion.spatialFast()) +
+                    androidx.compose.animation.fadeOut(Motion.effectsFast()),
             ) {
-                tabLabels.forEachIndexed { index, label ->
-                    Tab(
-                        selected = pagerState.currentPage == index,
-                        onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                        text = { Text(label) },
-                    )
+                // 裁决 A：指示器**贴文字宽**，所以必须显式传 indicator——
+                // Compose 的 SecondaryTabRow 默认铺满整个 tab 宽，用默认值就与裁决不符，
+                // 且没有任何测试会发现（Views 侧 tabIndicatorFullWidth 默认才是 false）。
+                val tabLabels = listOf(
+                    stringResource(R.string.serving_tab_chat),
+                    stringResource(R.string.serving_tab_files),
+                )
+                SecondaryTabRow(
+                    selectedTabIndex = pagerState.currentPage,
+                    indicator = {
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(
+                                pagerState.currentPage,
+                                matchContentSize = true,
+                            ),
+                            height = 2.dp,
+                        )
+                    },
+                ) {
+                    tabLabels.forEachIndexed { index, label ->
+                        Tab(
+                            selected = pagerState.currentPage == index,
+                            onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                            text = { Text(label) },
+                        )
+                    }
                 }
             }
             HorizontalPager(
                 state = pagerState,
+                // tab 栏藏起来时手势也要禁掉。只藏栏不禁手势，用户能滑到一个
+                // 看不见入口的页面上——那比摆着 tab 栏更让人困惑。
+                userScrollEnabled = ui.clientConnected,
                 modifier = Modifier.weight(1f),
             ) { page ->
                 when (page) {
