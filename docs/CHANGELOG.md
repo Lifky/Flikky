@@ -13,11 +13,17 @@ This file records user-facing changes for each Flikky release, loosely following
 - The server now **binds the hotspot address when the phone itself is the access point**. This case was in the stated security model from the start but had never worked: with no Wi-Fi network connected the app could not find an address and the service refused to start
 
 ### Changed
+- The session screen shows its tab row only once a browser is connected — everything the files tab can do needs a connection
+- The files list, breadcrumb and selection affordance are animated on both ends
+- A directory reads as an item count on both ends, instead of "Folder" on the phone and "13 items" in the browser
 - Icons throughout the browser are now hidden from screen readers. A destination used to be read out as "star Favorites", because the icon glyph is generated content carrying an internal identifier
 - The browser's navigation reports the current destination with `aria-current` instead of `aria-selected`. The latter is ignored on a plain button inside a `<nav>`, so which destination you were on was never announced at all
 
 ### Fixed
-- Nothing yet in this release; see the two entries above for behaviour that never worked rather than regressed
+- **The browser showed a files destination, and an error toast, while the switch was off.** The rail entry was set hidden but drawn anyway — an author `display: flex` outranks the browser's own `[hidden]` rule — and the panel fetched at page load, before it knew the switch state, so the resulting 404 was reported as "this location no longer exists"
+- **Entering a large folder appeared to do nothing, then jumped back.** The listing ran on the main thread with three stat calls per entry, so taps queued; a slow result also landed after the user had moved on, dragging them back into the folder they had left. Listing now runs off the main thread, the path and a progress indicator appear the instant you tap, and a new navigation cancels the previous one
+- The files panel in the browser had no typography of its own: four `font:` shorthands omitted the family, which makes the whole declaration invalid, and the listing container named a CSS class that did not exist, so the list group's shape was simply absent
+- The app's selection bar rendered as a large ellipse across the screen; it is now a FAB menu
 
 ## [v1.19.0](https://github.com/Lifky/Flikky/releases/tag/v1.19.0) · 2026-08-26
 
