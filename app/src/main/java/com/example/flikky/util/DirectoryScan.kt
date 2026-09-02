@@ -50,8 +50,11 @@ object DirectoryScan {
      */
     const val FIRST_BATCH = 24
 
-    /** 后续批次条数。大一些减少状态更新与重组次数，同时仍保持「持续生长」的观感。 */
-    const val NEXT_BATCH = 96
+    /**
+     * 单批上限。指数增长不设上限的话，最后一批会是几万条，一次追加就把主线程顶住 ——
+     * 正好抵掉分批的意义。
+     */
+    const val MAX_BATCH = 2048
 
 
     /**
@@ -106,7 +109,7 @@ object DirectoryScan {
     }
 
     /**
-     * 把已排序的条目切成批次：首批 [FIRST_BATCH]，之后每批 [NEXT_BATCH]。
+     * 把已排序的条目切成批次：首批 [FIRST_BATCH]，之后**逐批翻倍**直到 [MAX_BATCH]。
      *
      * 纯切分——顺序与内容都不许变（少一条或顺序变了，用户看到的目录内容就是错的）。
      * 空输入返回空列表而不是一个空批次：一个空批次会让 UI 以为「来了一批，但是空的」，
@@ -122,7 +125,11 @@ object DirectoryScan {
             val to = minOf(from + take, sorted.size)
             out += sorted.subList(from, to)
             from = to
-            take = NEXT_BATCH
+            // **翻倍**而不是固定批长。调用方每批做一次 `entries + batch`（O(n) 拷贝），
+            // 固定 96 条时 10000 项要 104 次追加、累计约 50 万次元素复制，
+            // 加载期间一直在造临时数组。翻倍把追加次数压到 O(log n)、累计拷贝约 2n，
+            // 而前几批仍然很小 —— 用户此刻看的就是前几批。
+            take = minOf(take * 2, MAX_BATCH)
         }
         return out
     }

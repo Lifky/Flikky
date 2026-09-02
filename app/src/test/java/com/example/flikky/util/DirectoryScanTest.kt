@@ -89,7 +89,58 @@ class DirectoryScanTest {
         assertEquals(DirectoryScan.FIRST_BATCH, batches.first().size)
         assertTrue(
             "the first batch must be smaller than the later ones, or there is no point",
-            batches.first().size < DirectoryScan.NEXT_BATCH,
+            batches.first().size < batches[1].size,
+        )
+    }
+
+    @Test
+    fun `batch sizes grow, so a huge directory needs few appends`() {
+        // 固定批长的代价：调用方每批做一次 `entries + batch`，那是 O(n) 拷贝。
+        // 10000 项按每批 96 算是 104 次追加、累计约 50 万次元素复制 —— 加载期间
+        // 一直在制造临时数组与 GC 压力，而这些成本对用户毫无产出。
+        // 指数增长把追加次数压到 O(log n)、累计拷贝压到约 2n，而前几批仍然很小
+        // （用户此刻看的就是前几批）。
+        val n = 10_000
+        val entries = (1..n).map { ScannedEntry("f$it", false, 1L, 1L) }
+        val batches = DirectoryScan.batches(entries)
+
+        // 判据不是「批数少于某个我随手编的数字」（第一版写了 12，实测 24，
+        // 而那个 12 没有任何依据）。真正要压的是**调用方的累计拷贝量**：
+        // 每收到一批就 `entries + batch` 一次，代价是当时的总长度。
+        // 固定 96 条时这个和约 50 万（≈50n）；翻倍后应在几倍 n 的量级。
+        var running = 0
+        var copied = 0L
+        batches.forEach { b ->
+            running += b.size
+            copied += running
+        }
+        assertTrue(
+            "total copy work must stay within a small multiple of n, got $copied for n=$n " +
+                "across ${batches.size} batches",
+            copied <= 5L * n,
+        )
+        // 前三批必须仍然小：首屏观感全靠它们。
+        assertTrue("first three batches too large: " + batches.take(3).map { it.size },
+            batches.take(3).all { it.size <= 128 })
+        // 尺寸不许回缩（末批除外，它是余数）。
+        val sizes = batches.map { it.size }
+        for (i in 1 until sizes.size - 1) {
+            assertTrue(
+                "batch sizes must not shrink before the last one: $sizes",
+                sizes[i] >= sizes[i - 1],
+            )
+        }
+    }
+
+    @Test
+    fun `batch growth is capped so one append is never enormous`() {
+        // 无上限的指数增长最后一批会是几万条，一次追加把主线程顶住 —— 
+        // 正好抵掉分批的意义。
+        val entries = (1..200_000).map { ScannedEntry("f$it", false, 1L, 1L) }
+        val batches = DirectoryScan.batches(entries)
+        assertTrue(
+            "no single batch may exceed the cap, got max ${batches.maxOf { it.size }}",
+            batches.all { it.size <= DirectoryScan.MAX_BATCH },
         )
     }
 
