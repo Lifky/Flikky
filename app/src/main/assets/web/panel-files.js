@@ -76,6 +76,9 @@
     /** 上一次建壳时的路径，只用来判断进/退方向。 */
     let shownPath = '';
 
+    /** 建壳时算好、等第一批条目到达才盖上去的方向（'enter' / 'exit'）。 */
+    let pendingDir = null;
+
     /** 相对路径的层级深度。根为 0。 */
     function depthOf(p) {
         if (!p) return 0;
@@ -426,7 +429,10 @@
         bodyEl.appendChild(progressEl);
         listEl = document.createElement('div');
         listEl.className = 'fk-group fk-files-list';
-        listEl.setAttribute('data-dir', dir);
+        // 方向**先存着**，等第一批条目到达再盖到元素上（见 appendBatch）。
+        // 在这里就盖等于让 224ms 的横移演给一个空盒子看：容器刚建好时列表是空的，
+        // 第一批要等 fetch + 服务端扫描才到，动画早跑完了。
+        pendingDir = dir;
         bodyEl.appendChild(listEl);
         syncToolbar();
     }
@@ -559,6 +565,11 @@
      */
     function appendBatch(entries, batchStart) {
         if (!listEl) return;
+        // 第一批到达才启动方向横移 —— 这时容器里马上就有内容可以动了。
+        if (pendingDir) {
+            listEl.setAttribute('data-dir', pendingDir);
+            pendingDir = null;
+        }
         entries.forEach((entry, i) => {
             renderRow(listEl, entry);
             const row = listEl.children[batchStart + i];

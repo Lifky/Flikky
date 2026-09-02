@@ -465,8 +465,17 @@ button.fk-crumb:hover {
  * 阶梯步长复用 chat.css 的 --flikky-stagger（含 --flikky-motion-scale，
  * 所以 reduce-motion 下自动归零）。带 fallback 以免硬依赖那个文件的加载顺序。 */
 .fk-files-list > .fk-item {
+  /* fill-mode 必须是 `backwards`，**不能是 `both`**。
+   *
+   * `both` 含 `forwards`，末帧的 `transform: none` 在动画结束后永久生效；而 CSS 动画
+   * 的优先级压过普通声明，于是 `.fk-item:active { transform: scale(.985) }` 与相邻行
+   * 挤压在文件行上全部失效 —— 装机验收里「文件行没有收藏行那种点按效果」就是这个。
+   * 收藏行没有这条 animation，所以只有文件行不一致。
+   *
+   * `backwards` 只在**延迟期间**应用首帧（阶梯需要它，否则行会先以完全不透明闪一下），
+   * 动画结束后不再钉住任何属性。 */
   animation: fk-files-row-in var(--flikky-spring-effects-default-dur)
-    var(--flikky-spring-effects-default) both;
+    var(--flikky-spring-effects-default) backwards;
   animation-delay: calc(
     var(--flikky-stagger, calc(40ms * var(--flikky-motion-scale, 1))) * var(--i, 0)
   );

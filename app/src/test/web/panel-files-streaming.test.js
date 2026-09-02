@@ -253,8 +253,10 @@ test('going back marks the list as exiting', async () => {
   const doc = createDocument();
   const view = doc.register('view-files');
   const bodies = [
-    JSON.stringify({ path: 'DCIM/Camera' }) + LF + JSON.stringify({ done: true }) + LF,
-    JSON.stringify({ path: 'DCIM' }) + LF + JSON.stringify({ done: true }) + LF,
+    JSON.stringify({ path: 'DCIM/Camera' }) + LF + entry('a.jpg') + LF
+      + JSON.stringify({ done: true }) + LF,
+    JSON.stringify({ path: 'DCIM' }) + LF + entry('b.jpg') + LF
+      + JSON.stringify({ done: true }) + LF,
   ];
   let n = 0;
   const ctx = {
@@ -309,8 +311,10 @@ test('a sideways move is not called a retreat just because the name is shorter',
   const doc = createDocument();
   const view = doc.register('view-files');
   const bodies = [
-    JSON.stringify({ path: 'DCIM' }) + LF + JSON.stringify({ done: true }) + LF,
-    JSON.stringify({ path: 'A' }) + LF + JSON.stringify({ done: true }) + LF,
+    JSON.stringify({ path: 'DCIM' }) + LF + entry('a.jpg') + LF
+      + JSON.stringify({ done: true }) + LF,
+    JSON.stringify({ path: 'A' }) + LF + entry('b.jpg') + LF
+      + JSON.stringify({ done: true }) + LF,
   ];
   let n = 0;
   const ctx = {
@@ -356,4 +360,20 @@ test('a sideways move is not called a retreat just because the name is shorter',
     'enter',
     'DCIM -> A is a lateral move at the same depth, not a retreat',
   );
+});
+
+test('an empty directory gets no direction stamp, because there is nothing to slide', () => {
+  // data-dir 驱动的是**列表内容**的横移。空目录没有行可动，
+  // 而在容器还空着时盖上它正是刚修掉的那个缺陷（动画演给空盒子看）。
+  // 这条把「空目录不盖」写成契约，而不是让它停留在「测试刚好没覆盖」。
+  return (async () => {
+    const chunks = [JSON.stringify({ path: 'Empty' }) + LF + JSON.stringify({ done: true }) + LF];
+    const c = load(chunks);
+    c.api.mount(c.view);
+    c.api.setEnabled(true);
+    await tick(40);
+    const list = byClass(c.view, 'fk-files-list')[0];
+    assert.ok(list, 'the list container should still exist');
+    assert.equal(list.getAttribute('data-dir'), null, 'an empty listing must not be stamped');
+  })();
 });
