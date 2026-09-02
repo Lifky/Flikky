@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
@@ -195,6 +196,30 @@ fun ServingStorageTab(
                             onToggleSelection = onToggleSelection,
                         )
                         }
+                    }
+                    // 终止标记。流式加载下「列表停止生长」与「加载完了」在屏幕上
+                    // 长得一样，用户无从判断自己是不是看到了全部（装机验收原话）。
+                    // 加载中报已到数量，完成后报总数——两者都给出确定的语义。
+                    item(key = FOOTER_KEY) {
+                        Text(
+                            text = if (state.loading) {
+                                stringResource(
+                                    R.string.serving_storage_loading_count,
+                                    state.entries.size,
+                                )
+                            } else {
+                                stringResource(R.string.serving_storage_total, state.entries.size)
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    horizontal = Spacing.screenEdge,
+                                    vertical = Spacing.lg,
+                                ),
+                        )
                     }
                 }
             }
@@ -460,3 +485,12 @@ private fun StoragePermissionCard(
 private val entryDateFormat = SimpleDateFormat("yy/MM/dd HH:mm", Locale.getDefault())
 
 private fun formatEntryDate(mtime: Long): String = entryDateFormat.format(Date(mtime))
+
+/**
+ * 页脚 item 的稳定 key。
+ *
+ * 必须给：不给 key 的 item 用位置当身份，而位置随 entries 增长一直在变，
+ * 于是每来一批都会被当成「删掉旧的、加一个新的」，`animateItem` 跟着演一遍淡出淡入。
+ * 也不能用条目路径那套 —— 这一行不是条目。
+ */
+private const val FOOTER_KEY = "flikky-storage-footer"

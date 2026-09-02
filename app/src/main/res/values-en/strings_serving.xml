@@ -81,4 +81,6 @@
     <string name="serving_storage_actions">File actions</string>
     <string name="serving_storage_actions_close">Close</string>
     <string name="serving_storage_items">%1$d items</string>
+    <string name="serving_storage_total">%1$d items</string>
+    <string name="serving_storage_loading_count">Loading… %1$d so far</string>
 </resources>

@@ -512,4 +512,32 @@ class ServingTabsStructureTest {
             tab.contains("tween") || tab.contains("spring"),
         )
     }
+
+    @Test
+    fun `the storage list ends with a marker, so the user knows they saw everything`() {
+        // 用户原话：「有一个潜在致命的逻辑问题：用户如何知道自己是否看到了全部」。
+        // 流式加载下「列表停止生长」与「加载完了」在屏幕上长得一样。
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        assertTrue(
+            "the list must end with a footer item",
+            tab.contains("item(key = FOOTER_KEY)"),
+        )
+        // 两种措辞都要有：加载中报已到数量，完成后报总数。
+        // 只有后者的话，加载途中那句「共 N 项」是在骗人。
+        assertTrue(
+            "the footer must say it is still loading while entries arrive",
+            tab.contains("serving_storage_loading_count"),
+        )
+        assertTrue(
+            "and report the total once done",
+            tab.contains("serving_storage_total"),
+        )
+        assertTrue(
+            "the wording must be driven by state.loading",
+            tab.contains("if (state.loading)"),
+        )
+        // 页脚必须有稳定 key：不给 key 的 item 用位置当身份，而位置随 entries 增长
+        // 一直在变，每来一批都会被当成「删旧加新」，animateItem 跟着演一遍淡出淡入。
+        assertTrue("the footer needs a stable key", tab.contains("FOOTER_KEY"))
+    }
 }
