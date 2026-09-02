@@ -13,6 +13,9 @@ This file records user-facing changes for each Flikky release, loosely following
 - The server now **binds the hotspot address when the phone itself is the access point**. This case was in the stated security model from the start but had never worked: with no Wi-Fi network connected the app could not find an address and the service refused to start
 
 ### Changed
+- Select all and deselect all in the browser's file panel. Select all waits until the listing is complete, because "all" has no defined meaning while rows are still arriving
+- Both file lists now end with a marker — "Loading… N so far" while entries arrive, "N items" once done — so it is possible to tell a finished list from one that merely stopped growing
+- Favourite rows share the file rows' staggered entrance, so the two panels read as one system
 - Opening a large folder now fills in progressively on both ends. The server streams the listing as NDJSON, flushed per entry, and each end appends rows as they arrive instead of waiting for the whole directory. Reading each entry's attributes in one call rather than three cuts a 2000-entry folder from roughly 6000 filesystem calls to 2000
 - File rows fade in one by one with a capped stagger, and the list slides in the direction of travel when you enter or leave a folder
 - The session screen shows its tab row only once a browser is connected — everything the files tab can do needs a connection
@@ -22,6 +25,10 @@ This file records user-facing changes for each Flikky release, loosely following
 - The browser's navigation reports the current destination with `aria-current` instead of `aria-selected`. The latter is ignored on a plain button inside a `<nav>`, so which destination you were on was never announced at all
 
 ### Fixed
+- The phone's streaming list only revealed a row or two at a time and needed dragging to the bottom to continue, replayed its entrance animation on every scroll back, and stuttered when switching tabs in a large folder — all one cause, an entrance wrapper that left each row zero-height until it became visible, which a lazy list cannot lay out
+- Files rows in the browser had lost the press feedback favourites rows have: the entrance animation's fill mode pinned `transform` permanently, which outranks `:active`
+- The directional slide animated a container that was still empty, so it was never visible
+- Selecting a favourite rebuilt the whole list, the same defect already fixed for files
 - The browser's file list flashed on every selection: the click handler re-rendered, and the first thing that does is empty the container, so every row and the breadcrumb were rebuilt and the entrance animation replayed
 - **The browser showed a files destination, and an error toast, while the switch was off.** The rail entry was set hidden but drawn anyway — an author `display: flex` outranks the browser's own `[hidden]` rule — and the panel fetched at page load, before it knew the switch state, so the resulting 404 was reported as "this location no longer exists"
 - **Entering a large folder appeared to do nothing, then jumped back.** The listing ran on the main thread with three stat calls per entry, so taps queued; a slow result also landed after the user had moved on, dragging them back into the folder they had left. Listing now runs off the main thread, the path and a progress indicator appear the instant you tap, and a new navigation cancels the previous one
