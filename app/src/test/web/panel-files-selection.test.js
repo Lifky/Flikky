@@ -118,11 +118,17 @@ test('the toolbar appears with a count and hides when cleared', async () => {
   assert.equal(toolbar(c.view).hidden, false, 'the toolbar must show once something is selected');
   const count = byClass(c.view, 'fk-toolbar-count')[0];
   assert.ok(count.textContent.indexOf('2') >= 0, 'count reads: ' + count.textContent);
-  const buttons = byClass(toolbar(c.view), 'fk-icon-btn');
-  assert.equal(buttons.length, 2, 'the toolbar must have clear and save, in that order');
-  buttons[0].dispatch('click');
+  // 按 aria-label 取按钮，不按下标 —— 下标会在工具栏加按钮时静默指到别的键上
+  // （加了全选/取消全选之后就发生了一次）。
+  const byLabel = (label) => byClass(toolbar(c.view), 'fk-icon-btn')
+    .find((b) => (b.getAttribute('aria-label') || '').indexOf(label) >= 0);
+  // 全选**不在**工具栏里：工具栏只在有选中时出现，全选放那里就必须先选一个。
+  // 它在面板头部，专门的守卫在 panel-files-selectall.test.js。
+  assert.equal(byLabel('app.files.selectAll'), undefined, 'select all belongs in the header');
+  assert.ok(byLabel('app.files.saveSelected'), 'the toolbar must offer save');
+  byLabel('app.files.deselect').dispatch('click');
   await flush();
-  assert.ok(toolbar(c.view).hidden, 'clearing must hide the toolbar');
+  assert.ok(toolbar(c.view).hidden, 'deselecting must hide the toolbar');
 });
 
 test('the selection survives walking into another directory', async () => {

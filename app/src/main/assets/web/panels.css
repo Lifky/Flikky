@@ -487,3 +487,13 @@ button.fk-crumb:hover {
 @media (prefers-reduced-motion: reduce) {
   .fk-files-list > .fk-item { animation: none; }
 }
+
+/* 列表终止标记。流式加载下「列表停止生长」与「加载完了」在屏幕上长得一样，
+ * 用户无从判断自己是不是看到了全部 —— 这一行就是那个确定的答案。 */
+.fk-files-footer {
+  margin: var(--flikky-space-md) var(--flikky-space-lg) var(--flikky-space-xl);
+  text-align: center;
+  font: var(--flikky-type-body-medium) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-medium-tracking);
+  color: rgb(var(--mdui-color-on-surface-variant));
+}

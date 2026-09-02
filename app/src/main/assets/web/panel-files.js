@@ -79,6 +79,18 @@
     /** 建壳时算好、等第一批条目到达才盖上去的方向（'enter' / 'exit'）。 */
     let pendingDir = null;
 
+    /**
+     * 当前目录是否**已完整到达**（收到了 done 行）。
+     *
+     * 全选按钮的门禁：流未结束时「全部」没有确定含义，一个能点的按钮会让用户以为
+     * 选中了整个目录，而实际只选中了已到达的那部分（2026-09-02 用户裁决）。
+     * 也是页脚在「正在载入 N 项」与「共 N 项」之间切换的依据。
+     */
+    let listingComplete = false;
+
+    let selectAllBtn = null;
+    let footerEl = null;
+
     /** 相对路径的层级深度。根为 0。 */
     function depthOf(p) {
         if (!p) return 0;
@@ -109,6 +121,30 @@
         title.textContent = t('app.files.title');
         head.appendChild(title);
 
+        // 全选放在**面板头部**，不放选择工具栏里。
+        //
+        // 工具栏只在 `selected.size > 0` 时出现（与收藏面板一致，那个 parity 是刻意的），
+        // 把全选放进去就变成「必须先手动选中一个，才能点全选」——那让这个功能少了一半。
+        // 全选是**列表级**动作，头部才是它的位置；取消全选是**选择级**动作，
+        // 留在工具栏里（没有选择时它无从谈起）。
+        //
+        // **只在列表完整到达后可点**：流未结束时「全部」没有确定含义，
+        // 一个能点的按钮会让用户以为选中了整个目录（2026-09-02 用户裁决）。
+        selectAllBtn = document.createElement('button');
+        selectAllBtn.type = 'button';
+        selectAllBtn.className = 'fk-icon-btn';
+        selectAllBtn.disabled = true;
+        selectAllBtn.setAttribute('aria-label', t('app.files.selectAll'));
+        selectAllBtn.appendChild(icon('select_all'));
+        selectAllBtn.addEventListener('click', () => {
+            // 真实浏览器不会给 disabled 按钮派发 click，所以这一条在生产里走不到。
+            // 留着是防「将来有人改了显隐逻辑却忘了 disabled」，并且它是可测的
+            // （测试直接 dispatch，绕过 disabled）。
+            if (!listingComplete) return;
+            selectAll();
+        });
+        head.appendChild(selectAllBtn);
+
         const collapse = document.createElement('button');
         collapse.type = 'button';
         collapse.className = 'fk-icon-btn fk-panel-collapse';
@@ -134,18 +170,20 @@
         countEl.className = 'fk-toolbar-count';
         toolbarEl.appendChild(countEl);
 
-        const clear = document.createElement('button');
-        clear.type = 'button';
-        clear.className = 'fk-icon-btn';
-        clear.setAttribute('aria-label', t('app.files.clear'));
-        clear.appendChild(icon('close'));
-        clear.addEventListener('click', () => {
+        // 取消全选。图标从 close 换成 deselect —— 这个动作不是「关掉工具栏」，
+        // 是「把选择清空」，close 会读成前者。
+        const deselect = document.createElement('button');
+        deselect.type = 'button';
+        deselect.className = 'fk-icon-btn';
+        deselect.setAttribute('aria-label', t('app.files.deselect'));
+        deselect.appendChild(icon('deselect'));
+        deselect.addEventListener('click', () => {
             selected.clear();
-            // 同理就地更新：清除一次也不该让整个列表闪。
+            // 就地更新：清除一次也不该让整个列表闪。
             rowElements.forEach((el) => el.setAttribute('aria-selected', 'false'));
             syncToolbar();
         });
-        toolbarEl.appendChild(clear);
+        toolbarEl.appendChild(deselect);
 
         const save = document.createElement('button');
         save.type = 'button';
@@ -175,12 +213,65 @@
         });
     }
 
+    /**
+     * 全选当前目录里的所有**文件**。
+     *
+     * 目录不进选择集合（单击目录是「进入」，它也不是能发送/下载的东西），
+     * 沙箱条目同理——系统不给读，选中它只会在保存时被跳过。
+     *
+     * 上万行时的开销：写 Set 是 O(n) 次字符串插入（很快），改 DOM 是 O(n) 次
+     * setAttribute。中间不读布局，所以不会触发逐次重排，实测量级是几毫秒。
+     * 真正的墙是这批行本身就有上万个 DOM 节点（见 backlog B32：浏览器端无虚拟化）。
+     */
+    function selectAll() {
+        if (!lastState || !Array.isArray(lastState.entries)) return;
+        lastState.entries.forEach((e) => {
+            if (e.isDir || e.restricted) return;
+            selected.add(childPath(e));
+        });
+        rowElements.forEach((el, p) => {
+            if (el.getAttribute('aria-selected') === null) return;
+            el.setAttribute('aria-selected', selected.has(p) ? 'true' : 'false');
+        });
+        syncToolbar();
+    }
+
     /** 按当前选择刷新工具条。选中数为 0 时整条隐藏。 */
     function syncToolbar() {
         if (!toolbarEl || !countEl) return;
         toolbarEl.hidden = selected.size === 0;
         // 数字直接拼在 JS 侧：面板一律只用 t(key) 这一种调用形态（与收藏同）。
         countEl.textContent = t('app.files.selected', { count: selected.size });
+    }
+
+    /** 全选按钮的可用性。与工具栏解耦：它在头部，工具栏隐藏时它照样在。 */
+    function syncSelectAll() {
+        if (selectAllBtn) selectAllBtn.disabled = !listingComplete;
+    }
+
+    /**
+     * 页脚：**终止标记**。
+     *
+     * 用户原话：「用户如何知道自己是否看到了全部」。流式加载下这是个真问题——
+     * 列表停止生长与「加载完了」在屏幕上长得一样。加载中写「正在载入 N 项」，
+     * 完成后写「共 N 项」，两者都给出确定的语义。
+     */
+    function syncFooter() {
+        if (!bodyEl || !listEl) return;
+        const n = listEl.children.length;
+        if (n === 0) {
+            if (footerEl && footerEl.parentNode) footerEl.parentNode.removeChild(footerEl);
+            footerEl = null;
+            return;
+        }
+        if (!footerEl) {
+            footerEl = document.createElement('p');
+            footerEl.className = 'fk-files-footer';
+            bodyEl.appendChild(footerEl);
+        }
+        footerEl.textContent = listingComplete
+            ? t('app.files.total', { count: n })
+            : t('app.files.loadingCount', { count: n });
     }
 
 
@@ -422,6 +513,8 @@
         shownPath = path || '';
         bodyEl.textContent = '';
         rowElements.clear();
+        // 页脚与 DOM 同生同死：忘了清会让引用指向已经摘掉的节点。
+        footerEl = null;
         renderBreadcrumb(bodyEl, path || '');
         progressEl = document.createElement('mdui-linear-progress');
         progressEl.className = 'fk-files-progress';
@@ -475,6 +568,7 @@
         listEl = list;
         progressEl = null;
         syncToolbar();
+        syncFooter();
     }
 
     // ---- 引导态 -------------------------------------------------------------
@@ -621,6 +715,10 @@
         let wholeText = canStream ? null : await r.text();
         let buffered = '';
         let sawDone = false;
+        // 新一次导航开始：列表不再完整，全选必须重新置禁 ——
+        // 否则上一个目录留下的「可点」状态会在新目录还在加载时被点到。
+        listingComplete = false;
+        syncSelectAll();
         let count = 0;
         let shellReady = false;
         let pending = [];
@@ -689,7 +787,10 @@
                 pending.push(obj);
                 count += 1;
             }
-            if (shellReady) flushPending();
+            if (shellReady) {
+                flushPending();
+                syncFooter();
+            }
             if (step.done) break;
         }
         loadingPath = null;
@@ -699,6 +800,12 @@
             notifyError(t('app.files.truncated'));
         }
         hasLoadedOnce = true;
+        // 只有真的收到 done 行才算完整。被截断时全选保持置禁 —— 那时「全部」
+        // 确实是未知的，页脚也仍然显示「正在载入 N 项」而不是骗人的「共 N 项」。
+        listingComplete = sawDone;
+        syncSelectAll();
+        syncToolbar();
+        syncFooter();
         setBusy(false);
         return true;
     }
@@ -763,6 +870,9 @@
             hasLoadedOnce = false;
             currentPath = '';
             selected.clear();
+            listingComplete = false;
+            footerEl = null;
+            syncSelectAll();
             render(lastState);
             return;
         }
