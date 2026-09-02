@@ -15,6 +15,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.flikky.R
 import com.example.flikky.ui.serving.storage.LocalStorageBrowser
 import com.example.flikky.ui.serving.storage.LocalStorageState
+import com.example.flikky.ui.serving.storage.StorageChunk
 import com.example.flikky.ui.serving.storage.StorageNavigation
 import com.example.flikky.ui.serving.storage.StorageSelectionSummary
 import com.example.flikky.data.db.FileOverviewRow
@@ -208,14 +209,44 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         storageJob?.cancel()
         _storageState.value = StorageNavigation.begin(_storageState.value, relative)
         storageJob = viewModelScope.launch {
-            // listFiles() + 每条 3 次 stat。大目录里这是几百毫秒到几秒的阻塞调用，
-            // 绝不能留在主线程上。
-            val listed = withContext(Dispatchers.IO) {
-                storageBrowser.list(_storageState.value.path)
+            var sawHead = false
+            storageBrowser.listStream(relative)
+                // 枚举与每批的 childCount 都是阻塞 IO，整条流都在 IO 上跑。
+                // 状态写回发生在 collect 里，也就是 viewModelScope 的 Main 上——
+                // 这正是要的：UI 状态只在主线程改。
+                .flowOn(Dispatchers.IO)
+                .collect { chunk ->
+                    when (chunk) {
+                        is StorageChunk.Head -> {
+                            sawHead = true
+                            _storageState.value =
+                                StorageNavigation.head(_storageState.value, chunk.path)
+                        }
+                        is StorageChunk.Batch -> {
+                            _storageState.value =
+                                StorageNavigation.append(_storageState.value, chunk.entries)
+                        }
+                        StorageChunk.Done -> {
+                            val finished = StorageNavigation.complete(_storageState.value)
+                            _storageState.value = finished
+                            // 只有完整走完的列举才配当「最后一次成功」——被取消的流
+                            // 走不到这里，于是失败退回时不会退到一份残缺列表上。
+                            lastGoodStorage = finished
+                        }
+                        StorageChunk.Failed -> {
+                            _storageState.value = StorageNavigation.settle(
+                                _storageState.value,
+                                listed = null,
+                                fallback = lastGoodStorage,
+                            )
+                        }
+                    }
+                }
+            // 流被上游正常结束但没给过 Head（不该发生），也要把进度条收掉，
+            // 否则进度条会一直转着而列表空空。
+            if (!sawHead && _storageState.value.loading) {
+                _storageState.value = StorageNavigation.complete(_storageState.value)
             }
-            if (listed != null) lastGoodStorage = listed
-            _storageState.value =
-                StorageNavigation.settle(_storageState.value, listed, lastGoodStorage)
         }
     }
 

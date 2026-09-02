@@ -55,6 +55,23 @@ class ServingTabsStructureTest {
         .replace(Regex("""(?m)^\s*//.*$"""), "")
         .replace(Regex("""(?m)^import .*$"""), "")
 
+    /**
+     * 取一个函数从签名到其结束大括号的正文。
+     *
+     * 用它而不是 `.take(N)`：固定长度的窗口会越过函数边界，把邻居的代码算进来。
+     * 实测踩过一次——2400 字符的窗口从 `openStorageDir` 一直延伸到
+     * `clearStorageSelection`，于是「不许 copy() 改状态」那条断言被邻居的合法
+     * `copy(selected = emptySet())` 误报。
+     */
+    private fun functionBody(src: String, signature: String, indent: Int = 4): String {
+        val at = src.indexOf(signature)
+        if (at < 0) return ""
+        val closer = System.lineSeparator() + " ".repeat(indent) + "}"
+        val lf = 10.toChar().toString() + " ".repeat(indent) + "}"
+        val end = listOf(src.indexOf(closer, at), src.indexOf(lf, at)).filter { it > at }.minOrNull()
+        return if (end == null) src.substring(at) else src.substring(at, end)
+    }
+
     private val servingScreen get() = stripComments(source("com/example/flikky/ui/serving/ServingScreen.kt"))
     private val chatTab get() = stripComments(source("com/example/flikky/ui/serving/ServingChatTab.kt"))
     private val storageTab get() = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
@@ -379,17 +396,18 @@ class ServingTabsStructureTest {
         // viewModelScope 的默认上下文是 Main，所以这三处 I/O 都必须显式切走。
         val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
         // 1. 目录列举
-        val open = vm.substring(vm.indexOf("fun openStorageDir("))
-            .take(1200)
-        assertTrue("openStorageDir must list on Dispatchers.IO; body head: " + open.take(500),
-            open.contains("withContext(Dispatchers.IO)"))
+        val open = functionBody(vm, "fun openStorageDir(")
+        // 判据是**结果**（列举不在主线程），不是某一种写法：一次性列举时是
+        // withContext，改成流式之后是 flowOn。两者都算，写死一种会在重构时误报。
+        assertTrue("openStorageDir must enumerate off Main; body head: " + open.take(600),
+            open.contains("flowOn(Dispatchers.IO)") || open.contains("withContext(Dispatchers.IO)"))
         // 2. 选择摘要（每个选中文件一次 stat）
         assertTrue(
             "the selection summary flow must run off Main",
             vm.contains("flowOn(Dispatchers.IO)"),
         )
         // 3. 发送前的存在性解析
-        val send = vm.substring(vm.indexOf("fun sendStorageSelection(")).take(900)
+        val send = functionBody(vm, "fun sendStorageSelection(")
         assertTrue("resolveExisting must run off Main; body head: " + send.take(400),
             send.contains("withContext(Dispatchers.IO)"))
     }
@@ -399,7 +417,7 @@ class ServingTabsStructureTest {
         // 这是「点了别的文件夹，过一会儿又自己跳回刚才那个」的正面修法。
         // 不取消的话旧列举完成后照样落地，把用户拽回他已经离开的目录。
         val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
-        val open = vm.substring(vm.indexOf("fun openStorageDir(")).take(1200)
+        val open = functionBody(vm, "fun openStorageDir(")
         assertTrue(
             "openStorageDir must cancel the in-flight job before starting a new one; head: " +
                 open.take(400),
@@ -417,7 +435,7 @@ class ServingTabsStructureTest {
         // 只挪到后台线程还不够：点击到列表出现之间界面毫无变化，用户以为没点上。
         // 路径必须立即前进（面包屑先动）并置 loading（画进度）。
         val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
-        val open = vm.substring(vm.indexOf("fun openStorageDir(")).take(1200)
+        val open = functionBody(vm, "fun openStorageDir(")
         val beginAt = open.indexOf("StorageNavigation.begin(")
         val launchAt = open.indexOf("viewModelScope.launch")
         assertTrue("openStorageDir must call StorageNavigation.begin", beginAt >= 0)
@@ -426,16 +444,41 @@ class ServingTabsStructureTest {
                 beginAt + " vs " + launchAt + ")",
             beginAt < launchAt,
         )
-        assertTrue("the result must go through StorageNavigation.settle",
-            open.contains("StorageNavigation.settle("))
+        // 流式路径下每一步都必须经过纯函数，那三个分支的断言在 StorageNavigationTest。
+        // 在 ViewModel 里直接 copy() 改状态就绕过了它们。
+        for (step in listOf("head(", "append(", "complete(", "settle(")) {
+            assertTrue(
+                "every state step must go through StorageNavigation." + step +
+                    " so the transitions stay covered by StorageNavigationTest",
+                open.contains("StorageNavigation." + step),
+            )
+        }
+        assertFalse(
+            "openStorageDir must not hand-roll state with copy(): that bypasses " +
+                "StorageNavigation and its tests",
+            open.contains("_storageState.value.copy("),
+        )
     }
 
     @Test
     fun `the storage list and breadcrumb are animated, not hard cuts`() {
         // 用户装机验收：「双端文件栏无动画效果，太硬」。
         val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
-        // 行的增删移动走官方 item 动画。换目录、勾选重排时不再瞬间替换。
-        assertTrue("list rows must use animateItem()", tab.contains("animateItem()"))
+        // 行的增删移动走**全项目共用件**（改一处全局生效），不是就地写 animateItem。
+        assertTrue(
+            "list rows must reuse flikkyItemAnimation(), the shared item-motion extension",
+            tab.contains("flikkyItemAnimation()"),
+        )
+        // 逐行入场是另一件事：一批 24 行同时追加，只靠 animateItem 的 fadeIn 会整批一起闪。
+        assertTrue(
+            "streamed rows must stagger their entrance within the batch",
+            tab.contains("StreamedListItem("),
+        )
+        // 阶梯序号必须是**批内**序号。传全局 index 等于没封顶：越靠后的行延迟越长。
+        assertTrue(
+            "the stagger index must be relative to the newest batch",
+            tab.contains("index - state.lastBatchStart"),
+        )
         // 面包屑是点击后第一个变化的东西（列表还在加载），它不动整个交互就显得没反应。
         assertTrue("the breadcrumb must animate on path change", tab.contains("AnimatedContent("))
         // 加载态要有进度，否则大目录里点击到列表出现之间界面毫无变化。

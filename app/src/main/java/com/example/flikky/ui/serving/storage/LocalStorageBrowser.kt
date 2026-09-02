@@ -1,9 +1,15 @@
 package com.example.flikky.ui.serving.storage
 
+import com.example.flikky.util.DirectoryScan
+import com.example.flikky.util.ScannedEntry
 import com.example.flikky.util.StorageListingPolicy
 import com.example.flikky.util.StoragePathPolicy
 import java.io.File
 import java.net.URLConnection
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 /**
  * 列表里的一项。
@@ -32,6 +38,26 @@ data class LocalEntry(
     val childCount: Int? = null,
 )
 
+/**
+ * 流式列举的一步。
+ *
+ * 分三种而不是「一个可空列表」：路径校验失败（[Failed]）与「读到了但是空目录」
+ * 在 UI 上是两句话，而 [Done] 让调用方知道流是**正常结束**的而不是被截断的。
+ */
+sealed interface StorageChunk {
+    /** 路径已确认可读。[path] 是规范化后的相对路径，UI 拿它定面包屑。 */
+    data class Head(val path: String) : StorageChunk
+
+    /** 一批条目，已在全局顺序中就位。追加到列表尾部即可，不需要重排。 */
+    data class Batch(val entries: List<LocalEntry>) : StorageChunk
+
+    /** 全部条目已产出。 */
+    data object Done : StorageChunk
+
+    /** 进不去：路径非法 / 不存在 / 不是目录 / 系统沙箱。 */
+    data object Failed : StorageChunk
+}
+
 /** 操作条摘要。[skipped] 涵盖「路径非法 / 已被删 / 是目录」三种情况。 */
 data class StorageSelectionSummary(
     val count: Int,
@@ -50,6 +76,14 @@ data class LocalStorageState(
     val entries: List<LocalEntry>,
     val selected: Set<String> = emptySet(),
     val loading: Boolean = false,
+    /**
+     * 最新一批在 [entries] 里的起始下标。
+     *
+     * UI 用它算逐行入场的阶梯序号：`index - lastBatchStart`。放在状态里而不是让 UI
+     * 自己记，是因为「哪些行是刚追加进来的」只有产生这批数据的一侧知道；
+     * UI 侧靠 `remember` 去猜会在重组或配置变更后错位。
+     */
+    val lastBatchStart: Int = 0,
 )
 
 /**
@@ -106,6 +140,84 @@ class LocalStorageBrowser(private val root: File) {
                     childCount = if (isDir) child.list()?.size else null,
                 )
             },
+        )
+    }
+
+    /**
+     * 流式列举 [relative]：先确认路径，再分批产出条目。
+     *
+     * ## 为什么要流式
+     *
+     * 上千项的目录一次性列举要几百毫秒到几秒，用户看到的是一条转很久的进度条
+     * （装机验收原话：「进度条会加载很久」）。分批之后首批 24 行几十毫秒就到，
+     * 之后列表持续向下生长——观感从「等半天然后一次性弹出」变成「加载极快」。
+     *
+     * ## 顺序与首屏的取舍
+     *
+     * 排序是「目录优先 + 名称」，所以第一行是谁取决于**所有**条目的 isDir。
+     * [DirectoryScan.scan] 先做一遍廉价扫描（每条 1 次 stat 而不是 3 次）并排好序，
+     * 之后才分批。首屏等的是这一遍扫描，不是全部元数据。裁决见类注释与 D37。
+     *
+     * ## 按批懒算的是什么
+     *
+     * `childCount` —— 每个子目录一次 readdir，目录密集的文件夹里这是最贵的一项。
+     * 只为**当前这一批**里的目录算，于是它随列表生长逐步填上。
+     *
+     * ## 取消
+     *
+     * 每批 `emit` 是天然的取消检查点；扫描内部的紧循环没有挂起点，所以传
+     * `ensureActive` 进去当检查钩子。少了它，用户点进大目录又立刻退出时，
+     * 那次扫描还会跑完几千次系统调用（用户要求的「避免无效开销」）。
+     * 调用方必须在 [kotlinx.coroutines.Dispatchers.IO] 上收集。
+     */
+    fun listStream(relative: String): Flow<StorageChunk> = flow {
+        val dir = StoragePathPolicy.resolve(root, relative)
+        if (dir == null) {
+            emit(StorageChunk.Failed)
+            return@flow
+        }
+        val path = StoragePathPolicy.relativize(root, dir)
+        // 沙箱目录本身可以被列出（上一级的列表里要显示它），但不能被进入。
+        if (StorageListingPolicy.isRestricted(path)) {
+            emit(StorageChunk.Failed)
+            return@flow
+        }
+        // 先把 context 取出来：钩子不是 suspend 的（扫描内部是普通紧循环），
+        // 而 CoroutineContext.ensureActive() 是普通扩展函数，捕获后可以在里面调。
+        val ctx = currentCoroutineContext()
+        val scanned = DirectoryScan.scan(dir) { ctx.ensureActive() }
+        if (scanned == null) {
+            emit(StorageChunk.Failed)
+            return@flow
+        }
+        emit(StorageChunk.Head(path))
+        for (batch in DirectoryScan.batches(scanned)) {
+            currentCoroutineContext().ensureActive()
+            emit(StorageChunk.Batch(batch.map { toEntry(it, path, dir) }))
+        }
+        emit(StorageChunk.Done)
+    }
+
+    /** [ScannedEntry] → [LocalEntry]。`childCount` 在这里算，所以它是按批发生的。 */
+    private fun toEntry(scanned: ScannedEntry, parentPath: String, parentDir: File): LocalEntry {
+        val childPath =
+            if (parentPath.isEmpty()) scanned.name else "$parentPath/${scanned.name}"
+        val child = File(parentDir, scanned.name)
+        return LocalEntry(
+            name = scanned.name,
+            relativePath = childPath,
+            absolutePath = child.absolutePath,
+            isDir = scanned.isDir,
+            size = scanned.size,
+            mtime = scanned.mtime,
+            mime = if (scanned.isDir) {
+                null
+            } else {
+                URLConnection.guessContentTypeFromName(scanned.name)
+            },
+            restricted = StorageListingPolicy.isRestricted(childPath),
+            // list() 而不是 listFiles()：只要个数，不需要为每个子项建 File 对象。
+            childCount = if (scanned.isDir) child.list()?.size else null,
         )
     }
 

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -42,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.ui.components.FileLeadingSpec
 import com.example.flikky.ui.components.FileLeadingVisual
+import com.example.flikky.ui.components.StreamedListItem
+import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.components.formatSize
@@ -100,14 +103,22 @@ fun ServingStorageTab(
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             StorageBreadcrumb(path = state.path, onNavigate = onOpenDir)
-            // 加载中：画一条线性进度。大目录列举要几百毫秒到几秒，没有它用户点了
-            // 完全看不出有反应（装机验收）。面包屑已经在上面先动了，这里补「正在做事」。
+            // 流式列举期间进度条一直在，但**不再挡住列表**：只要已经有行到达就把它
+            // 收成顶部一条细线，行照常显示并继续向下生长。
+            // 首版是「loading 就整片显示进度条」，那与流式追加冲突——列表永远看不见。
             if (state.loading) {
                 LinearProgressIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = Spacing.screenEdge, vertical = Spacing.xl),
+                        .padding(
+                            horizontal = Spacing.screenEdge,
+                            vertical = if (state.entries.isEmpty()) Spacing.xl else Spacing.sm,
+                        ),
                 )
+            }
+            if (state.entries.isEmpty() && state.loading) {
+                // 首批还没到：只有进度条，不显示「这个文件夹是空的」——那句话此刻是假的。
+                Spacer(Modifier.weight(1f))
             } else if (state.entries.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
@@ -131,10 +142,12 @@ fun ServingStorageTab(
                     ),
                 ) {
                     itemsIndexed(state.entries, key = { _, e -> e.relativePath }) { index, entry ->
-                        // 行的增删移动走官方 item 动画（换目录、勾选重排时不再硬切）。
-                        // 逐行 stagger 在几千行的目录里会拖成一场幻灯片，所以只用
-                        // animateItem 的默认位移/淡入，不自己叠延迟。
-                        Box(modifier = Modifier.animateItem()) {
+                        // 两层动画，各管一件事：
+                        //   flikkyItemAnimation() —— 增删与重排（全项目共用件）。
+                        //   StreamedListItem      —— 本行的首次入场，批内阶梯且封顶。
+                        // 阶梯序号是**本批内**的序号；传全局 index 会让越靠后的行延迟越长。
+                        Box(modifier = flikkyItemAnimation()) {
+                        StreamedListItem(staggerIndex = index - state.lastBatchStart) {
                         StorageEntryRow(
                             entry = entry,
                             index = index,
@@ -143,6 +156,7 @@ fun ServingStorageTab(
                             onOpenDir = onOpenDir,
                             onToggleSelection = onToggleSelection,
                         )
+                        }
                         }
                     }
                 }

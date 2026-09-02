@@ -108,4 +108,78 @@ class StorageNavigationTest {
         val next = StorageNavigation.settle(pending, listed = null, fallback = loaded)
         assertEquals(setOf("Download/x.pdf", "new.txt"), next.selected)
     }
+
+    @Test
+    fun `head normalises the path and clears the list to receive the first batch`() {
+        val pending = StorageNavigation.begin(loaded, "dcim")
+        val next = StorageNavigation.head(pending, "DCIM")
+        assertEquals("DCIM", next.path)
+        assertEquals(emptyList<LocalEntry>(), next.entries)
+        assertTrue("head must stay loading: no entries have arrived yet", next.loading)
+    }
+
+    @Test
+    fun `append concatenates and never reorders`() {
+        // 批次到达时顺序已经是全局有序的（DirectoryScan 先排完再切批）。
+        // 在这里重排会让已经画出来的行在用户眼前跳位。
+        val a = listOf(entry("a"), entry("b"))
+        val b = listOf(entry("c"))
+        var s = StorageNavigation.head(StorageNavigation.begin(loaded, "X"), "X")
+        s = StorageNavigation.append(s, a)
+        s = StorageNavigation.append(s, b)
+        assertEquals(listOf("a", "b", "c"), s.entries.map { it.name })
+    }
+
+    @Test
+    fun `append records where the newest batch starts, for the row stagger`() {
+        // UI 用 index - lastBatchStart 算逐行入场的阶梯序号。记错了，
+        // 整批的阶梯就会从中间开始，或者整批一起闪。
+        var s = StorageNavigation.head(StorageNavigation.begin(loaded, "X"), "X")
+        s = StorageNavigation.append(s, listOf(entry("a"), entry("b")))
+        assertEquals(0, s.lastBatchStart)
+        s = StorageNavigation.append(s, listOf(entry("c"), entry("d")))
+        assertEquals(2, s.lastBatchStart)
+        s = StorageNavigation.append(s, listOf(entry("e")))
+        assertEquals(4, s.lastBatchStart)
+    }
+
+    @Test
+    fun `append keeps loading on, because more batches are coming`() {
+        var s = StorageNavigation.head(StorageNavigation.begin(loaded, "X"), "X")
+        s = StorageNavigation.append(s, listOf(entry("a")))
+        assertTrue("the progress indicator must stay while batches keep arriving", s.loading)
+    }
+
+    @Test
+    fun `append preserves a selection made while the list was still growing`() {
+        // 用户可以在列表还在生长时就勾选已经出现的行。追加批次不该把它清掉。
+        var s = StorageNavigation.head(StorageNavigation.begin(loaded, "X"), "X")
+        s = StorageNavigation.append(s, listOf(entry("a")))
+        s = s.copy(selected = setOf("a"))
+        s = StorageNavigation.append(s, listOf(entry("b")))
+        assertEquals(setOf("a"), s.selected)
+    }
+
+    @Test
+    fun `complete clears loading and touches nothing else`() {
+        var s = StorageNavigation.head(StorageNavigation.begin(loaded, "X"), "X")
+        s = StorageNavigation.append(s, listOf(entry("a"), entry("b")))
+        val before = s.entries
+        val done = StorageNavigation.complete(s)
+        assertFalse("complete must clear loading", done.loading)
+        assertEquals(before, done.entries)
+        assertEquals(s.lastBatchStart, done.lastBatchStart)
+        assertEquals(s.path, done.path)
+    }
+
+    @Test
+    fun `an empty directory completes with no batches and an empty list`() {
+        // DirectoryScan.batches(emptyList()) 返回零个批次，所以 append 一次都不调。
+        // 空目录必须清掉 loading，否则进度条永远转着。
+        val s = StorageNavigation.complete(
+            StorageNavigation.head(StorageNavigation.begin(loaded, "Empty"), "Empty"),
+        )
+        assertFalse(s.loading)
+        assertEquals(emptyList<LocalEntry>(), s.entries)
+    }
 }

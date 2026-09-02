@@ -38,6 +38,41 @@ object StorageNavigation {
         )
 
     /**
+     * 路径已确认可读（流式列举的第一步）。
+     *
+     * 把路径换成服务端/文件系统规范化后的那个，并清空列表准备接收第一批。
+     * 仍然保持 loading —— 条目还没来。
+     */
+    fun head(current: LocalStorageState, path: String): LocalStorageState =
+        current.copy(path = path, entries = emptyList(), lastBatchStart = 0, loading = true)
+
+    /**
+     * 追加一批条目。
+     *
+     * [LocalStorageState.lastBatchStart] 记下这一批的起始下标，UI 据此给这批行
+     * 逐行入场的阶梯序号。追加**不清 loading**：后面还有批次，进度条要一直在。
+     *
+     * 批次到达时顺序已经是全局有序的（[com.example.flikky.util.DirectoryScan] 先排完再切批），
+     * 所以这里只做拼接，绝不重排——重排会让已经画出来的行在用户眼前跳位。
+     */
+    fun append(current: LocalStorageState, batch: List<LocalEntry>): LocalStorageState =
+        current.copy(
+            entries = current.entries + batch,
+            lastBatchStart = current.entries.size,
+            loading = true,
+        )
+
+    /**
+     * 流正常结束。只清 loading，内容一个字不动。
+     *
+     * 与 [settle] 的区别：那个是「一次性列举的结果落地或失败退回」，
+     * 这个是「已经逐批落地完了」。分开是因为流式路径下失败可能发生在
+     * 第一批之前（退回 fallback）或之后（保留已到的部分并告知不完整）。
+     */
+    fun complete(current: LocalStorageState): LocalStorageState =
+        current.copy(loading = false)
+
+    /**
      * 列举结束。
      *
      * [listed] 为 null 表示进不去（路径非法 / 不存在 / 系统沙箱）。此时**退回
