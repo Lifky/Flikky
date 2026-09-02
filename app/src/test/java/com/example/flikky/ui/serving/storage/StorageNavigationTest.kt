@@ -183,3 +183,45 @@ class StorageNavigationTest {
         assertEquals(emptyList<LocalEntry>(), s.entries)
     }
 }
+
+class StorageTravelDirectionTest {
+
+    @Test
+    fun `going deeper is forward and coming back up is not`() {
+        assertTrue(StorageNavigationDirection.forward("DCIM", "DCIM/Camera"))
+        assertFalse(StorageNavigationDirection.forward("DCIM/Camera", "DCIM"))
+        assertTrue(StorageNavigationDirection.forward("", "DCIM"))
+        assertFalse(StorageNavigationDirection.forward("DCIM", ""))
+    }
+
+    @Test
+    fun `a lateral move is forward regardless of name length`() {
+        // 这条是判据的分水岭。用字符串长度时 DCIM -> A 会判成「返回」，
+        // 因为 "A" 比 "DCIM" 短 —— 而它其实是同一层的平移。
+        assertTrue("DCIM -> Music", StorageNavigationDirection.forward("DCIM", "Music"))
+        assertTrue("DCIM -> A", StorageNavigationDirection.forward("DCIM", "A"))
+        assertTrue("A -> DCIM", StorageNavigationDirection.forward("A", "DCIM"))
+    }
+
+    @Test
+    fun `refreshing the same path is forward, not a retreat`() {
+        // 授权完成后会重读当前目录。判成「返回」会让列表反向滑一下，很怪。
+        assertTrue(StorageNavigationDirection.forward("DCIM", "DCIM"))
+        assertTrue(StorageNavigationDirection.forward("", ""))
+    }
+
+    @Test
+    fun `depth ignores leading, trailing and doubled separators`() {
+        assertEquals(0, StorageNavigationDirection.depth(""))
+        assertEquals(0, StorageNavigationDirection.depth("/"))
+        assertEquals(1, StorageNavigationDirection.depth("/DCIM/"))
+        assertEquals(2, StorageNavigationDirection.depth("DCIM//Camera"))
+    }
+
+    @Test
+    fun `jumping several levels up is still a retreat`() {
+        // 点面包屑最左边那一级：跨好几层回根。
+        assertFalse(StorageNavigationDirection.forward("a/b/c/d", ""))
+        assertFalse(StorageNavigationDirection.forward("a/b/c/d", "a"))
+    }
+}

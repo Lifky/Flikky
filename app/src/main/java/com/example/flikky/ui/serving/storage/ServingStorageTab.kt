@@ -195,7 +195,10 @@ private fun StorageBreadcrumb(path: String, onNavigate: (String) -> Unit) {
     AnimatedContent(
         targetState = path,
         transitionSpec = {
-            val forward = targetState.length > initialState.length
+            // 方向按层级深度，不按字符串长度：长度会被名字长短骗
+            // （DCIM → Music 判「进入」，DCIM → A 判「返回」，而两者都是平移）。
+            // 与浏览器端共用同一个判据函数，两端方向才不会一边进一边退。
+            val forward = StorageNavigationDirection.forward(initialState, targetState)
             val shift = if (forward) 1 else -1
             (slideInHorizontally(slideSpec) { it / 6 * shift } +
                 fadeIn(enterFade)) togetherWith

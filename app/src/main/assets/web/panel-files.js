@@ -73,6 +73,15 @@
     /** 进度条元素。流式期间一直在，但不挡住已经到达的行。 */
     let progressEl = null;
 
+    /** 上一次建壳时的路径，只用来判断进/退方向。 */
+    let shownPath = '';
+
+    /** 相对路径的层级深度。根为 0。 */
+    function depthOf(p) {
+        if (!p) return 0;
+        return p.split('/').filter(Boolean).length;
+    }
+
     let root = null;
     let bodyEl = null;
     let toolbarEl = null;
@@ -400,6 +409,14 @@
      */
     function renderShell(path) {
         if (!bodyEl) return;
+        // 进/退方向按**层级深度**判，不按字符串长度。
+        //
+        // 用长度会被名字长短骗：从 DCIM 平移到 Music（都是第一层）算「进入」，
+        // 平移到 A 却算「返回」——同一种操作因为名字短了就反向。逼红时发现的。
+        // 也不用前缀比较：前缀在「进入 / 返回上一级」上是对的，但平移到同深度的
+        // 兄弟目录会一律判成「返回」，而那更像是横向切换，按「进入」更自然。
+        const dir = depthOf(path) >= depthOf(shownPath) ? 'enter' : 'exit';
+        shownPath = path || '';
         bodyEl.textContent = '';
         rowElements.clear();
         renderBreadcrumb(bodyEl, path || '');
@@ -409,6 +426,7 @@
         bodyEl.appendChild(progressEl);
         listEl = document.createElement('div');
         listEl.className = 'fk-group fk-files-list';
+        listEl.setAttribute('data-dir', dir);
         bodyEl.appendChild(listEl);
         syncToolbar();
     }
@@ -632,10 +650,17 @@
                 }
                 if (obj.done) { sawDone = true; continue; }
                 if (typeof obj.name !== 'string') {
-                    // 首行：路径确认。建壳并清空列表，准备接收条目。
-                    currentPath = typeof obj.path === 'string' ? obj.path : target;
-                    lastState = { path: currentPath, entries: [] };
-                    renderShell(currentPath);
+                    // 首行：路径确认。
+                    //
+                    // 壳在 load 里已经乐观地建过一次（点击的即时反馈）。这里**只有
+                    // 服务端规范化后的路径与乐观值不同时**才重建：无条件重建会把刚
+                    // 画好的壳扔掉再画一遍，而且 renderShell 会重算进/退方向——
+                    // 第二次算的时候 shownPath 已经等于新路径，方向恒为 enter，
+                    // 「返回上一级」的横移就永远反着（实测）。
+                    const headPath = typeof obj.path === 'string' ? obj.path : target;
+                    currentPath = headPath;
+                    lastState = { path: headPath, entries: [] };
+                    if (headPath !== shownPath) renderShell(headPath);
                     shellReady = true;
                     continue;
                 }

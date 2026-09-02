@@ -332,3 +332,24 @@ fun breadcrumbSegments(path: String, rootLabel: String): List<StorageCrumb?> {
         addAll(all.takeLast(2))
     }
 }
+
+/**
+ * 目录切换的方向：进入还是返回。给转场动效定方向用。
+ *
+ * 判据是**层级深度**，不是字符串长度、也不是前缀关系。
+ * - 长度会被名字长短骗：`DCIM` → `Music` 算「进入」，`DCIM` → `A` 算「返回」，
+ *   而两者都是同一层的平移。浏览器端逼红时实测到这个。
+ * - 前缀在「进入 / 返回上一级」上是对的，但平移到同深度的兄弟目录会一律判成
+ *   「返回」，而那更像横向切换，按「进入」更自然。
+ *
+ * 两端共用这一个函数，动效方向才不会一边进一边退。
+ */
+object StorageNavigationDirection {
+
+    /** 从 [from] 走到 [to] 算不算「前进」（进入更深或同层平移）。 */
+    fun forward(from: String, to: String): Boolean = depth(to) >= depth(from)
+
+    /** 相对路径的层级深度。根为 0；前后与重复分隔符都不计。 */
+    fun depth(path: String): Int =
+        path.trim().trim('/').split('/').count { it.isNotEmpty() }
+}

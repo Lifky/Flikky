@@ -425,6 +425,35 @@ button.fk-crumb:hover {
   margin: var(--flikky-space-xl) var(--flikky-space-lg);
 }
 
+/* 目录切换：整列表按「进/退」方向横移淡入。
+ *
+ * 方向由 JS 在容器上写 data-dir=enter|exit（进目录=从右滑入，返回=从左滑入），
+ * 与 App 端面包屑的方向逻辑同构。这一层给的是「我进到别处了」的空间感；
+ * 下面逐行的那一层给的是「内容在陆续到达」。两层叠着看才是完整的动线。
+ *
+ * 时长走 spatial（带位移，用 spatial 而非 effects），且容器动画只跑一次——
+ * 逐行动画在子元素上，两者不会互相取消。 */
+.fk-files-list[data-dir='enter'] {
+  animation: fk-files-enter var(--flikky-spring-spatial-fast-dur)
+    var(--flikky-spring-spatial-fast) both;
+}
+.fk-files-list[data-dir='exit'] {
+  animation: fk-files-exit var(--flikky-spring-spatial-fast-dur)
+    var(--flikky-spring-spatial-fast) both;
+}
+@keyframes fk-files-enter {
+  from { opacity: 0; transform: translateX(var(--flikky-space-xl)); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fk-files-exit {
+  from { opacity: 0; transform: translateX(calc(-1 * var(--flikky-space-xl))); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fk-files-list[data-dir='enter'],
+  .fk-files-list[data-dir='exit'] { animation: none; }
+}
+
 /* 列表进场：**逐行**淡入 + 轻微上移，批内按 --i 做阶梯延迟。
  *
  * 上一版这里是「整组淡入一次」，注释写的是「逐行 stagger 在几千行的目录里会把动画

@@ -230,3 +230,130 @@ test('a stale stream is cancelled, not just ignored', async () => {
   await tick(30);
   assert.ok(cancelled, 'the superseded reader must be cancelled, not merely ignored');
 });
+
+test('the list carries the travel direction so the transition can slide', async () => {
+  // 用户要的第三件事：「文件夹进入/退出时的列表动画」。
+  // 方向由长度判定，不是前缀比较——点面包屑中间一级也是「返回」，
+  // 而那时新路径恰好是旧路径的前缀，用前缀判会判成「进入」。
+  const listing = (p, names) => [
+    JSON.stringify({ path: p }) + LF
+      + names.map((n) => entry(n)).join(LF) + (names.length ? LF : '')
+      + JSON.stringify({ done: true }) + LF,
+  ];
+  const c = load(listing('', ['a.txt']));
+  c.api.mount(c.view);
+  c.api.setEnabled(true);
+  await tick(40);
+  const list = () => byClass(c.view, 'fk-files-list')[0];
+  assert.equal(list().getAttribute('data-dir'), 'enter', 'the first load counts as entering');
+});
+
+test('going back marks the list as exiting', async () => {
+  // 两次导航：先进 DCIM/Camera，再回 DCIM。第二次必须是 exit。
+  const doc = createDocument();
+  const view = doc.register('view-files');
+  const bodies = [
+    JSON.stringify({ path: 'DCIM/Camera' }) + LF + JSON.stringify({ done: true }) + LF,
+    JSON.stringify({ path: 'DCIM' }) + LF + JSON.stringify({ done: true }) + LF,
+  ];
+  let n = 0;
+  const ctx = {
+    document: doc,
+    window: {
+      flikkyPanels: {},
+      flikky: { fileSymbolName: () => 'draft' },
+      flikkyI18n: { t: (k) => k, onChange: () => {} },
+    },
+    TextDecoder: TextDecoder,
+    fetch: () => {
+      const body = bodies[Math.min(n++, bodies.length - 1)];
+      let sent = false;
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        body: {
+          getReader: () => ({
+            read: () => Promise.resolve(
+              sent
+                ? { value: undefined, done: true }
+                : ((sent = true), { value: Buffer.from(body, 'utf8'), done: false }),
+            ),
+            cancel: () => {},
+          }),
+        },
+      });
+    },
+    console: console,
+  };
+  ctx.window.document = doc;
+  ctx.globalThis = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(WEB, 'panel-files.js'), 'utf8'), ctx);
+  const api = ctx.window.flikkyPanels.files;
+  api.mount(view);
+  api.setEnabled(true);
+  await tick(40);
+  assert.equal(byClass(view, 'fk-files-list')[0].getAttribute('data-dir'), 'enter');
+  api.navigate('DCIM');
+  await tick(40);
+  assert.equal(
+    byClass(view, 'fk-files-list')[0].getAttribute('data-dir'),
+    'exit',
+    'walking back up must slide the other way',
+  );
+});
+
+test('a sideways move is not called a retreat just because the name is shorter', async () => {
+  // 判据必须是层级深度。用字符串长度时：DCIM -> Music 判「进入」，
+  // DCIM -> A 判「返回」，而两者都是同一层的平移。这条钉的就是那个差别。
+  const doc = createDocument();
+  const view = doc.register('view-files');
+  const bodies = [
+    JSON.stringify({ path: 'DCIM' }) + LF + JSON.stringify({ done: true }) + LF,
+    JSON.stringify({ path: 'A' }) + LF + JSON.stringify({ done: true }) + LF,
+  ];
+  let n = 0;
+  const ctx = {
+    document: doc,
+    window: {
+      flikkyPanels: {},
+      flikky: { fileSymbolName: () => 'draft' },
+      flikkyI18n: { t: (k) => k, onChange: () => {} },
+    },
+    TextDecoder: TextDecoder,
+    fetch: () => {
+      const body = bodies[Math.min(n++, bodies.length - 1)];
+      let sent = false;
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        body: {
+          getReader: () => ({
+            read: () => Promise.resolve(
+              sent
+                ? { value: undefined, done: true }
+                : ((sent = true), { value: Buffer.from(body, 'utf8'), done: false }),
+            ),
+            cancel: () => {},
+          }),
+        },
+      });
+    },
+    console: console,
+  };
+  ctx.window.document = doc;
+  ctx.globalThis = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(WEB, 'panel-files.js'), 'utf8'), ctx);
+  const api = ctx.window.flikkyPanels.files;
+  api.mount(view);
+  api.setEnabled(true);
+  await tick(40);
+  api.navigate('A');
+  await tick(40);
+  assert.equal(
+    byClass(view, 'fk-files-list')[0].getAttribute('data-dir'),
+    'enter',
+    'DCIM -> A is a lateral move at the same depth, not a retreat',
+  );
+});
