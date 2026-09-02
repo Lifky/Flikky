@@ -90,7 +90,8 @@ test('the row entrance animation is per row and staggered, not one group fade', 
   // 结论下错了：正确答案是封顶而不是放弃。这条钉住新形态，
   // 也防止有人凭那句旧注释把它改回去（改回去时 JS 侧的 --i 会静默失效）。
   const css = scan.stripBlockComments(read('panels.css'));
-  const rowRule = scan.ruleBlock(css, '.fk-files-list > .fk-item');
+  // 规则名是共用的 `.fk-list-in`（文件面板与收藏面板同一条），不是 files 专有。
+  const rowRule = scan.ruleBlock(css, '.fk-list-in > .fk-item');
   assert.ok(rowRule, 'the entrance animation must target the row, not the list container');
   assert.ok(rowRule.indexOf('animation') >= 0, 'no animation on the row: ' + rowRule);
   assert.ok(
@@ -118,7 +119,7 @@ test('reduced motion disables the row entrance', () => {
   assert.ok(at > 0, 'panels.css must handle prefers-reduced-motion');
   const block = css.slice(at, at + 400);
   assert.ok(
-    block.indexOf('.fk-files-list > .fk-item') >= 0,
+    block.indexOf('.fk-list-in > .fk-item') >= 0,
     'the row entrance must be switched off under reduced motion: ' + block,
   );
 });

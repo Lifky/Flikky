@@ -174,11 +174,6 @@
         })();
     }
 
-    function clearSelection() {
-        selected.clear();
-        render();
-    }
-
     // ── 行 / chip 构建 ──────────────────────────────────────────────────────
 
     function buildRow(item) {
@@ -230,13 +225,33 @@
         if (isFile) {
             row.addEventListener('click', () => {
                 if (selected.has(item.id)) selected.delete(item.id); else selected.add(item.id);
-                render();
+                // **就地更新**，绝不调 render()：那会把每一行连同分组标题全部拆掉重建。
+                // 文件面板已经因为这个被用户抓到过（「每次选中一个文件项，整个列表会闪一次」）；
+                // 收藏这边一直没被察觉，只因为行原本没有入场动画，重绘看不太出来。
+                // 现在行有了逐行入场，重绘会变成每次勾选闪一整屏。
+                row.setAttribute('aria-selected', selected.has(item.id) ? 'true' : 'false');
+                syncToolbar();
             });
         }
 
         rowsById.set(item.id, row);
         return row;
     }
+
+    /**
+     * 给行设批内阶梯序号 `--i`，并**封顶**。
+     *
+     * 与文件面板同一套（同一个 CSS 规则 `.fk-list-in > .fk-item`、同一个封顶值）。
+     * 不封顶的话，收藏项多起来时末行要等好几秒才出现——文件面板那边的注释记着
+     * 这个坑：正确答案是封顶，不是放弃逐行。
+     */
+    function stagger(row, i) {
+        if (row && row.style) row.style.setProperty('--i', String(Math.min(i, STAGGER_CAP)));
+        return row;
+    }
+
+    /** 批内阶梯封顶步数。与 panel-files.js 同值，两个面板观感一致。 */
+    const STAGGER_CAP = 8;
 
     function sectionTitle(text) {
         const el = document.createElement('div');
@@ -317,16 +332,16 @@
             if (!groupItems || groupItems.length === 0) return;
             listHost.appendChild(sectionTitle(g.name));
             const groupEl = document.createElement('div');
-            groupEl.className = 'fk-group';
-            groupItems.forEach((item) => groupEl.appendChild(buildRow(item)));
+            groupEl.className = 'fk-group fk-list-in';
+            groupItems.forEach((item, i) => stagger(groupEl.appendChild(buildRow(item)), i));
             listHost.appendChild(groupEl);
         });
 
         if (ungrouped.length > 0) {
             listHost.appendChild(sectionTitle(t('app.favorites.ungrouped')));
             const groupEl = document.createElement('div');
-            groupEl.className = 'fk-group';
-            ungrouped.forEach((item) => groupEl.appendChild(buildRow(item)));
+            groupEl.className = 'fk-group fk-list-in';
+            ungrouped.forEach((item, i) => stagger(groupEl.appendChild(buildRow(item)), i));
             listHost.appendChild(groupEl);
         }
     }
@@ -373,15 +388,34 @@
         listHost.appendChild(wrap);
     }
 
+    /**
+     * 按当前选择刷新工具条。勾选时只调它，不重绘列表。
+     *
+     * 数字不走 t() 的插值——手机端/浏览器端所有既有面板都只有 t(key) 这一种
+     * 调用形态，没有 count()/values 插值那一套（那是 app.js 顶层聊天区独有的
+     * {one, other} 复数形态）；数字直接拼在 JS 侧，翻译只负责后缀那几个字。
+     */
+    function syncToolbar() {
+        if (!toolbar || !countEl) return;
+        toolbar.hidden = selected.size === 0;
+        countEl.textContent = t('app.favorites.selected', { count: selected.size });
+    }
+
+    /** 清空选择。同样就地更新，不重绘。 */
+    function clearSelection() {
+        selected.clear();
+        rowsById.forEach((el) => {
+            if (el.getAttribute('aria-selected') === null) return;
+            el.setAttribute('aria-selected', 'false');
+        });
+        syncToolbar();
+    }
+
     function renderLoaded() {
         toolbar.hidden = true; // renderList 会按 selected 重建行；下面按真实选中数收尾
         buildChips();
         renderList();
-        toolbar.hidden = selected.size === 0;
-        // 数字不走 t() 的插值——手机端/浏览器端所有既有面板都只有 t(key) 这一种
-        // 调用形态，没有 count()/values 插值那一套（那是 app.js 顶层聊天区独有的
-        // {one, other} 复数形态）；数字直接拼在 JS 侧，翻译只负责后缀那几个字。
-        countEl.textContent = t('app.favorites.selected', { count: selected.size });
+        syncToolbar();
     }
 
     function render() {

@@ -454,7 +454,11 @@ button.fk-crumb:hover {
   .fk-files-list[data-dir='exit'] { animation: none; }
 }
 
-/* 列表进场：**逐行**淡入 + 轻微上移，批内按 --i 做阶梯延迟。
+/* 列表进场：**逐行**淡入 + 轻微上移，按 --i 做阶梯延迟。
+ *
+ * 类名是 `.fk-list-in` 而不是 `.fk-files-list`：**文件面板与收藏面板共用这一条**
+ * （2026-09-02 用户要求两个面板观感一致）。收藏不做流式——数据本来就整份在内存里，
+ * 流式解决不了任何问题——但行入场是纯渲染层的事，可以照抄。
  *
  * 上一版这里是「整组淡入一次」，注释写的是「逐行 stagger 在几千行的目录里会把动画
  * 拉成一场幻灯片，所以按组做一次」。那个顾虑是真的，但结论下错了——
@@ -464,7 +468,7 @@ button.fk-crumb:hover {
  *
  * 阶梯步长复用 chat.css 的 --flikky-stagger（含 --flikky-motion-scale，
  * 所以 reduce-motion 下自动归零）。带 fallback 以免硬依赖那个文件的加载顺序。 */
-.fk-files-list > .fk-item {
+.fk-list-in > .fk-item {
   /* fill-mode 必须是 `backwards`，**不能是 `both`**。
    *
    * `both` 含 `forwards`，末帧的 `transform: none` 在动画结束后永久生效；而 CSS 动画
@@ -474,18 +478,18 @@ button.fk-crumb:hover {
    *
    * `backwards` 只在**延迟期间**应用首帧（阶梯需要它，否则行会先以完全不透明闪一下），
    * 动画结束后不再钉住任何属性。 */
-  animation: fk-files-row-in var(--flikky-spring-effects-default-dur)
+  animation: fk-list-row-in var(--flikky-spring-effects-default-dur)
     var(--flikky-spring-effects-default) backwards;
   animation-delay: calc(
     var(--flikky-stagger, calc(40ms * var(--flikky-motion-scale, 1))) * var(--i, 0)
   );
 }
-@keyframes fk-files-row-in {
+@keyframes fk-list-row-in {
   from { opacity: 0; transform: translateY(var(--flikky-space-sm)); }
   to   { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fk-files-list > .fk-item { animation: none; }
+  .fk-list-in > .fk-item { animation: none; }
 }
 
 /* 列表终止标记。流式加载下「列表停止生长」与「加载完了」在屏幕上长得一样，

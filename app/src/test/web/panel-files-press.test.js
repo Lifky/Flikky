@@ -19,7 +19,8 @@ const read = (n) => fs.readFileSync(path.join(WEB, n), 'utf8');
  * 以完全不透明闪一下），动画结束后不再钉住任何属性。
  */
 
-const ROW_RULE = '.fk-files-list > .fk-item';
+// 规则已改名为**两个面板共用**的 `.fk-list-in > .fk-item`（收藏也用它）。
+const ROW_RULE = '.fk-list-in > .fk-item';
 
 test('the row entrance does not pin transform after it ends', () => {
   const css = scan.stripBlockComments(read('panels.css'));

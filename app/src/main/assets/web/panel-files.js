@@ -521,7 +521,7 @@
         progressEl.setAttribute('aria-label', t('app.files.loading'));
         bodyEl.appendChild(progressEl);
         listEl = document.createElement('div');
-        listEl.className = 'fk-group fk-files-list';
+        listEl.className = 'fk-group fk-files-list fk-list-in';
         // 方向**先存着**，等第一批条目到达再盖到元素上（见 appendBatch）。
         // 在这里就盖等于让 224ms 的横移演给一个空盒子看：容器刚建好时列表是空的，
         // 第一批要等 fetch + 服务端扫描才到，动画早跑完了。
@@ -562,7 +562,7 @@
         // 于是只剩 .fk-item 的内圆角，整块看起来是一片扁平灰板（Screenshot_3）。
         // 类名拼错不会报错、不会转红，只会静默退化，与 D31 记的「缺失的 CSS 自定义属性
         // 静默降级」同一形状。守卫见 panel-files.test.js 的「行样式复用收藏那一套」。
-        list.className = 'fk-group fk-files-list';
+        list.className = 'fk-group fk-files-list fk-list-in';
         state.entries.forEach((entry) => renderRow(list, entry));
         bodyEl.appendChild(list);
         listEl = list;
