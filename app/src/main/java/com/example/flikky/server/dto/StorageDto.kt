@@ -37,3 +37,14 @@ data class StorageListDto(
 /** 403 时的机器可读原因。前端据此在「去手机授权」和「系统限制」两种引导间选择。 */
 @Serializable
 data class StorageErrorDto(val code: String)
+
+/**
+ * NDJSON 流的首行：确认路径。
+ *
+ * 单独一个 DTO 而不是塞进第一个条目里：客户端逐行解析，靠「有没有 name 字段」
+ * 去猜行的种类是脆的。显式类型让解析端一眼可辨。
+ */
+@Serializable
+data class StorageStreamHeadDto(
+    val path: String,
+)

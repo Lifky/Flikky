@@ -425,16 +425,27 @@ button.fk-crumb:hover {
   margin: var(--flikky-space-xl) var(--flikky-space-lg);
 }
 
-/* 列表进场：整组淡入 + 轻微上移。逐行 stagger 在几千行的目录里会把动画拉成
- * 一场幻灯片，所以按组做一次，时长走 effects 档（内容切换用 effects，不用 spatial）。 */
-.fk-files-list {
-  animation: fk-files-in var(--flikky-spring-effects-default-dur)
+/* 列表进场：**逐行**淡入 + 轻微上移，批内按 --i 做阶梯延迟。
+ *
+ * 上一版这里是「整组淡入一次」，注释写的是「逐行 stagger 在几千行的目录里会把动画
+ * 拉成一场幻灯片，所以按组做一次」。那个顾虑是真的，但结论下错了——
+ * 正确答案不是放弃逐行，是**封顶**：JS 侧把 --i 钳在 0..8（CSS 没法 clamp 自定义
+ * 属性的整数），于是每批只有前 9 行依次落下，其余同时到。批与批之间的时间差由
+ * 流式追加本身提供，两者叠起来就是「列表持续向下生长」。
+ *
+ * 阶梯步长复用 chat.css 的 --flikky-stagger（含 --flikky-motion-scale，
+ * 所以 reduce-motion 下自动归零）。带 fallback 以免硬依赖那个文件的加载顺序。 */
+.fk-files-list > .fk-item {
+  animation: fk-files-row-in var(--flikky-spring-effects-default-dur)
     var(--flikky-spring-effects-default) both;
+  animation-delay: calc(
+    var(--flikky-stagger, calc(40ms * var(--flikky-motion-scale, 1))) * var(--i, 0)
+  );
 }
-@keyframes fk-files-in {
+@keyframes fk-files-row-in {
   from { opacity: 0; transform: translateY(var(--flikky-space-sm)); }
   to   { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .fk-files-list { animation: none; }
+  .fk-files-list > .fk-item { animation: none; }
 }

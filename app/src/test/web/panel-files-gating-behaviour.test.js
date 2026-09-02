@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { ndjson } = require('./ndjson.js');
 const { createDocument, byClass } = require('./mini-dom.js');
 
 const WEB = path.join(__dirname, '../../main/assets/web');
@@ -26,6 +27,7 @@ function load(replies) {
         ok: next.status === 200,
         status: next.status,
         json: () => Promise.resolve(next.body || {}),
+        text: () => Promise.resolve(ndjson(next.body || { path: '', entries: [] })),
       });
     },
     console: console,

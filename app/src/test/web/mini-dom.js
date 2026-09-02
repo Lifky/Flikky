@@ -41,7 +41,16 @@ class FakeElement {
     this.clickCount = 0;
     this.focusCount = 0;
     this.listeners = new Map();
-    this.style = { setProperty() {}, removeProperty() {} };
+    // style 要能读回来：v1.20.0 的流式列表用 `--i` 传批内阶梯序号，
+    // 而「阶梯有没有封顶」只能从写进去的值上验。原先是三个空函数，
+    // 于是任何关于内联 style 的断言都无从下手。
+    this._style = new Map();
+    const styleStore = this._style;
+    this.style = {
+      setProperty(name, value) { styleStore.set(name, String(value)); },
+      removeProperty(name) { styleStore.delete(name); },
+      getPropertyValue(name) { return styleStore.has(name) ? styleStore.get(name) : ''; },
+    };
 
     const self = this;
     this.classList = {

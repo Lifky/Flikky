@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { ndjson } = require('./ndjson.js');
 const { createDocument, byClass } = require('./mini-dom');
 
 const WEB = path.join(__dirname, '../../main/assets/web');
@@ -35,6 +36,7 @@ function load({ response = LISTING, status = 200, throwNetwork = false } = {}) {
         ok: status >= 200 && status < 300,
         status,
         json: () => Promise.resolve(response),
+        text: () => Promise.resolve(ndjson(response)),
       });
     },
     // onChange 必须像真实 i18n.js 一样「订阅时立刻同步调用一次」。

@@ -57,6 +57,22 @@
      */
     const selected = new Set();
 
+    /**
+     * 路径 → 行元素。勾选时只改这一行的 `aria-selected`，**不重建 DOM**。
+     *
+     * 装机验收：「每次选中一个文件项，整个文件列表会闪一次」——因为行的 click
+     * 回调调的是 `render(lastState)`，而 render 第一件事就是 `bodyEl.textContent = ''`：
+     * 面包屑和每一行全部拆掉重建，`.fk-files-list` 的入场动画也跟着重跑。
+     * 勾选一下重建整份 DOM，那就是那一闪。
+     */
+    const rowElements = new Map();
+
+    /** 当前的 `.fk-group` 列表容器。流式追加往它尾部塞行，不重建。 */
+    let listEl = null;
+
+    /** 进度条元素。流式期间一直在，但不挡住已经到达的行。 */
+    let progressEl = null;
+
     let root = null;
     let bodyEl = null;
     let toolbarEl = null;
@@ -113,7 +129,9 @@
         clear.appendChild(icon('close'));
         clear.addEventListener('click', () => {
             selected.clear();
-            render(lastState);
+            // 同理就地更新：清除一次也不该让整个列表闪。
+            rowElements.forEach((el) => el.setAttribute('aria-selected', 'false'));
+            syncToolbar();
         });
         toolbarEl.appendChild(clear);
 
@@ -355,10 +373,13 @@
 
             row.addEventListener('click', () => {
                 if (selected.has(p)) selected.delete(p); else selected.add(p);
-                render(lastState);
+                // 就地更新这一行 + 工具条。绝不调 render()——那会重建整个列表。
+                row.setAttribute('aria-selected', selected.has(p) ? 'true' : 'false');
+                syncToolbar();
             });
         }
         row.appendChild(trail);
+        rowElements.set(p, row);
         host.appendChild(row);
     }
 
@@ -371,24 +392,41 @@
     }
 
     /**
-     * 加载中：面包屑照 [target] 先画出来（点击的即时反馈），列表区换成进度条。
+     * 建壳：面包屑 + 进度条 + 空的列表容器。**只在导航时调一次**，
+     * 之后所有条目都靠 [appendBatch] 追加。
      *
-     * 不留旧列表：把上一个目录的内容画在新目录的面包屑下面是在骗人。
-     * 进度用 mdui 的 linear-progress（外壳、无障碍属性由库负责）。
+     * 这个分工是流式的前提，也顺带修掉了「勾选闪一下」——render 不再是唯一入口，
+     * 于是勾选可以只改一行，而不是重建整份 DOM。
      */
-    function renderLoading(target) {
+    function renderShell(path) {
         if (!bodyEl) return;
         bodyEl.textContent = '';
-        renderBreadcrumb(bodyEl, target || '');
-        const bar = document.createElement('mdui-linear-progress');
-        bar.className = 'fk-files-progress';
-        bar.setAttribute('aria-label', t('app.files.loading'));
-        bodyEl.appendChild(bar);
+        rowElements.clear();
+        renderBreadcrumb(bodyEl, path || '');
+        progressEl = document.createElement('mdui-linear-progress');
+        progressEl.className = 'fk-files-progress';
+        progressEl.setAttribute('aria-label', t('app.files.loading'));
+        bodyEl.appendChild(progressEl);
+        listEl = document.createElement('div');
+        listEl.className = 'fk-group fk-files-list';
+        bodyEl.appendChild(listEl);
+        syncToolbar();
+    }
+
+    /** 进度条的显隐。流结束时收掉；空目录时补一句「这个文件夹是空的」。 */
+    function setBusy(busy) {
+        if (progressEl) progressEl.hidden = !busy;
+        if (!busy && listEl && listEl.children.length === 0) {
+            renderNotice(bodyEl, 'app.files.empty');
+        }
     }
 
     function render(state) {
         if (!bodyEl) return;
         bodyEl.textContent = '';
+        // 索引与 DOM 同生同死：忘了清会让 rowElements 一直握着已经从文档里摘掉的
+        // 元素（内存泄漏），而且清除按钮会去改一批看不见的行。
+        rowElements.clear();
         if (!state || !Array.isArray(state.entries)) {
             renderNotice(bodyEl, 'app.files.loading');
             syncToolbar();
@@ -410,6 +448,8 @@
         list.className = 'fk-group fk-files-list';
         state.entries.forEach((entry) => renderRow(list, entry));
         bodyEl.appendChild(list);
+        listEl = list;
+        progressEl = null;
         syncToolbar();
     }
 
@@ -490,6 +530,143 @@
         load(typeof relativePath === 'string' ? relativePath : '');
     }
 
+    /**
+     * 增量追加一批行到已有的列表容器里。
+     *
+     * 与 render 的分工：render 建壳（面包屑 + 空的列表容器），本函数只往容器尾部
+     * 追加。首版没有这个分工，每来一次数据就 `bodyEl.textContent = ''` 重建整份
+     * DOM——那既是「勾选闪一下」的来路，也让流式追加根本不可能。
+     *
+     * [batchStart] 是这一批在整份列表里的起始序号，用来给每行设 `--i`（批内阶梯）。
+     */
+    function appendBatch(entries, batchStart) {
+        if (!listEl) return;
+        entries.forEach((entry, i) => {
+            renderRow(listEl, entry);
+            const row = listEl.children[batchStart + i];
+            if (!row) return;
+            // 批内阶梯并**封顶**：上千行不封顶会拖成一场幻灯片。
+            // 复用 chat.css 的 --flikky-stagger（含 --flikky-motion-scale，
+            // 于是 reduce-motion 下自动归零）；带 fallback 以免硬依赖那个文件。
+            row.style.setProperty('--i', String(Math.min(i, STAGGER_CAP)));
+        });
+    }
+
+    /** 批内阶梯封顶步数。与 App 端 STAGGER_CAP_STEPS 同值，两端观感一致。 */
+    const STAGGER_CAP = 8;
+
+    /** 换行符。用 charCode 而不是转义：写这些文件的脚本会篡改反斜杠。 */
+    const LF = String.fromCharCode(10);
+
+    /**
+     * 流式加载：NDJSON 逐行解析，每来一批就追加。
+     *
+     * 服务端每行 flush，所以第一批在整个目录列举完之前就到了——上千项的目录里
+     * 用户看到的是列表持续向下生长，而不是一条转很久的进度条。
+     *
+     * 不支持 `body.getReader()` 时把同一个响应整体取文本，用同一个解析器跑
+     * —— 只有一个请求，两条路径共用一份解析逻辑。
+     */
+    async function loadStreaming(target, seq) {
+        const r = await fetch(
+            '/api/storage/list?stream=1&path=' + encodeURIComponent(target),
+            { credentials: 'same-origin' },
+        );
+        if (seq !== requestSeq) return true;
+        if (!r.ok) {
+            loadingPath = null;
+            let code = '';
+            try {
+                const body = await r.json();
+                code = body && typeof body.code === 'string' ? body.code : '';
+            } catch (e) { /* 非 JSON 正文（400 就没有正文），当作无 code */ }
+            handleFailure(r.status, code);
+            return true;
+        }
+        // 能增量读就增量读；不能就把同一个响应整体取文本，用**同一个**逐行解析器跑。
+        // 关键是不再发第二个请求——第一版回落时重新 fetch 了一次，于是同一次导航
+        // 打了两个请求（测试里表现为「第二次请求拿到了下一条排队的响应」）。
+        const canStream = !!r.body && typeof r.body.getReader === 'function';
+        const reader = canStream ? r.body.getReader() : null;
+        const decoder = canStream ? new TextDecoder() : null;
+        let wholeText = canStream ? null : await r.text();
+        let buffered = '';
+        let sawDone = false;
+        let count = 0;
+        let shellReady = false;
+        let pending = [];
+
+        const flushPending = () => {
+            if (!pending.length) return;
+            appendBatch(pending, count - pending.length);
+            pending = [];
+        };
+
+        for (;;) {
+            let step;
+            if (canStream) {
+                step = await reader.read();
+            } else {
+                // 一次性拿到全部文本：当作「一个大分片然后结束」喂给同一个解析循环。
+                step = { value: null, done: true };
+                buffered += wholeText;
+                wholeText = '';
+            }
+            // 过期响应一律丢弃，并**主动断开**——否则服务端会把整个大目录白列举完。
+            if (seq !== requestSeq) {
+                if (reader) reader.cancel();
+                return true;
+            }
+            if (step.value) buffered += decoder.decode(step.value, { stream: true });
+            for (;;) {
+                const nl = buffered.indexOf(LF);
+                if (nl < 0) break;
+                const line = buffered.slice(0, nl).trim();
+                buffered = buffered.slice(nl + 1);
+                if (!line) continue;
+                let obj;
+                try {
+                    obj = JSON.parse(line);
+                } catch (e) {
+                    continue;
+                }
+                if (obj.done) { sawDone = true; continue; }
+                if (typeof obj.name !== 'string') {
+                    // 首行：路径确认。建壳并清空列表，准备接收条目。
+                    currentPath = typeof obj.path === 'string' ? obj.path : target;
+                    lastState = { path: currentPath, entries: [] };
+                    renderShell(currentPath);
+                    shellReady = true;
+                    continue;
+                }
+                if (!shellReady) {
+                    // 条目行先到、首行没来（协议上不该发生，但流可能从中间被截断，
+                    // 或将来协议改了）。此时用请求的路径把壳建起来，而不是让
+                    // `lastState.entries` 抛 TypeError —— 那会被外层 catch 吞掉，
+                    // 变成一句无从理解的「连接断开」，整份列表也不会出现。
+                    currentPath = target;
+                    lastState = { path: target, entries: [] };
+                    renderShell(target);
+                    shellReady = true;
+                }
+                lastState.entries.push(obj);
+                pending.push(obj);
+                count += 1;
+            }
+            if (shellReady) flushPending();
+            if (step.done) break;
+        }
+        loadingPath = null;
+        if (!sawDone) {
+            // 流被截断（休眠 / Wi-Fi 切换 / 服务端读到一半失败）。已经到的行保留——
+            // 清空会让用户以为目录是空的——但必须说清楚这份列表不完整。
+            notifyError(t('app.files.truncated'));
+        }
+        hasLoadedOnce = true;
+        setBusy(false);
+        return true;
+    }
+
     async function load(relativePath) {
         // 开关关闭时一律不请求。这是缺陷 1b 的正面修法：服务端按 D33 返回 404
         // 且刻意不带 code（不暴露「功能存在但被关」），所以客户端分不清
@@ -500,29 +677,10 @@
         // 立即前进：面包屑先动、列表区画进度。大目录里服务端要几百毫秒，
         // 没有这一步用户点了什么都不变，以为没点上（App 端同一个问题的浏览器版）。
         loadingPath = target;
-        renderLoading(target);
+        renderShell(target);
+        setBusy(true);
         try {
-            const r = await fetch(
-                '/api/storage/list?path=' + encodeURIComponent(target),
-                { credentials: 'same-origin' },
-            );
-            // 过期响应一律丢弃。这一条要在**任何**分支之前判——包括失败分支，
-            // 否则一个旧目录的 404 会把用户已经打开的新目录报成「不存在了」。
-            if (seq !== requestSeq) return;
-            loadingPath = null;
-            if (!r.ok) {
-                let code = '';
-                try {
-                    const body = await r.json();
-                    code = body && typeof body.code === 'string' ? body.code : '';
-                } catch (e) { /* 非 JSON 正文（400 就没有正文），当作无 code */ }
-                handleFailure(r.status, code);
-                return;
-            }
-            lastState = await r.json();
-            currentPath = typeof lastState.path === 'string' ? lastState.path : target;
-            hasLoadedOnce = true;
-            render(lastState);
+            await loadStreaming(target, seq);
         } catch (e) {
             if (seq !== requestSeq) return;
             loadingPath = null;

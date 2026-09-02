@@ -5,10 +5,16 @@ import com.example.flikky.server.dto.StorageListDto
 import com.example.flikky.server.routes.StorageBrowser
 import com.example.flikky.server.routes.StorageFileHandle
 import com.example.flikky.server.routes.StorageResult
+import com.example.flikky.server.routes.StorageStream
+import com.example.flikky.util.DirectoryScan
+import com.example.flikky.util.ScannedEntry
 import com.example.flikky.util.StorageListingPolicy
 import com.example.flikky.util.StoragePathPolicy
 import java.io.File
 import java.net.URLConnection
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.flow
 
 /**
  * 共享存储的只读实现。
@@ -32,6 +38,58 @@ class SharedStorageBrowser(private val root: File) : StorageBrowser {
         val sorted = StorageListingPolicy.filterAndSort(children, { it.isDirectory }, { it.name })
         return StorageResult.Ok(
             StorageListDto(path = normalized, entries = sorted.map { toEntry(it, normalized) }),
+        )
+    }
+
+    /**
+     * 流式列举：先确认路径，再分批产出条目。
+     *
+     * 与 [list] 用**同一个**扫描内核（[DirectoryScan]），所以两条路径给出的顺序与
+     * 内容必然一致——各写一遍就会出现「流式和非流式看到的目录不一样」，
+     * 而两边各自的测试都能是绿的。
+     *
+     * 逐批 `emit` 是取消检查点；扫描内部的紧循环没有挂起点，所以把 `ensureActive`
+     * 传进去当钩子。浏览器中断连接时这条流会被取消，枚举随即停止。
+     */
+    override fun listStream(relative: String): StorageResult<StorageStream> {
+        val dir = StoragePathPolicy.resolve(root, relative) ?: return StorageResult.InvalidPath
+        val normalized = StoragePathPolicy.relativize(root, dir)
+        if (StorageListingPolicy.isRestricted(normalized)) return StorageResult.Restricted
+        if (!dir.isDirectory) return StorageResult.NotFound
+        val batches = flow {
+            val ctx = currentCoroutineContext()
+            val scanned = DirectoryScan.scan(dir) { ctx.ensureActive() }
+                ?: return@flow
+            for (batch in DirectoryScan.batches(scanned)) {
+                currentCoroutineContext().ensureActive()
+                emit(batch.map { toEntry(it, normalized, dir) })
+            }
+        }
+        return StorageResult.Ok(StorageStream(path = normalized, batches = batches))
+    }
+
+    /** [ScannedEntry] → DTO。`childCount` 在这里算，所以它是按批发生的。 */
+    private fun toEntry(
+        scanned: ScannedEntry,
+        parentPath: String,
+        parentDir: File,
+    ): StorageEntryDto {
+        val childPath =
+            if (parentPath.isEmpty()) scanned.name else "$parentPath/${scanned.name}"
+        val child = File(parentDir, scanned.name)
+        return StorageEntryDto(
+            name = scanned.name,
+            isDir = scanned.isDir,
+            size = scanned.size,
+            mtime = scanned.mtime,
+            mime = if (scanned.isDir) {
+                null
+            } else {
+                URLConnection.guessContentTypeFromName(scanned.name)
+            },
+            // list() 而不是 listFiles()：只要个数，不需要为每个子项建 File 对象。
+            childCount = if (scanned.isDir) child.list()?.size else null,
+            restricted = StorageListingPolicy.isRestricted(childPath),
         )
     }
 

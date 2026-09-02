@@ -1,7 +1,10 @@
 package com.example.flikky.server.routes
 
+import com.example.flikky.server.dto.StorageEntryDto
 import com.example.flikky.server.dto.StorageErrorDto
 import com.example.flikky.server.dto.StorageListDto
+import com.example.flikky.server.dto.WireJson
+import com.example.flikky.server.dto.StorageStreamHeadDto
 import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -14,6 +17,7 @@ import io.ktor.server.response.respondOutputStream
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -39,9 +43,27 @@ data class StorageFileHandle(val file: File, val fileName: String, val mime: Str
  * 只认相对路径与自有 DTO，**不认 `Context`、不认 `Uri`** —— 红线「不把 Android Context
  * 穿透到 server/ 包」。实现在 `data/SharedStorageBrowser`，由 `di/ServiceLocator` 装配。
  */
+/**
+ * 一次流式列举：路径已确认可读，条目分批产出。
+ *
+ * 路径校验与内容产出分开，是为了让 HTTP 状态码还能用：校验同步完成（返回
+ * [StorageResult]，路由据此发 400/403/404），确认可读之后才开始写响应体。
+ * 一旦开始写就没法再改状态码了。
+ */
+data class StorageStream(
+    val path: String,
+    val batches: Flow<List<StorageEntryDto>>,
+)
+
 interface StorageBrowser {
     fun list(relative: String): StorageResult<StorageListDto>
     fun open(relative: String): StorageResult<StorageFileHandle>
+
+    /**
+     * 流式列举。返回 Ok 时**尚未**产生任何条目——[StorageStream.batches] 被收集时才枚举。
+     * 校验失败的语义与 [list] 完全一致。
+     */
+    fun listStream(relative: String): StorageResult<StorageStream>
 }
 
 /**
@@ -90,9 +112,50 @@ fun Route.storageRoutes(
         else -> respond(HttpStatusCode.NotFound)
     }
 
+    /**
+     * NDJSON 流式列举：`?stream=1`。
+     *
+     * 一行一个 JSON 对象：首行 `{"path":"..."}`，随后每行一个条目，末行 `{"done":true}`。
+     *
+     * **末行的 `done` 不是装饰**：HTTP 状态码在第一个字节发出后就定了，之后中断
+     * （手机休眠、Wi-Fi 切换、目录读到一半失败）在客户端看起来与「正常读完」一样。
+     * 有了这一行，客户端能区分「读完了」和「被截断了」——没有它，用户会把半个目录
+     * 当成完整目录，而这是静默的。
+     *
+     * **每批 flush 也不是装饰**：不 flush 的话数据攒在缓冲区里，等攒满或流关闭才发出，
+     * 客户端仍然是「等半天然后一次性收到全部」——流式就没了。
+     */
     get("/api/storage/list") {
         if (!call.passesGate()) return@get
         val b = browser() ?: run { call.respond(HttpStatusCode.ServiceUnavailable); return@get }
+        if (call.request.queryParameters["stream"] == "1") {
+            val requested = call.request.queryParameters["path"].orEmpty()
+            // 校验同步完成，状态码还能用；确认可读之后才开始写响应体。
+            val opened = withContext(Dispatchers.IO) { b.listStream(requested) }
+            if (opened !is StorageResult.Ok) {
+                call.respondFailure(opened)
+                return@get
+            }
+            val stream = opened.value
+            call.respondOutputStream(contentType = NDJSON, status = HttpStatusCode.OK) {
+                val out = this
+                fun line(text: String) {
+                    out.write(text.toByteArray(Charsets.UTF_8))
+                    out.write(LF)
+                    // 每行写完就 flush。见本路由 KDoc：不 flush 就不是流式。
+                    out.flush()
+                }
+                line(WireJson.encodeToString(
+                        StorageStreamHeadDto.serializer(),
+                        StorageStreamHeadDto(path = stream.path),
+                    ))
+                stream.batches.collect { batch ->
+                    batch.forEach { line(WireJson.encodeToString(StorageEntryDto.serializer(), it)) }
+                }
+                line(DONE_LINE)
+            }
+            return@get
+        }
         // 列举是阻塞 I/O（listFiles + 每条目 3 次 stat + 每个子目录一次 readdir 算项数）。
         // 大目录里这是几百毫秒到几秒；留在请求协程的默认调度器上会占住事件循环线程，
         // 拖慢同一时刻的其它请求（消息、文件流）。
@@ -143,3 +206,11 @@ private suspend fun ApplicationCall.respondStorageFile(handle: StorageFileHandle
         }
     }
 }
+
+/** NDJSON 的 content type。`application/x-ndjson` 是这个格式的事实标准。 */
+private val NDJSON = ContentType("application", "x-ndjson")
+
+private val LF = byteArrayOf(10)
+
+/** 流正常结束的标记行。客户端没收到它就该判定为截断，见 storageRoutes 的 KDoc。 */
+private const val DONE_LINE = "{\"done\":true}"

@@ -84,3 +84,41 @@ test('file rows lead with the same tinted container as favourites', () => {
   assert.equal(body.indexOf('fk-item-lead--plain') >= 0, false,
     'the plain variant has no container and no tint — that is the flat grey slab');
 });
+
+test('the row entrance animation is per row and staggered, not one group fade', () => {
+  // 上一版是「整组淡入一次」，理由是「逐行在几千行里会拖成幻灯片」。
+  // 结论下错了：正确答案是封顶而不是放弃。这条钉住新形态，
+  // 也防止有人凭那句旧注释把它改回去（改回去时 JS 侧的 --i 会静默失效）。
+  const css = scan.stripBlockComments(read('panels.css'));
+  const rowRule = scan.ruleBlock(css, '.fk-files-list > .fk-item');
+  assert.ok(rowRule, 'the entrance animation must target the row, not the list container');
+  assert.ok(rowRule.indexOf('animation') >= 0, 'no animation on the row: ' + rowRule);
+  assert.ok(
+    rowRule.indexOf('animation-delay') >= 0 && rowRule.indexOf('--i') >= 0,
+    'the row must take its stagger step from --i: ' + rowRule,
+  );
+  // 步长必须走 --flikky-stagger（含 --flikky-motion-scale），
+  // 这样 reduce-motion 与「动画速度」设置自动生效。写死毫秒就绕过了它们。
+  assert.ok(
+    rowRule.indexOf('--flikky-stagger') >= 0,
+    'the stagger step must come from the motion token: ' + rowRule,
+  );
+  // 反向：列表容器自己不该再有整组动画，否则两层动画叠着跑。
+  const listRule = scan.ruleBlock(css, '.fk-files-list');
+  assert.equal(
+    listRule.indexOf('animation') >= 0,
+    false,
+    'the container must not animate as a group any more: ' + listRule,
+  );
+});
+
+test('reduced motion disables the row entrance', () => {
+  const css = scan.stripBlockComments(read('panels.css'));
+  const at = css.indexOf('prefers-reduced-motion');
+  assert.ok(at > 0, 'panels.css must handle prefers-reduced-motion');
+  const block = css.slice(at, at + 400);
+  assert.ok(
+    block.indexOf('.fk-files-list > .fk-item') >= 0,
+    'the row entrance must be switched off under reduced motion: ' + block,
+  );
+});
