@@ -461,26 +461,44 @@ class ServingTabsStructureTest {
     }
 
     @Test
-    fun `the storage list and breadcrumb are animated, not hard cuts`() {
-        // 用户装机验收：「双端文件栏无动画效果，太硬」。
+    fun `the storage list is animated, and the breadcrumb deliberately is not`() {
+        // 用户装机验收：「双端文件栏无动画效果，太硬」；随后（2026-09-02）又裁决
+        // **去掉面包屑那层动效**（幅度小、意义不大），空间感交给列表整体的方向横移。
         val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
         // 行的增删移动走**全项目共用件**（改一处全局生效），不是就地写 animateItem。
         assertTrue(
             "list rows must reuse flikkyItemAnimation(), the shared item-motion extension",
             tab.contains("flikkyItemAnimation()"),
         )
-        // 逐行入场是另一件事：一批 24 行同时追加，只靠 animateItem 的 fadeIn 会整批一起闪。
-        assertTrue(
-            "streamed rows must stagger their entrance within the batch",
-            tab.contains("StreamedListItem("),
+        // 反向：不许再出现逐行入场包装。它让 item 在入场前不占高度，而零高会破坏
+        // lazy 视口填充（丢行、必须下拉才出现、切 tab 卡顿）。守卫本体在
+        // LazyItemHeightConventionTest；这里只钉住这个调用点不许回来。
+        assertFalse(
+            "no per-row entrance wrapper in a recycling list",
+            tab.contains("StreamedListItem"),
         )
-        // 阶梯序号必须是**批内**序号。传全局 index 等于没封顶：越靠后的行延迟越长。
+        // 列表整体按方向横移，且**等第一批到达才启动**——容器还空着就跑动画，
+        // 等于演给一个空盒子看（浏览器端实测过）。
+        val effect = tab.substringAfter("LaunchedEffect(state.path, state.entries.isNotEmpty())", "")
+        assertTrue("no path-change slide effect on the list", effect.isNotEmpty())
+        val head = effect.take(600)
         assertTrue(
-            "the stagger index must be relative to the newest batch",
-            tab.contains("index - state.lastBatchStart"),
+            "the slide must bail out while there are no rows yet; head: $head",
+            head.contains("state.entries.isEmpty()) return@LaunchedEffect"),
         )
-        // 面包屑是点击后第一个变化的东西（列表还在加载），它不动整个交互就显得没反应。
-        assertTrue("the breadcrumb must animate on path change", tab.contains("AnimatedContent("))
+        assertTrue(
+            "direction must come from the shared rule, not a local guess",
+            head.contains("StorageNavigationDirection.forward("),
+        )
+        assertTrue(
+            "the same path must not slide again on a refresh",
+            head.contains("lastSlidPath == state.path"),
+        )
+        // 面包屑那层刻意没有动效。
+        assertFalse(
+            "the breadcrumb animation was removed by user ruling; do not reinstate it",
+            tab.contains("AnimatedContent("),
+        )
         // 加载态要有进度，否则大目录里点击到列表出现之间界面毫无变化。
         assertTrue(
             "a loading listing must show progress",
@@ -489,8 +507,6 @@ class ServingTabsStructureTest {
         // 动效参数一律走 Motion（全局速度档 + prefers-reduced-motion 由它统辖），
         // 不许写死 tween/spring：那样「动画速度」设置对这里就失效了。
         assertTrue("motion must come from the Motion scheme", tab.contains("Motion."))
-        // 逼红实测：查 "tween(" 挡不住 `tween<Float>(200)` —— 中间还有类型实参。
-        // 按词查，不按调用形态查。
         assertFalse(
             "no hard-coded durations: the animation-speed setting must reach this screen",
             tab.contains("tween") || tab.contains("spring"),

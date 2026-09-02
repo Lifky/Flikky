@@ -32,56 +32,23 @@ fun LazyItemScope.flikkyItemAnimation(): Modifier =
         fadeOutSpec = Motion.effects(),
     )
 
-/**
- * 流式追加时的逐行入场：淡入 + 轻微上移，同一批内按序号做**封顶**的阶梯延迟。
+/*
+ * 这里曾有一个 `StreamedListItem`：流式追加时给每行排一个封顶的阶梯延迟，
+ * 用 `AnimatedVisibility(visible = shown)`（shown 初值 false）实现入场。
  *
- * ## 为什么不能只靠 [flikkyItemAnimation]
+ * 它是错的，而且一个错法产出三个症状（v1.20.0 装机验收）：
+ *   1. `visible = false` 时 AnimatedVisibility 不组合内容，item 高度为 0。
+ *      lazy 布局靠累加 item 高度判断「视口填满了没有」，零高推不动它，于是继续
+ *      往下组合；等入场落地拿到真实高度，布局又变，循环重来 —— 表现为
+ *      「条目不出现，必须下拉到底部才再冒出 1~2 行」。
+ *   2. `remember` 活在 item 的组合里，而 lazy 布局在 item 离开视口时销毁它的组合，
+ *      滚回来是全新组合、初值又是 false —— 动效反复重播。
+ *   3. 零高导致超量向前组合，每行还带一个 LaunchedEffect，切 tab 时全部销毁 —— 卡顿。
  *
- * 那个扩展管的是 `animateItem`——增删与重排。追加进来的行确实会走它的 `fadeInSpec`，
- * 但一批 24 行是**同时**追加的，于是整批一起淡入，观感是「一块一块地闪」而不是
- * 「一注流水」。这里补的就是批内的先后。
+ * 结论：**会回收的列表里不做逐行入场**。节奏交给流式批次之间的间隔，
+ * 增删与重排交给上面的 [flikkyItemAnimation]（`animateItem` 由 lazy 布局按 key
+ * 自己跟踪，不受回收影响）。浏览器端仍然做逐行阶梯，因为 DOM 节点不回收
+ * （见 `panels.css` 的 `.fk-files-list > .fk-item`）—— 这是两端刻意的不对称。
  *
- * ## 为什么阶梯必须封顶
- *
- * 上千行的目录里不封顶就会拖成一场幻灯片（末行要等几十秒）。
- * `panels.css` 曾因此**整个放弃**逐行阶梯、改成整组一次淡入；正确答案不是放弃，
- * 是封顶：批内前 [STAGGER_CAP_STEPS] 行依次落下，之后的行统一用封顶延迟。
- * 批与批之间的时间差由流式追加本身提供，两者叠起来就是持续向下生长。
- *
- * @param staggerIndex 本行在**当前这一批**里的序号，即 `index - state.lastBatchStart`。
- *   传全局 index 会让越靠后的行延迟越长，等于没封顶。
+ * 守卫见 `test/.../ui/LazyItemHeightConventionTest.kt`。
  */
-@Composable
-fun StreamedListItem(
-    staggerIndex: Int,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
-    val motionScale = LocalMotionScale.current
-    var shown by remember { mutableStateOf(false) }
-    // key 用 Unit：只在本行首次进入组合时排一次入场。用 staggerIndex 当 key 会让
-    // 后续批次改变了 lastBatchStart 时已经显示的行重新入场（整列表反复闪）。
-    LaunchedEffect(Unit) {
-        val steps = staggerIndex.coerceIn(0, STAGGER_CAP_STEPS)
-        val delayMs = (steps * Motion.StaggerStepMillis * motionScale).toLong()
-        if (delayMs > 0L) delay(delayMs)
-        shown = true
-    }
-    AnimatedVisibility(
-        visible = shown,
-        modifier = modifier,
-        // 只入场，不退场：行的移除由 animateItem 的 fadeOutSpec 负责，
-        // 两套退场叠在一起会让删除动画走两遍。
-        enter = fadeIn(Motion.effects()) +
-            slideInVertically(Motion.spatial()) { it / 3 },
-        exit = ExitTransition.None,
-    ) {
-        content()
-    }
-}
-
-/**
- * 批内阶梯的封顶步数。8 × 40ms = 320ms，与一批的到达间隔同量级——
- * 再长就会和下一批的入场撞在一起，观感反而变乱。
- */
-const val STAGGER_CAP_STEPS = 8

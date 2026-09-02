@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,9 +33,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,7 +51,6 @@ import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.ui.components.FileLeadingSpec
 import com.example.flikky.ui.components.FileLeadingVisual
-import com.example.flikky.ui.components.StreamedListItem
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.StoredVideo
@@ -100,9 +107,35 @@ fun ServingStorageTab(
     // 操作条是**悬浮 overlay**，必须作为内容区 Box 的子节点并对齐 BottomCenter。
     // 放进 Scaffold 的 bottomBar 槽位会预留等高空白把列表顶走
     // （FlikkySelectingToolbarOverlay 的 KDoc 记着这个 bug）。
+    val slideProgress = remember { Animatable(1f) }
+    val slideSpec = Motion.spatialFast<Float>()
+    val slideDistance = with(LocalDensity.current) { Spacing.xl.toPx() }
+    var slideSign by remember { mutableFloatStateOf(1f) }
+    var previousPath by remember { mutableStateOf("") }
+    var lastSlidPath by remember { mutableStateOf<String?>(null) }
+
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             StorageBreadcrumb(path = state.path, onNavigate = onOpenDir)
+            // ── 目录切换的方向横移 ──────────────────────────────────────────
+            //
+            // 进目录从右滑入、返回从左滑入，方向走两端共用的 StorageNavigationDirection。
+            //
+            // **等第一批条目到达才启动**：容器刚建好时还空着，那时跑动画等于演给一个
+            // 空盒子看（浏览器端实测到这个 —— 224ms 的横移在第一批到达前就跑完了）。
+            // 也刻意不用 AnimatedContent：那会在过渡期间同时保留两份内容，
+            // 而这里只需要一个位移，不需要新旧同屏。
+            LaunchedEffect(state.path, state.entries.isNotEmpty()) {
+                if (state.entries.isEmpty()) return@LaunchedEffect
+                // 同一路径只演一次：刷新（授权完成、回到前台）不该让列表再滑一下。
+                if (lastSlidPath == state.path) return@LaunchedEffect
+                slideSign = if (StorageNavigationDirection.forward(previousPath, state.path)) 1f else -1f
+                previousPath = state.path
+                lastSlidPath = state.path
+                slideProgress.snapTo(0f)
+                slideProgress.animateTo(1f, slideSpec)
+            }
+
             // 流式列举期间进度条一直在，但**不再挡住列表**：只要已经有行到达就把它
             // 收成顶部一条细线，行照常显示并继续向下生长。
             // 首版是「loading 就整片显示进度条」，那与流式追加冲突——列表永远看不见。
@@ -129,7 +162,12 @@ fun ServingStorageTab(
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            translationX = (1f - slideProgress.value) * slideDistance * slideSign
+                            alpha = slideProgress.value
+                        },
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                     // 底部留出浮动操作条的高度，否则最后一行永远被它压住、选不到。
                     contentPadding = PaddingValues(
@@ -142,12 +180,12 @@ fun ServingStorageTab(
                     ),
                 ) {
                     itemsIndexed(state.entries, key = { _, e -> e.relativePath }) { index, entry ->
-                        // 两层动画，各管一件事：
-                        //   flikkyItemAnimation() —— 增删与重排（全项目共用件）。
-                        //   StreamedListItem      —— 本行的首次入场，批内阶梯且封顶。
-                        // 阶梯序号是**本批内**的序号；传全局 index 会让越靠后的行延迟越长。
+                        // 只有共用件这一层：`animateItem` 管增删与重排，由 lazy 布局
+                        // 按 key 自己跟踪，不受 item 回收影响。
+                        // **刻意不做逐行入场**——那需要行在入场前不占高度，而零高会
+                        // 破坏 lazy 视口填充（丢行、必须下拉才出现、切 tab 卡顿）。
+                        // 「一注流水」的节奏由流式批次之间的间隔提供。
                         Box(modifier = flikkyItemAnimation()) {
-                        StreamedListItem(staggerIndex = index - state.lastBatchStart) {
                         StorageEntryRow(
                             entry = entry,
                             index = index,
@@ -156,7 +194,6 @@ fun ServingStorageTab(
                             onOpenDir = onOpenDir,
                             onToggleSelection = onToggleSelection,
                         )
-                        }
                         }
                     }
                 }
@@ -183,32 +220,10 @@ fun ServingStorageTab(
  */
 @Composable
 private fun StorageBreadcrumb(path: String, onNavigate: (String) -> Unit) {
-    // 路径变化时整条淡入淡出 + 轻微横移，方向随「进/退」而定：
-    // 进目录时新面包屑从右滑入，返回时从左滑入。这一条是「不硬」的主要来源，
-    // 因为面包屑是点击后第一个变化的东西（列表还在加载）。
-    // spec 必须在 composable 体内先取：`transitionSpec` 不是 @Composable
-    // （与 ServingScreen 的连接头动画、NavTransitions 同一套路），
-    // 在里面调 Motion.xxx() 会编译不过。先取后闭包捕获。
-    val slideSpec = Motion.spatialFast<IntOffset>()
-    val enterFade = Motion.effects<Float>()
-    val exitFade = Motion.effectsFast<Float>()
-    AnimatedContent(
-        targetState = path,
-        transitionSpec = {
-            // 方向按层级深度，不按字符串长度：长度会被名字长短骗
-            // （DCIM → Music 判「进入」，DCIM → A 判「返回」，而两者都是平移）。
-            // 与浏览器端共用同一个判据函数，两端方向才不会一边进一边退。
-            val forward = StorageNavigationDirection.forward(initialState, targetState)
-            val shift = if (forward) 1 else -1
-            (slideInHorizontally(slideSpec) { it / 6 * shift } +
-                fadeIn(enterFade)) togetherWith
-                (slideOutHorizontally(slideSpec) { -it / 6 * shift } +
-                    fadeOut(exitFade))
-        },
-        label = "StorageCrumbs",
-    ) { shownPath ->
-        StorageBreadcrumbRow(shownPath, onNavigate)
-    }
+    // 这里曾有一层 AnimatedContent 让面包屑随路径横移淡入。
+    // 2026-09-02 用户裁决去掉：面包屑本来就短、变化幅度小，动效意义不大，
+    // 而「我进到别处了」这个空间感由**列表整体**的方向横移表达（见 ServingStorageTab）。
+    StorageBreadcrumbRow(path, onNavigate)
 }
 
 @Composable
