@@ -480,6 +480,29 @@ button.fk-crumb:hover {
  *
  * 时长走 spatial（带位移，用 spatial 而非 effects），且容器动画只跑一次——
  * 逐行动画在子元素上，两者不会互相取消。 */
+/* 虚拟化容器。行绝对定位在自己的 `top` 上，容器高度按**整份列表**撑开 ——
+ * 于是滚动条是诚实的、滚动位置恢复也能一步到位。
+ *
+ * 用 `top` 而不是 `transform` 定位：`.fk-item:active` 用的就是
+ * `transform: scale(.985)`，用 transform 定位会被按下效果整个覆盖，
+ * 行会在按下的瞬间跳到列表顶部。 */
+.fk-files-list {
+  position: relative;
+  /* 与 .fk-group 逐项相同的几何（去掉那两条结构选择器）。
+   *
+   * flex 与 gap 在绝对定位的行上是惰性的，但**校准时用得上**：校准让前两行走
+   * 正常流、取 offsetTop 之差，那个差正好是行高 + 行距。少了这里的 gap，
+   * 量出来的步长就少一个行距，整列表会越往下越挤。 */
+  display: flex;
+  flex-direction: column;
+  gap: var(--flikky-listgroup-gap);
+}
+.fk-files-list > .fk-item {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
 .fk-files-list[data-dir='enter'] {
   animation: fk-files-enter var(--flikky-spring-spatial-fast-dur)
     var(--flikky-spring-spatial-fast) both;

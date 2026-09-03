@@ -93,8 +93,11 @@ test('both panels cap the stagger at the same step count', () => {
   const fav = scan.scrub(read('panel-favorites.js'));
   const files = scan.scrub(read('panel-files.js'));
   for (const [name, src] of [['panel-favorites.js', fav], ['panel-files.js', files]]) {
+    // 两边都必须把阶梯下标钳到 STAGGER_CAP。文件面板虚拟化后下标是**批内相对**的
+    // （`i - animateFrom`），收藏面板整份渲染、下标就是组内序号；
+    // 判据是「有 Math.min(..., STAGGER_CAP)」，不是那个表达式长什么样。
     assert.ok(
-      src.indexOf('Math.min(i, STAGGER_CAP)') >= 0,
+      /Math\.min\([^)]*,\s*STAGGER_CAP\)/.test(src),
       name + ' must clamp the stagger index to STAGGER_CAP',
     );
     assert.ok(

@@ -63,13 +63,44 @@ test('the scan can actually tell a real class from a made-up one', () => {
   assert.equal(css.indexOf('.fk-list-that-never-existed') >= 0, false);
 });
 
-test('file rows reuse the favourites list group, not a bespoke container', () => {
-  // 「复用」的标准是视觉零差异：同一个类、同一套圆角与组间距。
+test('file rows reuse the favourites row, and the container copies its geometry', () => {
+  // 「复用」的标准是视觉零差异。**行**仍然是同一个 `.fk-item` —— 所有共享外观
+  // （背景、圆角、按下缩放、相邻挤压）都长在那个类上，所以两个面板的行逐像素相同。
+  //
+  // **容器**这一层刻意分了家：`.fk-group` 用 `:first-child` / `:last-child` 定外圆角，
+  // 而文件列表要虚拟化，第一个渲染出来的行往往不是列表首行 —— 那条规则会让中间
+  // 某一行莫名带上外圆角。所以文件列表用 `.fk-files-list`，几何逐项照抄
+  // （同 flex 方向、同 --flikky-listgroup-gap），首尾改由数据下标打 class。
   const src = scan.scrub(read('panel-files.js'));
-  assert.ok(src.indexOf("'fk-group") >= 0,
-    'the listing container must be .fk-group, the same connected group favourites uses');
+  assert.ok(
+    src.indexOf("row.className = 'fk-item'") >= 0,
+    'rows must be the very same .fk-item favourites uses',
+  );
   assert.equal(src.indexOf("'fk-list'") >= 0, false,
     'fk-list does not exist in any stylesheet');
+
+  const css = scan.stripBlockComments(read('panels.css'));
+  const group = scan.ruleBlock(css, '.fk-group');
+  const files = scan.ruleBlock(css, '.fk-files-list');
+  assert.ok(group && files, 'both containers must be declared');
+  // 几何必须逐项一致，否则「视觉零差异」只是说法。
+  ['flex-direction: column', 'var(--flikky-listgroup-gap)'].forEach((bit) => {
+    assert.ok(
+      group.indexOf(bit) >= 0,
+      'the favourites group is expected to declare ' + bit + ': ' + group,
+    );
+    assert.ok(
+      files.indexOf(bit) >= 0,
+      'the files container must copy ' + bit + ' verbatim: ' + files,
+    );
+  });
+  // 而它**不能**继承那条结构化的外圆角规则。
+  assert.equal(
+    src.indexOf("'fk-group fk-files-list") >= 0,
+    false,
+    'the virtualised list must not carry .fk-group: its :first-child rule would put ' +
+      'an outer corner on whichever row happens to be rendered first',
+  );
 });
 
 test('file rows lead with the same tinted container as favourites', () => {

@@ -392,31 +392,33 @@ test('the toggle reappears once a folder with files is opened', () => {
   })();
 });
 
-test('selecting thousands of rows does not write them all in one go', () => {
-  // 装机验收：「listitem 项非常多的情况下，点击全选会有卡顿」。
-  // 逐个 setAttribute 会触发一次覆盖上万元素的样式重算，全压在一帧里。
-  // 所以写入必须**分帧**：一次点击之后不许把全部行都改完。
+test('selecting thousands of rows stays bounded by what is rendered', () => {
+  // 装机验收原话：「listitem 项非常多的情况下，点击全选会有卡顿」。
+  //
+  // 当时的根因是逐行 setAttribute 触发一次覆盖上万元素的样式重算。虚拟化之后
+  // DOM 里本来就只有视口附近那几十行，`rowElements` 也只有那几十行 ——
+  // **成本从此与目录大小无关**，分帧写只是多一层保险。
+  // 所以判据换成：选择本身是瞬时的（计数立刻对），而要改的 DOM 是有界的。
   return (async () => {
     const names = [];
     for (let k = 0; k < 3000; k += 1) names.push('f' + k + '.txt');
     const c = await opened(names);
-    assert.equal(rows(c.view).length, 3000);
+    assert.ok(
+      rows(c.view).length < 200,
+      'the DOM must already be windowed, got ' + rows(c.view).length + ' rows',
+    );
     headerToggle(c.view).dispatch('click');
-    // 只跑微任务，不给 rAF 机会：此刻选择集已满（逻辑瞬时完成），
-    // 但 DOM 只应改了第一块。
     await tick(4);
     assert.ok(
       count(c.view).indexOf('3000') >= 0,
-      'the selection itself must be immediate, got: ' + count(c.view),
+      'the selection itself must be immediate and cover everything, got: ' + count(c.view),
     );
-    const written = selectedRows(c.view).length;
-    assert.ok(
-      written < 3000,
-      'all 3000 rows were written in one shot (' + written + '); that is the freeze',
-    );
-    assert.ok(written > 0, 'but the first chunk must land right away, got ' + written);
-    // 放完所有帧后必须补齐，一行不漏。
     await c.drainFrames();
-    assert.equal(selectedRows(c.view).length, 3000, 'every row must end up marked');
+    const marks = rows(c.view).map((r) => r.getAttribute('aria-selected'));
+    assert.ok(marks.length > 0, 'some rows must be rendered');
+    assert.ok(
+      marks.every((m) => m === 'true'),
+      'every rendered row must end up marked: ' + marks.slice(0, 5),
+    );
   })();
 });

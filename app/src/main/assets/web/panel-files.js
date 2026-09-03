@@ -95,6 +95,38 @@
     /** 分帧写 aria-selected 的游标；新的一次写入会作废上一次未跑完的。 */
     let markSeq = 0;
 
+    // ── 虚拟化（窗口渲染）─────────────────────────────────────────────────
+    //
+    // 实测每行 11 个元素节点：10000 行就是 11 万个元素，样式重算与布局每次都要
+    // 走一遍 —— 装机验收「加载大目录内存非常高、明显卡顿」就是这个。
+    // 所以只渲染视口附近那几十行，DOM 恒定在几百个节点，与目录大小无关。
+    //
+    // 行绝对定位（`top`，**不是** `transform`）：`.fk-item:active` 用的就是
+    // `transform: scale(.985)`，用 transform 定位会被按下效果整个覆盖掉，
+    // 行会在按下的瞬间跳到列表顶部。
+
+    /** 视口上下各多渲染几行，滚动时不至于露白。 */
+    const VIRTUAL_OVERSCAN = 6;
+
+    /** 量不到时的兜底行距。只在没有布局信息的环境里用得上。 */
+    const ROW_STEP_FALLBACK = 64;
+
+    /**
+     * 一行占多高（含行距）。**量出来的，不是写死的。**
+     *
+     * 写死就得把 `--flikky-listgroup-gap` 在 JS 里复制一份，而那个 token 改了这边
+     * 不会有任何报错（D31 那一族：自定义属性缺失是静默的）。所以第一次渲染时先让
+     * 两行走正常流，取 `offsetTop` 之差 —— 那正好等于行高加行距。
+     */
+    let rowStep = 0;
+
+    /** 当前渲染出来的窗口 [winFrom, winTo)。 */
+    let winFrom = 0;
+    let winTo = 0;
+
+    /** 是否已经给滚动容器挂上监听。listEl 会重建，但 bodyEl 不会。 */
+    let scrollBound = false;
+
     /**
      * 目录缓存：`path -> { entries }`。**回退不重新加载。**
      *
@@ -434,7 +466,7 @@
      */
     function syncFooter() {
         if (!bodyEl || !listEl) return;
-        const n = listEl.children.length;
+        const n = allEntries().length;
         if (n === 0) {
             if (footerEl && footerEl.parentNode) footerEl.parentNode.removeChild(footerEl);
             footerEl = null;
@@ -716,11 +748,17 @@
         progressEl.setAttribute('aria-label', t('app.files.loading'));
         bodyEl.appendChild(progressEl);
         listEl = document.createElement('div');
-        listEl.className = 'fk-group fk-files-list fk-list-in';
+        // 刻意**不带 .fk-group**：那条规则用 `:first-child` / `:last-child` 定外圆角，
+        // 而窗口化之后第一个渲染出来的行往往不是列表首行。首尾由 renderRow 按数据
+        // 下标打 `.is-first` / `.is-last`（收藏面板整份渲染，继续用 .fk-group）。
+        listEl.className = 'fk-files-list fk-list-in';
         // 方向**先存着**，等第一批条目到达再盖到元素上（见 appendBatch）。
         // 在这里就盖等于让 224ms 的横移演给一个空盒子看：容器刚建好时列表是空的，
         // 第一批要等 fetch + 服务端扫描才到，动画早跑完了。
         pendingDir = dir;
+        // 新目录 = 新窗口。不复位的话 syncVirtual 会以为窗口没变而直接返回。
+        winFrom = 0;
+        winTo = 0;
         bodyEl.appendChild(listEl);
         syncToolbar();
     }
@@ -728,7 +766,7 @@
     /** 进度条的显隐。流结束时收掉；空目录时补一句「这个文件夹是空的」。 */
     function setBusy(busy) {
         if (progressEl) progressEl.hidden = !busy;
-        if (!busy && listEl && listEl.children.length === 0) {
+        if (!busy && listEl && allEntries().length === 0) {
             renderNotice(bodyEl, 'app.files.empty');
         }
     }
@@ -757,7 +795,7 @@
         // 于是只剩 .fk-item 的内圆角，整块看起来是一片扁平灰板（Screenshot_3）。
         // 类名拼错不会报错、不会转红，只会静默退化，与 D31 记的「缺失的 CSS 自定义属性
         // 静默降级」同一形状。守卫见 panel-files.test.js 的「行样式复用收藏那一套」。
-        list.className = 'fk-group fk-files-list fk-list-in';
+        list.className = 'fk-files-list fk-list-in';
         state.entries.forEach((entry, i) => renderRow(list, entry, i, state.entries.length));
         bodyEl.appendChild(list);
         listEl = list;
@@ -883,6 +921,91 @@
         if (bodyEl && typeof at === 'number') bodyEl.scrollTop = at;
     }
 
+    /** 全部条目。虚拟化只渲染其中一段，但高度、下标、首尾都按这一份算。 */
+    function allEntries() {
+        return lastState && Array.isArray(lastState.entries) ? lastState.entries : [];
+    }
+
+    /**
+     * 量一次行距：让前两行走正常流，取 `offsetTop` 之差。
+     *
+     * 那个差正好是行高 + `--flikky-listgroup-gap`，所以 JS 侧不需要复制那个 token
+     * （复制的话 token 改了这边不会有任何报错 —— D31 那一族的静默失效）。
+     * 量不到布局信息时退回 [ROW_STEP_FALLBACK]。
+     */
+    function calibrate(entries) {
+        if (rowStep > 0 || !listEl) return;
+        const probe = entries.slice(0, 2);
+        if (probe.length === 0) return;
+        probe.forEach((e, i) => renderRow(listEl, e, i, entries.length));
+        const a = listEl.children[0];
+        const b = listEl.children[1];
+        let step = 0;
+        if (a && b && typeof b.offsetTop === 'number' && typeof a.offsetTop === 'number') {
+            step = b.offsetTop - a.offsetTop;
+        }
+        if (!step && a) {
+            const rect = typeof a.getBoundingClientRect === 'function'
+                ? a.getBoundingClientRect()
+                : null;
+            step = (rect && rect.height) || a.offsetHeight || 0;
+        }
+        rowStep = step > 0 ? step : ROW_STEP_FALLBACK;
+        listEl.textContent = '';
+    }
+
+    /**
+     * 重建窗口。
+     *
+     * @param animateFrom 从这个**数据下标**起的行算「刚到达」，给它们排入场阶梯。
+     *   传 -1 表示这次不是新数据（滚动、或从缓存恢复），一律不排 —— 滚动时反复
+     *   重建行，每次都放一遍入场动效等于整屏闪（App 端同形缺陷的浏览器版）。
+     */
+    function syncVirtual(animateFrom) {
+        if (!listEl || !bodyEl) return;
+        const entries = allEntries();
+        const total = entries.length;
+        calibrate(entries);
+        const step = rowStep || ROW_STEP_FALLBACK;
+
+        // 容器先撑到整份列表的高度：滚动条因此是诚实的，滚动位置恢复也能一步到位。
+        listEl.style.setProperty('height', (total * step) + 'px');
+
+        const viewport = bodyEl.clientHeight || 0;
+        const top = bodyEl.scrollTop || 0;
+        let from = Math.floor(top / step) - VIRTUAL_OVERSCAN;
+        if (from < 0) from = 0;
+        let to = Math.ceil((top + (viewport || step * 12)) / step) + VIRTUAL_OVERSCAN;
+        if (to > total) to = total;
+
+        if (animateFrom < 0 && from === winFrom && to === winTo) return;
+        winFrom = from;
+        winTo = to;
+
+        listEl.textContent = '';
+        for (let i = from; i < to; i += 1) {
+            renderRow(listEl, entries[i], i, total);
+            const row = listEl.children[listEl.children.length - 1];
+            if (!row) continue;
+            row.style.setProperty('top', (i * step) + 'px');
+            // 批内阶梯并**封顶**：上千行不封顶会拖成一场幻灯片。
+            // 复用 chat.css 的 --flikky-stagger（含 --flikky-motion-scale，
+            // 于是 reduce-motion 下自动归零）；带 fallback 以免硬依赖那个文件。
+            const fresh = animateFrom >= 0 && i >= animateFrom;
+            row.style.setProperty('--i', fresh ? String(Math.min(i - animateFrom, STAGGER_CAP)) : '0');
+        }
+        if (!scrollBound) {
+            // bodyEl 跨导航存活（renderShell 只清它的子节点），所以只挂一次。
+            bodyEl.addEventListener('scroll', () => {
+                // 滚动出来的行不算新数据 —— 传 -1，不排入场。
+                // 同时摘掉入场类，否则重建的行会再放一遍动效。
+                if (listEl) listEl.classList.remove('fk-list-in');
+                syncVirtual(-1);
+            });
+            scrollBound = true;
+        }
+    }
+
     function appendBatch(entries, batchStart, restored) {
         if (!listEl) return;
         // 第一批到达才启动方向横移 —— 这时容器里马上就有内容可以动了。
@@ -890,20 +1013,9 @@
             listEl.setAttribute('data-dir', pendingDir);
             pendingDir = null;
         }
-        const total = lastState && Array.isArray(lastState.entries)
-            ? lastState.entries.length
-            : batchStart + entries.length;
-        entries.forEach((entry, i) => {
-            renderRow(listEl, entry, batchStart + i, total);
-            const row = listEl.children[batchStart + i];
-            if (!row) return;
-            // 批内阶梯并**封顶**：上千行不封顶会拖成一场幻灯片。
-            // 复用 chat.css 的 --flikky-stagger（含 --flikky-motion-scale，
-            // 于是 reduce-motion 下自动归零）；带 fallback 以免硬依赖那个文件。
-            // 从缓存恢复时阶梯归零：几千行是**同时**到位的，给它们排延迟等于把
-            // 「秒回」变成一场幻灯片。方向横移仍然生效 —— 那是一个容器动画。
-            row.style.setProperty('--i', restored ? '0' : String(Math.min(i, STAGGER_CAP)));
-        });
+        // 从缓存恢复时阶梯归零：几千行是**同时**到位的，给它们排延迟等于把
+        // 「秒回」变成一场幻灯片。方向横移仍然生效 —— 那是一个容器动画。
+        syncVirtual(restored ? -1 : batchStart);
     }
 
     /** 批内阶梯封顶步数。与 App 端 STAGGER_CAP_STEPS 同值，两端观感一致。 */
