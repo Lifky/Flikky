@@ -27,6 +27,8 @@ function load(chunks, opts) {
   const view = doc.register('view-files');
   let i = 0;
   let held = null;
+  let hold = null;
+  const frames = [];
   const ctx = {
     document: doc,
     window: {
@@ -38,7 +40,9 @@ function load(chunks, opts) {
       },
     },
     TextDecoder: TextDecoder,
-    fetch: () => Promise.resolve({
+    // 真实的 rAF 由浏览器按帧调度；这里排队，测试自己决定什么时候放。
+    requestAnimationFrame: (fn) => { frames.push(fn); return frames.length; },
+    fetch: () => (hold ? hold() : Promise.resolve()).then(() => ({
       ok: true,
       status: 200,
       body: {
@@ -58,14 +62,34 @@ function load(chunks, opts) {
           cancel: () => { i = chunks.length; },
         }),
       },
-    }),
+    })),
     console: console,
   };
   ctx.window.document = doc;
   ctx.globalThis = ctx;
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(WEB, 'panel-files.js'), 'utf8'), ctx);
-  return { doc, view, api: ctx.window.flikkyPanels.files, release: () => held && held() };
+  return {
+    doc,
+    view,
+    api: ctx.window.flikkyPanels.files,
+    release: () => held && held(),
+    /** 让下一次 fetch 先等一个由测试控制的 promise，用来观察请求往返期间的状态。 */
+    holdFetch: (fn) => { hold = fn; },
+    /** 追加后续导航要用的响应分片。 */
+    queue: (more) => { chunks.push.apply(chunks, more); },
+    /** 把排着的 rAF 回调全部放完（含它们又排进来的）。 */
+    drainFrames: async () => {
+      let guard = 0;
+      while (frames.length) {
+        const fn = frames.shift();
+        fn(0);
+        await Promise.resolve();
+        guard += 1;
+        if (guard > 5000) throw new Error('rAF chain never terminated');
+      }
+    },
+  };
 }
 
 const tick = async (n = 40) => { for (let k = 0; k < n; k += 1) await Promise.resolve(); };
@@ -91,18 +115,23 @@ async function opened(names) {
 
 test('select all picks every file and skips directories', async () => {
   const c = await opened(['a.txt', 'DCIM/', 'b.txt']);
-  btn(c.view, 'app.files.selectAll').dispatch('click');
+  headerToggle(c.view).dispatch('click');
   await tick();
+  await c.drainFrames();
   assert.equal(selectedRows(c.view).length, 2, 'only the two files may be selected');
   assert.ok(count(c.view).indexOf('2') >= 0, 'count reads: ' + count(c.view));
 });
 
 test('deselect clears everything and hides the toolbar', async () => {
   const c = await opened(['a.txt', 'b.txt']);
-  btn(c.view, 'app.files.selectAll').dispatch('click');
+  headerToggle(c.view).dispatch('click');
   await tick();
-  btn(c.view, 'app.files.deselect').dispatch('click');
+  await c.drainFrames();
+  const close = byClass(toolbar(c.view), 'fk-icon-btn')
+    .find((x) => (x.getAttribute('aria-label') || '').indexOf('app.files.clear') >= 0);
+  close.dispatch('click');
   await tick();
+  await c.drainFrames();
   assert.equal(selectedRows(c.view).length, 0);
   assert.ok(toolbar(c.view).hidden, 'an empty selection must hide the toolbar');
 });
@@ -118,7 +147,7 @@ test('select all is disabled while the listing is still streaming', async () => 
   c.api.setEnabled(true);
   await tick();
   assert.equal(rows(c.view).length, 1, 'only the first chunk should have landed');
-  const sa = btn(c.view, 'app.files.selectAll');
+  const sa = headerToggle(c.view);
   assert.equal(sa.disabled, true, 'select all must be disabled mid-stream');
   c.release();
   await tick();
@@ -133,7 +162,7 @@ test('select all is disabled again when a new navigation starts', async () => {
   c.api.navigate('DCIM');
   await tick(4);
   assert.equal(
-    btn(c.view, 'app.files.selectAll').disabled,
+    headerToggle(c.view).disabled,
     true,
     'a fresh navigation must re-disable select all',
   );
@@ -188,11 +217,12 @@ test('select all is reachable before anything is selected', () => {
   return (async () => {
     const c = await opened(['a.txt', 'b.txt']);
     assert.ok(toolbar(c.view).hidden, 'nothing selected yet, so the toolbar is hidden');
-    const sa = btn(c.view, 'app.files.selectAll');
+    const sa = headerToggle(c.view);
     assert.ok(sa, 'select all must exist outside the selection toolbar');
     assert.equal(sa.disabled, false, 'and it must be usable with an empty selection');
     sa.dispatch('click');
     await tick();
+    await c.drainFrames();
     assert.equal(selectedRows(c.view).length, 2);
   })();
 });
@@ -208,7 +238,7 @@ test('a truncated stream never claims the listing is complete', () => {
     c.api.setEnabled(true);
     await tick();
     assert.equal(
-      btn(c.view, 'app.files.selectAll').disabled,
+      headerToggle(c.view).disabled,
       true,
       'select all must stay disabled after a truncated stream',
     );
@@ -231,10 +261,152 @@ test('clicking select all while incomplete does nothing', () => {
     c.api.mount(c.view);
     c.api.setEnabled(true);
     await tick();
-    btn(c.view, 'app.files.selectAll').dispatch('click');
+    headerToggle(c.view).dispatch('click');
     await tick();
     assert.equal(selectedRows(c.view).length, 0, 'a mid-stream select all must be refused');
     c.release();
     await tick();
+  })();
+});
+
+test('select all is disabled during the request round trip, not just after it', () => {
+  // 装机验收：「全选按钮目前全程可点击，会导致选中逻辑发生未知错误」。
+  //
+  // 门禁 armed 得太晚：`listingComplete = false` 写在 `await fetch(...)` **之后**，
+  // 于是整个请求往返期间它还是上一个目录留下的 true。而那段时间 `lastState` 也还是
+  // 上一个目录的条目 —— 点下去会把**上一个目录**的文件加进选择集，
+  // 而屏幕上是新目录的空列表。
+  //
+  // 这条测试卡在 fetch 尚未 resolve 的那一刻检查，第一版实现过不去。
+  return (async () => {
+    const c = await opened(['a.txt', 'b.txt']);
+    headerToggle(c.view).dispatch('click');
+    await tick();
+    await c.drainFrames();
+    const before = selectedRows(c.view).length;
+    assert.equal(before, 2, 'precondition: the first directory is fully selected');
+
+    // 第二次导航：让 fetch 悬着不 resolve。
+    let releaseFetch = null;
+    c.holdFetch(() => new Promise((resolve) => { releaseFetch = resolve; }));
+    c.api.navigate('DCIM');
+    await tick(4);
+    assert.equal(
+      headerToggle(c.view).disabled,
+      true,
+      'select all must already be disabled while the request is in flight',
+    );
+    assert.ok(releaseFetch, 'the fetch should be held open');
+    releaseFetch();
+    await tick();
+  })();
+});
+
+// ── 两态按钮 / 无可选时隐藏 / 上万行不卡 ──────────────────────────────────────
+
+/** 图标名。icon() 用 `dataset.icon` 存名字，mini-dom 把它落到 data-icon 属性上。 */
+const iconOf = (el) => {
+  const i = byClass(el, 'material-symbols-outlined')[0] || el.children[0];
+  return i ? i.getAttribute('data-icon') : null;
+};
+/** 头部那个按钮**本体**（不按当前 label 找，否则会命中工具栏里的同名按钮）。 */
+const headerToggle = (v) => byClass(byClass(v, 'fk-panel-head')[0], 'fk-icon-btn')
+  .find((b) => iconOf(b) === 'select_all' || iconOf(b) === 'deselect');
+
+test('one header button toggles between select all and deselect', () => {
+  // 用户裁决：全选与取消全选合并为一个两态按钮；工具栏那个换回 close 及其原逻辑。
+  return (async () => {
+    const c = await opened(['a.txt', 'b.txt']);
+    // 抓住**同一个元素**再看它变。按 label 重新找会命中工具栏里的同名按钮 ——
+    // 第一版就是这样过的，测的其实是工具栏那个，不是头部这个在翻面。
+    const b = headerToggle(c.view);
+    assert.ok(b, 'no header toggle found');
+    assert.equal(iconOf(b), 'select_all', 'starts as select all');
+    assert.ok(
+      (b.getAttribute('aria-label') || '').indexOf('app.files.selectAll') >= 0,
+      'label must match the state',
+    );
+
+    b.dispatch('click');
+    await tick();
+    await c.drainFrames();
+    assert.equal(selectedRows(c.view).length, 2);
+    assert.equal(iconOf(b), 'deselect', 'the same element must flip to deselect');
+    assert.ok(
+      (b.getAttribute('aria-label') || '').indexOf('app.files.deselect') >= 0,
+      'and so must its label, or screen readers still say select all',
+    );
+
+    b.dispatch('click');
+    await tick();
+    await c.drainFrames();
+    assert.equal(selectedRows(c.view).length, 0, 'the same button clears');
+    assert.equal(iconOf(b), 'select_all', 'and flips back');
+  })();
+});
+
+test('the toolbar keeps its original close button', () => {
+  // 换回 close：那个动作读起来是「收起这条工具栏」，deselect 图标把它讲成了别的事。
+  return (async () => {
+    const c = await opened(['a.txt']);
+    rows(c.view)[0].dispatch('click');
+    await tick();
+    const tb = byClass(toolbar(c.view), 'fk-icon-btn');
+    const close = tb.find((x) => (x.getAttribute('aria-label') || '').indexOf('app.files.clear') >= 0);
+    assert.ok(close, 'the toolbar must offer the original clear/close button');
+    assert.equal(iconOf(close), 'close', 'and it must be the close icon again');
+    close.dispatch('click');
+    await tick();
+    assert.ok(toolbar(c.view).hidden);
+  })();
+});
+
+test('the toggle is hidden when this folder has nothing selectable', () => {
+  return (async () => {
+    const c = await opened(['DCIM/', 'Music/']);
+    const b = headerToggle(c.view);
+    assert.ok(b, 'the button element should still exist');
+    assert.equal(b.hidden, true, 'a folder of only directories offers nothing to select');
+  })();
+});
+
+test('the toggle reappears once a folder with files is opened', () => {
+  return (async () => {
+    const c = await opened(['DCIM/']);
+    assert.equal(headerToggle(c.view).hidden, true);
+    c.queue([JSON.stringify({ path: 'DCIM' }) + LF + entry('a.jpg') + LF
+      + JSON.stringify({ done: true }) + LF]);
+    c.api.navigate('DCIM');
+    await tick();
+    assert.equal(headerToggle(c.view).hidden, false);
+  })();
+});
+
+test('selecting thousands of rows does not write them all in one go', () => {
+  // 装机验收：「listitem 项非常多的情况下，点击全选会有卡顿」。
+  // 逐个 setAttribute 会触发一次覆盖上万元素的样式重算，全压在一帧里。
+  // 所以写入必须**分帧**：一次点击之后不许把全部行都改完。
+  return (async () => {
+    const names = [];
+    for (let k = 0; k < 3000; k += 1) names.push('f' + k + '.txt');
+    const c = await opened(names);
+    assert.equal(rows(c.view).length, 3000);
+    headerToggle(c.view).dispatch('click');
+    // 只跑微任务，不给 rAF 机会：此刻选择集已满（逻辑瞬时完成），
+    // 但 DOM 只应改了第一块。
+    await tick(4);
+    assert.ok(
+      count(c.view).indexOf('3000') >= 0,
+      'the selection itself must be immediate, got: ' + count(c.view),
+    );
+    const written = selectedRows(c.view).length;
+    assert.ok(
+      written < 3000,
+      'all 3000 rows were written in one shot (' + written + '); that is the freeze',
+    );
+    assert.ok(written > 0, 'but the first chunk must land right away, got ' + written);
+    // 放完所有帧后必须补齐，一行不漏。
+    await c.drainFrames();
+    assert.equal(selectedRows(c.view).length, 3000, 'every row must end up marked');
   })();
 });

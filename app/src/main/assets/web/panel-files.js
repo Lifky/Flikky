@@ -89,7 +89,11 @@
     let listingComplete = false;
 
     let selectAllBtn = null;
+    let selectAllIcon = null;
     let footerEl = null;
+
+    /** 分帧写 aria-selected 的游标；新的一次写入会作废上一次未跑完的。 */
+    let markSeq = 0;
 
     /** 相对路径的层级深度。根为 0。 */
     function depthOf(p) {
@@ -134,14 +138,14 @@
         selectAllBtn.type = 'button';
         selectAllBtn.className = 'fk-icon-btn';
         selectAllBtn.disabled = true;
-        selectAllBtn.setAttribute('aria-label', t('app.files.selectAll'));
-        selectAllBtn.appendChild(icon('select_all'));
+        selectAllIcon = icon('select_all');
+        selectAllBtn.appendChild(selectAllIcon);
         selectAllBtn.addEventListener('click', () => {
             // 真实浏览器不会给 disabled 按钮派发 click，所以这一条在生产里走不到。
             // 留着是防「将来有人改了显隐逻辑却忘了 disabled」，并且它是可测的
             // （测试直接 dispatch，绕过 disabled）。
             if (!listingComplete) return;
-            selectAll();
+            if (allHereSelected()) deselectHere(); else selectAll();
         });
         head.appendChild(selectAllBtn);
 
@@ -170,20 +174,23 @@
         countEl.className = 'fk-toolbar-count';
         toolbarEl.appendChild(countEl);
 
-        // 取消全选。图标从 close 换成 deselect —— 这个动作不是「关掉工具栏」，
-        // 是「把选择清空」，close 会读成前者。
-        const deselect = document.createElement('button');
-        deselect.type = 'button';
-        deselect.className = 'fk-icon-btn';
-        deselect.setAttribute('aria-label', t('app.files.deselect'));
-        deselect.appendChild(icon('deselect'));
-        deselect.addEventListener('click', () => {
+        // 工具栏这个按钮**换回 close 与它原来的语义**（用户裁决 2026-09-03）：
+        // 清空整个选择集（含跨目录攒下的），把工具栏收起来。
+        // 上一版把它改成了 deselect 图标，读起来变成了「取消全选」——
+        // 而「取消全选」已经是头部那个两态按钮的另一面，重复且含义更窄。
+        const clear = document.createElement('button');
+        clear.type = 'button';
+        clear.className = 'fk-icon-btn';
+        clear.setAttribute('aria-label', t('app.files.clear'));
+        clear.appendChild(icon('close'));
+        clear.addEventListener('click', () => {
             selected.clear();
             // 就地更新：清除一次也不该让整个列表闪。
-            rowElements.forEach((el) => el.setAttribute('aria-selected', 'false'));
+            markRows();
             syncToolbar();
+            syncSelectAll();
         });
-        toolbarEl.appendChild(deselect);
+        toolbarEl.appendChild(clear);
 
         const save = document.createElement('button');
         save.type = 'button';
@@ -229,11 +236,9 @@
             if (e.isDir || e.restricted) return;
             selected.add(childPath(e));
         });
-        rowElements.forEach((el, p) => {
-            if (el.getAttribute('aria-selected') === null) return;
-            el.setAttribute('aria-selected', selected.has(p) ? 'true' : 'false');
-        });
+        markRows();
         syncToolbar();
+        syncSelectAll();
     }
 
     /** 按当前选择刷新工具条。选中数为 0 时整条隐藏。 */
@@ -244,9 +249,80 @@
         countEl.textContent = t('app.files.selected', { count: selected.size });
     }
 
-    /** 全选按钮的可用性。与工具栏解耦：它在头部，工具栏隐藏时它照样在。 */
+    /** 当前目录里可被选中的条目（目录与沙箱条目都不算）。 */
+    function selectableHere() {
+        if (!lastState || !Array.isArray(lastState.entries)) return [];
+        return lastState.entries.filter((e) => !e.isDir && !e.restricted);
+    }
+
+    /** 当前目录里可选的都已选中？空目录不算「全选」。 */
+    function allHereSelected() {
+        const here = selectableHere();
+        if (here.length === 0) return false;
+        return here.every((e) => selected.has(childPath(e)));
+    }
+
+    /** 只清**当前目录**的选中项。跨目录攒下的那些不动 —— 那是工具栏 close 的活。 */
+    function deselectHere() {
+        selectableHere().forEach((e) => selected.delete(childPath(e)));
+        markRows();
+        syncToolbar();
+        syncSelectAll();
+    }
+
+    /**
+     * 头部两态按钮的三件事：可用性、显隐、当前是哪一态。
+     *
+     * - **可用性**：列表未完整到达时置禁（流未结束时「全部」没有确定含义）。
+     * - **显隐**：当前目录没有可选条目就整个藏起来 —— 一个点了什么都不会发生的
+     *   按钮不该占位置（全是子目录的文件夹很常见）。
+     * - **两态**：已全选时变成「取消全选」。合成一个按钮是用户裁决：
+     *   两个并排的按钮里总有一个是无效操作。
+     */
     function syncSelectAll() {
-        if (selectAllBtn) selectAllBtn.disabled = !listingComplete;
+        if (!selectAllBtn) return;
+        const here = selectableHere();
+        selectAllBtn.hidden = here.length === 0;
+        selectAllBtn.disabled = !listingComplete;
+        const off = allHereSelected();
+        if (selectAllIcon) selectAllIcon.dataset.icon = off ? 'deselect' : 'select_all';
+        selectAllBtn.setAttribute(
+            'aria-label',
+            t(off ? 'app.files.deselect' : 'app.files.selectAll'),
+        );
+    }
+
+    /**
+     * 把 `selected` 刷到行的 `aria-selected` 上，**分帧写**。
+     *
+     * 为什么不能一把写完：上万行逐个 setAttribute 会触发一次覆盖上万元素的样式重算，
+     * 全压在一帧里 —— 装机验收「点击全选会有卡顿」就是这个。逻辑上的选中是瞬时的
+     * （Set 插入很快，计数立刻就对），慢的只是 DOM 标记，所以把它摊到几帧上。
+     *
+     * `markSeq` 让新的一次写入作废上一次未跑完的，否则连点两下会有两条链交替写。
+     */
+    function markRows() {
+        const seq = ++markSeq;
+        const all = [];
+        rowElements.forEach((el, p) => {
+            if (el.getAttribute('aria-selected') !== null) all.push([el, p]);
+        });
+        const CHUNK = 400;
+        let at = 0;
+        const step = () => {
+            if (seq !== markSeq) return;
+            const end = Math.min(at + CHUNK, all.length);
+            for (let k = at; k < end; k += 1) {
+                const pair = all[k];
+                pair[0].setAttribute('aria-selected', selected.has(pair[1]) ? 'true' : 'false');
+            }
+            at = end;
+            if (at < all.length) {
+                if (typeof requestAnimationFrame === 'function') requestAnimationFrame(step);
+                else step();
+            }
+        };
+        step();
     }
 
     /**
@@ -479,6 +555,8 @@
                 // 就地更新这一行 + 工具条。绝不调 render()——那会重建整个列表。
                 row.setAttribute('aria-selected', selected.has(p) ? 'true' : 'false');
                 syncToolbar();
+                // 手选到最后一行时头部按钮要翻成「取消全选」，反之翻回来。
+                syncSelectAll();
             });
         }
         row.appendChild(trail);
@@ -715,10 +793,6 @@
         let wholeText = canStream ? null : await r.text();
         let buffered = '';
         let sawDone = false;
-        // 新一次导航开始：列表不再完整，全选必须重新置禁 ——
-        // 否则上一个目录留下的「可点」状态会在新目录还在加载时被点到。
-        listingComplete = false;
-        syncSelectAll();
         let count = 0;
         let shellReady = false;
         let pending = [];
@@ -820,6 +894,14 @@
         // 立即前进：面包屑先动、列表区画进度。大目录里服务端要几百毫秒，
         // 没有这一步用户点了什么都不变，以为没点上（App 端同一个问题的浏览器版）。
         loadingPath = target;
+        // 新一次导航开始：列表不再完整，全选立刻置禁。
+        //
+        // 这一步必须在**发请求之前**。第一版写在 loadStreaming 里、`await fetch()`
+        // 之后，于是整个请求往返期间它还是上一个目录留下的 true —— 而那段时间
+        // `lastState` 也还是上一个目录的条目，点下去会把上一个目录的文件加进选择集，
+        // 屏幕上却是新目录的空列表（装机验收：「全选按钮全程可点击」）。
+        listingComplete = false;
+        syncSelectAll();
         renderShell(target);
         setBusy(true);
         try {

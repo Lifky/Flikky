@@ -123,12 +123,13 @@ test('the toolbar appears with a count and hides when cleared', async () => {
   const byLabel = (label) => byClass(toolbar(c.view), 'fk-icon-btn')
     .find((b) => (b.getAttribute('aria-label') || '').indexOf(label) >= 0);
   // 全选**不在**工具栏里：工具栏只在有选中时出现，全选放那里就必须先选一个。
-  // 它在面板头部，专门的守卫在 panel-files-selectall.test.js。
+  // 它在面板头部，且是个两态按钮；专门的守卫在 panel-files-selectall.test.js。
   assert.equal(byLabel('app.files.selectAll'), undefined, 'select all belongs in the header');
+  assert.equal(byLabel('app.files.deselect'), undefined, 'so does its other state');
   assert.ok(byLabel('app.files.saveSelected'), 'the toolbar must offer save');
-  byLabel('app.files.deselect').dispatch('click');
+  byLabel('app.files.clear').dispatch('click');
   await flush();
-  assert.ok(toolbar(c.view).hidden, 'deselecting must hide the toolbar');
+  assert.ok(toolbar(c.view).hidden, 'clearing must hide the toolbar');
 });
 
 test('the selection survives walking into another directory', async () => {

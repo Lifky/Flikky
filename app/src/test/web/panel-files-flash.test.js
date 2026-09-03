@@ -109,11 +109,11 @@ test('clearing the selection also updates in place', async () => {
   rowNamed(c.view, 'a.txt').dispatch('click');
   await flush();
   const before = rows(c.view);
-  // 按 aria-label 取，不按下标（工具栏后来加了全选/取消全选，下标会指错）。
-  const deselect = byClass(byClass(c.view, 'fk-toolbar')[0], 'fk-icon-btn')
-    .find((b) => (b.getAttribute('aria-label') || '').indexOf('app.files.deselect') >= 0);
-  assert.ok(deselect, 'no deselect button in the toolbar');
-  deselect.dispatch('click');
+  // 按 aria-label 取，不按下标（工具栏的按钮增减过两轮，下标会静默指错）。
+  const clear = byClass(byClass(c.view, 'fk-toolbar')[0], 'fk-icon-btn')
+    .find((b) => (b.getAttribute('aria-label') || '').indexOf('app.files.clear') >= 0);
+  assert.ok(clear, 'no clear button in the toolbar');
+  clear.dispatch('click');
   await flush();
   const after = rows(c.view);
   for (let i = 0; i < before.length; i += 1) {
