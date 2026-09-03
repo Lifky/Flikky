@@ -133,6 +133,22 @@
 }
 .fk-group > .fk-item:only-child { border-radius: var(--flikky-listgroup-radius-outer); }
 
+/* 同一组外圆角，但判据是**数据下标**而不是 DOM 位置。
+ *
+ * 文件面板要虚拟化：DOM 里只剩视口附近那几十行，`:first-child` 就不再是「列表
+ * 第一行」—— 滚到中间时会有一行莫名其妙带上外圆角。所以那边由 JS 按下标打
+ * `.is-first` / `.is-last`。收藏面板整份渲染，继续用上面的结构选择器。
+ *
+ * token 与上面逐个对应，所以两套机制画出来一模一样。 */
+.fk-item.is-first {
+  border-start-start-radius: var(--flikky-listgroup-radius-outer);
+  border-start-end-radius: var(--flikky-listgroup-radius-outer);
+}
+.fk-item.is-last {
+  border-end-start-radius: var(--flikky-listgroup-radius-outer);
+  border-end-end-radius: var(--flikky-listgroup-radius-outer);
+}
+
 .fk-item:hover { background: rgb(var(--mdui-color-surface-container-high)); }
 
 /* 按下形变：本行圆角收缩，上下相邻行被挤压（MD3 connected group childSizeChange） */

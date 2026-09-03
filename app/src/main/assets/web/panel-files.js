@@ -598,11 +598,21 @@
      * 文件行**单击整行 = 勾选**（与收藏同交互，也与 App 端一致），
      * 行尾下载按钮 `stopPropagation` 以免顺手勾上。目录行单击 = 进入，不参与勾选。
      */
-    function renderRow(host, entry) {
+    /**
+     * @param index 这一行在**整份列表**里的下标。
+     * @param total 整份列表的行数。
+     *
+     * 首尾外圆角由这两个值决定，**不是** DOM 位置。虚拟化之后 DOM 里只剩视口附近
+     * 那几十行，`:first-child` 就不再是「列表第一行」—— 滚到中间时会有一行莫名其妙
+     * 带上外圆角。收藏面板整份渲染，继续用结构选择器没问题。
+     */
+    function renderRow(host, entry, index, total) {
         const p = childPath(entry);
         const isFile = !entry.isDir && !entry.restricted;
         const row = document.createElement('div');
         row.className = 'fk-item';
+        if (index === 0) row.classList.add('is-first');
+        if (index === total - 1) row.classList.add('is-last');
         if (entry.restricted) row.setAttribute('aria-disabled', 'true');
         // 多选语义用 aria-selected（列表行的正确属性；导航项才是 aria-current）。
         if (isFile) row.setAttribute('aria-selected', selected.has(p) ? 'true' : 'false');
@@ -748,7 +758,7 @@
         // 类名拼错不会报错、不会转红，只会静默退化，与 D31 记的「缺失的 CSS 自定义属性
         // 静默降级」同一形状。守卫见 panel-files.test.js 的「行样式复用收藏那一套」。
         list.className = 'fk-group fk-files-list fk-list-in';
-        state.entries.forEach((entry) => renderRow(list, entry));
+        state.entries.forEach((entry, i) => renderRow(list, entry, i, state.entries.length));
         bodyEl.appendChild(list);
         listEl = list;
         progressEl = null;
@@ -880,8 +890,11 @@
             listEl.setAttribute('data-dir', pendingDir);
             pendingDir = null;
         }
+        const total = lastState && Array.isArray(lastState.entries)
+            ? lastState.entries.length
+            : batchStart + entries.length;
         entries.forEach((entry, i) => {
-            renderRow(listEl, entry);
+            renderRow(listEl, entry, batchStart + i, total);
             const row = listEl.children[batchStart + i];
             if (!row) return;
             // 批内阶梯并**封顶**：上千行不封顶会拖成一场幻灯片。
