@@ -203,7 +203,10 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
      * 真正发送时 `resolveExisting` 会跳过不存在的并报数。
      */
     fun refreshStorage() {
-        openStorageDir(_storageState.value.path)
+        // **必须 force**：这个方法的意义就是「去重新读一遍」。不 force 的话它会命中
+        // 目录缓存、原样放回刚才那份，于是授权完成 / 回到前台都刷不出新内容 ——
+        // 加缓存时差一点就这样悄悄废掉了它。
+        openStorageDir(_storageState.value.path, force = true)
     }
 
     /**

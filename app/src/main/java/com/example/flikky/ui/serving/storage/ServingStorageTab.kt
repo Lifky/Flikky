@@ -30,6 +30,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
@@ -100,6 +101,7 @@ fun ServingStorageTab(
     onOpenDir: (String) -> Unit,
     onToggleSelection: (String) -> Unit,
     onScrollChanged: (Int, Int) -> Unit = { _, _ -> },
+    onRefresh: () -> Unit = {},
     onClearSelection: () -> Unit,
     onSendSelection: () -> Unit,
     modifier: Modifier = Modifier,
@@ -151,7 +153,11 @@ fun ServingStorageTab(
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            StorageBreadcrumb(path = state.path, onNavigate = onOpenDir)
+            StorageBreadcrumb(
+                path = state.path,
+                onNavigate = onOpenDir,
+                onRefresh = onRefresh,
+            )
             // ── 目录切换的方向横移 ──────────────────────────────────────────
             //
             // 进目录从右滑入、返回从左滑入，方向走两端共用的 StorageNavigationDirection。
@@ -279,15 +285,23 @@ fun ServingStorageTab(
  * 当前级不可点。MD3 没有 breadcrumb 组件（本地 44 个组件文档均无），全自绘。
  */
 @Composable
-private fun StorageBreadcrumb(path: String, onNavigate: (String) -> Unit) {
+private fun StorageBreadcrumb(
+    path: String,
+    onNavigate: (String) -> Unit,
+    onRefresh: () -> Unit,
+) {
     // 这里曾有一层 AnimatedContent 让面包屑随路径横移淡入。
     // 2026-09-02 用户裁决去掉：面包屑本来就短、变化幅度小，动效意义不大，
     // 而「我进到别处了」这个空间感由**列表整体**的方向横移表达（见 ServingStorageTab）。
-    StorageBreadcrumbRow(path, onNavigate)
+    StorageBreadcrumbRow(path, onNavigate, onRefresh)
 }
 
 @Composable
-private fun StorageBreadcrumbRow(path: String, onNavigate: (String) -> Unit) {
+private fun StorageBreadcrumbRow(
+    path: String,
+    onNavigate: (String) -> Unit,
+    onRefresh: () -> Unit = {},
+) {
     val rootLabel = stringResource(R.string.serving_storage_root)
     val moreLabel = stringResource(R.string.serving_storage_breadcrumb_more)
     val crumbs = remember(path, rootLabel) { breadcrumbSegments(path, rootLabel) }
@@ -325,6 +339,17 @@ private fun StorageBreadcrumbRow(path: String, onNavigate: (String) -> Unit) {
                 } else {
                     Modifier.padding(Spacing.xs)
                 },
+            )
+        }
+        // 目录缓存刻意不做自动刷新（在子目录待久了父目录可能已变，自动重取会把
+        // 「秒回」变回「每次都等」），代价就是必须给用户一个手动的出口。
+        // 放在面包屑行末尾：它是**当前目录**这一行的动作，与路径同处一行。
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = onRefresh) {
+            Icon(
+                painter = painterResource(R.drawable.ic_refresh),
+                contentDescription = stringResource(R.string.serving_storage_refresh),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

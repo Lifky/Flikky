@@ -603,4 +603,28 @@ class ServingTabsStructureTest {
             tab.contains("listState.isScrollInProgress") && tab.contains("if (!scrolling)"),
         )
     }
+
+    @Test
+    fun `the phone offers a manual refresh, because the cache never expires`() {
+        // 缓存刻意没有任何时效判断（自动重取会把「秒回」变回「每次都等」），
+        // 所以必须有一个手动出口 —— 否则用户永远拿不到变化后的内容。
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        assertTrue(
+            "the storage tab needs a refresh affordance",
+            tab.contains("R.drawable.ic_refresh") && tab.contains("onRefresh"),
+        )
+        assertTrue(
+            "and it must be labelled, or it is an unnamed button to a screen reader",
+            tab.contains("R.string.serving_storage_refresh"),
+        )
+        // refreshStorage 也必须绕过缓存。它是「授权完成 / 回到前台后重新读一遍」，
+        // 不 force 的话会命中缓存、原样放回刚才那份 —— 加缓存时差点悄悄废掉它。
+        val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
+        val refresh = functionBody(vm, "fun refreshStorage(", 4)
+        assertTrue("no refreshStorage body", refresh.isNotEmpty())
+        assertTrue(
+            "refreshStorage must force past the cache; body: $refresh",
+            refresh.contains("force = true"),
+        )
+    }
 }
