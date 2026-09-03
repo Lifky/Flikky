@@ -243,6 +243,32 @@ class StorageNavigationTest {
             out.entries.map { it.relativePath }.toSet().size,
         )
     }
+    @Test
+    fun `begin starts at the top unless a resume position is given`() {
+        val out = StorageNavigation.begin(loaded, "X")
+        assertEquals("-1 means: start from the top", -1, out.restoredScrollIndex)
+        assertEquals(0, out.restoredScrollOffset)
+    }
+
+    @Test
+    fun `begin carries a resume position through`() {
+        // 刷新同一个目录时用它把位置带过去 —— 列表状态是每个目录
+        // 一份的，刷新会先清空再重建，不带位置就弹回顶部。
+        val out = StorageNavigation.begin(loaded, "X", 47, 13)
+        assertEquals(47, out.restoredScrollIndex)
+        assertEquals(13, out.restoredScrollOffset)
+        assertTrue("it is still the start of a listing", out.loading)
+        assertTrue("and the list starts empty", out.entries.isEmpty())
+    }
+
+    @Test
+    fun `an offset without an index is discarded`() {
+        // 偏移量离开下标没有意义。允许它单独存在的话，
+        // 列表会从第 0 项开始、却带着一个莫名其妙的像素偏移。
+        val out = StorageNavigation.begin(loaded, "X", -1, 999)
+        assertEquals(0, out.restoredScrollOffset)
+    }
+
 }
 
 class StorageTravelDirectionTest {

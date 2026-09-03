@@ -145,6 +145,24 @@ class FakeElement {
     return child;
   }
   remove() { if (this.parentNode) this.parentNode.removeChild(this); }
+
+  /**
+   * 真实浏览器里给一个**已经滚动过**的容器赋 `scrollTop` 会触发一次 `scroll`
+   * 事件。这个 double 以前只把它当普通属性，于是「归零 scrollTop 顺手触发了一次
+   * 渲染」这一类缺陷根本测不出来 —— 2026-09-03 装机验收里最严重的那个
+   * （子目录首次进入显示的是父目录的行）就是这么漏过去的。
+   *
+   * 派发必须是**异步**的，和浏览器一样。同步派发反而测不出这个缺陷：
+   * 同步时事件落在 renderShell 中途、还没清完账本，看着人畜无害；
+   * 真实情况是它落在 renderShell **之后** —— 那时新壳已经就位、账本已经清空，
+   * 于是上一个目录的数据被画进了新壳。时序本身就是根因的一部分。
+   */
+  get scrollTop() { return this._scrollTop || 0; }
+  set scrollTop(v) {
+    const prev = this._scrollTop || 0;
+    this._scrollTop = v;
+    if (v !== prev) Promise.resolve().then(() => this.dispatch('scroll'));
+  }
   /** 复用判断要问「这一行已经在它该在的位置上了吗」，所以需要 nextSibling。 */
   get nextSibling() {
     if (!this.parentNode) return null;

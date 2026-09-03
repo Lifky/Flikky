@@ -21,11 +21,16 @@ const dirLine = (n) => JSON.stringify({ name: n, isDir: true, size: 0, mtime: 0,
  *   4. 安全边界：LRU 上限，按目录数与总条目数双卡，防内存无界增长。
  */
 
-function load(responses) {
+function load(responses, opts) {
   const doc = createDocument();
   const view = doc.register('view-files');
   const asked = [];
   const queued = responses.slice();
+  const o = opts || {};
+  // opts.hold：请求 URL 里含这个片段时，把响应体扣住直到测试调 release()。
+  // 用来观察「壳已经换了、数据还没到」那个窗口。
+  let release = () => {};
+  const gate = new Promise((res) => { release = res; });
   const ctx = {
     document: doc,
     window: {
@@ -47,11 +52,13 @@ function load(responses) {
         body: {
           getReader: () => {
             let sent = false;
+            const held = o.hold && String(url).indexOf(o.hold) >= 0;
             return {
               read: () => {
                 if (sent) return Promise.resolve({ value: undefined, done: true });
                 sent = true;
-                return Promise.resolve({ value: Buffer.from(bodyText, 'utf8'), done: false });
+                const chunk = { value: Buffer.from(bodyText, 'utf8'), done: false };
+                return held ? gate.then(() => chunk) : Promise.resolve(chunk);
               },
               cancel: () => {},
             };
@@ -70,6 +77,7 @@ function load(responses) {
     view,
     api: ctx.window.flikkyPanels.files,
     asked,
+    release: () => release(),
     push: (b) => queued.push(b),
   };
 }
@@ -392,4 +400,95 @@ test('deep navigation and back keeps every level addressable', async () => {
   assert.ok(url.indexOf('path=Z') >= 0, 'must ask for Z, asked: ' + url);
   assert.equal(url.indexOf('A') >= 0, false, 'no leftover prefix from the descent: ' + url);
   assert.deepEqual(titles(c.view), ['z.txt'], 'and Z must actually render');
+});
+
+test('a child directory never shows the parent rows it replaced', async () => {
+  // 装机验收（2026-09-03，最严重的一个）：从一个**滚动过的**父目录进入子目录，
+  // 首次进入显示的是父目录的前 N 行，N 正好等于子目录的条目数
+  // （子目录只有 1 项时就只显示父目录第 1 项）。
+  //
+  // 根因：`renderShell` 会把 `bodyEl.scrollTop` 归零，而对一个已经滚动过的
+  // 容器赋值会**触发一次 scroll 事件**。监听里调 `syncVirtual`，而它取数据的
+  // `allEntries()` 读的是 `lastState` —— 那是「最后一次成功的列举」，
+  // 加载期间仍然是**上一个目录**的。于是父目录的行被画进了新壳，
+  // 随后子目录的批次因为「这些下标已经渲染过了」而复用它们，再也不会被替换。
+  //
+  // 父目录必须先滚动过，否则 scrollTop 本来就是 0、赋值不触发事件 ——
+  // 这也正是用户观察到的触发条件。
+  const parent = [];
+  for (let i = 0; i < 60; i += 1) parent.push('p' + i + '/');
+  const c = load([
+    listing('', parent),
+    listing('p0', ['a.txt', 'b.txt', 'c.txt', 'd.txt']),
+  ]);
+  c.api.mount(c.view);
+  const bodyEl = byClass(c.view, 'fk-panel-body')[0];
+  bodyEl.clientHeight = 600;
+  c.api.setEnabled(true);
+  await tick();
+  assert.equal(titles(c.view)[0], 'p0', 'the parent starts at the top');
+
+  // 把父目录滚下去，再进第一个子目录。
+  bodyEl.scrollTop = 400;
+  bodyEl.dispatch('scroll');
+  await tick(6);
+  c.api.navigate('p0');
+  await tick();
+
+  const shown = titles(c.view);
+  assert.deepEqual(
+    shown,
+    ['a.txt', 'b.txt', 'c.txt', 'd.txt'],
+    'the child must show its own entries, not the rows the parent left behind',
+  );
+});
+
+test('a scroll that arrives before the listing renders nothing', async () => {
+  // 上一条的判据是结果；这一条钉住机制：**壳已经换成新目录、但数据还没到**的
+  // 那个窗口里，任何一次 sync 都不许画出行来。
+  const parent = [];
+  for (let i = 0; i < 60; i += 1) parent.push('q' + i + '/');
+  const c = load([listing('', parent), listing('q0', ['x.txt'])], { hold: 'q0' });
+  c.api.mount(c.view);
+  const bodyEl = byClass(c.view, 'fk-panel-body')[0];
+  bodyEl.clientHeight = 600;
+  c.api.setEnabled(true);
+  await tick();
+  bodyEl.scrollTop = 400;
+  bodyEl.dispatch('scroll');
+  await tick(6);
+
+  c.api.navigate('q0');
+  await tick(6);
+  // 数据还被扣着。这时再来一次滚动。
+  bodyEl.dispatch('scroll');
+  await tick(6);
+  assert.deepEqual(
+    titles(c.view),
+    [],
+    'nothing may be rendered for a directory whose listing has not arrived',
+  );
+  c.release();
+  await tick(20);
+  assert.deepEqual(titles(c.view), ['x.txt'], 'and then the real listing shows up');
+});
+
+test('the DOM double fires a scroll event when scrollTop is assigned', async () => {
+  // 这是一条**测试替身自身**的测试，值得单独存在：上面那两条回归测试之所以
+  // 能复现，全靠这个行为。真实浏览器给一个已滚动的容器赋 scrollTop 会异步触发
+  // 一次 scroll；替身以前只把它当普通属性，于是 2026-09-03 那个最严重的缺陷
+  // （子目录首次进入显示父目录的行）在测试里完全看不见。
+  //
+  // 逼红实测：把替身里那一行去掉时零条红 —— 没有任何断言钉着这份保真度。
+  const doc = createDocument();
+  const el = doc.register('probe');
+  let fired = 0;
+  el.addEventListener('scroll', () => { fired += 1; });
+  el.scrollTop = 120;
+  assert.equal(fired, 0, 'it must be asynchronous, like the browser');
+  await tick(2);
+  assert.equal(fired, 1, 'assigning a new scrollTop must fire scroll');
+  el.scrollTop = 120;
+  await tick(2);
+  assert.equal(fired, 1, 'assigning the same value must not fire');
 });

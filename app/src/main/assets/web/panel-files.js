@@ -744,6 +744,9 @@
         shownPath = path || '';
         bodyEl.textContent = '';
         rowElements.clear();
+        // 新壳 = 还没有任何属于它的数据。清掉之后 syncVirtual 画不出任何行，
+        // 直到头行到达把 viewEntries 接上 —— 那次 scroll 事件因此无害。
+        viewEntries = [];
         // 新目录一律从顶部开始。
         //
         // 摘空子节点**不保证**浏览器把 scrollTop 归零：只有新内容比当前滚动偏移
@@ -863,6 +866,21 @@
     let lastState = null;
 
     /**
+     * **正在显示的那个目录**的条目。虚拟化只读这一份。
+     *
+     * 与 `lastState` 不同：`lastState` 是「最后一次成功的列举」，加载期间它仍然是
+     * **上一个目录**的 —— 400 的退回逻辑与选择集都需要它保持这个含义。
+     * 虚拟化读了 lastState 就出了 2026-09-03 那个最严重的缺陷：`renderShell` 把
+     * `scrollTop` 归零会触发一次 scroll 事件（异步，落在新壳就位之后），
+     * 监听里调 syncVirtual，于是把**上一个目录**的行画进了新壳；随后子目录的批次
+     * 又因为「这些下标已经渲染过了」而复用它们，再也不会被替换。
+     *
+     * 头行到达（或缓存命中）时指向那一份，`renderShell` 里清空。
+     * 这是本版第三次同一个教训：**一份状态必须带着「我属于谁」。**
+     */
+    let viewEntries = [];
+
+    /**
      * 处理一次失败的加载。
      *
      * **本函数绝不发新请求。** plan 原案是「400 退回根目录并重拉 / 404 重拉当前目录」，
@@ -929,6 +947,7 @@
         // 就是这一处的顺序写反了。
         currentPath = target;
         lastState = { path: target, entries: entries.slice() };
+        viewEntries = lastState.entries;
         if (entries.length > 0) appendBatch(entries, 0, true);
         listingComplete = true;
         hasLoadedOnce = true;
@@ -943,7 +962,7 @@
 
     /** 全部条目。虚拟化只渲染其中一段，但高度、下标、首尾都按这一份算。 */
     function allEntries() {
-        return lastState && Array.isArray(lastState.entries) ? lastState.entries : [];
+        return viewEntries;
     }
 
     /**
@@ -1057,6 +1076,21 @@
         let anchor = bottomSpacer;
         for (let i = to - 1; i >= from; i -= 1) {
             let el = rendered.get(i);
+            // 下标相同**不等于**内容相同：核对路径，不一致就重建。
+            //
+            // 这是把「行内容与它的下标一致」这个不变量做成**本地**保证。
+            // 另一半保证是 renderShell 里的 `rendered.clear()` —— 那是**远端**的：
+            // 它要求今后每一条换数据的路径都记得复位。而刚修的这个缺陷正是
+            // 「一条我没想到的路径」（异步 scroll 事件），所以本地那一份值得留着。
+            //
+            // 诚实说明：**目前没有任何测试能到达这里** —— 每条换数据的路径都会先过
+            // renderShell。逼红实测：删掉它零条红。留着是因为失败模式是静默的视觉
+            // 损坏（本版已犯三次），而代价是每行一次字符串比较。将来谁加了原地更新
+            // 列表的路径，请连测试一起补上。
+            if (el && renderedPath.get(i) !== childPath(entries[i])) {
+                dropRow(i);
+                el = null;
+            }
             if (!el) {
                 renderRow(listEl, entries[i], i, total);
                 el = listEl.children[listEl.children.length - 1];
@@ -1206,6 +1240,8 @@
                     currentPath = headPath;
                     lastState = { path: headPath, entries: [] };
                     if (headPath !== shownPath) renderShell(headPath);
+                    // renderShell 会清空 viewEntries，所以**必须在它之后**接上。
+                    viewEntries = lastState.entries;
                     shellReady = true;
                     continue;
                 }
@@ -1217,6 +1253,7 @@
                     currentPath = target;
                     lastState = { path: target, entries: [] };
                     renderShell(target);
+                    viewEntries = lastState.entries;
                     shellReady = true;
                 }
                 lastState.entries.push(obj);

@@ -119,55 +119,6 @@ fun ServingStorageTab(
     // 操作条是**悬浮 overlay**，必须作为内容区 Box 的子节点并对齐 BottomCenter。
     // 放进 Scaffold 的 bottomBar 槽位会预留等高空白把列表顶走
     // （FlikkySelectingToolbarOverlay 的 KDoc 记着这个 bug）。
-    val listState = rememberLazyListState()
-
-    /**
-     * 已经为哪个目录恢复过滚动位置了。
-     *
-     * 必须 `rememberSaveable`：普通 `remember` 会跟着离屏销毁一起消失，
-     * 与 effect 的 key 同时重建，等于没有标记。
-     */
-    var restoredFor by rememberSaveable { mutableStateOf("") }
-
-    // ── 回退时把位置放回去 ──────────────────────────────────────────────────
-    //
-    // restoredScrollIndex 为 -1 表示这不是一次恢复（新目录从顶部开始）。
-    // 等 entries 到位再滚：内容还没有的时候 scrollToItem 会被夹在可滚范围里。
-    // 用 `snapshotFlow` 而不是直接在组合里滚 —— 后者会在每次重组时重复执行。
-    LaunchedEffect(state.path, state.restoredScrollIndex, state.entries.size) {
-        val target = state.restoredScrollIndex
-        if (target < 0 || state.entries.isEmpty()) return@LaunchedEffect
-        // **每个目录只恢复一次。**
-        //
-        // HorizontalPager 会把离屏的页从组合里移除。切到「会话」再切回来，
-        // 这个 composable 重新进入组合、effect 的 key 一个没变，于是又跑一遍 ——
-        // 把用户从他刚滚到的位置弹回缓存里记的旧位置。
-        // 而 rememberLazyListState 的位置本身会被 pager 的 SaveableStateHolder 存下来，
-        // 回来时列表本来就在用户离开的地方，不需要也不该再恢复。
-        if (restoredFor == state.path) return@LaunchedEffect
-        restoredFor = state.path
-        listState.scrollToItem(
-            index = target.coerceAtMost(state.entries.size - 1),
-            scrollOffset = state.restoredScrollOffset,
-        )
-    }
-
-    // 位置变化上报给 ViewModel，进缓存时一起存。只在停下来时报，滚动中每帧都报
-    // 会把状态写成一条噪声流。
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.isScrollInProgress }
-            .collect { scrolling ->
-                if (!scrolling) {
-                    // 带上路径：位置属于**哪个目录**必须一起报，否则调用方无从
-                    // 判断这份位置是不是它要存的那个目录的。
-                    onScrollChanged(
-                        state.path,
-                        listState.firstVisibleItemIndex,
-                        listState.firstVisibleItemScrollOffset,
-                    )
-                }
-            }
-    }
 
     val slideProgress = remember { Animatable(1f) }
     val slideSpec = Motion.spatialFast<Float>()
@@ -252,6 +203,42 @@ fun ServingStorageTab(
                 // 同目录内（流式追加、刷新）key 不变，仍然逐项 diff ——
                 // 那才是 animateItem 该管的事。
                 key(state.path) {
+                // 每个目录**一份自己的**滚动状态。
+                //
+                // 放在 composable 顶层的话它跟着面板而不是跟着目录，新目录会直接
+                // 继承上一个目录的 firstVisibleItemIndex —— 装机验收「在父目录往下
+                // 滚 3 行再进子目录，子目录从第 4 项开始显示」就是这个。
+                // 又一次「一份状态没带着它属于谁」。
+                //
+                // 位置由**初值**给定：秒回时给记忆位置，全新目录给 0。于是第一帧
+                // 就在正确位置 —— 不需要事后 scrollToItem，也没有中间帧的跳动，
+                // 而且两套机制争同一个位置的可能性从根上消失了。
+                //
+                // 切 tab 回来时 rememberLazyListState 自己的 saveable 会胜出
+                // （初值只在没有存档时才用），所以用户离开时的位置照样保住。
+                val listState = rememberLazyListState(
+                    initialFirstVisibleItemIndex = state.restoredScrollIndex.coerceAtLeast(0),
+                    initialFirstVisibleItemScrollOffset =
+                        if (state.restoredScrollIndex >= 0) state.restoredScrollOffset else 0,
+                )
+
+                // 位置变化上报给 ViewModel，进缓存时一起存。只在停下来时报，
+                // 滚动中每帧都报会把状态写成一条噪声流。
+                LaunchedEffect(listState) {
+                    snapshotFlow { listState.isScrollInProgress }
+                        .collect { scrolling ->
+                            if (!scrolling) {
+                                // 带上路径：位置属于**哪个目录**必须一起报，
+                                // 否则调用方无从判断这份位置是不是它要存的那个目录的。
+                                onScrollChanged(
+                                    state.path,
+                                    listState.firstVisibleItemIndex,
+                                    listState.firstVisibleItemScrollOffset,
+                                )
+                            }
+                        }
+                }
+
                 LazyColumn(
                     state = listState,
                     modifier = Modifier

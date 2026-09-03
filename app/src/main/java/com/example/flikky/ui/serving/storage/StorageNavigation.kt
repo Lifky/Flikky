@@ -29,12 +29,27 @@ object StorageNavigation {
      *
      * 选择集合原样保留——跨目录累积是它的设计（上游 D5）。
      */
-    fun begin(current: LocalStorageState, requested: String): LocalStorageState =
+    /**
+     * @param resumeIndex 列表建好后该从哪一项开始，-1 表示从头开始。
+     *
+     * 刷新同一个目录时用它把位置带过去：列表状态是每个目录一份的，
+     * 而刷新会让列表先清空再重建 —— 不带位置就会弹回顶部。
+     * 位置走列表的**初值**，不引入第二套事后滚动机制（两套机制争
+     * 同一个位置正是上一版那个 `restoredFor` 标记存在的原因）。
+     */
+    fun begin(
+        current: LocalStorageState,
+        requested: String,
+        resumeIndex: Int = -1,
+        resumeOffset: Int = 0,
+    ): LocalStorageState =
         LocalStorageState(
             path = requested.trim().trim('/'),
             entries = emptyList(),
             selected = current.selected,
             loading = true,
+            restoredScrollIndex = resumeIndex,
+            restoredScrollOffset = if (resumeIndex >= 0) resumeOffset else 0,
         )
 
     /**

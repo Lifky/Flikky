@@ -306,10 +306,24 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
             storageScrollOffset = hit.scrollOffset
             return
         }
+        // 刷新同一个目录时把当前位置带过去。
+        //
+        // 列表状态现在是每个目录一份，而刷新会让列表先清空再重建 ——
+        // 不带位置就会弹回顶部。用户按刷新是想看更新后的内容，
+        // 不是想被弹回顶部。位置仍走 restoredScrollIndex → 列表初值，
+        // 不引入第二套事后滚动机制。
+        val refreshingHere = force && leaving.path == target && storageScrollPath == target
+        val keepIndex = if (refreshingHere) storageScrollIndex else -1
+        val keepOffset = if (refreshingHere) storageScrollOffset else 0
         storageScrollPath = target
-        storageScrollIndex = 0
-        storageScrollOffset = 0
-        _storageState.value = StorageNavigation.begin(_storageState.value, relative)
+        storageScrollIndex = if (refreshingHere) keepIndex else 0
+        storageScrollOffset = if (refreshingHere) keepOffset else 0
+        // 传**规范化后**的 target，不是原始的 relative。
+        // 头行回来的是规范化路径；两者不一致时 `state.path` 会在加载中途
+        // 变一次，而列表正是按它 key 的 —— 刚建好的列表会连同滚动位置
+        // 一起重建，并重放一次方向横移。
+        _storageState.value =
+            StorageNavigation.begin(_storageState.value, target, keepIndex, keepOffset)
         storageJob = viewModelScope.launch {
             var sawHead = false
             storageBrowser.listStream(relative)

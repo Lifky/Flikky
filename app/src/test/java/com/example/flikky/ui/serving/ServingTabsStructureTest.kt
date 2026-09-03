@@ -570,41 +570,6 @@ class ServingTabsStructureTest {
     }
 
     @Test
-    fun `the storage list restores its scroll position and reports changes`() {
-        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
-        assertTrue(
-            "the list needs a hoisted LazyListState to be restorable",
-            tab.contains("rememberLazyListState()") && tab.contains("state = listState"),
-        )
-        // 断言必须**限定在恢复那个 effect 里**。方向横移那个 effect 有一模一样的
-        // `state.entries.isEmpty()) return@LaunchedEffect`，不限定范围的话，
-        // 把恢复的守卫删掉照样全绿（逼红实测：零条红）。
-        val restore = tab.substringAfter(
-            "LaunchedEffect(state.path, state.restoredScrollIndex",
-            "",
-        ).take(500)
-        assertTrue("no restore effect found", restore.isNotEmpty())
-        // 恢复必须等条目到位：内容还没有时 scrollToItem 会被夹在可滚范围里。
-        assertTrue(
-            "restoring must bail out until entries exist; body was: $restore",
-            restore.contains("state.entries.isEmpty()) return@LaunchedEffect"),
-        )
-        assertTrue(
-            "restoring must use the index carried in state, not a guess",
-            restore.contains("state.restoredScrollIndex") || restore.contains("target"),
-        )
-        assertTrue(
-            "and it must actually scroll",
-            restore.contains("scrollToItem("),
-        )
-        // 上报只在停下来时发生。滚动中每帧都报会把状态写成一条噪声流。
-        assertTrue(
-            "position must be reported from isScrollInProgress, on settle only",
-            tab.contains("listState.isScrollInProgress") && tab.contains("if (!scrolling)"),
-        )
-    }
-
-    @Test
     fun `the phone offers a manual refresh, because the cache never expires`() {
         // 缓存刻意没有任何时效判断（自动重取会把「秒回」变回「每次都等」），
         // 所以必须有一个手动出口 —— 否则用户永远拿不到变化后的内容。
@@ -707,32 +672,6 @@ class ServingTabsStructureTest {
     }
 
     @Test
-    fun `the scroll restore runs once per directory, not again after a tab switch`() {
-        // 针对性审查发现（2026-09-03）：HorizontalPager 会把离屏的页从组合里移除。
-        // 切到「会话」再切回来，ServingStorageTab 重新进入组合，那个恢复 effect 的
-        // key 一个没变、于是又跑一遍 —— 把用户从他刚滚到的位置弹回缓存里记的旧位置。
-        //
-        // `rememberLazyListState` 的位置本身能被 pager 的 SaveableStateHolder 存下来，
-        // 所以回来时列表**本来就在**用户离开的地方；恢复只该在真正的秒回那一次跑。
-        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
-        val restore = tab.substringAfter(
-            "LaunchedEffect(state.path, state.restoredScrollIndex",
-            "",
-        ).take(600)
-        assertTrue("no restore effect found", restore.isNotEmpty())
-        assertTrue(
-            "the restore must remember it already ran for this directory; body: $restore",
-            restore.contains("restoredFor"),
-        )
-        // 而且那个标记必须能活过离屏销毁，否则它和 effect 的 key 一起被重建，
-        // 等于没有标记。
-        assertTrue(
-            "the marker must survive the pager disposing this page",
-            tab.contains("rememberSaveable"),
-        )
-    }
-
-    @Test
     fun `changing directory replaces the list instead of diffing it`() {
         // 装机验收 2026-09-03（**第二次**看到行叠着行，与上一次根因不同）：
         //
@@ -751,11 +690,18 @@ class ServingTabsStructureTest {
         val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
         val at = tab.indexOf("LazyColumn(")
         assertTrue("no LazyColumn found", at > 0)
-        val before = tab.substring(maxOf(0, at - 300), at)
+        val keyAt = tab.indexOf("key(state.path)")
+        assertTrue("no key(state.path)", keyAt in 1 until at)
+        // 列表**与它的滚动状态**必须在同一个 per-directory key 块里：
+        // 那才能保证换目录时两者一起重建。
+        val span = tab.substring(keyAt, at)
         assertTrue(
-            "the list must be keyed by path so a directory change replaces it; " +
-                "preceding source was: $before",
-            before.contains("key(state.path)"),
+            "the list state must live in the same key block as the list; span was: $span",
+            span.contains("rememberLazyListState("),
+        )
+        assertTrue(
+            "and nothing may close the key block in between; span was: $span",
+            span.length < 2000,
         )
     }
 
@@ -812,6 +758,106 @@ class ServingTabsStructureTest {
         assertTrue(
             "a size change is spatial motion: $before",
             before.contains("Motion.spatial"),
+        )
+    }
+
+    @Test
+    fun `each directory gets its own list state, starting where it should`() {
+        // 装机验收（2026-09-03，最严重的一个）：在父目录往下滚 3 行再进子目录，
+        // 子目录**从第 4 项开始显示**；退回再进就正常了。
+        //
+        // 根因：`listState` 是在 composable 顶层 remember 的，**跟着面板而不是
+        // 跟着目录**。新目录直接继承上一个目录的 firstVisibleItemIndex，
+        // 而恢复 effect 在 restoredScrollIndex 为 -1（全新目录）时直接 return，
+        // 没人把它归零。又一次「一份状态没带着它属于谁」。
+        //
+        // 修法：把列表状态放进 `key(state.path)`，并用**初值**告诉它该从哪儿开始。
+        // 于是第一帧就在正确位置 —— 不需要事后 scrollToItem，也没有中间帧的跳动。
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        val keyAt = tab.indexOf("key(state.path)")
+        val stateAt = tab.indexOf("rememberLazyListState(")
+        assertTrue("no key(state.path)", keyAt > 0)
+        assertTrue("no rememberLazyListState", stateAt > 0)
+        assertTrue(
+            "the list state must be created inside key(state.path), so a new directory " +
+                "gets a fresh one instead of inheriting the previous directory's position",
+            stateAt > keyAt,
+        )
+        val decl = tab.substring(stateAt, minOf(tab.length, stateAt + 300))
+        assertTrue(
+            "it must start at the remembered position, not at whatever it inherited: $decl",
+            decl.contains("initialFirstVisibleItemIndex"),
+        )
+        assertTrue(
+            "including the offset: $decl",
+            decl.contains("initialFirstVisibleItemScrollOffset"),
+        )
+        // 既然初值就把位置安排好了，事后那套恢复机制就全部多余了。
+        assertFalse(
+            "the post-hoc restore effect must be gone: initial values already place the list, " +
+                "and two mechanisms for one position is how they end up fighting",
+            tab.contains("scrollToItem("),
+        )
+        assertFalse(
+            "and so must its once-per-directory marker",
+            tab.contains("restoredFor"),
+        )
+        // 上报也必须在这个块里 —— 它报的是哪个目录的位置，
+        // 跟着目录才说得通，而且必须带上路径（否则调用方无从判断
+        // 这份位置是不是它要存的那个目录的）。
+        val reportAt = tab.indexOf("onScrollChanged(")
+        assertTrue("no scroll reporting", reportAt > keyAt)
+        val report = tab.substring(reportAt, minOf(tab.length, reportAt + 200))
+        assertTrue("the report must carry its path: $report", report.contains("state.path,"))
+        // 切 tab 回来的那个场景现在是**结构保证**的，HorizontalPager 会把离屏的页
+        // 从组合里移除，而 rememberLazyListState 自己的 saveable 会在回来时胜出
+        // （初值只在没有存档时才用）—— 用户离开时的位置照样保住，
+        // 而且没有第二套机制会把他弹回旧位置。上一版那个
+        // `restoredFor` 标记存在的唯一理由就是抵消那个冲突，现在冲突源头没了。
+    }
+
+    @Test
+    fun `the path a listing starts with is the one the server will confirm`() {
+        // 审查发现（2026-09-03）：`begin` 收到的是**未规范化**的 relative，
+        // 而头行回来的是规范化过的路径。两者不一致时（比如带了尾斜杠）
+        // `state.path` 会在加载中途变一次 —— 而列表现在正是按 `state.path` key 的，
+        // 那会把刚建好的列表连同滚动位置一起重建，并重放一次方向横移。
+        //
+        // 以前这只是一个潜伏的不一致；把路径提升为 key 之后它变成了承重的。
+        val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
+        val open = functionBody(vm, "fun openStorageDir(", 4)
+        assertTrue("no openStorageDir", open.isNotEmpty())
+        assertTrue(
+            "begin must be given the normalised path, the same one the cache and the " +
+                "server round-trip agree on",
+            open.contains("StorageNavigation.begin(_storageState.value, target,")
+                || open.contains("StorageNavigation.begin(_storageState.value, target)"),
+        )
+    }
+
+    @Test
+    fun `refreshing a directory keeps you where you were`() {
+        // 把列表状态改成每个目录一份之后，刷新会让列表先清空
+        // （entries 空 + loading）再重建 —— 不把位置带过去就会弹回顶部。
+        // 用户按刷新是想看更新后的内容，不是想被弹回顶部。
+        //
+        // 位置仍然走 restoredScrollIndex → 列表初值这条路，
+        // 不引入第二套事后滚动机制。
+        val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
+        val open = functionBody(vm, "fun openStorageDir(", 4)
+        assertTrue(
+            "a forced refresh of the same directory must carry the current position over",
+            open.contains("keepIndex") && open.contains("keepOffset"),
+        )
+        assertTrue(
+            "and it must only apply when refreshing the directory you are already in",
+            open.contains("force && leaving.path == target && storageScrollPath == target"),
+        )
+        // 位置必须经由纯函数进入状态 —— 在 ViewModel 里 copy() 会绕过
+        // StorageNavigation 及其测试（旁边那条守卫已经盯着这件事）。
+        assertTrue(
+            "the resume position must be handed to StorageNavigation.begin",
+            open.contains("keepIndex, keepOffset"),
         )
     }
 }

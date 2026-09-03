@@ -3,7 +3,12 @@ package com.example.flikky.ui.serving.storage
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.flikky.data.settings.FlikkySettings
@@ -137,5 +142,36 @@ class StorageRowOverlapTest {
         composeRule.mainClock.autoAdvance = true
         composeRule.waitForIdle()
         assertNoOverlap("after the transition settled")
+    }
+
+    @Test
+    fun aFreshDirectoryStartsAtTheTopEvenIfTheLastOneWasScrolled() {
+        // 装机验收（2026-09-03）：在父目录往下滚几行再进子目录，
+        // 子目录**从第 4 项开始显示**。根因是列表状态跟着面板而不是
+        // 跟着目录，新目录直接继承上一个目录的 firstVisibleItemIndex。
+        //
+        // 这一条只有真实布局能答 —— 源码扫描看不到「列表从第几项开始」。
+        val state = mutableStateOf(
+            LocalStorageState(path = "DCIM", entries = entries("DCIM", 80), loading = false),
+        )
+        content(state)
+        composeRule.waitForIdle()
+
+        // 在父目录往下滚。
+        composeRule.onAllNodesWithTag(StorageRowTestTag, useUnmergedTree = true)
+            .onFirst()
+            .performTouchInput { swipeUp() }
+        composeRule.waitForIdle()
+
+        // 进一个全新的子目录（restoredScrollIndex 保持 -1 = 从头开始）。
+        state.value = LocalStorageState(
+            path = "DCIM/Camera",
+            entries = entries("DCIM/Camera", 80),
+            loading = false,
+        )
+        composeRule.waitForIdle()
+
+        // 第一行必须是子目录的第一项。
+        composeRule.onNodeWithText("f1.txt").assertIsDisplayed()
     }
 }
