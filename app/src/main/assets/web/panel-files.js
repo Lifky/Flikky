@@ -95,6 +95,77 @@
     /** 分帧写 aria-selected 的游标；新的一次写入会作废上一次未跑完的。 */
     let markSeq = 0;
 
+    /**
+     * 目录缓存：`path -> { entries }`。**回退不重新加载。**
+     *
+     * `Map` 保持插入序，命中时删了再插，于是它天然就是一条 LRU 链，
+     * 淘汰只需取 `keys().next()`。
+     *
+     * ## 只缓存完整的列表
+     *
+     * 被截断的流（休眠 / Wi-Fi 切换 / 服务端读到一半失败）绝不入缓存。
+     * 否则「秒回」会永远回一份残缺的列表，而用户再也见不到完整的那份。
+     *
+     * ## 刻意不做自动刷新
+     *
+     * 用户在子目录待久了，父目录可能已经变了。这里**不**自动重取（那会把「秒回」
+     * 变回「每次都等」），而是给一个手动刷新按钮 —— 用户裁决 2026-09-03。
+     */
+    const dirCache = new Map();
+
+    /** `path -> scrollTop`。与列表内容分开存：位置恢复是 UI 层的事。 */
+    const scrollMemory = new Map();
+
+    /**
+     * 安全边界：两个上限都要卡。
+     *
+     * 只卡目录数不行 —— 32 个各含一万条的目录一样会撑爆内存；
+     * 只卡总条目数也不行 —— 会让极多的小目录把 Map 撑得很长。
+     */
+    const CACHE_MAX_DIRS = 32;
+    const CACHE_MAX_ENTRIES = 20000;
+
+    let cachedEntryCount = 0;
+
+    function cacheDrop(path) {
+        const hit = dirCache.get(path);
+        if (!hit) return;
+        cachedEntryCount -= hit.entries.length;
+        dirCache.delete(path);
+    }
+
+    function cacheStore(path, entries) {
+        cacheDrop(path);
+        // 单个目录就超过总上限时不缓存它 —— 存进去会把其他所有目录挤光，
+        // 而它自己下次也一定被淘汰，白占一轮。
+        if (entries.length > CACHE_MAX_ENTRIES) return;
+        dirCache.set(path, { entries: entries.slice() });
+        cachedEntryCount += entries.length;
+        while (
+            dirCache.size > CACHE_MAX_DIRS
+            || cachedEntryCount > CACHE_MAX_ENTRIES
+        ) {
+            const oldest = dirCache.keys().next();
+            if (oldest.done || oldest.value === path) break;
+            cacheDrop(oldest.value);
+        }
+    }
+
+    function cacheClear() {
+        dirCache.clear();
+        scrollMemory.clear();
+        cachedEntryCount = 0;
+    }
+
+    /** 记下当前显示目录的滚动位置，供回退时恢复。 */
+    function rememberScroll() {
+        if (!bodyEl || typeof shownPath !== 'string') return;
+        // 只在真的画过内容之后记。刚建壳、还没有行的时候 scrollTop 必然是 0，
+        // 记下去会把用户在这个目录的真实位置覆盖成 0。
+        if (!listEl || listEl.children.length === 0) return;
+        scrollMemory.set(shownPath, bodyEl.scrollTop || 0);
+    }
+
     /** 相对路径的层级深度。根为 0。 */
     function depthOf(p) {
         if (!p) return 0;
@@ -148,6 +219,20 @@
             if (allHereSelected()) deselectHere(); else selectAll();
         });
         head.appendChild(selectAllBtn);
+
+        // 刷新。**与收藏面板那个逐字同形**（同 .fk-icon-btn、同 refresh 图标、
+        // 同槽位——紧挨折叠按钮之前），所以视觉零差异。
+        //
+        // 目录缓存刻意不做自动刷新（用户在子目录待久了父目录可能已变，自动重取
+        // 会把「秒回」变回「每次都等」），代价就是必须给用户一个手动的出口。
+        // 它带 force：绕过缓存，真的去网络取。
+        const refresh = document.createElement('button');
+        refresh.type = 'button';
+        refresh.className = 'fk-icon-btn';
+        refresh.setAttribute('aria-label', t('app.files.refresh'));
+        refresh.appendChild(icon('refresh'));
+        refresh.addEventListener('click', () => { load(currentPath, true); });
+        head.appendChild(refresh);
 
         const collapse = document.createElement('button');
         collapse.type = 'button';
@@ -591,6 +676,13 @@
         shownPath = path || '';
         bodyEl.textContent = '';
         rowElements.clear();
+        // 新目录一律从顶部开始。
+        //
+        // 摘空子节点**不保证**浏览器把 scrollTop 归零：只有新内容比当前滚动偏移
+        // 还矮时它才被动夹回去。进入一个同样很高的目录时会停在半路，
+        // 用户看到的是列表中段而不是开头。回退时的位置恢复在 renderFromCache 里,
+        // 发生在内容铺好之后，所以这里归零不会把它覆盖掉。
+        bodyEl.scrollTop = 0;
         // 页脚与 DOM 同生同死：忘了清会让引用指向已经摘掉的节点。
         footerEl = null;
         renderBreadcrumb(bodyEl, path || '');
@@ -735,7 +827,31 @@
      *
      * [batchStart] 是这一批在整份列表里的起始序号，用来给每行设 `--i`（批内阶梯）。
      */
-    function appendBatch(entries, batchStart) {
+    /**
+     * 从缓存重建当前目录：不发请求，画完立刻把滚动位置放回去。
+     *
+     * 一次性把行全铺上（而不是分批），因为数据早就在内存里 —— 分批只会把渲染
+     * 拆成多帧、总时长不变，还让滚动恢复没法一步到位：恢复 scrollTop 需要内容
+     * 已经有完整高度，否则会被夹到当前可滚动范围里。
+     */
+    function renderFromCache(target, entries) {
+        loadingPath = null;
+        renderShell(target);
+        if (entries.length > 0) appendBatch(entries, 0, true);
+        lastState = { path: target, entries: entries.slice() };
+        currentPath = target;
+        listingComplete = true;
+        hasLoadedOnce = true;
+        setBusy(false);
+        syncSelectAll();
+        syncToolbar();
+        syncFooter();
+        // 内容已就位、高度已确定，这时候放回滚动位置才不会被夹。
+        const at = scrollMemory.get(target);
+        if (bodyEl && typeof at === 'number') bodyEl.scrollTop = at;
+    }
+
+    function appendBatch(entries, batchStart, restored) {
         if (!listEl) return;
         // 第一批到达才启动方向横移 —— 这时容器里马上就有内容可以动了。
         if (pendingDir) {
@@ -749,7 +865,9 @@
             // 批内阶梯并**封顶**：上千行不封顶会拖成一场幻灯片。
             // 复用 chat.css 的 --flikky-stagger（含 --flikky-motion-scale，
             // 于是 reduce-motion 下自动归零）；带 fallback 以免硬依赖那个文件。
-            row.style.setProperty('--i', String(Math.min(i, STAGGER_CAP)));
+            // 从缓存恢复时阶梯归零：几千行是**同时**到位的，给它们排延迟等于把
+            // 「秒回」变成一场幻灯片。方向横移仍然生效 —— 那是一个容器动画。
+            row.style.setProperty('--i', restored ? '0' : String(Math.min(i, STAGGER_CAP)));
         });
     }
 
@@ -877,6 +995,11 @@
         // 只有真的收到 done 行才算完整。被截断时全选保持置禁 —— 那时「全部」
         // 确实是未知的，页脚也仍然显示「正在载入 N 项」而不是骗人的「共 N 项」。
         listingComplete = sawDone;
+        // **只缓存完整的列表**：被截断的那份存进去会让「秒回」永远回一份残缺的，
+        // 而用户再也见不到完整的那一份。
+        if (sawDone && lastState && typeof lastState.path === 'string') {
+            cacheStore(lastState.path, lastState.entries);
+        }
         syncSelectAll();
         syncToolbar();
         syncFooter();
@@ -884,13 +1007,24 @@
         return true;
     }
 
-    async function load(relativePath) {
+    async function load(relativePath, force) {
         // 开关关闭时一律不请求。这是缺陷 1b 的正面修法：服务端按 D33 返回 404
         // 且刻意不带 code（不暴露「功能存在但被关」），所以客户端分不清
         // 「功能被关」与「路径不存在」——那就别让它撞上。
         if (!enabled) return;
         const target = relativePath || '';
+        // 离开当前目录之前记下滚动位置 —— 回退时要恢复到这里。
+        rememberScroll();
         const seq = ++requestSeq;
+        if (force) cacheDrop(target);
+        const cached = dirCache.get(target);
+        if (cached) {
+            // 命中：一个请求都不发。重新插一次把它挪到 LRU 链尾。
+            dirCache.delete(target);
+            dirCache.set(target, cached);
+            renderFromCache(target, cached.entries);
+            return;
+        }
         // 立即前进：面包屑先动、列表区画进度。大目录里服务端要几百毫秒，
         // 没有这一步用户点了什么都不变，以为没点上（App 端同一个问题的浏览器版）。
         loadingPath = target;
@@ -954,6 +1088,8 @@
             selected.clear();
             listingComplete = false;
             footerEl = null;
+            // 开关关掉就丢缓存：再打开时必须重新取，不能拿关闭期间的旧列表糊弄。
+            cacheClear();
             syncSelectAll();
             render(lastState);
             return;
@@ -972,7 +1108,12 @@
     window.flikky.renderFilesPanel = render;
     window.flikky.navigateStorage = navigate;
     /** 断线重连后必须回根目录：服务端可能已换手机、换授权状态。 */
-    window.flikky.resetStorageBrowser = function () { currentPath = ''; lastState = null; };
+    window.flikky.resetStorageBrowser = function () {
+        currentPath = '';
+        lastState = null;
+        // 重连是另一台手机 / 另一次会话，旧目录内容一律不可信。
+        cacheClear();
+    };
 
     const host = document.getElementById('view-files');
     if (host) mount(host);
