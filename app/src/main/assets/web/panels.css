@@ -222,12 +222,29 @@
     background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
     border-radius var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default);
 }
-.fk-icon-btn:hover { background: rgba(var(--mdui-color-on-surface), .08); }
-.fk-icon-btn:active {
+.fk-icon-btn:hover:not(:disabled) { background: rgba(var(--mdui-color-on-surface), .08); }
+.fk-icon-btn:active:not(:disabled) {
   background: rgba(var(--mdui-color-on-surface), .12);
   border-radius: var(--flikky-morph-round-pressed);
   transition: border-radius var(--flikky-morph-press-dur) var(--flikky-morph-press-ease);
 }
+/* 禁用态。`disabled` 属性本来就设着（点了确实没反应），但**没有任何样式** ——
+ * 于是它看起来完全可点，`:hover` 和 `:active` 还照样给反馈，比单纯少个灰化更糟：
+ * 界面在主动说「这里能点」。装机验收原话：「虽然看起来点击后没有任何反应，
+ * 但还是建议将它改为 disable 状态，显式的无法点击」。
+ *
+ * 数值照 MD3、也照本项目 pages.css 里 `.fk-btn:disabled` 的既有处理：
+ * 内容 on-surface 38%，填充变体的容器 12%。 */
+.fk-icon-btn:disabled {
+  color: rgba(var(--mdui-color-on-surface), .38);
+  background: none;
+  cursor: default;
+}
+.fk-icon-btn--filled:disabled {
+  background: rgba(var(--mdui-color-on-surface), .12);
+  color: rgba(var(--mdui-color-on-surface), .38);
+}
+
 .fk-icon-btn--filled {
   background: rgb(var(--mdui-color-secondary-container));
   color: rgb(var(--mdui-color-on-secondary-container));
@@ -331,8 +348,22 @@
    分隔符用官方 chevron_right 图标而非文本 › —— 文本字符的宽度与基线在不同
    字体/语言下不稳定，且项目红线要求所有 icon 走官方库。
    `.fk-item` 族一行都没动：文件行逐槽位复用它，视觉与文件总览页零差异。 */
+/* 面包屑**吸顶**：滚到任何位置都能知道自己在哪一层（装机验收 2026-09-03）。
+ *
+ * sticky 只相对最近的滚动祖先生效，这里是 `.fk-panel-body`（overflow-y: auto），
+ * 面包屑正是 renderBreadcrumb 塞进它里面的。移出去 sticky 就静默失效 ——
+ * CSS 不会报错，所以那个前提在 panel-files-chrome.test.js 里单独钉着。
+ *
+ * 背景与 z-index 都是必需的：不给背景，滚上来的行会从它下面透出来；
+ * 不给 z-index，行的 `:active` transform 会创建层叠上下文并盖在它上面。
+ * 左右用负 margin + 同额 padding 撑满，否则行的边缘会从两侧露出来。 */
 .fk-crumbs {
-  padding: var(--flikky-space-sm) 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 calc(-1 * var(--flikky-space-xxl));
+  padding: var(--flikky-space-sm) var(--flikky-space-xxl);
+  background: rgb(var(--mdui-color-surface));
 }
 .fk-crumbs ol {
   display: flex;
