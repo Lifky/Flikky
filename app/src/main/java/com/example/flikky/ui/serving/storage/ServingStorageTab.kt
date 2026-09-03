@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +39,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -97,6 +99,7 @@ fun ServingStorageTab(
     summary: StorageSelectionSummary,
     onOpenDir: (String) -> Unit,
     onToggleSelection: (String) -> Unit,
+    onScrollChanged: (Int, Int) -> Unit = { _, _ -> },
     onClearSelection: () -> Unit,
     onSendSelection: () -> Unit,
     modifier: Modifier = Modifier,
@@ -108,6 +111,37 @@ fun ServingStorageTab(
     // 操作条是**悬浮 overlay**，必须作为内容区 Box 的子节点并对齐 BottomCenter。
     // 放进 Scaffold 的 bottomBar 槽位会预留等高空白把列表顶走
     // （FlikkySelectingToolbarOverlay 的 KDoc 记着这个 bug）。
+    val listState = rememberLazyListState()
+
+    // ── 回退时把位置放回去 ──────────────────────────────────────────────────
+    //
+    // restoredScrollIndex 为 -1 表示这不是一次恢复（新目录从顶部开始）。
+    // 等 entries 到位再滚：内容还没有的时候 scrollToItem 会被夹在可滚范围里。
+    // 用 `snapshotFlow` 而不是直接在组合里滚 —— 后者会在每次重组时重复执行。
+    LaunchedEffect(state.path, state.restoredScrollIndex, state.entries.size) {
+        val target = state.restoredScrollIndex
+        if (target < 0 || state.entries.isEmpty()) return@LaunchedEffect
+        if (listState.firstVisibleItemIndex == target) return@LaunchedEffect
+        listState.scrollToItem(
+            index = target.coerceAtMost(state.entries.size - 1),
+            scrollOffset = state.restoredScrollOffset,
+        )
+    }
+
+    // 位置变化上报给 ViewModel，进缓存时一起存。只在停下来时报，滚动中每帧都报
+    // 会把状态写成一条噪声流。
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }
+            .collect { scrolling ->
+                if (!scrolling) {
+                    onScrollChanged(
+                        listState.firstVisibleItemIndex,
+                        listState.firstVisibleItemScrollOffset,
+                    )
+                }
+            }
+    }
+
     val slideProgress = remember { Animatable(1f) }
     val slideSpec = Motion.spatialFast<Float>()
     val slideDistance = with(LocalDensity.current) { Spacing.xl.toPx() }
@@ -163,6 +197,7 @@ fun ServingStorageTab(
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {

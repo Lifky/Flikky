@@ -540,4 +540,67 @@ class ServingTabsStructureTest {
         // 一直在变，每来一批都会被当成「删旧加新」，animateItem 跟着演一遍淡出淡入。
         assertTrue("the footer needs a stable key", tab.contains("FOOTER_KEY"))
     }
+
+    @Test
+    fun `going back to a visited directory uses the cache instead of re-enumerating`() {
+        // 用户 2026-09-03 第 7 条：「回退不重新加载，状态完美恢复」。
+        // StorageDirectoryCacheTest 管缓存本身的判据；这一条管**它真的被用上了**。
+        val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
+        val open = functionBody(vm, "fun openStorageDir(", 4)
+        assertTrue("no openStorageDir body found", open.isNotEmpty())
+        // 命中缓存必须在**起协程之前**就返回，否则还是会去枚举文件系统。
+        val beforeLaunch = open.substringBefore("viewModelScope.launch")
+        assertTrue(
+            "the cache must be consulted before any coroutine is started; head was: $beforeLaunch",
+            beforeLaunch.contains("storageCache.get("),
+        )
+        assertTrue(
+            "a hit must return early rather than fall through to the stream",
+            beforeLaunch.contains("return"),
+        )
+        // 只存完整的那份：加载中或空的列表存进去会让「秒回」回一份残缺的。
+        assertTrue(
+            "only a settled listing may be cached",
+            beforeLaunch.contains("!leaving.loading"),
+        )
+        // 手动刷新必须绕过缓存，否则那个按钮什么也刷不了。
+        val refresh = functionBody(vm, "fun refreshStorageDir(", 4)
+        assertTrue("no refreshStorageDir", refresh.isNotEmpty())
+        assertTrue("refresh must force past the cache", refresh.contains("force = true"))
+    }
+
+    @Test
+    fun `the storage list restores its scroll position and reports changes`() {
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        assertTrue(
+            "the list needs a hoisted LazyListState to be restorable",
+            tab.contains("rememberLazyListState()") && tab.contains("state = listState"),
+        )
+        // 断言必须**限定在恢复那个 effect 里**。方向横移那个 effect 有一模一样的
+        // `state.entries.isEmpty()) return@LaunchedEffect`，不限定范围的话，
+        // 把恢复的守卫删掉照样全绿（逼红实测：零条红）。
+        val restore = tab.substringAfter(
+            "LaunchedEffect(state.path, state.restoredScrollIndex",
+            "",
+        ).take(500)
+        assertTrue("no restore effect found", restore.isNotEmpty())
+        // 恢复必须等条目到位：内容还没有时 scrollToItem 会被夹在可滚范围里。
+        assertTrue(
+            "restoring must bail out until entries exist; body was: $restore",
+            restore.contains("state.entries.isEmpty()) return@LaunchedEffect"),
+        )
+        assertTrue(
+            "restoring must use the index carried in state, not a guess",
+            restore.contains("state.restoredScrollIndex") || restore.contains("target"),
+        )
+        assertTrue(
+            "and it must actually scroll",
+            restore.contains("scrollToItem("),
+        )
+        // 上报只在停下来时发生。滚动中每帧都报会把状态写成一条噪声流。
+        assertTrue(
+            "position must be reported from isScrollInProgress, on settle only",
+            tab.contains("listState.isScrollInProgress") && tab.contains("if (!scrolling)"),
+        )
+    }
 }

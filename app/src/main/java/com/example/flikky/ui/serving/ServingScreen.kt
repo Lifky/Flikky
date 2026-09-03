@@ -357,6 +357,7 @@ fun ServingScreen(
                         summary = storageSummary,
                         onOpenDir = { viewModel.openStorageDir(it) },
                         onToggleSelection = { viewModel.toggleStorageSelection(it) },
+                        onScrollChanged = { i, o -> viewModel.rememberStorageScroll(i, o) },
                         onClearSelection = { viewModel.clearStorageSelection() },
                         onSendSelection = { viewModel.sendStorageSelection() },
                         modifier = Modifier.fillMaxSize(),

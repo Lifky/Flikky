@@ -84,6 +84,15 @@ data class LocalStorageState(
      * UI 侧靠 `remember` 去猜会在重组或配置变更后错位。
      */
     val lastBatchStart: Int = 0,
+
+    /**
+     * 从缓存恢复时要滚回哪里（列表下标 + 该行内的像素偏移）。
+     *
+     * `-1` 表示「不是恢复，从顶部开始」。用下标而不是像素滚动量：LazyColumn 的
+     * 行高不定，同一个像素值在不同字号 / 屏幕上指向不同的行。
+     */
+    val restoredScrollIndex: Int = -1,
+    val restoredScrollOffset: Int = 0,
 )
 
 /**

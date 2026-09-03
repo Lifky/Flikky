@@ -13,6 +13,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flikky.R
+import com.example.flikky.ui.serving.storage.StorageDirectoryCache
 import com.example.flikky.ui.serving.storage.LocalStorageBrowser
 import com.example.flikky.ui.serving.storage.LocalStorageState
 import com.example.flikky.ui.serving.storage.StorageChunk
@@ -185,6 +186,13 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
      */
     private var storageJob: Job? = null
 
+    /** 逛过的目录留一份，回退时秒回。刻意不做时效判断，见 StorageDirectoryCache。 */
+    private val storageCache = StorageDirectoryCache()
+
+    /** 当前目录的滚动位置，由 UI 报上来；进缓存时一起存。 */
+    private var storageScrollIndex = 0
+    private var storageScrollOffset = 0
+
     /** 最后一次**成功**的列举结果。失败时退回它，见 [StorageNavigation.settle]。 */
     private var lastGoodStorage = LocalStorageState(path = "", entries = emptyList())
 
@@ -205,8 +213,55 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
      * 列举在 [Dispatchers.IO] 上跑（不冻主线程）、发起前**取消上一次**（旧结果绝不后到）。
      * 迁移规则见 [StorageNavigation]，那三条容易写错的分支在 `test/` 里穷举。
      */
-    fun openStorageDir(relative: String) {
+    /**
+     * 记下当前目录的滚动位置。UI 在滚动停下时报上来（`index` + `offset`，
+     * 而不是像素——LazyColumn 的行高不定，像素没有意义）。
+     */
+    fun rememberStorageScroll(index: Int, offset: Int) {
+        storageScrollIndex = index
+        storageScrollOffset = offset
+    }
+
+    /** 手动刷新当前目录：绕过缓存，真的重新枚举。 */
+    fun refreshStorageDir() {
+        openStorageDir(_storageState.value.path, force = true)
+    }
+
+    fun openStorageDir(relative: String, force: Boolean = false) {
         storageJob?.cancel()
+        val target = relative.trim().trim('/')
+        // 离开之前把当前目录的内容与位置存进缓存 —— 回退时就是靠这一份秒回。
+        // 只存**完整**的那份：被取消或失败的列举存进去会让「秒回」永远回一份残缺的。
+        val leaving = _storageState.value
+        if (!leaving.loading && leaving.entries.isNotEmpty()) {
+            storageCache.put(
+                path = leaving.path,
+                entries = leaving.entries,
+                scrollIndex = storageScrollIndex,
+                scrollOffset = storageScrollOffset,
+            )
+        }
+        if (force) storageCache.clear()
+        val hit = if (force) null else storageCache.get(target)
+        if (hit != null) {
+            // 命中：不起协程、不碰文件系统。
+            val restored = LocalStorageState(
+                path = target,
+                entries = hit.entries,
+                selected = leaving.selected,
+                loading = false,
+                lastBatchStart = hit.entries.size,
+                restoredScrollIndex = hit.scrollIndex,
+                restoredScrollOffset = hit.scrollOffset,
+            )
+            _storageState.value = restored
+            lastGoodStorage = restored
+            storageScrollIndex = hit.scrollIndex
+            storageScrollOffset = hit.scrollOffset
+            return
+        }
+        storageScrollIndex = 0
+        storageScrollOffset = 0
         _storageState.value = StorageNavigation.begin(_storageState.value, relative)
         storageJob = viewModelScope.launch {
             var sawHead = false
