@@ -758,4 +758,60 @@ class ServingTabsStructureTest {
             before.contains("key(state.path)"),
         )
     }
+
+    @Test
+    fun `changing directory slides without fading through emptiness`() {
+        // 装机验收（2026-09-03）：「App 端进出文件夹路径时，
+        // 好像 listitem 整体闪了一下」。
+        //
+        // 根因是上一轮为了修「行叠行」加的 `key(state.path)`：
+        // 它把旧列表**一帧内**销毁，而新列表的方向横移是从
+        // `alpha = 0` 起步的 —— 于是第一帧是空的。两个单独都对的
+        // 决定碰在一起产生了第三个现象。
+        //
+        // 保留位移（空间感就靠它），去掉淡入：新列表从第一帧就是
+        // 不透明的，只是从旁边滑过来。
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        val at = tab.indexOf("graphicsLayer {")
+        assertTrue("no graphicsLayer on the list", at > 0)
+        val layer = tab.substring(at, minOf(tab.length, at + 300))
+        assertTrue(
+            "the directional slide must still translate: $layer",
+            layer.contains("translationX"),
+        )
+        assertFalse(
+            "it must not fade: with the list keyed per directory the old rows are already " +
+                "gone, so fading in from zero shows an empty frame. Layer was: $layer",
+            layer.contains("alpha"),
+        )
+    }
+
+    @Test
+    fun `the loading bar collapses instead of vanishing`() {
+        // 装机验收：「进度条收回的效果在 App 端上好像没有效果」。
+        // 确实没有 —— 上一轮只做了浏览器端。
+        //
+        // 这里的 AnimatedVisibility 是安全的：它在 LazyColumn **之外**，
+        // 不是 lazy item，不会触发那条零高度禁令（守卫见
+        // LazyItemHeightConventionTest，它只管 items(...) 的正文）。
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        val at = tab.indexOf("LinearProgressIndicator")
+        assertTrue("no progress indicator", at > 0)
+        val before = tab.substring(maxOf(0, at - 400), at)
+        assertTrue(
+            "the bar must animate in and out rather than appear and vanish; " +
+                "preceding source was: $before",
+            before.contains("AnimatedVisibility"),
+        )
+        // 高度必须参与：只淡入淡出的话，下面的列表仍然硬跳一整条的高度。
+        assertTrue(
+            "the collapse must animate height, or the list still jumps: $before",
+            before.contains("expandVertically") && before.contains("shrinkVertically"),
+        )
+        // 弹簧走 spatial（带位移），与主页 chips 分组同一档。
+        assertTrue(
+            "a size change is spatial motion: $before",
+            before.contains("Motion.spatial"),
+        )
+    }
 }

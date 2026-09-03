@@ -6,6 +6,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.background
@@ -202,7 +205,18 @@ fun ServingStorageTab(
             // 流式列举期间进度条一直在，但**不再挡住列表**：只要已经有行到达就把它
             // 收成顶部一条细线，行照常显示并继续向下生长。
             // 首版是「loading 就整片显示进度条」，那与流式追加冲突——列表永远看不见。
-            if (state.loading) {
+            // 加载完成时**向上缩回**，而不是硬切消失：硬切的话下面的列表会瞬间
+            // 跳上来一整条的高度。高度参与动画（只淡出的话列表照样硬跳），
+            // 弹簧走 spatial —— 与主页 chips 分组的显隐同一档。
+            //
+            // 这里的 AnimatedVisibility 是安全的：它在 LazyColumn **之外**，
+            // 不是 lazy item，所以不会踩那条「零高度破坏视口填充」的禁令
+            // （守卫 LazyItemHeightConventionTest 只管 items(...) 的正文）。
+            AnimatedVisibility(
+                visible = state.loading,
+                enter = expandVertically(Motion.spatial()) + fadeIn(Motion.effects()),
+                exit = shrinkVertically(Motion.spatial()) + fadeOut(Motion.effectsFast()),
+            ) {
                 LinearProgressIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -243,8 +257,15 @@ fun ServingStorageTab(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
+                            // 只位移，**不淡入**。
+                            //
+                            // 列表按路径 key 之后旧行是一帧内销毁的，再从 alpha = 0
+                            // 起淡入就会露出一个空帧 —— 装机验收「进出文件夹时
+                            // listitem 整体闪了一下」。两个单独都对的决定
+                            // （key 掉旧列表、横移带淡入）碰在一起产生了第三个现象。
+                            //
+                            // 空间感本来就靠位移给，淡入是多余的那一半。
                             translationX = (1f - slideProgress.value) * slideDistance * slideSign
-                            alpha = slideProgress.value
                         },
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                     // 底部留出浮动操作条的高度，否则最后一行永远被它压住、选不到。
