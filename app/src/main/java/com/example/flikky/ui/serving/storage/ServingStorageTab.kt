@@ -42,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -222,6 +223,20 @@ fun ServingStorageTab(
                     )
                 }
             } else {
+                // 按路径 key：**不同目录的行不是同一个列表。**
+                //
+                // 少了这个 key，换目录会被当成「旧目录全部删除 + 新目录全部插入」，
+                // 而 `animateItem` 的 fadeOutSpec 会把消失的 item 继续组合、
+                // 画在它原来的偏移上直到淡出跑完 —— 同一帧里两份列表都在画，
+                // 偏移还不同，看起来就是两份列表错位叠着（装机验收两次都看到这个）。
+                //
+                // 加缓存之前这条路走不到：换目录会先经过 `entries.isEmpty() && loading`
+                // 那个分支，那里整个 LazyColumn 都不在，旧行是直接销毁的。缓存让状态
+                // 从「A 的条目」直接变成「B 的条目」，一个此前不存在的转换。
+                //
+                // 同目录内（流式追加、刷新）key 不变，仍然逐项 diff ——
+                // 那才是 animateItem 该管的事。
+                key(state.path) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
@@ -282,6 +297,7 @@ fun ServingStorageTab(
                                 ),
                         )
                     }
+                }
                 }
             }
         }

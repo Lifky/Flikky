@@ -146,11 +146,22 @@ test('the row entrance animation is per row and staggered, not one group fade', 
 
 test('reduced motion disables the row entrance', () => {
   const css = scan.stripBlockComments(read('panels.css'));
-  const at = css.indexOf('prefers-reduced-motion');
-  assert.ok(at > 0, 'panels.css must handle prefers-reduced-motion');
-  const block = css.slice(at, at + 400);
+  // 扫**所有** prefers-reduced-motion 块，不是第一个。
+  // 只看第一个的话，新增一个别的 reduce 块（进度条的收回）就会把判据挪到
+  // 一段无关代码上 —— 实测：加进度条那块之后这条立刻误报。
+  const marker = 'prefers-reduced-motion';
+  let at = css.indexOf(marker);
+  let blocks = 0;
+  let covered = false;
+  while (at >= 0) {
+    blocks += 1;
+    if (css.slice(at, at + 400).indexOf('.fk-list-in > .fk-item') >= 0) covered = true;
+    at = css.indexOf(marker, at + 1);
+  }
+  assert.ok(blocks > 0, 'panels.css must handle prefers-reduced-motion');
   assert.ok(
-    block.indexOf('.fk-list-in > .fk-item') >= 0,
-    'the row entrance must be switched off under reduced motion: ' + block,
+    covered,
+    'the row entrance must be switched off under reduced motion; ' +
+      'searched ' + blocks + ' reduced-motion blocks',
   );
 });

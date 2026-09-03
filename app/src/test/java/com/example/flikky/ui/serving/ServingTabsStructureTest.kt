@@ -731,4 +731,31 @@ class ServingTabsStructureTest {
             tab.contains("rememberSaveable"),
         )
     }
+
+    @Test
+    fun `changing directory replaces the list instead of diffing it`() {
+        // 装机验收 2026-09-03（**第二次**看到行叠着行，与上一次根因不同）：
+        //
+        // `animateItem` 的 fadeOutSpec 会把**消失的 item 继续组合并画在它原来的偏移上**
+        // 直到淡出跑完。换目录时旧目录的 key 全部消失、新目录的 key 全部出现，于是
+        // 同一帧里两份列表都在画 —— 而它们的偏移不同（新目录从顶部起，旧目录停在
+        // 用户离开时的位置），看起来就是两份列表错位叠在一起。
+        //
+        // 加缓存之前这条路走不到：换目录会先经过 `entries.isEmpty() && loading` 那个
+        // 分支，那里**整个 LazyColumn 都不在**，旧行是被直接销毁的、没有淡出。
+        // 缓存让状态从「A 的条目」直接变成「B 的条目」，一个此前不存在的转换。
+        //
+        // 修法是给列表按路径 key：**不同目录的行不是同一个列表**，
+        // 换目录就该替换而不是逐项 diff。同目录内（流式追加、刷新）仍然 diff，
+        // 那才是 animateItem 该管的事。
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        val at = tab.indexOf("LazyColumn(")
+        assertTrue("no LazyColumn found", at > 0)
+        val before = tab.substring(maxOf(0, at - 300), at)
+        assertTrue(
+            "the list must be keyed by path so a directory change replaces it; " +
+                "preceding source was: $before",
+            before.contains("key(state.path)"),
+        )
+    }
 }

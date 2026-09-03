@@ -765,7 +765,10 @@
 
     /** 进度条的显隐。流结束时收掉；空目录时补一句「这个文件夹是空的」。 */
     function setBusy(busy) {
-        if (progressEl) progressEl.hidden = !busy;
+        // 用类而不是 `hidden`：全局 reset 把 `[hidden]` 变成 display:none !important，
+        // 那会让收回过渡完全不发生。收起态由 CSS 负责高度、外边距、透明度与
+        // visibility（后者延到过渡结束才切，以便离开无障碍树）。
+        if (progressEl) progressEl.classList.toggle('is-done', !busy);
         if (!busy && listEl && allEntries().length === 0) {
             renderNotice(bodyEl, 'app.files.empty');
         }
@@ -927,30 +930,45 @@
     }
 
     /**
-     * 量一次行距：让前两行走正常流，取 `offsetTop` 之差。
+     * 量一次行距（行高 + 行间距）。
      *
-     * 那个差正好是行高 + `--flikky-listgroup-gap`，所以 JS 侧不需要复制那个 token
-     * （复制的话 token 改了这边不会有任何报错 —— D31 那一族的静默失效）。
-     * 量不到布局信息时退回 [ROW_STEP_FALLBACK]。
+     * ## 为什么不能靠正常流去量
+     *
+     * 第一版让前两行走正常流、取 `offsetTop` 之差 —— 那个差本该等于行高加行距。
+     * 但样式表里 `.fk-files-list > .fk-item` 是**无条件** `position: absolute` 的，
+     * 校准时两行早就脱离了流（而且 flex 容器的 abspos 子元素静态位置都在内容框
+     * 起点，两行重合），差值恒为 0，于是退回只有行高、**少一个行距** ——
+     * 装机验收「listitem 挨得太近了」就是这个。
+     *
+     * ## 现在的办法
+     *
+     * 行高取 `getBoundingClientRect().height`（绝对定位的元素照样有高度），
+     * 行距从 `getComputedStyle` 的 `rowGap` 读 —— 那是浏览器从
+     * `--flikky-listgroup-gap` 解析出来的值，所以 token 仍是唯一事实源，
+     * JS 侧没有复制。容器上那条 `gap` 因此不只是装饰，它是这个值的载体，
+     * 守卫在 panel-files-pitch.test.js。
+     *
+     * mini-dom 没有布局引擎，永远走 [ROW_STEP_FALLBACK] —— 也就是说这段的**数值**
+     * 只能在真机/真浏览器上验，测试只能钉住「判据是什么」。
      */
     function calibrate(entries) {
         if (rowStep > 0 || !listEl) return;
-        const probe = entries.slice(0, 2);
-        if (probe.length === 0) return;
-        probe.forEach((e, i) => renderRow(listEl, e, i, entries.length));
-        const a = listEl.children[0];
-        const b = listEl.children[1];
-        let step = 0;
-        if (a && b && typeof b.offsetTop === 'number' && typeof a.offsetTop === 'number') {
-            step = b.offsetTop - a.offsetTop;
-        }
-        if (!step && a) {
-            const rect = typeof a.getBoundingClientRect === 'function'
-                ? a.getBoundingClientRect()
+        if (entries.length === 0) return;
+        renderRow(listEl, entries[0], 0, entries.length);
+        const probe = listEl.children[0];
+        let height = 0;
+        if (probe) {
+            const rect = typeof probe.getBoundingClientRect === 'function'
+                ? probe.getBoundingClientRect()
                 : null;
-            step = (rect && rect.height) || a.offsetHeight || 0;
+            height = (rect && rect.height) || probe.offsetHeight || 0;
         }
-        rowStep = step > 0 ? step : ROW_STEP_FALLBACK;
+        let gap = 0;
+        if (typeof getComputedStyle === 'function') {
+            const cs = getComputedStyle(listEl);
+            gap = parseFloat(cs.rowGap) || parseFloat(cs.gap) || 0;
+        }
+        rowStep = height > 0 ? height + gap : ROW_STEP_FALLBACK;
         listEl.textContent = '';
     }
 

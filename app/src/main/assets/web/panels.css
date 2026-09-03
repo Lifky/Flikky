@@ -370,6 +370,9 @@
  * 面包屑正是 renderBreadcrumb 塞进它里面的。移出去 sticky 就静默失效 ——
  * CSS 不会报错，所以那个前提在 panel-files-chrome.test.js 里单独钉着。
  *
+ * 背景用 `--flikky-pillar-bg` —— 面板就坐在 .fk-pillar 上，深浅色两档都由那个
+ * token 自己解析。用别的 surface token 会与四周差一档（装机验收看到一条色带）。
+ *
  * 背景与 z-index 都是必需的：不给背景，滚上来的行会从它下面透出来；
  * 不给 z-index，行的 `:active` transform 会创建层叠上下文并盖在它上面。
  * 左右用负 margin + 同额 padding 撑满，否则行的边缘会从两侧露出来。 */
@@ -379,7 +382,7 @@
   z-index: 2;
   margin: 0 calc(-1 * var(--flikky-space-xxl));
   padding: var(--flikky-space-sm) var(--flikky-space-xxl);
-  background: rgb(var(--mdui-color-surface));
+  background: var(--flikky-pillar-bg);
 }
 .fk-crumbs ol {
   display: flex;
@@ -468,8 +471,38 @@ button.fk-crumb:hover {
 /* ── 文件面板：加载进度与列表进出场 ─────────────────────────────────────────
  * 大目录的列举在服务端要几百毫秒。装机验收里这段时间界面毫无变化，
  * 用户以为没点上（App 端同一个问题）。面包屑立即前进 + 这条进度是「有反应」的来源。 */
+/* 加载完成后**向上缩回**，而不是硬切消失。
+ *
+ * 硬切的话下面的列表会瞬间跳上来一整条的高度。高度与上下外边距一起过渡 ——
+ * 只动高度、margin 还在，列表仍会硬跳一段。
+ *
+ * 收起态用类而**不用 `[hidden]`**：base.css 的全局 reset 把 `[hidden]` 变成
+ * `display: none !important`，那会让过渡完全不发生（那条 reset 的注释里记着
+ * 这个坑，`.fk-fab` 当初就是为此加了 data-hidden-animated 的例外）。
+ * 收起之后加 `visibility: hidden` 离开无障碍树，否则读屏器还在念一个
+ * 已经不存在的进度条。
+ *
+ * 弹簧走 spatial（有位移），与 App 主页 chips 分组的显隐同一档。 */
 .fk-files-progress {
+  height: 4px;
   margin: var(--flikky-space-xl) var(--flikky-space-lg);
+  overflow: hidden;
+  transition:
+    height var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    margin-top var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    margin-bottom var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+    opacity var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default),
+    visibility 0s linear var(--flikky-spring-spatial-default-dur);
+}
+.fk-files-progress.is-done {
+  height: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  opacity: 0;
+  visibility: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fk-files-progress { transition: none; }
 }
 
 /* 目录切换：整列表按「进/退」方向横移淡入。
