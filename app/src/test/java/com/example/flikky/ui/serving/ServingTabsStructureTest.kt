@@ -627,4 +627,82 @@ class ServingTabsStructureTest {
             refresh.contains("force = true"),
         )
     }
+
+    @Test
+    fun `a superseded listing cannot write into the current directory`() {
+        // 装机验收（2026-09-03，秒回上线后的严重回归）：
+        // 「进入深度子文件夹并返回后，大概率会重叠渲染进入的多个文件夹中的文件列表」。
+        //
+        // `Job.cancel()` 是协作式的，而 `flowOn(IO)` 中间还有一个 channel ——
+        // 取消之后仍可能有一批已派发到 Main 的数据跑完，把上一个目录的条目接到
+        // 当前列表上。撞 key 之后 LazyColumn 会把行画在同一个位置上（视觉损坏）。
+        val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
+        val open = functionBody(vm, "fun openStorageDir(", 4)
+        assertTrue("no openStorageDir body", open.isNotEmpty())
+        // 世代号必须在**方法一开始**就递增 —— 缓存命中那条路径会提前 return，
+        // 递增写在后面的话，被它抢占的那个流就没被拦住。
+        val head = open.take(400)
+        assertTrue(
+            "the generation must be bumped before any early return; head was: $head",
+            head.contains("++storageGen"),
+        )
+        assertTrue(
+            "every chunk must be fenced off when superseded",
+            open.contains("if (gen != storageGen) return@collect"),
+        )
+        // 纯逻辑层的第二道：append 只接属于当前路径的批次。
+        assertTrue(
+            "append must be told which directory the batch belongs to",
+            open.contains("StorageNavigation.append(") && open.contains("_storageState.value.path"),
+        )
+    }
+
+    @Test
+    fun `a refresh drops only the directory being refreshed`() {
+        // 针对性审查发现（2026-09-03）：App 端 force 走的是 clear()，而浏览器端只丢
+        // 目标那一个。手机上刷新一次 —— 或授权完成、回到前台 —— 就把所有目录的缓存
+        // 全扔了，秒回的好处一次性归零。
+        val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
+        val open = functionBody(vm, "fun openStorageDir(", 4)
+        assertTrue(
+            "force must drop only the target directory",
+            open.contains("storageCache.remove(target)"),
+        )
+        assertFalse(
+            "force must not wipe the whole cache",
+            open.contains("storageCache.clear()"),
+        )
+        // 「列举规则变了」那种全都不可信的情况仍然要整份清掉 —— 由观察者显式做。
+        assertTrue(
+            "a listing-rule change must still clear everything",
+            vm.contains("storageCache.clear()"),
+        )
+    }
+
+    @Test
+    fun `a remembered scroll position carries the directory it belongs to`() {
+        // 与 currentPath 那个缺陷同一个形状：**一份没有身份的状态**。
+        // A → B → 在 B 还没停稳就退回 A，报上来的仍是 A 的位置，而这时正要把 B
+        // 存进缓存 —— 不核对路径就会把 A 的位置存到 B 头上。
+        val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
+        assertTrue(
+            "the reported position must carry its path",
+            vm.contains("fun rememberStorageScroll(path: String"),
+        )
+        val open = functionBody(vm, "fun openStorageDir(", 4)
+        assertTrue(
+            "and storing it must check that path against the directory being left",
+            open.contains("storageScrollPath == leaving.path"),
+        )
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        // 断言必须**限定在这次调用里**。`state.path,` 在这个文件里还出现在面包屑的
+        // `path = state.path,` 上，不限定范围的话，把这里换成常量照样全绿
+        // （逼红实测：零条红 —— 与恢复滚动那条犯的是同一个错）。
+        val report = tab.substringAfter("onScrollChanged(", "").take(200)
+        assertTrue("no onScrollChanged call found", report.isNotEmpty())
+        assertTrue(
+            "the list must report which directory the position is for; call was: $report",
+            report.contains("state.path,"),
+        )
+    }
 }

@@ -852,9 +852,16 @@
     function renderFromCache(target, entries) {
         loadingPath = null;
         renderShell(target);
-        if (entries.length > 0) appendBatch(entries, 0, true);
-        lastState = { path: target, entries: entries.slice() };
+        // **必须在 appendBatch 之前**设好 currentPath 与 lastState。
+        //
+        // renderRow 是靠 childPath() 拼每一行的路径的，而它读的就是 currentPath。
+        // 先建行、后设路径的话，从缓存恢复出来的每一行都带着**上一个目录**的前缀，
+        // 点进去请求的是一个不存在的路径 —— 装机验收报的
+        // 「返回后再进文件夹必定提示这个位置已经不存在了，面包屑错误，路径混乱」
+        // 就是这一处的顺序写反了。
         currentPath = target;
+        lastState = { path: target, entries: entries.slice() };
+        if (entries.length > 0) appendBatch(entries, 0, true);
         listingComplete = true;
         hasLoadedOnce = true;
         setBusy(false);

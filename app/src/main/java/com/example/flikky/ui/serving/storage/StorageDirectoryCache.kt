@@ -57,6 +57,15 @@ class StorageDirectoryCache {
         evict(keep = path)
     }
 
+    /**
+     * 丢掉一个目录。手动刷新用这个，**不是** [clear] ——
+     * 刷新一个目录不该把其他目录的缓存也扔了（浏览器端一直是这个语义，
+     * App 端 2026-09-03 的针对性审查发现走的是 clear，秒回一次性归零）。
+     */
+    fun remove(path: String) {
+        map.remove(path)?.let { entryCount -= it.entries.size }
+    }
+
     fun clear() {
         map.clear()
         entryCount = 0

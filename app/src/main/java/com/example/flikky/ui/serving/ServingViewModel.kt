@@ -193,9 +193,20 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     /** 逛过的目录留一份，回退时秒回。刻意不做时效判断，见 StorageDirectoryCache。 */
     private val storageCache = StorageDirectoryCache()
 
-    /** 当前目录的滚动位置，由 UI 报上来；进缓存时一起存。 */
+    /**
+     * 最近一次由 UI 报上来的滚动位置，**连同它属于哪个目录**。
+     *
+     * 带路径是必需的：A → B → 在 B 还没停稳就退回 A，这时报上来的仍是 A 的位置，
+     * 而 `openStorageDir` 正要把 B 存进缓存 —— 不核对路径就会把 A 的位置存到 B 头上
+     * （2026-09-03 针对性审查发现）。这与 `currentPath` 那个缺陷同一个形状：
+     * **一份没有身份的状态**。
+     */
+    private var storageScrollPath: String? = null
     private var storageScrollIndex = 0
     private var storageScrollOffset = 0
+
+    /** 目录导航的世代号。每次 [openStorageDir] 递增；过期的流不许写状态。 */
+    private var storageGen = 0
 
     /** 最后一次**成功**的列举结果。失败时退回它，见 [StorageNavigation.settle]。 */
     private var lastGoodStorage = LocalStorageState(path = "", entries = emptyList())
@@ -224,7 +235,8 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
      * 记下当前目录的滚动位置。UI 在滚动停下时报上来（`index` + `offset`，
      * 而不是像素——LazyColumn 的行高不定，像素没有意义）。
      */
-    fun rememberStorageScroll(index: Int, offset: Int) {
+    fun rememberStorageScroll(path: String, index: Int, offset: Int) {
+        storageScrollPath = path
         storageScrollIndex = index
         storageScrollOffset = offset
     }
@@ -252,19 +264,29 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     fun openStorageDir(relative: String, force: Boolean = false) {
         storageJob?.cancel()
+        // 世代号。`cancel()` 是协作式的，而 `flowOn(IO)` 中间还有一个 channel ——
+        // 取消之后仍可能有一批已派发到 Main 的数据跑完，把上一个目录的条目接到
+        // 当前列表上（缓存秒回把这个窗口放大得很明显）。所以过期的流一个字都不许写。
+        // 与浏览器端的 requestSeq 同一个办法。
+        val gen = ++storageGen
         val target = relative.trim().trim('/')
         // 离开之前把当前目录的内容与位置存进缓存 —— 回退时就是靠这一份秒回。
         // 只存**完整**的那份：被取消或失败的列举存进去会让「秒回」永远回一份残缺的。
         val leaving = _storageState.value
         if (!leaving.loading && leaving.entries.isNotEmpty()) {
+            // 只有当报上来的位置确实属于要离开的这个目录时才用它，否则记 0。
+            val mine = storageScrollPath == leaving.path
             storageCache.put(
                 path = leaving.path,
                 entries = leaving.entries,
-                scrollIndex = storageScrollIndex,
-                scrollOffset = storageScrollOffset,
+                scrollIndex = if (mine) storageScrollIndex else 0,
+                scrollOffset = if (mine) storageScrollOffset else 0,
             )
         }
-        if (force) storageCache.clear()
+        // force 只丢**目标那一个**，不是整份缓存：刷新一个目录不该把其他目录的
+        // 缓存也扔了（那会让秒回一次性归零，而 refreshStorage 在授权完成 / 回到
+        // 前台时都会跑）。列举规则变了那种「全都不可信」的情况由调用方显式 clear。
+        if (force) storageCache.remove(target)
         val hit = if (force) null else storageCache.get(target)
         if (hit != null) {
             // 命中：不起协程、不碰文件系统。
@@ -279,10 +301,12 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
             )
             _storageState.value = restored
             lastGoodStorage = restored
+            storageScrollPath = target
             storageScrollIndex = hit.scrollIndex
             storageScrollOffset = hit.scrollOffset
             return
         }
+        storageScrollPath = target
         storageScrollIndex = 0
         storageScrollOffset = 0
         _storageState.value = StorageNavigation.begin(_storageState.value, relative)
@@ -294,6 +318,9 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
                 // 这正是要的：UI 状态只在主线程改。
                 .flowOn(Dispatchers.IO)
                 .collect { chunk ->
+                    // 过期就一个字都不写。没有这道闸，被取消的流仍可能把上一个目录的
+                    // 条目接到当前列表上（装机验收：重叠渲染）。
+                    if (gen != storageGen) return@collect
                     when (chunk) {
                         is StorageChunk.Head -> {
                             sawHead = true
@@ -302,7 +329,11 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
                         }
                         is StorageChunk.Batch -> {
                             _storageState.value =
-                                StorageNavigation.append(_storageState.value, chunk.entries)
+                                StorageNavigation.append(
+                                    _storageState.value,
+                                    _storageState.value.path,
+                                    chunk.entries,
+                                )
                         }
                         StorageChunk.Done -> {
                             val finished = StorageNavigation.complete(_storageState.value)
@@ -322,7 +353,7 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
                 }
             // 流被上游正常结束但没给过 Head（不该发生），也要把进度条收掉，
             // 否则进度条会一直转着而列表空空。
-            if (!sawHead && _storageState.value.loading) {
+            if (gen == storageGen && !sawHead && _storageState.value.loading) {
                 _storageState.value = StorageNavigation.complete(_storageState.value)
             }
         }

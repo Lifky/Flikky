@@ -125,8 +125,8 @@ class StorageNavigationTest {
         val a = listOf(entry("a"), entry("b"))
         val b = listOf(entry("c"))
         var s = StorageNavigation.head(StorageNavigation.begin(loaded, "X"), "X")
-        s = StorageNavigation.append(s, a)
-        s = StorageNavigation.append(s, b)
+        s = StorageNavigation.append(s, s.path, a)
+        s = StorageNavigation.append(s, s.path, b)
         assertEquals(listOf("a", "b", "c"), s.entries.map { it.name })
     }
 
@@ -135,18 +135,18 @@ class StorageNavigationTest {
         // UI 用 index - lastBatchStart 算逐行入场的阶梯序号。记错了，
         // 整批的阶梯就会从中间开始，或者整批一起闪。
         var s = StorageNavigation.head(StorageNavigation.begin(loaded, "X"), "X")
-        s = StorageNavigation.append(s, listOf(entry("a"), entry("b")))
+        s = StorageNavigation.append(s, s.path, listOf(entry("a"), entry("b")))
         assertEquals(0, s.lastBatchStart)
-        s = StorageNavigation.append(s, listOf(entry("c"), entry("d")))
+        s = StorageNavigation.append(s, s.path, listOf(entry("c"), entry("d")))
         assertEquals(2, s.lastBatchStart)
-        s = StorageNavigation.append(s, listOf(entry("e")))
+        s = StorageNavigation.append(s, s.path, listOf(entry("e")))
         assertEquals(4, s.lastBatchStart)
     }
 
     @Test
     fun `append keeps loading on, because more batches are coming`() {
         var s = StorageNavigation.head(StorageNavigation.begin(loaded, "X"), "X")
-        s = StorageNavigation.append(s, listOf(entry("a")))
+        s = StorageNavigation.append(s, s.path, listOf(entry("a")))
         assertTrue("the progress indicator must stay while batches keep arriving", s.loading)
     }
 
@@ -154,16 +154,16 @@ class StorageNavigationTest {
     fun `append preserves a selection made while the list was still growing`() {
         // 用户可以在列表还在生长时就勾选已经出现的行。追加批次不该把它清掉。
         var s = StorageNavigation.head(StorageNavigation.begin(loaded, "X"), "X")
-        s = StorageNavigation.append(s, listOf(entry("a")))
+        s = StorageNavigation.append(s, s.path, listOf(entry("a")))
         s = s.copy(selected = setOf("a"))
-        s = StorageNavigation.append(s, listOf(entry("b")))
+        s = StorageNavigation.append(s, s.path, listOf(entry("b")))
         assertEquals(setOf("a"), s.selected)
     }
 
     @Test
     fun `complete clears loading and touches nothing else`() {
         var s = StorageNavigation.head(StorageNavigation.begin(loaded, "X"), "X")
-        s = StorageNavigation.append(s, listOf(entry("a"), entry("b")))
+        s = StorageNavigation.append(s, s.path, listOf(entry("a"), entry("b")))
         val before = s.entries
         val done = StorageNavigation.complete(s)
         assertFalse("complete must clear loading", done.loading)
@@ -181,6 +181,67 @@ class StorageNavigationTest {
         )
         assertFalse(s.loading)
         assertEquals(emptyList<LocalEntry>(), s.entries)
+    }
+    @Test
+    fun `appending a batch that belongs to another directory changes nothing`() {
+        // 装机验收（2026-09-03，秒回上线后的严重回归）：
+        // 「进入深度子文件夹并返回后，大概率会重叠渲染进入的多个文件夹中的文件列表」。
+        //
+        // 根因：`storageJob.cancel()` 是协作式的。`flowOn(IO)` 在生产者与消费者之间
+        // 放了一个 channel，取消之后仍可能有一批已经派发到 Main 的数据跑完 ——
+        // 而 `append` 是「往当前 state 上接」，此刻 state 已经被缓存恢复的那个目录替换了。
+        // 于是两个目录的条目并进一个列表，`relativePath` 撞 key，
+        // LazyColumn 把它们画在同一个位置上（截图里能看到行叠着行）。
+        //
+        // 第一道防线是 ViewModel 里的世代号（守卫在 ServingTabsStructureTest）。
+        // 这里是第二道：append 只接**属于当前路径**的批次。
+        val current = LocalStorageState(
+            path = "DCIM",
+            entries = listOf(entry("DCIM/a.jpg")),
+            loading = false,
+        )
+        val out = StorageNavigation.append(current, "Music", listOf(entry("Music/x.mp3")))
+        assertEquals("a batch for another directory must be dropped", current, out)
+    }
+
+    @Test
+    fun `appending a batch for the current directory still works`() {
+        // 反向守卫：上面那条不许把正常追加也挡掉。
+        val current = LocalStorageState(
+            path = "DCIM",
+            entries = listOf(entry("DCIM/a.jpg")),
+            loading = true,
+        )
+        val out = StorageNavigation.append(current, "DCIM", listOf(entry("DCIM/b.jpg")))
+        assertEquals(2, out.entries.size)
+        assertEquals(1, out.lastBatchStart)
+        assertTrue(out.loading)
+    }
+
+    @Test
+    fun `appending never produces two entries with the same relative path`() {
+        // relativePath 就是 LazyColumn 的 key。撞 key 的后果不是异常，是把行画在
+        // 同一个位置上 —— 视觉损坏，而且很难从代码上看出来。所以这条单独钉住。
+        val current = LocalStorageState(
+            path = "DCIM",
+            entries = listOf(entry("DCIM/a.jpg"), entry("DCIM/b.jpg")),
+            loading = true,
+        )
+        val out = StorageNavigation.append(
+            current,
+            "DCIM",
+            listOf(entry("DCIM/b.jpg"), entry("DCIM/c.jpg")),
+        )
+        assertEquals(
+            "a repeated entry must not be added twice",
+            listOf("DCIM/a.jpg", "DCIM/b.jpg", "DCIM/c.jpg"),
+            out.entries.map { it.relativePath },
+        )
+        assertEquals(
+            "keys must stay unique",
+            out.entries.size,
+            out.entries.map { it.relativePath }.toSet().size,
+        )
     }
 }
 

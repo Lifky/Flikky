@@ -100,7 +100,7 @@ fun ServingStorageTab(
     summary: StorageSelectionSummary,
     onOpenDir: (String) -> Unit,
     onToggleSelection: (String) -> Unit,
-    onScrollChanged: (Int, Int) -> Unit = { _, _ -> },
+    onScrollChanged: (String, Int, Int) -> Unit = { _, _, _ -> },
     onRefresh: () -> Unit = {},
     onClearSelection: () -> Unit,
     onSendSelection: () -> Unit,
@@ -136,7 +136,10 @@ fun ServingStorageTab(
         snapshotFlow { listState.isScrollInProgress }
             .collect { scrolling ->
                 if (!scrolling) {
+                    // 带上路径：位置属于**哪个目录**必须一起报，否则调用方无从
+                    // 判断这份位置是不是它要存的那个目录的。
                     onScrollChanged(
+                        state.path,
                         listState.firstVisibleItemIndex,
                         listState.firstVisibleItemScrollOffset,
                     )

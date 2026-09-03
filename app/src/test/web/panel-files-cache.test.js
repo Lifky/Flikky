@@ -312,3 +312,84 @@ test('a nested subfolder counts as elsewhere, not here', async () => {
     'a grandchild must not count as being in this folder: ' + countText(c.view),
   );
 });
+
+test('rows restored from cache carry paths for the directory they belong to', async () => {
+  // 装机验收（2026-09-03，秒回上线后的严重回归）：
+  // 「进入子文件夹并返回后，再次进入文件夹，必定出现 snackbar 这个位置已经不存在了，
+  //   并且面包屑导航错误，路径混乱」。
+  //
+  // 根因：renderFromCache 先 appendBatch、后设 currentPath，而 renderRow 是靠
+  // childPath() 拼路径的，它读的就是 currentPath。于是从缓存恢复出来的每一行都带着
+  // **上一个目录**的前缀，点进去请求的是一个不存在的路径。
+  const c = load([
+    listing('', ['DCIM/', 'Music/']),
+    listing('Music', ['song.mp3']),
+    listing('DCIM', ['p.jpg']),
+  ]);
+  c.api.mount(c.view);
+  c.api.setEnabled(true);
+  await tick();
+
+  // 进 Music，再返回根（命中缓存）。
+  c.api.navigate('Music');
+  await tick();
+  c.api.navigate('');
+  await tick();
+  assert.deepEqual(titles(c.view), ['DCIM', 'Music'], 'precondition: the root came back');
+
+  // 现在点 DCIM。请求必须是 path=DCIM，而不是 Music/DCIM。
+  const before = c.asked.length;
+  rows(c.view)[0].dispatch('click');
+  await tick();
+  assert.ok(c.asked.length > before, 'clicking a folder must issue a request');
+  const url = c.asked[c.asked.length - 1];
+  assert.ok(
+    url.indexOf('path=DCIM') >= 0,
+    'a restored row must not carry the previous directory as a prefix; asked: ' + url,
+  );
+  assert.equal(
+    url.indexOf('Music') >= 0,
+    false,
+    'the directory we came back from must not appear in the path: ' + url,
+  );
+});
+
+test('deep navigation and back keeps every level addressable', async () => {
+  // 多层来回：路径拼装错一次就会层层放大（面包屑与请求一起跑偏）。
+  const c = load([
+    listing('', ['A/', 'Z/']),
+    listing('A', ['B/']),
+    listing('A/B', ['C/']),
+    listing('A/B/C', ['leaf.txt']),
+    listing('Z', ['z.txt']),
+  ]);
+  c.api.mount(c.view);
+  c.api.setEnabled(true);
+  await tick();
+  c.api.navigate('A');
+  await tick();
+  c.api.navigate('A/B');
+  await tick();
+  c.api.navigate('A/B/C');
+  await tick();
+
+  // 一路退回根，全部命中缓存。
+  const askedAfterDescent = c.asked.length;
+  c.api.navigate('A/B');
+  await tick();
+  c.api.navigate('A');
+  await tick();
+  c.api.navigate('');
+  await tick();
+  assert.equal(c.asked.length, askedAfterDescent, 'the way back must be all cache hits');
+  assert.deepEqual(titles(c.view), ['A', 'Z'], 'and the root must be intact');
+
+  // 现在进一个**从未去过**的目录：它不在缓存里，所以会真的发请求 ——
+  // 请求路径必须是干净的 Z，不带任何刚才那趟深入留下的前缀。
+  rows(c.view)[1].dispatch('click');
+  await tick();
+  const url = c.asked[c.asked.length - 1];
+  assert.ok(url.indexOf('path=Z') >= 0, 'must ask for Z, asked: ' + url);
+  assert.equal(url.indexOf('A') >= 0, false, 'no leftover prefix from the descent: ' + url);
+  assert.deepEqual(titles(c.view), ['z.txt'], 'and Z must actually render');
+});

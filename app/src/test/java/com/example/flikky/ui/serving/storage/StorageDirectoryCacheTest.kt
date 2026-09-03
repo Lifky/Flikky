@@ -128,4 +128,27 @@ class StorageDirectoryCacheTest {
         live.clear()
         assertEquals(2, c.get("a")!!.entries.size)
     }
+
+    @Test
+    fun `removing one directory leaves the others cached`() {
+        // 针对性审查发现（2026-09-03）：App 端 `force` 走的是 `storageCache.clear()`,
+        // 而浏览器端只丢目标那一个。于是手机上刷新一次 —— 或者授权完成、回到前台 ——
+        // 就把**所有**目录的缓存全扔了，秒回的好处一次性归零。两端语义必须一致。
+        val c = StorageDirectoryCache()
+        c.put("a", entries(3), 0, 0)
+        c.put("b", entries(2), 0, 0)
+        c.remove("a")
+        assertNull("the named directory must be gone", c.get("a"))
+        assertNotNull("but the others must survive", c.get("b"))
+        assertEquals("entryCount must follow", 2, c.entryCount)
+    }
+
+    @Test
+    fun `removing a directory that was never cached is harmless`() {
+        val c = StorageDirectoryCache()
+        c.put("a", entries(3), 0, 0)
+        c.remove("nope")
+        assertNotNull(c.get("a"))
+        assertEquals(3, c.entryCount)
+    }
 }

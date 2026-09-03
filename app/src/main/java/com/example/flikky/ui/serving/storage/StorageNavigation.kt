@@ -55,12 +55,32 @@ object StorageNavigation {
      * 批次到达时顺序已经是全局有序的（[com.example.flikky.util.DirectoryScan] 先排完再切批），
      * 所以这里只做拼接，绝不重排——重排会让已经画出来的行在用户眼前跳位。
      */
-    fun append(current: LocalStorageState, batch: List<LocalEntry>): LocalStorageState =
-        current.copy(
-            entries = current.entries + batch,
+    fun append(
+        current: LocalStorageState,
+        path: String,
+        batch: List<LocalEntry>,
+    ): LocalStorageState {
+        // 只接**属于当前路径**的批次。
+        //
+        // `Job.cancel()` 是协作式的，而 `flowOn(IO)` 在生产者与消费者之间放了一个
+        // channel —— 取消之后仍可能有一批已派发到 Main 的数据跑完。而追加是「往
+        // 当前 state 上接」，此刻 state 可能已经换成别的目录了（缓存秒回尤其快）。
+        // 两个目录的条目并进一个列表，`relativePath` 撞 key，LazyColumn 就把行画在
+        // 同一个位置上 —— 2026-09-03 装机验收的「重叠渲染多个文件夹的列表」。
+        //
+        // ViewModel 侧的世代号是第一道防线；这里是第二道，也是唯一能在纯逻辑层
+        // 钉住的那道。
+        if (current.path != path) return current
+        // 去重。撞 key 的后果不是异常，是视觉损坏 —— 便宜的保险，值得买。
+        val known = current.entries.mapTo(HashSet(current.entries.size)) { it.relativePath }
+        val fresh = batch.filter { known.add(it.relativePath) }
+        if (fresh.isEmpty()) return current.copy(loading = true)
+        return current.copy(
+            entries = current.entries + fresh,
             lastBatchStart = current.entries.size,
             loading = true,
         )
+    }
 
     /**
      * 流正常结束。只清 loading，内容一个字不动。
