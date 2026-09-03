@@ -13,6 +13,10 @@ This file records user-facing changes for each Flikky release, loosely following
 - The server now **binds the hotspot address when the phone itself is the access point**. This case was in the stated security model from the start but had never worked: with no Wi-Fi network connected the app could not find an address and the service refused to start
 
 ### Changed
+- Select all and deselect are one two-state button in the browser's panel head, and it hides when the folder holds nothing selectable; the toolbar keeps its original close button
+- Both ends say how much of the selection sits in other folders, so a count that exceeds the ticks on screen is no longer a mystery
+- Going back to a folder you have already opened is instant and lands where you left off, on both the phone and the browser. There is deliberately no automatic re-read; a refresh button in each panel is the manual way
+- A new setting shows hidden files, off by default
 - Select all and deselect all in the browser's file panel. Select all waits until the listing is complete, because "all" has no defined meaning while rows are still arriving
 - Both file lists now end with a marker — "Loading… N so far" while entries arrive, "N items" once done — so it is possible to tell a finished list from one that merely stopped growing
 - Favourite rows share the file rows' staggered entrance, so the two panels read as one system
@@ -25,6 +29,10 @@ This file records user-facing changes for each Flikky release, loosely following
 - The browser's navigation reports the current destination with `aria-current` instead of `aria-selected`. The latter is ignored on a plain button inside a `<nav>`, so which destination you were on was never announced at all
 
 ### Fixed
+- Dotfiles were filtered out of listings but still counted, so a folder's subtitle said 5 items and the folder showed 4
+- The browser's select-all was clickable throughout the request, and would then add the *previous* directory's files to the selection
+- Selecting thousands of rows at once froze the page
+- Going back to a folder re-read it from scratch and returned to the top of the list
 - The phone's streaming list only revealed a row or two at a time and needed dragging to the bottom to continue, replayed its entrance animation on every scroll back, and stuttered when switching tabs in a large folder — all one cause, an entrance wrapper that left each row zero-height until it became visible, which a lazy list cannot lay out
 - Files rows in the browser had lost the press feedback favourites rows have: the entrance animation's fill mode pinned `transform` permanently, which outranks `:active`
 - The directional slide animated a container that was still empty, so it was never visible
