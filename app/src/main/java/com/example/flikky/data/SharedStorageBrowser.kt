@@ -88,7 +88,7 @@ class SharedStorageBrowser(private val root: File) : StorageBrowser {
                 URLConnection.guessContentTypeFromName(scanned.name)
             },
             // list() 而不是 listFiles()：只要个数，不需要为每个子项建 File 对象。
-            childCount = if (scanned.isDir) child.list()?.size else null,
+            childCount = if (scanned.isDir) StorageListingPolicy.visibleCount(child.list()) else null,
             restricted = StorageListingPolicy.isRestricted(childPath),
         )
     }
@@ -116,7 +116,7 @@ class SharedStorageBrowser(private val root: File) : StorageBrowser {
             size = if (isDir) 0L else file.length(),
             mtime = file.lastModified(),
             mime = if (isDir) null else guessMime(file.name),
-            childCount = if (isDir) file.list()?.size else null,
+            childCount = if (isDir) StorageListingPolicy.visibleCount(file.list()) else null,
             restricted = StorageListingPolicy.isRestricted(childRelative),
         )
     }

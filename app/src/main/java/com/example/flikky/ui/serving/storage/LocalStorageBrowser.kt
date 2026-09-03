@@ -137,7 +137,7 @@ class LocalStorageBrowser(private val root: File) {
                     mime = if (isDir) null else URLConnection.guessContentTypeFromName(child.name),
                     restricted = StorageListingPolicy.isRestricted(childPath),
                     // list() 而不是 listFiles()：只要个数，不需要为每个子项建 File 对象。
-                    childCount = if (isDir) child.list()?.size else null,
+                    childCount = if (isDir) StorageListingPolicy.visibleCount(child.list()) else null,
                 )
             },
         )
@@ -217,7 +217,7 @@ class LocalStorageBrowser(private val root: File) {
             },
             restricted = StorageListingPolicy.isRestricted(childPath),
             // list() 而不是 listFiles()：只要个数，不需要为每个子项建 File 对象。
-            childCount = if (scanned.isDir) child.list()?.size else null,
+            childCount = if (scanned.isDir) StorageListingPolicy.visibleCount(child.list()) else null,
         )
     }
 
