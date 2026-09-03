@@ -48,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -262,7 +263,13 @@ fun ServingStorageTab(
                         // **刻意不做逐行入场**——那需要行在入场前不占高度，而零高会
                         // 破坏 lazy 视口填充（丢行、必须下拉才出现、切 tab 卡顿）。
                         // 「一注流水」的节奏由流式批次之间的间隔提供。
-                        Box(modifier = flikkyItemAnimation()) {
+                        // testTag 供仪器测试断言**真实布局**（行两两不重叠）。
+                        // 那一类缺陷在 v1.20.0 出现过三次、每次根因不同，而纯逻辑
+                        // 测试与源码扫描都看不见布局 —— 见 StorageRowOverlapTest。
+                        Box(
+                            modifier = flikkyItemAnimation()
+                                .testTag(StorageRowTestTag),
+                        ) {
                         StorageEntryRow(
                             entry = entry,
                             index = index,
@@ -592,3 +599,6 @@ private fun formatEntryDate(mtime: Long): String = entryDateFormat.format(Date(m
  * 也不能用条目路径那套 —— 这一行不是条目。
  */
 private const val FOOTER_KEY = "flikky-storage-footer"
+
+/** 存储行的测试标记。仪器测试用它拿到每行的真实边界，断言两两不重叠。 */
+const val StorageRowTestTag = "storage-row"
