@@ -13,6 +13,7 @@ This file records user-facing changes for each Flikky release, loosely following
 - The server now **binds the hotspot address when the phone itself is the access point**. This case was in the stated security model from the start but had never worked: with no Wi-Fi network connected the app could not find an address and the service refused to start
 
 ### Changed
+- The browser's file list renders only the rows near the viewport. A 10,000-entry folder used to put 110,000 elements in the page; it now holds a few hundred, which is where the memory use and the scrolling stutter came from
 - Select all and deselect are one two-state button in the browser's panel head, and it hides when the folder holds nothing selectable; the toolbar keeps its original close button
 - Both ends say how much of the selection sits in other folders, so a count that exceeds the ticks on screen is no longer a mystery
 - Going back to a folder you have already opened is instant and lands where you left off, on both the phone and the browser. There is deliberately no automatic re-read; a refresh button in each panel is the manual way
@@ -29,6 +30,8 @@ This file records user-facing changes for each Flikky release, loosely following
 - The browser's navigation reports the current destination with `aria-current` instead of `aria-selected`. The latter is ignored on a plain button inside a `<nav>`, so which destination you were on was never announced at all
 
 ### Fixed
+- The browser breadcrumb scrolled out of sight, so a deep path was unknowable without scrolling back
+- Select all refused clicks while a listing loaded but was styled as if it worked, lighting up on hover and scaling on press
 - Dotfiles were filtered out of listings but still counted, so a folder's subtitle said 5 items and the folder showed 4
 - The browser's select-all was clickable throughout the request, and would then add the *previous* directory's files to the selection
 - Selecting thousands of rows at once froze the page
