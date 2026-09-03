@@ -270,6 +270,8 @@ fun ServingStorageTab(
         // 巨型椭圆（装机验收 Screenshot_4）。计数改放进菜单项文案，见 StorageSelectionFab。
         StorageSelectionFab(
             summary = summary,
+            selected = state.selected,
+            currentPath = state.path,
             onClear = onClearSelection,
             onSend = onSendSelection,
             modifier = Modifier

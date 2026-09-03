@@ -84,4 +84,5 @@
     <string name="serving_storage_total">%1$d items</string>
     <string name="serving_storage_loading_count">Loading… %1$d so far</string>
     <string name="serving_storage_refresh">Refresh</string>
+    <string name="serving_storage_send_n_elsewhere">Send %1$d · %2$s (%3$d elsewhere)</string>
 </resources>

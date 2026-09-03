@@ -45,11 +45,16 @@ import com.example.flikky.ui.theme.Motion
 @Composable
 fun StorageSelectionFab(
     summary: StorageSelectionSummary,
+    /** 当前选中的相对路径集合。用来算「有多少在别处」。 */
+    selected: Set<String>,
+    /** 当前所在目录，同上。 */
+    currentPath: String,
     onClear: () -> Unit,
     onSend: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val elsewhere = StorageSelectionScope.split(selected, currentPath).elsewhere
     val visible = summary.count > 0
     // 选择被清空（发送完 / 点清除）时菜单必须跟着收起，否则下次有选中时它是展开状态。
     if (!visible && expanded) expanded = false
@@ -95,12 +100,24 @@ fun StorageSelectionFab(
                 },
                 // 计数在这里，不在容器里塞自由文本 —— 见类注释。
                 text = {
+                    // 选择集跨目录保留，所以「已选 N 项」可能包含当前屏幕上看不到的行。
+                    // 有别处的就把它写出来 —— 否则用户既不知道那些在哪，
+                    // 也无从判断按下发送会发出什么（装机验收 2026-09-03）。
                     Text(
-                        stringResource(
-                            R.string.serving_storage_send_n,
-                            summary.count,
-                            formatSize(summary.totalBytes),
-                        ),
+                        if (elsewhere > 0) {
+                            stringResource(
+                                R.string.serving_storage_send_n_elsewhere,
+                                summary.count,
+                                formatSize(summary.totalBytes),
+                                elsewhere,
+                            )
+                        } else {
+                            stringResource(
+                                R.string.serving_storage_send_n,
+                                summary.count,
+                                formatSize(summary.totalBytes),
+                            )
+                        },
                     )
                 },
             )

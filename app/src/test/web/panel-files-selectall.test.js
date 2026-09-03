@@ -23,6 +23,8 @@ const dirLine = (n) => JSON.stringify({ name: n, isDir: true, size: 0, mtime: 0,
 
 /** 分片可控的假流：`gate` 为 true 时停在最后一片之前，直到 release()。 */
 function load(chunks, opts) {
+  // chunks 既当「一次响应的多个分片」用，也当「多次导航各自的响应」用：
+  // holdAt 那条测试要前者，缓存/计数这些要后者。区别在 i 的推进方式。
   const doc = createDocument();
   const view = doc.register('view-files');
   let i = 0;
@@ -78,6 +80,7 @@ function load(chunks, opts) {
     holdFetch: (fn) => { hold = fn; },
     /** 追加后续导航要用的响应分片。 */
     queue: (more) => { chunks.push.apply(chunks, more); },
+    queueBody: (b) => { chunks.push(b); },
     /** 把排着的 rAF 回调全部放完（含它们又排进来的）。 */
     drainFrames: async () => {
       let guard = 0;
@@ -101,6 +104,13 @@ const btn = (v, label) => byClass(v, 'fk-icon-btn')
 const count = (v) => byClass(v, 'fk-toolbar-count')[0].textContent;
 const selectedRows = (v) => rows(v).filter((r) => r.getAttribute('aria-selected') === 'true');
 const footer = (v) => byClass(v, 'fk-files-footer')[0];
+
+const listing2 = (p, names) => [JSON.stringify({ path: p })]
+  .concat(names.map((n) => (n.slice(-1) === '/'
+    ? JSON.stringify({ name: n.slice(0, -1), isDir: true, size: 0, mtime: 0, childCount: 1 })
+    : entry(n))))
+  .concat([JSON.stringify({ done: true })])
+  .join(LF) + LF;
 
 async function opened(names) {
   const lines = [JSON.stringify({ path: '' })]

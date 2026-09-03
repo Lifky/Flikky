@@ -331,7 +331,22 @@
         if (!toolbarEl || !countEl) return;
         toolbarEl.hidden = selected.size === 0;
         // 数字直接拼在 JS 侧：面板一律只用 t(key) 这一种调用形态（与收藏同）。
-        countEl.textContent = t('app.files.selected', { count: selected.size });
+        // 选择集跨目录保留，所以这个数可能包含当前屏幕上看不到的行。有别处的就
+        // 把它写出来 —— 否则用户既不知道那些在哪，也无从判断按下下载会下什么
+        // （装机验收 2026-09-03）。判据与 App 端 StorageSelectionScope 同一条：
+        // 只算**直接子项**，不是前缀比较（那会把 MusicVideos 也算进 Music，
+        // 也分不清直接子项与更深的孙子项）。
+        let here = 0;
+        selected.forEach((p) => {
+            const cut = p.lastIndexOf('/');
+            const parent = cut < 0 ? '' : p.slice(0, cut);
+            if (parent === currentPath) here += 1;
+        });
+        const elsewhere = selected.size - here;
+        countEl.textContent = elsewhere > 0
+            ? t('app.files.selected', { count: selected.size })
+                + ' · ' + t('app.files.elsewhere', { count: elsewhere })
+            : t('app.files.selected', { count: selected.size });
     }
 
     /** 当前目录里可被选中的条目（目录与沙箱条目都不算）。 */

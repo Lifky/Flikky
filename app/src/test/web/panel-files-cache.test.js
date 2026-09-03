@@ -253,3 +253,62 @@ test('a cached render does not replay the per-row stagger', async () => {
   const list = byClass(c.view, 'fk-files-list')[0];
   assert.equal(list.getAttribute('data-dir'), 'exit', 'but the directional slide still applies');
 });
+
+const countText = (v) => byClass(v, 'fk-toolbar-count')[0].textContent;
+const headToggle = (v) => byClass(byClass(v, 'fk-panel-head')[0], 'fk-icon-btn')
+  .find((b) => {
+    const i = byClass(b, 'material-symbols-outlined')[0];
+    const n = i ? i.getAttribute('data-icon') : null;
+    return n === 'select_all' || n === 'deselect';
+  });
+
+test('the count says how many of the selection are in other folders', async () => {
+  // 选择集跨目录保留（刻意的：可以逛几个文件夹攒一批再一起发），但装机验收里
+  // 工具栏报「已选 3 项」而当前目录一行都没选中 —— 用户既不知道那些在哪，
+  // 也无从判断按下下载会下什么。用户裁决：保留能力，把「有多少在别处」写清楚。
+  const c = load([listing('', ['DCIM/', 'a.txt']), listing('DCIM', ['p1.jpg', 'p2.jpg'])]);
+  c.api.mount(c.view);
+  c.api.setEnabled(true);
+  await tick();
+  rows(c.view)[1].dispatch('click');
+  await tick();
+  assert.equal(
+    countText(c.view).indexOf('app.files.elsewhere') >= 0,
+    false,
+    'nothing is elsewhere yet, so do not say so: ' + countText(c.view),
+  );
+
+  c.api.navigate('DCIM');
+  await tick();
+  headToggle(c.view).dispatch('click');
+  await tick();
+  const text = countText(c.view);
+  assert.ok(text.indexOf('3') >= 0, 'three are selected in total: ' + text);
+  assert.ok(
+    text.indexOf('app.files.elsewhere') >= 0,
+    'and one of them is in another folder: ' + text,
+  );
+});
+
+test('a nested subfolder counts as elsewhere, not here', async () => {
+  // 「当前目录」是这一屏能看到的那些行。孙子项算作 here 会让计数与屏幕上的勾
+  // 再次对不上 —— 正是这条要修的毛病。判据与 App 端 StorageSelectionScope 同一条。
+  const c = load([
+    listing('DCIM', ['Camera/', 'a.jpg']),
+    listing('DCIM/Camera', ['p.jpg']),
+    listing('DCIM', ['Camera/', 'a.jpg']),
+  ]);
+  c.api.mount(c.view);
+  c.api.setEnabled(true);
+  await tick();
+  c.api.navigate('DCIM/Camera');
+  await tick();
+  headToggle(c.view).dispatch('click');
+  await tick();
+  c.api.navigate('DCIM');
+  await tick();
+  assert.ok(
+    countText(c.view).indexOf('app.files.elsewhere') >= 0,
+    'a grandchild must not count as being in this folder: ' + countText(c.view),
+  );
+});

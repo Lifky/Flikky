@@ -86,4 +86,5 @@
     <string name="serving_storage_total">共 %1$d 项</string>
     <string name="serving_storage_loading_count">正在载入… 已 %1$d 项</string>
     <string name="serving_storage_refresh">刷新</string>
+    <string name="serving_storage_send_n_elsewhere">发送 %1$d 项 · %2$s（其他目录 %3$d 项）</string>
 </resources>
