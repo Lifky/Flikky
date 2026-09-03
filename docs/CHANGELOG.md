@@ -13,6 +13,7 @@ This file records user-facing changes for each Flikky release, loosely following
 - The server now **binds the hotspot address when the phone itself is the access point**. This case was in the stated security model from the start but had never worked: with no Wi-Fi network connected the app could not find an address and the service refused to start
 
 ### Changed
+- The phone's loading bar now collapses upward when a listing finishes, like the browser's
 - The loading bar collapses upward on a spring when a listing finishes, so the list glides up instead of jumping
 - The browser's file list renders only the rows near the viewport. A 10,000-entry folder used to put 110,000 elements in the page; it now holds a few hundred, which is where the memory use and the scrolling stutter came from
 - Select all and deselect are one two-state button in the browser's panel head, and it hides when the folder holds nothing selectable; the toolbar keeps its original close button
@@ -31,6 +32,9 @@ This file records user-facing changes for each Flikky release, loosely following
 - The browser's navigation reports the current destination with `aria-current` instead of `aria-selected`. The latter is ignored on a plain button inside a `<nav>`, so which destination you were on was never announced at all
 
 ### Fixed
+- Browser rows sat too close together instead of matching the favourites list
+- The browser list flickered while a large directory loaded
+- The list appeared to blink when moving between folders on the phone
 - Rows drew on top of each other on the phone after moving between directories
 - Browser rows lost the gap between them and read as one solid block
 - The sticky breadcrumb was a different shade from the panel around it
