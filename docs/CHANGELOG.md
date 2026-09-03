@@ -32,6 +32,8 @@ This file records user-facing changes for each Flikky release, loosely following
 - The browser's navigation reports the current destination with `aria-current` instead of `aria-selected`. The latter is ignored on a plain button inside a `<nav>`, so which destination you were on was never announced at all
 
 ### Fixed
+- Entering a folder from a scrolled parent showed the parent's rows instead of the folder's own
+- On the phone, a folder opened part-way down the list instead of at the top
 - Browser rows sat too close together instead of matching the favourites list
 - The browser list flickered while a large directory loaded
 - The list appeared to blink when moving between folders on the phone
