@@ -4,6 +4,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { createDocument, byClass } = require('./mini-dom.js');
+const scan = require('./scan.js');
+
+const read = (n) => fs.readFileSync(path.join(WEB, n), 'utf8');
 
 const WEB = path.join(__dirname, '../../main/assets/web');
 const LF = String.fromCharCode(10);
@@ -28,6 +31,8 @@ function load(bodyText, opts) {
   const doc = createDocument();
   const view = doc.register('view-files');
   const o = opts || {};
+  let release = () => {};
+  const gate = new Promise((res) => { release = res; });
   const ctx = {
     document: doc,
     window: {
@@ -45,12 +50,30 @@ function load(bodyText, opts) {
       status: 200,
       body: {
         getReader: () => {
-          let sent = false;
+          // opts.chunks：把响应切成 N 段分次交付，用来观察**追加期间**的行为
+          // （整体一次交付看不到「每批重建一次」这类缺陷）。
+          const parts = [];
+          const n = o.chunks || 1;
+          if (n <= 1) {
+            parts.push(bodyText);
+          } else {
+            const lines = bodyText.split(LF).filter((x) => x.length > 0);
+            const per = Math.ceil(lines.length / n);
+            for (let k = 0; k < lines.length; k += per) {
+              parts.push(lines.slice(k, k + per).join(LF) + LF);
+            }
+          }
+          let at = 0;
           return {
             read: () => {
-              if (sent) return Promise.resolve({ value: undefined, done: true });
-              sent = true;
-              return Promise.resolve({ value: Buffer.from(bodyText, 'utf8'), done: false });
+              if (at >= parts.length) return Promise.resolve({ value: undefined, done: true });
+              const part = parts[at];
+              at += 1;
+              const chunk = { value: Buffer.from(part, 'utf8'), done: false };
+              // opts.hold：第二批之后卡住，直到测试调用 release()。
+              // 不这样的话两批会在同一轮微任务里被吃光，「追加期间」根本观察不到。
+              if (at >= 2 && o.hold) return gate.then(() => chunk);
+              return Promise.resolve(chunk);
             },
             cancel: () => {},
           };
@@ -63,7 +86,7 @@ function load(bodyText, opts) {
   ctx.globalThis = ctx;
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(WEB, 'panel-files.js'), 'utf8'), ctx);
-  return { doc, view, api: ctx.window.flikkyPanels.files };
+  return { doc, view, api: ctx.window.flikkyPanels.files, release: () => release() };
 }
 
 const tick = async (n = 60) => { for (let k = 0; k < n; k += 1) await Promise.resolve(); };
@@ -118,14 +141,18 @@ test('the rendered count does not grow with the directory', async () => {
   );
 });
 
-test('the scrollbar reflects the whole listing, not the rendered slice', async () => {
-  const c = await opened(10000);
-  const h = parseFloat(list(c.view).style.getPropertyValue('height'));
-  assert.ok(h > 0, 'the list must declare a height for the full listing');
-  const perRow = h / 10000;
+test('the scroll extent grows with the listing, not with the window', async () => {
+  const extent = async (n) => {
+    const c = await opened(n);
+    return byClass(c.view, 'fk-vspace')
+      .reduce((sum, el) => sum + (parseFloat(el.style.getPropertyValue('height')) || 0), 0);
+  };
+  const small = await extent(500);
+  const huge = await extent(10000);
+  assert.ok(small > 0, 'a 500-entry listing must reserve room below the window');
   assert.ok(
-    perRow > 8 && perRow < 400,
-    'the declared height should be about one row each, got ' + perRow + 'px per row',
+    huge > small * 10,
+    'the reserved room must scale with the directory: ' + small + ' vs ' + huge,
   );
 });
 
@@ -220,5 +247,159 @@ test('scrolling does not replay the row entrance animation', async () => {
     l.className.indexOf('fk-list-in') >= 0,
     false,
     'the entrance class must be off once rows are being recycled by scrolling',
+  );
+});
+
+test('row spacing comes from CSS, not from JS geometry', () => {
+  // 装机验收第三轮同一个症状：「listitem 挨得太近了，应该和收藏面板一样」。
+  //
+  // 前两次都是**测量**错了：一次靠正常流量 offsetTop（但样式表把行设成了
+  // 无条件绝对定位，探针从未进入流），一次靠 getComputedStyle 拼 height + rowGap。
+  // 两次的共同点是：**绝对定位要求 JS 知道行距**，而行距取决于字体、主题、缩放
+  // 与内容 —— 算错一次就直接毁掉行距。
+  //
+  // 换架构：行留在正常流里，行距完全由 CSS 的 gap 负责 ——
+  // 与收藏面板同一个 token、同一条声明。于是「视觉零差异」是**结构保证**的，
+  // 不再取决于我是否算对。测量只用来撑滚动区间，算错也只是滚动条略不准。
+  const js = scan.scrub(read('panel-files.js'));
+  const sync = scan.functionBody(js, 'function syncVirtual(');
+  assert.ok(sync, 'no syncVirtual');
+  assert.equal(
+    /setProperty\('top'/.test(sync),
+    false,
+    'rows must not be positioned by JS. Body:' + scan.LF + sync,
+  );
+  const css = scan.stripBlockComments(read('panels.css'));
+  const abs = scan.ruleBlock(css, '.fk-files-list > .fk-item');
+  assert.ok(
+    abs === null || abs.indexOf('position: absolute') < 0,
+    'the stylesheet must not take rows out of flow: ' + abs,
+  );
+  // 而容器的几何必须与收藏面板逐项相同。
+  const group = scan.ruleBlock(css, '.fk-group');
+  const files = scan.ruleBlock(css, '.fk-files-list');
+  ['display: flex', 'flex-direction: column', 'gap: var(--flikky-listgroup-gap)'].forEach((bit) => {
+    assert.ok(group.indexOf(bit) >= 0, 'favourites is expected to declare ' + bit);
+    assert.ok(files.indexOf(bit) >= 0, 'files must declare ' + bit + ' too: ' + files);
+  });
+  assert.equal(
+    files.indexOf('position: relative') >= 0,
+    false,
+    'no positioning context is needed once rows are in flow: ' + files,
+  );
+});
+
+test('the scroll extent is carried by spacers, not an assumed height', async () => {
+  const c = await opened(10000);
+  assert.equal(
+    list(c.view).style.getPropertyValue('height'),
+    '',
+    'the container must not declare a height; the spacers carry the extent',
+  );
+  const spacers = byClass(c.view, 'fk-vspace');
+  assert.ok(spacers.length > 0, 'a long listing must have at least a trailing spacer');
+  const tall = spacers.some((s) => parseFloat(s.style.getPropertyValue('height')) > 1000);
+  assert.ok(tall, 'the trailing spacer must stand in for the rows below the window');
+});
+
+test('appending a batch reuses the rows already on screen', async () => {
+  // 装机验收：「加载过程中列表项整体会时不时闪一下」。
+  //
+  // 根因是每批都 `textContent = ''` 把整窗拆掉重建 —— 指数分批约 10 批，
+  // 于是重建 10 次。判据是**元素同一性**：同一行在追加前后必须是同一个对象。
+  const c = load(listingOf(400), { chunks: 2, hold: true });
+  c.api.mount(c.view);
+  body(c.view).clientHeight = 600;
+  c.api.setEnabled(true);
+  await tick(40);
+  const before = rows(c.view);
+  assert.ok(before.length > 2, 'the first batch must be on screen, got ' + before.length);
+  const kept = before.slice(0, 3);
+  c.release();
+  await tick(60);
+  const after = rows(c.view);
+  kept.forEach((el, i) => {
+    assert.equal(
+      after[i],
+      el,
+      'row ' + i + ' was torn down and rebuilt by a later batch — that is the flash',
+    );
+  });
+});
+
+test('the last-row corner moves as more rows arrive', async () => {
+  // 复用行的代价：`is-last` 是建行时按**当时的** total 打的。total 长大之后
+  // 那个类会留在一行不再是末行的行上 —— 圆角画错。所以每次 sync 都要重打。
+  //
+  // 判据必须落在**留在窗口里**的那一行上。第一版用了 400 行 2 批 ——
+  // 首批的末行（第 199 行）根本不在窗口里，把重打删掉照样全绿（逼红实测：零条红）。
+  // 所以这里用一个整份都在窗口内的小目录。
+  const c = load(listingOf(8), { chunks: 2, hold: true });
+  c.api.mount(c.view);
+  body(c.view).clientHeight = 2000;
+  c.api.setEnabled(true);
+  await tick(40);
+  const first = rows(c.view);
+  assert.equal(first.length, 4, 'the first half must be on screen');
+  assert.ok(
+    first[3].className.indexOf('is-last') >= 0,
+    'row 3 is genuinely the last one right now',
+  );
+  c.release();
+  await tick(60);
+  const all = rows(c.view);
+  assert.equal(all.length, 8, 'the whole listing must be on screen');
+  assert.equal(
+    all[3].className.indexOf('is-last') >= 0,
+    false,
+    'row 3 stopped being last, so it must lose the bottom corner',
+  );
+  assert.ok(
+    all[7].className.indexOf('is-last') >= 0,
+    'and row 7 must gain it',
+  );
+});
+
+test('the pitch is measured from real rows, not from a probe or the token', () => {
+  const js = scan.scrub(read('panel-files.js'));
+  assert.equal(
+    js.indexOf('function calibrate(') >= 0,
+    false,
+    'the probe-based calibration is gone; the pitch comes from rendered rows',
+  );
+  assert.equal(
+    /getComputedStyle\([^)]*\)[\s\S]{0,80}rowGap/.test(js),
+    false,
+    'the gap must not be read into JS at all any more',
+  );
+  const m = scan.functionBody(js, 'function refreshPitch(');
+  assert.ok(m, 'no refreshPitch');
+  assert.ok(
+    m.indexOf('offsetTop') >= 0,
+    'the pitch is the offset difference of two rows actually laid out. Body:' + scan.LF + m,
+  );
+});
+
+test('a measured pitch actually replaces the fallback', async () => {
+  // 结构断言在这里不够：把 `b.offsetTop - a.offsetTop` 换成 0，
+  // `offsetTop` 仍然出现在上一行的 typeof 守卫里，子串判据照样绿
+  // （逼红实测：零条红）。所以这条从**行为**上看 —— 给渲染出来的行装上
+  // 真实布局，之后的滚动区间必须按量到的行距算，而不是兜底常量。
+  const c = await opened(1000, 600);
+  const extent = () => byClass(c.view, 'fk-vspace')
+    .reduce((n, el) => n + (parseFloat(el.style.getPropertyValue('height')) || 0), 0);
+  const withFallback = extent();
+  assert.ok(withFallback > 0, 'there must be room reserved below the window');
+
+  // mini-dom 没有布局引擎，所以这里替它给出一份布局：行距 160。
+  rows(c.view).forEach((el, i) => { el.offsetTop = i * 160; });
+  // 一次滚动让 refreshPitch 量到 160，再一次让新的行距被用上。
+  await scrollTo(c, 400);
+  await scrollTo(c, 800);
+  const measured = extent();
+  assert.ok(
+    measured > withFallback * 1.5,
+    'the measured pitch of 160 must supersede the 64px fallback: ' +
+      withFallback + ' -> ' + measured,
   );
 });

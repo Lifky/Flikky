@@ -6,50 +6,66 @@ const scan = require('./scan.js');
 const WEB = path.join(__dirname, '../../main/assets/web');
 const read = (n) => fs.readFileSync(path.join(WEB, n), 'utf8');
 
-test('the row pitch is read from the real gap, not from flow layout', () => {
+/*
+ * 行距这件事在装机验收里连错三轮，前两轮都是**测量**的错法不同：
+ *   1. 让两行走正常流量 offsetTop 之差 —— 但样式表把行设成了无条件绝对定位，
+ *      探针从未进入流，差值恒为 0；
+ *   2. 改成 height + getComputedStyle().rowGap —— 把一个整体拆成两半分别量再相加。
+ *
+ * 两轮的共同前提是「绝对定位要求 JS 知道行距」。第三轮换掉的是那个前提：
+ * 行留在正常流里，**行距归 CSS**，测量只用来撑滚动区间。
+ * 于是同一个测量出错，爆炸半径从「毁掉布局」降到「滚动条略不准」。
+ *
+ * 这个文件守的就是那个前提没有被悄悄改回去。
+ */
+
+test('nothing in JS decides how far apart two rows sit', () => {
   const js = scan.scrub(read('panel-files.js'));
-  const cal = scan.functionBody(js, 'function calibrate(');
-  assert.ok(cal, 'no calibrate');
-  // 装机验收：行「挨得太近了」。
-  //
-  // 第一版靠「让前两行走正常流、取 offsetTop 之差」量行距。但样式表里
-  // `.fk-files-list > .fk-item` 是**无条件** `position: absolute` 的 ——
-  // 校准时两行早就脱离了流，差值恒为 0，于是退回只有行高、少一个行距。
-  // mini-dom 没有布局引擎，永远走兜底，所以这个错测不出来。
   assert.equal(
-    cal.indexOf('offsetTop') >= 0,
+    js.indexOf('function calibrate(') >= 0,
     false,
-    'calibration must not depend on flow layout: the rows are absolutely positioned ' +
-      'by the stylesheet before it ever runs. Body:' + scan.LF + cal,
+    'the probe-based calibration must be gone',
   );
-  assert.ok(
-    cal.indexOf('getComputedStyle') >= 0,
-    'the gap must come from the resolved style, so the token stays the single source. ' +
-      'Body:' + scan.LF + cal,
+  assert.equal(
+    /rowGap|listgroup-gap/.test(js),
+    false,
+    'JS must not know about the gap at all — that is the whole point',
   );
-  assert.ok(
-    cal.indexOf('rowGap') >= 0 || cal.indexOf('listgroup-gap') >= 0,
-    'it must read the gap itself, not guess it. Body:' + scan.LF + cal,
-  );
-  // 兜底常量不许把行距吞掉：它只在完全没有布局信息时用得上。
-  assert.ok(
-    cal.indexOf('ROW_STEP_FALLBACK') >= 0,
-    'a fallback is still needed for environments without layout',
+  const sync = scan.functionBody(js, 'function syncVirtual(');
+  assert.equal(
+    /setProperty\('top'/.test(sync),
+    false,
+    'rows must not be positioned by JS. Body:' + scan.LF + sync,
   );
 });
 
-test('the stylesheet still declares the gap the calibration reads', () => {
-  // getComputedStyle 读的是**解析后**的 gap。token 没了的话它会读出 0，
-  // 行就贴在一起 —— 又一次静默失效（D31 那一族）。所以声明本身要钉住。
+test('the measured pitch is only spent on the scroll extent', () => {
+  const js = scan.scrub(read('panel-files.js'));
+  const sync = scan.functionBody(js, 'function syncVirtual(');
+  // pitch 允许出现在两个地方：算窗口范围，和给占位块定高。
+  // 只要它没被用来摆行，量错就毁不掉布局。
+  assert.ok(sync.indexOf('pitch') >= 0, 'the window still needs a pitch estimate');
+  assert.ok(
+    sync.indexOf('spacer(') >= 0 || sync.indexOf('Spacer') >= 0,
+    'the extent must be carried by spacer elements. Body:' + scan.LF + sync,
+  );
+});
+
+test('the stylesheet, and only the stylesheet, sets the row gap', () => {
   const css = scan.stripBlockComments(read('panels.css'));
   const files = scan.ruleBlock(css, '.fk-files-list');
-  assert.ok(files, 'no .fk-files-list rule');
+  const group = scan.ruleBlock(css, '.fk-group');
+  assert.ok(files && group, 'both containers must be declared');
   assert.ok(
     files.indexOf('gap: var(--flikky-listgroup-gap)') >= 0,
-    'the container must declare the gap for the calibration to resolve: ' + files,
+    'the files container must declare the gap: ' + files,
+  );
+  assert.ok(
+    group.indexOf('gap: var(--flikky-listgroup-gap)') >= 0,
+    'and favourites must declare the very same one: ' + group,
   );
   assert.ok(
     css.indexOf('--flikky-listgroup-gap:') >= 0,
-    'and the token itself must be declared somewhere in this stylesheet',
+    'and the token itself must be declared in this stylesheet',
   );
 });

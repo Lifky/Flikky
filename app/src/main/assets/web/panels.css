@@ -513,27 +513,25 @@ button.fk-crumb:hover {
  *
  * 时长走 spatial（带位移，用 spatial 而非 effects），且容器动画只跑一次——
  * 逐行动画在子元素上，两者不会互相取消。 */
-/* 虚拟化容器。行绝对定位在自己的 `top` 上，容器高度按**整份列表**撑开 ——
- * 于是滚动条是诚实的、滚动位置恢复也能一步到位。
+/* 虚拟化容器。**行留在正常流里** —— 几何与 .fk-group 逐项相同（只去掉那两条
+ * 结构化的首尾圆角选择器，首尾改由数据下标打 class）。
  *
- * 用 `top` 而不是 `transform` 定位：`.fk-item:active` 用的就是
- * `transform: scale(.985)`，用 transform 定位会被按下效果整个覆盖，
- * 行会在按下的瞬间跳到列表顶部。 */
+ * 行距因此完全由下面这条 `gap` 负责，与收藏面板同一个 token、同一条声明：
+ * 「与收藏面板视觉零差异」是**结构保证**的，不取决于 JS 算得对不对。
+ *
+ * 曾经把行绝对定位在算出来的 `top` 上。那要求 JS 知道行距，而行距取决于字体、
+ * 主题、缩放与内容 —— 装机验收连报三轮「挨得太近了」。现在滚动区间由
+ * `.fk-vspace` 两个占位块撑出来，行距测量只影响滚动条精度。 */
 .fk-files-list {
-  position: relative;
-  /* 与 .fk-group 逐项相同的几何（去掉那两条结构选择器）。
-   *
-   * flex 与 gap 在绝对定位的行上是惰性的，但**校准时用得上**：校准让前两行走
-   * 正常流、取 offsetTop 之差，那个差正好是行高 + 行距。少了这里的 gap，
-   * 量出来的步长就少一个行距，整列表会越往下越挤。 */
   display: flex;
   flex-direction: column;
   gap: var(--flikky-listgroup-gap);
 }
-.fk-files-list > .fk-item {
-  position: absolute;
-  left: 0;
-  right: 0;
+
+/* 窗口之外那些行的替身，只负责占高度。 */
+.fk-vspace {
+  flex: none;
+  pointer-events: none;
 }
 
 .fk-files-list[data-dir='enter'] {

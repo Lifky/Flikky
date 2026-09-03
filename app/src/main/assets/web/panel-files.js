@@ -101,28 +101,39 @@
     // 走一遍 —— 装机验收「加载大目录内存非常高、明显卡顿」就是这个。
     // 所以只渲染视口附近那几十行，DOM 恒定在几百个节点，与目录大小无关。
     //
-    // 行绝对定位（`top`，**不是** `transform`）：`.fk-item:active` 用的就是
-    // `transform: scale(.985)`，用 transform 定位会被按下效果整个覆盖掉，
-    // 行会在按下的瞬间跳到列表顶部。
+    // ## 行留在正常流里
+    //
+    // 第一版把行绝对定位在算出来的 `top` 上。那要求 JS **知道行距** ——
+    // 而行距取决于字体、主题、缩放与内容，算错一次就直接毁掉行距
+    // （装机验收连报三轮「挨得太近了」，两次测量各错一次）。
+    //
+    // 现在行留在流里，行距完全由 CSS 的 `gap` 负责 —— 与收藏面板同一个 token、
+    // 同一条声明。于是「与收藏面板视觉零差异」是**结构保证**的，不再取决于
+    // 我是否算对。滚动区间由上下两个 spacer 撑出来，行距测量只用在那里：
+    // 算错也只是滚动条略不准，行本身永远是对的。**同一个测量，
+    // 爆炸半径从「毁掉布局」降到「滚动条精度」。**
 
     /** 视口上下各多渲染几行，滚动时不至于露白。 */
     const VIRTUAL_OVERSCAN = 6;
 
-    /** 量不到时的兜底行距。只在没有布局信息的环境里用得上。 */
-    const ROW_STEP_FALLBACK = 64;
+    /** 量不到布局信息时的兜底行距。只影响滚动区间。 */
+    const ROW_PITCH_FALLBACK = 64;
 
-    /**
-     * 一行占多高（含行距）。**量出来的，不是写死的。**
-     *
-     * 写死就得把 `--flikky-listgroup-gap` 在 JS 里复制一份，而那个 token 改了这边
-     * 不会有任何报错（D31 那一族：自定义属性缺失是静默的）。所以第一次渲染时先让
-     * 两行走正常流，取 `offsetTop` 之差 —— 那正好等于行高加行距。
-     */
-    let rowStep = 0;
+    /** 一行到下一行的距离。从**真正排好的两行**量，每次 sync 自我校正。 */
+    let rowPitch = 0;
 
-    /** 当前渲染出来的窗口 [winFrom, winTo)。 */
+    /** 当前渲染出来的窗口 [winFrom, winTo)，以及当时的总数。 */
     let winFrom = 0;
     let winTo = 0;
+    let winTotal = -1;
+
+    /** 数据下标 → 行元素 / 行路径。复用靠这两张表，不靠推断 DOM 顺序。 */
+    const rendered = new Map();
+    const renderedPath = new Map();
+
+    /** 撑滚动区间的两个占位块。窗口贴边时对应的那个不存在。 */
+    let topSpacer = null;
+    let bottomSpacer = null;
 
     /** 是否已经给滚动容器挂上监听。listEl 会重建，但 bodyEl 不会。 */
     let scrollBound = false;
@@ -756,9 +767,15 @@
         // 在这里就盖等于让 224ms 的横移演给一个空盒子看：容器刚建好时列表是空的，
         // 第一批要等 fetch + 服务端扫描才到，动画早跑完了。
         pendingDir = dir;
-        // 新目录 = 新窗口。不复位的话 syncVirtual 会以为窗口没变而直接返回。
+        // 新目录 = 新窗口。listEl 是新建的，所以两张索引表与两个占位块
+        // 都握着已经从文档里摘掉的东西 —— 一起复位。
         winFrom = 0;
         winTo = 0;
+        winTotal = -1;
+        rendered.clear();
+        renderedPath.clear();
+        topSpacer = null;
+        bottomSpacer = null;
         bodyEl.appendChild(listEl);
         syncToolbar();
     }
@@ -930,93 +947,155 @@
     }
 
     /**
-     * 量一次行距（行高 + 行间距）。
+     * 从**真正排好的两行**量行距，每次 sync 自我校正。
      *
-     * ## 为什么不能靠正常流去量
+     * 不用探针、不读 token、不解析 computed style —— 前两版分别栽在
+     * 「探针从未进入正常流」和「把行高与行距分开量再相加」上。量真实相邻两行的
+     * `offsetTop` 之差，得到的就是行距本身（已含 CSS 的 gap），
+     * 无需知道它由什么构成。
      *
-     * 第一版让前两行走正常流、取 `offsetTop` 之差 —— 那个差本该等于行高加行距。
-     * 但样式表里 `.fk-files-list > .fk-item` 是**无条件** `position: absolute` 的，
-     * 校准时两行早就脱离了流（而且 flex 容器的 abspos 子元素静态位置都在内容框
-     * 起点，两行重合），差值恒为 0，于是退回只有行高、**少一个行距** ——
-     * 装机验收「listitem 挨得太近了」就是这个。
-     *
-     * ## 现在的办法
-     *
-     * 行高取 `getBoundingClientRect().height`（绝对定位的元素照样有高度），
-     * 行距从 `getComputedStyle` 的 `rowGap` 读 —— 那是浏览器从
-     * `--flikky-listgroup-gap` 解析出来的值，所以 token 仍是唯一事实源，
-     * JS 侧没有复制。容器上那条 `gap` 因此不只是装饰，它是这个值的载体，
-     * 守卫在 panel-files-pitch.test.js。
-     *
-     * mini-dom 没有布局引擎，永远走 [ROW_STEP_FALLBACK] —— 也就是说这段的**数值**
-     * 只能在真机/真浏览器上验，测试只能钉住「判据是什么」。
+     * 这个值**只用来撑滚动区间**。量不到（没有布局引擎的环境）就退回
+     * [ROW_PITCH_FALLBACK]，行距不受影响 —— 那是 CSS 的事。
      */
-    function calibrate(entries) {
-        if (rowStep > 0 || !listEl) return;
-        if (entries.length === 0) return;
-        renderRow(listEl, entries[0], 0, entries.length);
-        const probe = listEl.children[0];
-        let height = 0;
-        if (probe) {
-            const rect = typeof probe.getBoundingClientRect === 'function'
-                ? probe.getBoundingClientRect()
-                : null;
-            height = (rect && rect.height) || probe.offsetHeight || 0;
-        }
-        let gap = 0;
-        if (typeof getComputedStyle === 'function') {
-            const cs = getComputedStyle(listEl);
-            gap = parseFloat(cs.rowGap) || parseFloat(cs.gap) || 0;
-        }
-        rowStep = height > 0 ? height + gap : ROW_STEP_FALLBACK;
-        listEl.textContent = '';
+    function refreshPitch() {
+        const a = rendered.get(winFrom);
+        const b = rendered.get(winFrom + 1);
+        if (!a || !b) return;
+        if (typeof a.offsetTop !== 'number' || typeof b.offsetTop !== 'number') return;
+        const d = b.offsetTop - a.offsetTop;
+        if (d > 0) rowPitch = d;
+    }
+
+    /** 占位块。只在窗口没贴到那一边时存在。 */
+    function spacer(px) {
+        const el = document.createElement('div');
+        el.className = 'fk-vspace';
+        el.setAttribute('aria-hidden', 'true');
+        el.style.setProperty('height', px + 'px');
+        return el;
+    }
+
+    /** 丢掉一行：DOM、两张索引表、以及勾选用的 path→行 映射都要一起清。 */
+    function dropRow(i) {
+        const el = rendered.get(i);
+        if (el) el.remove();
+        const p = renderedPath.get(i);
+        if (p !== undefined) rowElements.delete(p);
+        rendered.delete(i);
+        renderedPath.delete(i);
+    }
+
+    function dropAllRows() {
+        Array.from(rendered.keys()).forEach(dropRow);
     }
 
     /**
-     * 重建窗口。
+     * 把窗口对齐到当前滚动位置与数据量。
+     *
+     * **已经在屏幕上的行一律复用**，只在两端增删。第一版每批都
+     * `textContent = ''` 重建整窗，指数分批约 10 批就是重建 10 次 ——
+     * 装机验收「加载过程中列表项整体会时不时闪一下」正是这个。
      *
      * @param animateFrom 从这个**数据下标**起的行算「刚到达」，给它们排入场阶梯。
-     *   传 -1 表示这次不是新数据（滚动、或从缓存恢复），一律不排 —— 滚动时反复
-     *   重建行，每次都放一遍入场动效等于整屏闪（App 端同形缺陷的浏览器版）。
+     *   传 -1 表示这次不是新数据（滚动、或从缓存恢复），一律不排。
      */
     function syncVirtual(animateFrom) {
         if (!listEl || !bodyEl) return;
         const entries = allEntries();
         const total = entries.length;
-        calibrate(entries);
-        const step = rowStep || ROW_STEP_FALLBACK;
+        const pitch = rowPitch || ROW_PITCH_FALLBACK;
 
-        // 容器先撑到整份列表的高度：滚动条因此是诚实的，滚动位置恢复也能一步到位。
-        listEl.style.setProperty('height', (total * step) + 'px');
-
-        const viewport = bodyEl.clientHeight || 0;
+        const viewport = bodyEl.clientHeight || pitch * 12;
         const top = bodyEl.scrollTop || 0;
-        let from = Math.floor(top / step) - VIRTUAL_OVERSCAN;
+        let from = Math.floor(top / pitch) - VIRTUAL_OVERSCAN;
         if (from < 0) from = 0;
-        let to = Math.ceil((top + (viewport || step * 12)) / step) + VIRTUAL_OVERSCAN;
+        let to = Math.ceil((top + viewport) / pitch) + VIRTUAL_OVERSCAN;
         if (to > total) to = total;
 
-        if (animateFrom < 0 && from === winFrom && to === winTo) return;
+        // 什么都没变就直接返回。滚动事件很密，而大多数一次滚动并不移动窗口；
+        // 不拦的话每个事件都要把窗口里所有行的首尾类重打一遍。
+        if (animateFrom < 0 && from === winFrom && to === winTo && total === winTotal) return;
+
+        // 1) 清掉离开窗口的行。窗口整体跳走（拖滚动条）时全清。
+        if (to <= winFrom || from >= winTo) {
+            dropAllRows();
+        } else {
+            Array.from(rendered.keys()).forEach(function (i) {
+                if (i < from || i >= to) dropRow(i);
+            });
+        }
+
+        // 2) 上下占位块。窗口贴边时对应的那个直接不存在 ——
+        //    留一个零高的块会被 flex 的 gap 额外加上一份间距。
+        const above = from;
+        const below = total - to;
+        if (above > 0) {
+            if (!topSpacer) {
+                topSpacer = spacer(above * pitch);
+                listEl.insertBefore(topSpacer, listEl.children[0] || null);
+            } else {
+                topSpacer.style.setProperty('height', (above * pitch) + 'px');
+            }
+        } else if (topSpacer) {
+            topSpacer.remove();
+            topSpacer = null;
+        }
+        if (below > 0) {
+            if (!bottomSpacer) {
+                bottomSpacer = spacer(below * pitch);
+                listEl.appendChild(bottomSpacer);
+            } else {
+                bottomSpacer.style.setProperty('height', (below * pitch) + 'px');
+            }
+        } else if (bottomSpacer) {
+            bottomSpacer.remove();
+            bottomSpacer = null;
+        }
+
+        // 3) 从后往前补齐，用锚点保证 DOM 顺序；**已在正确位置的行不动**
+        //    （insertBefore 会把节点重新插一遍，那会重启它身上的 CSS 动画）。
+        let anchor = bottomSpacer;
+        for (let i = to - 1; i >= from; i -= 1) {
+            let el = rendered.get(i);
+            if (!el) {
+                renderRow(listEl, entries[i], i, total);
+                el = listEl.children[listEl.children.length - 1];
+                if (!el) continue;
+                rendered.set(i, el);
+                renderedPath.set(i, childPath(entries[i]));
+                // 批内阶梯并**封顶**：上千行不封顶会拖成一场幻灯片。
+                // 复用 chat.css 的 --flikky-stagger（含 --flikky-motion-scale，
+                // 于是 reduce-motion 下自动归零）。
+                const fresh = animateFrom >= 0 && i >= animateFrom;
+                el.style.setProperty(
+                    '--i',
+                    fresh ? String(Math.min(i - animateFrom, STAGGER_CAP)) : '0',
+                );
+            }
+            if (el.nextSibling !== anchor) {
+                if (anchor) listEl.insertBefore(el, anchor);
+                else listEl.appendChild(el);
+            }
+            anchor = el;
+        }
+
+        // 4) 首尾外圆角按**当前** total 重打。复用的代价：`is-last` 是建行时按
+        //    当时的 total 打的，total 长大之后会留在一行不再是末行的行上。
+        rendered.forEach(function (el, i) {
+            el.classList.toggle('is-first', i === 0);
+            el.classList.toggle('is-last', i === total - 1);
+        });
+
         winFrom = from;
         winTo = to;
+        winTotal = total;
+        refreshPitch();
 
-        listEl.textContent = '';
-        for (let i = from; i < to; i += 1) {
-            renderRow(listEl, entries[i], i, total);
-            const row = listEl.children[listEl.children.length - 1];
-            if (!row) continue;
-            row.style.setProperty('top', (i * step) + 'px');
-            // 批内阶梯并**封顶**：上千行不封顶会拖成一场幻灯片。
-            // 复用 chat.css 的 --flikky-stagger（含 --flikky-motion-scale，
-            // 于是 reduce-motion 下自动归零）；带 fallback 以免硬依赖那个文件。
-            const fresh = animateFrom >= 0 && i >= animateFrom;
-            row.style.setProperty('--i', fresh ? String(Math.min(i - animateFrom, STAGGER_CAP)) : '0');
-        }
         if (!scrollBound) {
             // bodyEl 跨导航存活（renderShell 只清它的子节点），所以只挂一次。
-            bodyEl.addEventListener('scroll', () => {
+            bodyEl.addEventListener('scroll', function () {
                 // 滚动出来的行不算新数据 —— 传 -1，不排入场。
-                // 同时摘掉入场类，否则重建的行会再放一遍动效。
+                // 同时摘掉入场类，否则新建的行会再放一遍动效。
                 if (listEl) listEl.classList.remove('fk-list-in');
                 syncVirtual(-1);
             });

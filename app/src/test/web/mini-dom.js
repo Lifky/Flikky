@@ -122,8 +122,21 @@ class FakeElement {
   hasAttribute(name) { return this._attrs.has(name); }
 
   appendChild(child) {
+    if (child.parentNode) child.parentNode.removeChild(child);
     child.parentNode = this;
     this.children.push(child);
+    return child;
+  }
+  /**
+   * 虚拟化的窗口既会在尾部追加、也会在**头部插入**（向上滚动时），
+   * 所以这个 double 必须支持定点插入，否则那一半路径无法测。
+   */
+  insertBefore(child, ref) {
+    if (child.parentNode) child.parentNode.removeChild(child);
+    child.parentNode = this;
+    const at = ref ? this.children.indexOf(ref) : -1;
+    if (at < 0) this.children.push(child);
+    else this.children.splice(at, 0, child);
     return child;
   }
   removeChild(child) {
@@ -132,6 +145,12 @@ class FakeElement {
     return child;
   }
   remove() { if (this.parentNode) this.parentNode.removeChild(this); }
+  /** 复用判断要问「这一行已经在它该在的位置上了吗」，所以需要 nextSibling。 */
+  get nextSibling() {
+    if (!this.parentNode) return null;
+    const at = this.parentNode.children.indexOf(this);
+    return at < 0 ? null : (this.parentNode.children[at + 1] || null);
+  }
   replaceChildren(...next) {
     this.textContent = '';
     next.forEach((n) => this.appendChild(n));
