@@ -82,13 +82,27 @@ object ServiceLocator {
     val recallNotifications: SharedFlow<Unit> = _recallNotifications.asSharedFlow()
     fun notifyRecall() { _recallNotifications.tryEmit(Unit) }
 
+    /**
+     * 「显示隐藏文件」的当前值，供 server 侧的 [SharedStorageBrowser] 同步读取。
+     *
+     * 那个对象在非 suspend 的列举路径上跑，拿不到 DataStore 的 Flow；
+     * [TransferService] 已经在收集设置，这里由它顺手写进来。
+     */
+    @Volatile
+    var latestShowHiddenFiles: Boolean = false
+
     fun init(app: Context) {
         appContext = app.applicationContext
         session = SessionState(nowMs = System::currentTimeMillis)
         stats = TransferStats(nowMs = System::currentTimeMillis)
         fileStore = SessionFileStore(filesDir = appContext.filesDir)
         favoriteFileStore = FavoriteFileStore(filesDir = appContext.filesDir)
-        storageBrowser = SharedStorageBrowser(android.os.Environment.getExternalStorageDirectory())
+        // showHidden 用 lambda 而不是当场取值：settingsRepository 在它之后才建，
+        // 而且设置随时可改，每次列举都该看当前值。
+        storageBrowser = SharedStorageBrowser(
+            root = android.os.Environment.getExternalStorageDirectory(),
+            showHidden = { latestShowHiddenFiles },
+        )
         networkInfo = NetworkInfo(appContext)
         database = FlikkyDatabase.build(appContext)
         settingsRepository = SettingsRepository(appContext.settingsDataStore)

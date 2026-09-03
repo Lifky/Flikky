@@ -112,7 +112,11 @@ data class LocalStorageState(
  *
  * 无 Android 依赖，可在 `test/` 直接跑（mime 用 [URLConnection] 而非 Android 的 MimeTypeMap）。
  */
-class LocalStorageBrowser(private val root: File) {
+class LocalStorageBrowser(
+    private val root: File,
+    /** 用户是否打开了「显示隐藏文件」。每次列举现取，理由同 SharedStorageBrowser。 */
+    private val showHidden: () -> Boolean = { false },
+) {
 
     /**
      * 列举 [relative] 下的内容。返回 null 表示**不给进**：路径非法、不存在、不是目录，
@@ -130,6 +134,7 @@ class LocalStorageBrowser(private val root: File) {
             children,
             { it.isDirectory },
             { it.name },
+            showHidden(),
         )
         return LocalStorageState(
             path = path,
@@ -146,7 +151,7 @@ class LocalStorageBrowser(private val root: File) {
                     mime = if (isDir) null else URLConnection.guessContentTypeFromName(child.name),
                     restricted = StorageListingPolicy.isRestricted(childPath),
                     // list() 而不是 listFiles()：只要个数，不需要为每个子项建 File 对象。
-                    childCount = if (isDir) StorageListingPolicy.visibleCount(child.list()) else null,
+                    childCount = if (isDir) StorageListingPolicy.visibleCount(child.list(), showHidden()) else null,
                 )
             },
         )
@@ -194,7 +199,7 @@ class LocalStorageBrowser(private val root: File) {
         // 先把 context 取出来：钩子不是 suspend 的（扫描内部是普通紧循环），
         // 而 CoroutineContext.ensureActive() 是普通扩展函数，捕获后可以在里面调。
         val ctx = currentCoroutineContext()
-        val scanned = DirectoryScan.scan(dir) { ctx.ensureActive() }
+        val scanned = DirectoryScan.scan(dir, showHidden()) { ctx.ensureActive() }
         if (scanned == null) {
             emit(StorageChunk.Failed)
             return@flow
@@ -226,7 +231,7 @@ class LocalStorageBrowser(private val root: File) {
             },
             restricted = StorageListingPolicy.isRestricted(childPath),
             // list() 而不是 listFiles()：只要个数，不需要为每个子项建 File 对象。
-            childCount = if (scanned.isDir) StorageListingPolicy.visibleCount(child.list()) else null,
+            childCount = if (scanned.isDir) StorageListingPolicy.visibleCount(child.list(), showHidden()) else null,
         )
     }
 

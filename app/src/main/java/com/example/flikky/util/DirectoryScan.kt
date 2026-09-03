@@ -67,7 +67,11 @@ object DirectoryScan {
      * `ensureActive()`。扫描是个没有挂起点的紧循环，不主动检查的话协程已经取消了
      * 它还在跑，白烧几千次系统调用。
      */
-    fun scan(dir: File, onCancelCheck: () -> Unit = {}): List<ScannedEntry>? {
+    fun scan(
+        dir: File,
+        includeHidden: Boolean = false,
+        onCancelCheck: () -> Unit = {},
+    ): List<ScannedEntry>? {
         if (!dir.isDirectory) return null
         val collected = ArrayList<ScannedEntry>()
         var seen = 0
@@ -105,7 +109,12 @@ object DirectoryScan {
             // 报「读不了」比给出一份沉默的残缺列表诚实。
             return null
         }
-        return StorageListingPolicy.filterAndSort(collected, { it.isDir }, { it.name })
+        return StorageListingPolicy.filterAndSort(
+            collected,
+            { it.isDir },
+            { it.name },
+            includeHidden,
+        )
     }
 
     /**

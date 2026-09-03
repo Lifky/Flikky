@@ -27,7 +27,16 @@ import kotlinx.coroutines.flow.flow
  * 过滤与排序一律走 [StorageListingPolicy]，**禁止在这里另写一遍**：App 端本机浏览器调的是
  * 同一个对象，各写一遍就会让两端顺序不一致，而两边各自的测试都会是绿的。
  */
-class SharedStorageBrowser(private val root: File) : StorageBrowser {
+class SharedStorageBrowser(
+    private val root: File,
+    /**
+     * 用户是否打开了「显示隐藏文件」。
+     *
+     * 每次列举都现取（lambda 而不是布尔值）：设置随时可改，而这个对象活在
+     * ServiceLocator 里、生命周期比一次设置变更长得多。
+     */
+    private val showHidden: () -> Boolean = { false },
+) : StorageBrowser {
 
     override fun list(relative: String): StorageResult<StorageListDto> {
         val dir = StoragePathPolicy.resolve(root, relative) ?: return StorageResult.InvalidPath
@@ -35,7 +44,12 @@ class SharedStorageBrowser(private val root: File) : StorageBrowser {
         if (StorageListingPolicy.isRestricted(normalized)) return StorageResult.Restricted
         if (!dir.isDirectory) return StorageResult.NotFound
         val children = dir.listFiles()?.toList() ?: return StorageResult.NotFound
-        val sorted = StorageListingPolicy.filterAndSort(children, { it.isDirectory }, { it.name })
+        val sorted = StorageListingPolicy.filterAndSort(
+            children,
+            { it.isDirectory },
+            { it.name },
+            showHidden(),
+        )
         return StorageResult.Ok(
             StorageListDto(path = normalized, entries = sorted.map { toEntry(it, normalized) }),
         )
@@ -58,7 +72,7 @@ class SharedStorageBrowser(private val root: File) : StorageBrowser {
         if (!dir.isDirectory) return StorageResult.NotFound
         val batches = flow {
             val ctx = currentCoroutineContext()
-            val scanned = DirectoryScan.scan(dir) { ctx.ensureActive() }
+            val scanned = DirectoryScan.scan(dir, showHidden()) { ctx.ensureActive() }
                 ?: return@flow
             for (batch in DirectoryScan.batches(scanned)) {
                 currentCoroutineContext().ensureActive()
@@ -88,7 +102,7 @@ class SharedStorageBrowser(private val root: File) : StorageBrowser {
                 URLConnection.guessContentTypeFromName(scanned.name)
             },
             // list() 而不是 listFiles()：只要个数，不需要为每个子项建 File 对象。
-            childCount = if (scanned.isDir) StorageListingPolicy.visibleCount(child.list()) else null,
+            childCount = if (scanned.isDir) StorageListingPolicy.visibleCount(child.list(), showHidden()) else null,
             restricted = StorageListingPolicy.isRestricted(childPath),
         )
     }
@@ -116,7 +130,7 @@ class SharedStorageBrowser(private val root: File) : StorageBrowser {
             size = if (isDir) 0L else file.length(),
             mtime = file.lastModified(),
             mime = if (isDir) null else guessMime(file.name),
-            childCount = if (isDir) StorageListingPolicy.visibleCount(file.list()) else null,
+            childCount = if (isDir) StorageListingPolicy.visibleCount(file.list(), showHidden()) else null,
             restricted = StorageListingPolicy.isRestricted(childRelative),
         )
     }

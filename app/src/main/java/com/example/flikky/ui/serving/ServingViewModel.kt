@@ -36,6 +36,7 @@ import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
 import com.example.flikky.session.Origin
 import com.example.flikky.session.PendingMessageDeletes
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -171,7 +172,10 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     // 且它必须跨配置变更存活——转屏后选择集合清空是明显的体验缺陷。
     // 纯逻辑全在 LocalStorageBrowser，这里只持有状态并转发。
     private val storageBrowser by lazy {
-        LocalStorageBrowser(android.os.Environment.getExternalStorageDirectory())
+        LocalStorageBrowser(
+            root = android.os.Environment.getExternalStorageDirectory(),
+            showHidden = { ServiceLocator.latestShowHiddenFiles },
+        )
     }
     private val _storageState = MutableStateFlow(LocalStorageState(path = "", entries = emptyList()))
     val storageState: StateFlow<LocalStorageState> = _storageState
@@ -223,6 +227,22 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     fun rememberStorageScroll(index: Int, offset: Int) {
         storageScrollIndex = index
         storageScrollOffset = offset
+    }
+
+    init {
+        // 「显示隐藏文件」翻动时，缓存里那些列表是按旧规则列出来的 —— 不失效的话
+        // 用户翻了开关却什么也没变，会以为开关坏了。
+        // `drop(1)` 跳过启动时的首个值：那不是一次变更，不该触发重读。
+        viewModelScope.launch {
+            ServiceLocator.settingsRepository.settings
+                .map { it.showHiddenFiles }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect {
+                    storageCache.clear()
+                    refreshStorage()
+                }
+        }
     }
 
     /** 手动刷新当前目录：绕过缓存，真的重新枚举。 */

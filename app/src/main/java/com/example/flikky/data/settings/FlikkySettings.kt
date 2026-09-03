@@ -101,6 +101,15 @@ data class FlikkySettings(
      * 会开一个内层注释，把后面整个文件吃掉。踩过一次。）
      */
     val storageBrowsingEnabled: Boolean = false,
+
+    /**
+     * v1.20.0: 浏览存储时是否显示 `.` 开头的隐藏项。
+     *
+     * 默认关：Android 存储里的隐藏项（`.thumbnails`、`.trashed-*`、`.nomedia`）数量可观，
+     * 会把真正想发的文件挤下去。**两端共用这一个值**，副标题的计数也走它——
+     * 三者用不同判据就是 2026-09-03 那个「副标题 5 项、进去只有 4 行」的成因。
+     */
+    val showHiddenFiles: Boolean = false,
     val sortMode: SortMode = SortMode.TIME,
     val groupMode: GroupMode = GroupMode.NONE,
     val animationSpeed: AnimationSpeed = AnimationSpeed.STANDARD,

@@ -499,7 +499,9 @@ fun SettingsScreen(
 
             // ─── 会话行为 ───────────────────────────────────────────────────────
             item {
-                val sectionItems = if (s.recallBetaEnabled) 8 else 7
+                // +1 是「显示隐藏文件」那一行。这个数是分组圆角的依据（第一行与
+                // 最后一行外圆角更大），少算一个会让最后一行画成中间行的形状。
+                val sectionItems = if (s.recallBetaEnabled) 9 else 8
                 SettingSection(title = stringResource(R.string.settings_section_session_behavior)) {
                     SettingItem(
                         title = stringResource(R.string.settings_require_pin),
@@ -598,6 +600,21 @@ fun SettingsScreen(
                             )
                         },
                         index = 6 + followingIndexOffset, total = sectionItems,
+                    )
+                    // 「显示隐藏文件」紧跟在存储浏览下面：它只在浏览存储时才起作用。
+                    // 两端共用这一个值，副标题的计数也走它——三者用不同判据就是
+                    // 2026-09-03「副标题 5 项、进去只有 4 行」的成因。
+                    SettingItem(
+                        title = stringResource(R.string.settings_show_hidden),
+                        leadingIcon = painterResource(R.drawable.ic_folder),
+                        infoText = stringResource(R.string.settings_show_hidden_summary),
+                        trailing = {
+                            Switch(
+                                checked = s.showHiddenFiles,
+                                onCheckedChange = viewModel::setShowHiddenFiles,
+                            )
+                        },
+                        index = 7 + followingIndexOffset, total = sectionItems,
                     )
                 }
             }

@@ -158,4 +158,6 @@
     <string name="settings_delete_all_confirm">Delete everything</string>
     <string name="settings_delete_all_done">All data deleted</string>
     <string name="settings_delete_all_blocked">A session is running; deletion is blocked</string>
+    <string name="settings_show_hidden">Show hidden files</string>
+    <string name="settings_show_hidden_summary">List items whose name starts with a dot while browsing storage. Most are system caches (.thumbnails, .trashed-*), so they are hidden by default.</string>
 </resources>

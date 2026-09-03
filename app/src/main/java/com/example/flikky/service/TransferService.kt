@@ -159,6 +159,7 @@ class TransferService : Service() {
         val name = getString(R.string.service_default_session_name, FMT.format(Date(now)))
         val startSettings = runBlocking { ServiceLocator.settingsRepository.settings.first() }
         latestSettings = startSettings
+        ServiceLocator.latestShowHiddenFiles = startSettings.showHiddenFiles
         currentRequirePin = startSettings.requirePin
         val sid = runBlocking {
             runCatching {
@@ -191,6 +192,9 @@ class TransferService : Service() {
             settingsCollectorJob = scope.launch {
                 ServiceLocator.settingsRepository.settings.collect {
                     latestSettings = it
+                    // server 侧的 SharedStorageBrowser 在非 suspend 路径上列举，
+                    // 拿不到 DataStore 的 Flow —— 这里是它唯一的同步入口。
+                    ServiceLocator.latestShowHiddenFiles = it.showHiddenFiles
                     // DataStore -> session + browser propagation (single point). Skips when the
                     // session already holds the value - adoption/Serving paths write the session
                     // first, so this also suppresses echo broadcasts back to the browser.
@@ -309,6 +313,7 @@ class TransferService : Service() {
             return
         }
         latestSettings = runBlocking { ServiceLocator.settingsRepository.settings.first() }
+        ServiceLocator.latestShowHiddenFiles = latestSettings.showHiddenFiles
         currentRequirePin = armed.session.requirePin
 
         val ip = ServiceLocator.networkInfo.currentWifiIpv4()

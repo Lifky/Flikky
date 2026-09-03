@@ -96,4 +96,57 @@ class StorageVisibleCountTest {
             Regex("""\.list\(\)\s*[?!]*\s*\.size""").containsMatchIn(probe),
         )
     }
+
+    @Test
+    fun `showing hidden files makes the count include them`() {
+        val names = arrayOf("a.txt", ".hidden", "b.txt")
+        assertEquals(2, StorageListingPolicy.visibleCount(names))
+        assertEquals(3, StorageListingPolicy.visibleCount(names, includeHidden = true))
+    }
+
+    @Test
+    fun `count and listing agree under both settings`() {
+        // 这条才是判据本身。开关加进来之后，两个函数在**同一个开关值**下必须一致——
+        // 只在默认值下对齐等于把 bug 挪到了开着的那一档。
+        val names = listOf("a.txt", ".hidden", "Z.txt", ".DS_Store", "sub")
+        listOf(false, true).forEach { includeHidden ->
+            val listed = StorageListingPolicy.filterAndSort(
+                items = names,
+                isDir = { it == "sub" },
+                name = { it },
+                includeHidden = includeHidden,
+            )
+            assertEquals(
+                "visibleCount and filterAndSort disagree with includeHidden=$includeHidden",
+                listed.size,
+                StorageListingPolicy.visibleCount(names.toTypedArray(), includeHidden),
+            )
+        }
+    }
+
+    @Test
+    fun `both browsers pass the setting to the policy, not a hard-coded default`() {
+        // 漏传的后果不是编译错误（两个参数都有默认值），而是那一端悄悄退回默认档——
+        // 于是开关只对另一端生效。守卫钉住每个调用点都真的传了。
+        val files = listOf(
+            "src/main/java/com/example/flikky/data/SharedStorageBrowser.kt",
+            "src/main/java/com/example/flikky/ui/serving/storage/LocalStorageBrowser.kt",
+        ).map { File(it).let { f -> if (f.exists()) f else File("app/$it") } }
+        files.forEach { f ->
+            val src = f.readText()
+                .replace(Regex("""/\*[\s\S]*?\*/"""), "")
+                .replace(Regex("""(?m)^\s*//.*$"""), "")
+            assertTrue(
+                "${f.name} must read the setting for every listing",
+                src.contains("showHidden()"),
+            )
+            // visibleCount 的每个调用点都要带上它。
+            val bare = Regex("""visibleCount\([^)]*\.list\(\)\)""").findAll(src).count()
+            assertEquals(
+                "${f.name} has $bare visibleCount calls that ignore the setting",
+                0,
+                bare,
+            )
+        }
+    }
 }

@@ -173,6 +173,14 @@ data class PeerInfoDto(
      * 默认 false 与 FlikkySettings 一致；DTO 不依赖 data 层，故此处内联默认值。
      */
     val storageBrowsingEnabled: Boolean = false,
+
+    /**
+     * v1.20.0: 浏览存储时是否显示 `.` 开头的隐藏项。
+     *
+     * 浏览器需要知道它**变了**——目录缓存里那些列表是按旧值列出来的，
+     * 不失效的话开关翻了也看不出变化。默认 false 与 FlikkySettings 一致。
+     */
+    val showHiddenFiles: Boolean = false,
 )
 
 @Serializable

@@ -18,6 +18,8 @@
     const t = (key, values) => i18n.t(key, values);
     const countText = (key, count) => i18n.count(key, count);
     let lastStatus = null;
+    /** 上一次收到的「显示隐藏文件」值。null = 还没收到过，不触发失效。 */
+    let lastShowHiddenFiles = null;
 
     function computeSaveAllState(files) {
         return {
@@ -553,6 +555,17 @@
         }
         if (Object.prototype.hasOwnProperty.call(data, 'storageBrowsingEnabled')) {
             applyStorageBrowsing(!!data.storageBrowsingEnabled);
+        }
+        if (Object.prototype.hasOwnProperty.call(data, 'showHiddenFiles')) {
+            // 列举规则变了：目录缓存里那些列表是按旧规则列出来的，不失效的话
+            // 手机上翻了开关这边毫无变化 —— 用户会以为开关坏了。
+            // 只在**真的变了**时失效：每次 settings_changed 都重取等于没有缓存。
+            const next = !!data.showHiddenFiles;
+            if (lastShowHiddenFiles !== null && lastShowHiddenFiles !== next
+                && window.flikkyPanels && window.flikkyPanels.files) {
+                window.flikkyPanels.files.invalidate();
+            }
+            lastShowHiddenFiles = next;
         }
         // 默认焦点只施加一次。挂在本函数上而不加这道闸，等于每次 settings_changed
         // 都把用户拽回第一个目的地 —— 与上面那条注释记的坑同一形状。

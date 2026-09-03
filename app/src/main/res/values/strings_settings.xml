@@ -153,4 +153,6 @@
     <string name="settings_delete_all_confirm">全部删除</string>
     <string name="settings_delete_all_done">已删除全部数据</string>
     <string name="settings_delete_all_blocked">会话进行中，无法删除</string>
+    <string name="settings_show_hidden">显示隐藏文件</string>
+    <string name="settings_show_hidden_summary">浏览存储时显示以「.」开头的项目。这类文件多为系统缓存（.thumbnails、.trashed-*），默认隐藏以免挤占列表。</string>
 </resources>

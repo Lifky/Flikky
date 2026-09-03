@@ -33,15 +33,23 @@ object StorageListingPolicy {
      * `File.list()?.size`。顺序和过滤共用了策略，计数没有，于是二者悄悄分了叉——
      * 而这种分叉两端各自的测试都是绿的。计数必须和列举同源。
      */
-    fun visibleCount(names: Array<String>?): Int? =
-        names?.count { !isHidden(it) }
+    fun visibleCount(names: Array<String>?, includeHidden: Boolean = false): Int? =
+        names?.count { includeHidden || !isHidden(it) }
 
+    /**
+     * @param includeHidden 用户在设置里打开了「显示隐藏文件」时为 true。
+     *   默认 false —— Android 存储里的隐藏项（`.thumbnails`、`.trashed-*`、`.nomedia`）
+     *   数量可观，会把真正想发的文件挤下去。
+     *   **[visibleCount] 必须收到同一个值**，否则副标题与列表又会对不上（那正是
+     *   2026-09-03 装机验收报的「副标题 5 项、进去只有 4 行」）。
+     */
     fun <T> filterAndSort(
         items: List<T>,
         isDir: (T) -> Boolean,
         name: (T) -> String,
+        includeHidden: Boolean = false,
     ): List<T> = items
-        .filterNot { isHidden(name(it)) }
+        .filterNot { !includeHidden && isHidden(name(it)) }
         .sortedWith(
             compareBy<T> { if (isDir(it)) 0 else 1 }
                 .thenBy(String.CASE_INSENSITIVE_ORDER) { name(it) },

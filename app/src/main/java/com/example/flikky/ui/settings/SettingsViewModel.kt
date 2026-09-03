@@ -93,6 +93,9 @@ class SettingsViewModel @JvmOverloads constructor(
     fun setStorageBrowsingEnabled(value: Boolean) =
         viewModelScope.launch { repository.setStorageBrowsingEnabled(value) }
 
+    fun setShowHiddenFiles(value: Boolean) =
+        viewModelScope.launch { repository.setShowHiddenFiles(value) }
+
     fun setBubbleCornerRadius(value: Int) =
         viewModelScope.launch { repository.setBubbleCornerRadius(value) }
 

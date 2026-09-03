@@ -1113,11 +1113,22 @@
     }
 
     window.flikkyPanels = window.flikkyPanels || {};
+    /**
+     * 列举规则变了（目前只有「显示隐藏文件」）：缓存里那些列表是按旧规则列出来的，
+     * 不失效的话开关翻了也看不出变化 —— 而用户会以为开关坏了。
+     * 丢掉缓存并重取当前目录。
+     */
+    function invalidate() {
+        cacheClear();
+        if (enabled) load(currentPath, true);
+    }
+
     window.flikkyPanels.files = {
         mount: mount,
         render: render,
         navigate: navigate,
         setEnabled: setEnabled,
+        invalidate: invalidate,
     };
     window.flikky = window.flikky || {};
     window.flikky.renderFilesPanel = render;
