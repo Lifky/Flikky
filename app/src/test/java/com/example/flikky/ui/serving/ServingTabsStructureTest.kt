@@ -705,4 +705,30 @@ class ServingTabsStructureTest {
             report.contains("state.path,"),
         )
     }
+
+    @Test
+    fun `the scroll restore runs once per directory, not again after a tab switch`() {
+        // 针对性审查发现（2026-09-03）：HorizontalPager 会把离屏的页从组合里移除。
+        // 切到「会话」再切回来，ServingStorageTab 重新进入组合，那个恢复 effect 的
+        // key 一个没变、于是又跑一遍 —— 把用户从他刚滚到的位置弹回缓存里记的旧位置。
+        //
+        // `rememberLazyListState` 的位置本身能被 pager 的 SaveableStateHolder 存下来，
+        // 所以回来时列表**本来就在**用户离开的地方；恢复只该在真正的秒回那一次跑。
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        val restore = tab.substringAfter(
+            "LaunchedEffect(state.path, state.restoredScrollIndex",
+            "",
+        ).take(600)
+        assertTrue("no restore effect found", restore.isNotEmpty())
+        assertTrue(
+            "the restore must remember it already ran for this directory; body: $restore",
+            restore.contains("restoredFor"),
+        )
+        // 而且那个标记必须能活过离屏销毁，否则它和 effect 的 key 一起被重建，
+        // 等于没有标记。
+        assertTrue(
+            "the marker must survive the pager disposing this page",
+            tab.contains("rememberSaveable"),
+        )
+    }
 }

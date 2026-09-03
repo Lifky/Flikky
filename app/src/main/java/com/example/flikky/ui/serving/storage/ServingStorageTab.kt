@@ -41,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -115,6 +116,14 @@ fun ServingStorageTab(
     // （FlikkySelectingToolbarOverlay 的 KDoc 记着这个 bug）。
     val listState = rememberLazyListState()
 
+    /**
+     * 已经为哪个目录恢复过滚动位置了。
+     *
+     * 必须 `rememberSaveable`：普通 `remember` 会跟着离屏销毁一起消失，
+     * 与 effect 的 key 同时重建，等于没有标记。
+     */
+    var restoredFor by rememberSaveable { mutableStateOf("") }
+
     // ── 回退时把位置放回去 ──────────────────────────────────────────────────
     //
     // restoredScrollIndex 为 -1 表示这不是一次恢复（新目录从顶部开始）。
@@ -123,7 +132,15 @@ fun ServingStorageTab(
     LaunchedEffect(state.path, state.restoredScrollIndex, state.entries.size) {
         val target = state.restoredScrollIndex
         if (target < 0 || state.entries.isEmpty()) return@LaunchedEffect
-        if (listState.firstVisibleItemIndex == target) return@LaunchedEffect
+        // **每个目录只恢复一次。**
+        //
+        // HorizontalPager 会把离屏的页从组合里移除。切到「会话」再切回来，
+        // 这个 composable 重新进入组合、effect 的 key 一个没变，于是又跑一遍 ——
+        // 把用户从他刚滚到的位置弹回缓存里记的旧位置。
+        // 而 rememberLazyListState 的位置本身会被 pager 的 SaveableStateHolder 存下来，
+        // 回来时列表本来就在用户离开的地方，不需要也不该再恢复。
+        if (restoredFor == state.path) return@LaunchedEffect
+        restoredFor = state.path
         listState.scrollToItem(
             index = target.coerceAtMost(state.entries.size - 1),
             scrollOffset = state.restoredScrollOffset,
