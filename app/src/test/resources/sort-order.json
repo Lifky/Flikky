@@ -1,0 +1,23 @@
+{
+  "note": "跨端共享 fixture。Kotlin 侧 SortOrderFixtureTest 与 JS 侧 sort-order-fixture.test.js 读同一份。期望顺序按 includeHidden=false 手工推导，改动任一端的比较器都必须先能解释这里为什么变。加排序键必须同步扩这份 fixture。",
+  "entries": [
+    { "name": "Alpha",   "isDir": true,  "size": 0,   "mtime": 300 },
+    { "name": "beta",    "isDir": true,  "size": 0,   "mtime": 100 },
+    { "name": "10",      "isDir": false, "size": 50,  "mtime": 500 },
+    { "name": "2",       "isDir": false, "size": 300, "mtime": 200 },
+    { "name": "README",  "isDir": false, "size": 100, "mtime": 400 },
+    { "name": "readme",  "isDir": false, "size": 100, "mtime": 400 },
+    { "name": "Äpfel",   "isDir": false, "size": 20,  "mtime": 600 },
+    { "name": "apple",   "isDir": false, "size": 20,  "mtime": 600 },
+    { "name": "中文",     "isDir": false, "size": 0,   "mtime": 10 },
+    { "name": ".hidden", "isDir": false, "size": 999, "mtime": 999 }
+  ],
+  "expected": {
+    "NAME:asc":  ["Alpha", "beta", "10", "2", "apple", "README", "readme", "Äpfel", "中文"],
+    "NAME:desc": ["beta", "Alpha", "中文", "Äpfel", "readme", "README", "apple", "2", "10"],
+    "TIME:asc":  ["beta", "Alpha", "中文", "2", "README", "readme", "10", "apple", "Äpfel"],
+    "TIME:desc": ["Alpha", "beta", "apple", "Äpfel", "10", "README", "readme", "2", "中文"],
+    "SIZE:asc":  ["Alpha", "beta", "中文", "apple", "Äpfel", "10", "README", "readme", "2"],
+    "SIZE:desc": ["Alpha", "beta", "2", "README", "readme", "10", "apple", "Äpfel", "中文"]
+  }
+}
