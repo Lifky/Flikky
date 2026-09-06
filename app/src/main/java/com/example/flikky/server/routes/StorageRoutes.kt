@@ -5,6 +5,7 @@ import com.example.flikky.server.dto.StorageErrorDto
 import com.example.flikky.server.dto.StorageListDto
 import com.example.flikky.server.dto.WireJson
 import com.example.flikky.server.dto.StorageStreamHeadDto
+import com.example.flikky.util.SortSpec
 import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -56,14 +57,22 @@ data class StorageStream(
 )
 
 interface StorageBrowser {
-    fun list(relative: String): StorageResult<StorageListDto>
+    fun list(
+        relative: String,
+        sort: SortSpec = SortSpec.NameAsc,
+    ): StorageResult<StorageListDto>
+
+    /** 下载一个文件与顺序无关，故不收 [SortSpec]。 */
     fun open(relative: String): StorageResult<StorageFileHandle>
 
     /**
      * 流式列举。返回 Ok 时**尚未**产生任何条目——[StorageStream.batches] 被收集时才枚举。
      * 校验失败的语义与 [list] 完全一致。
      */
-    fun listStream(relative: String): StorageResult<StorageStream>
+    fun listStream(
+        relative: String,
+        sort: SortSpec = SortSpec.NameAsc,
+    ): StorageResult<StorageStream>
 }
 
 /**
@@ -81,6 +90,8 @@ interface StorageBrowser {
  * **刻意不提供 `?inline=1`**：存储面板首版只有下载、没有预览/lightbox（spec 5.3），
  * 所以 inline 没有任何消费者，而它会把「用什么 Content-Type 渲染」的选择权交给调用方，
  * 等于白送一个同源 XSS 面。与 [favoriteRoutes] 同一裁决。
+ *
+ * `?sort=` 是只读视图参数：在门禁之后解析，非法即回落默认顺序，**不产生新的状态码分支**。
  */
 fun Route.storageRoutes(
     authGate: AuthGate,
@@ -128,10 +139,16 @@ fun Route.storageRoutes(
     get("/api/storage/list") {
         if (!call.passesGate()) return@get
         val b = browser() ?: run { call.respond(HttpStatusCode.ServiceUnavailable); return@get }
+        // 只读视图参数，形态就是 SortSpec.format() 的输出（客户端把 localStorage 里存的
+        // 字符串原样传过来），所以两端共用同一个解析器、零转换。
+        //
+        // **解析失败回落默认值，不返回 400**：它不是业务输入，是「怎么看」。
+        // 因为一个存坏了的偏好就把整个文件面板锁死，代价与收益完全不成比例。
+        val sort = SortSpec.parse(call.request.queryParameters["sort"]) ?: SortSpec.NameAsc
         if (call.request.queryParameters["stream"] == "1") {
             val requested = call.request.queryParameters["path"].orEmpty()
             // 校验同步完成，状态码还能用；确认可读之后才开始写响应体。
-            val opened = withContext(Dispatchers.IO) { b.listStream(requested) }
+            val opened = withContext(Dispatchers.IO) { b.listStream(requested, sort) }
             if (opened !is StorageResult.Ok) {
                 call.respondFailure(opened)
                 return@get
@@ -160,7 +177,7 @@ fun Route.storageRoutes(
         // 大目录里这是几百毫秒到几秒；留在请求协程的默认调度器上会占住事件循环线程，
         // 拖慢同一时刻的其它请求（消息、文件流）。
         val listed = withContext(Dispatchers.IO) {
-            b.list(call.request.queryParameters["path"].orEmpty())
+            b.list(call.request.queryParameters["path"].orEmpty(), sort)
         }
         when (val result = listed) {
             is StorageResult.Ok -> call.respond(result.value)

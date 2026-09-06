@@ -9,6 +9,8 @@ import com.example.flikky.server.routes.StorageFileHandle
 import com.example.flikky.server.routes.StorageResult
 import com.example.flikky.server.routes.StorageStream
 import com.example.flikky.session.SessionState
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
 import com.example.flikky.session.TransferStats
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
@@ -25,6 +27,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -62,15 +65,22 @@ class StorageRoutesTest {
         var listCalls = 0
         var openCalls = 0
         var streamCalls = 0
-        override fun list(relative: String): StorageResult<StorageListDto> {
+        /** 最后一次列举收到的排序。用于断言 `?sort=` 真的透传下去了。 */
+        var lastSort: SortSpec? = null
+        override fun list(relative: String, sort: SortSpec): StorageResult<StorageListDto> {
             listCalls++
+            lastSort = sort
             return listResult
         }
         /** 非 null 时，第一批发出后就在这里挂住，直到测试放闸。用于验「真的在流」。 */
         var gate: CompletableDeferred<Unit>? = null
 
-        override fun listStream(relative: String): StorageResult<StorageStream> {
+        override fun listStream(
+            relative: String,
+            sort: SortSpec,
+        ): StorageResult<StorageStream> {
             streamCalls++
+            lastSort = sort
             return when (val r = listResult) {
                 is StorageResult.Ok -> StorageResult.Ok(
                     StorageStream(
@@ -155,6 +165,69 @@ class StorageRoutesTest {
             assertEquals(HttpStatusCode.Unauthorized, resp.status)
         }
         assertEquals(0, spy.listCalls)
+    }
+
+    @Test
+    fun `list passes the requested sort through to the browser`() = runBlocking {
+        val spy = SpyBrowser()
+        val s = buildServer(spy).also { server = it; it.start() }
+        client().use { c ->
+            authenticate(c, s.boundPort)
+            c.get("http://127.0.0.1:${s.boundPort}/api/storage/list?sort=SIZE:desc")
+        }
+        assertEquals(SortSpec(SortKey.SIZE, descending = true), spy.lastSort)
+    }
+
+    @Test
+    fun `the streaming path passes the sort through too`() = runBlocking {
+        // 流式是浏览器实际走的那条。只给非流式加参数，用户看到的顺序不会变。
+        val spy = SpyBrowser()
+        val s = buildServer(spy).also { server = it; it.start() }
+        client().use { c ->
+            authenticate(c, s.boundPort)
+            c.get("http://127.0.0.1:${s.boundPort}/api/storage/list?stream=1&sort=TIME:asc")
+        }
+        assertEquals(SortSpec(SortKey.TIME, descending = false), spy.lastSort)
+    }
+
+    @Test
+    fun `an unparseable sort falls back to the default instead of failing the request`() = runBlocking {
+        // 排序是只读视图参数，不是业务输入。因为它拼错就 400，等于让一个存坏了的
+        // localStorage 把整个文件面板锁死 —— 代价与收益完全不成比例。
+        val spy = SpyBrowser()
+        val s = buildServer(spy).also { server = it; it.start() }
+        client().use { c ->
+            authenticate(c, s.boundPort)
+            val resp: HttpResponse =
+                c.get("http://127.0.0.1:${s.boundPort}/api/storage/list?sort=NOPE")
+            assertEquals(HttpStatusCode.OK, resp.status)
+        }
+        assertEquals(SortSpec.NameAsc, spy.lastSort)
+    }
+
+    @Test
+    fun `a missing sort parameter means the default order`() = runBlocking {
+        val spy = SpyBrowser()
+        val s = buildServer(spy).also { server = it; it.start() }
+        client().use { c ->
+            authenticate(c, s.boundPort)
+            c.get("http://127.0.0.1:${s.boundPort}/api/storage/list")
+        }
+        assertEquals(SortSpec.NameAsc, spy.lastSort)
+    }
+
+    @Test
+    fun `the sort parameter never runs before the auth gate`() = runBlocking {
+        // 红线：鉴权恒在最前。带排序参数的未授权请求必须 401，且不许碰 browser。
+        val spy = SpyBrowser()
+        val s = buildServer(spy).also { server = it; it.start() }
+        client().use { c ->
+            val resp: HttpResponse =
+                c.get("http://127.0.0.1:${s.boundPort}/api/storage/list?sort=SIZE:desc")
+            assertEquals(HttpStatusCode.Unauthorized, resp.status)
+        }
+        assertEquals(0, spy.listCalls)
+        assertNull(spy.lastSort)
     }
 
     @Test

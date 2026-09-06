@@ -8,6 +8,7 @@ import com.example.flikky.server.routes.StorageResult
 import com.example.flikky.server.routes.StorageStream
 import com.example.flikky.util.DirectoryScan
 import com.example.flikky.util.ScannedEntry
+import com.example.flikky.util.SortSpec
 import com.example.flikky.util.StorageListingPolicy
 import com.example.flikky.util.StoragePathPolicy
 import java.io.File
@@ -38,7 +39,7 @@ class SharedStorageBrowser(
     private val showHidden: () -> Boolean = { false },
 ) : StorageBrowser {
 
-    override fun list(relative: String): StorageResult<StorageListDto> {
+    override fun list(relative: String, sort: SortSpec): StorageResult<StorageListDto> {
         val dir = StoragePathPolicy.resolve(root, relative) ?: return StorageResult.InvalidPath
         val normalized = StoragePathPolicy.relativize(root, dir)
         if (StorageListingPolicy.isRestricted(normalized)) return StorageResult.Restricted
@@ -49,6 +50,11 @@ class SharedStorageBrowser(
             { it.isDirectory },
             { it.name },
             showHidden(),
+            // 目录恒报 0：文件系统给的目录大小各平台不一致，对用户也无意义。
+            // 与 `ScannedEntry` / `LocalStorageBrowser` 的同名裁决一致。
+            { if (it.isDirectory) 0L else it.length() },
+            { it.lastModified() },
+            sort,
         )
         return StorageResult.Ok(
             StorageListDto(path = normalized, entries = sorted.map { toEntry(it, normalized) }),
@@ -65,14 +71,17 @@ class SharedStorageBrowser(
      * 逐批 `emit` 是取消检查点；扫描内部的紧循环没有挂起点，所以把 `ensureActive`
      * 传进去当钩子。浏览器中断连接时这条流会被取消，枚举随即停止。
      */
-    override fun listStream(relative: String): StorageResult<StorageStream> {
+    override fun listStream(
+        relative: String,
+        sort: SortSpec,
+    ): StorageResult<StorageStream> {
         val dir = StoragePathPolicy.resolve(root, relative) ?: return StorageResult.InvalidPath
         val normalized = StoragePathPolicy.relativize(root, dir)
         if (StorageListingPolicy.isRestricted(normalized)) return StorageResult.Restricted
         if (!dir.isDirectory) return StorageResult.NotFound
         val batches = flow {
             val ctx = currentCoroutineContext()
-            val scanned = DirectoryScan.scan(dir, showHidden()) { ctx.ensureActive() }
+            val scanned = DirectoryScan.scan(dir, showHidden(), sort) { ctx.ensureActive() }
                 ?: return@flow
             for (batch in DirectoryScan.batches(scanned)) {
                 currentCoroutineContext().ensureActive()
