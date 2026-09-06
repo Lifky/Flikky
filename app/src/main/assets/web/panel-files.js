@@ -92,6 +92,14 @@
     let selectAllIcon = null;
     let footerEl = null;
 
+    /**
+     * 「一行都没有」时的那句话。
+     *
+     * 与 footerEl 分开：页脚说的是「共 N 项」，这一句说的是「什么都没有」——
+     * 两者不会同时出现，但语义不同，混用一个节点会让文案切换出错。
+     */
+    let emptyNoticeEl = null;
+
     /** 分帧写 aria-selected 的游标；新的一次写入会作废上一次未跑完的。 */
     let markSeq = 0;
 
@@ -320,6 +328,27 @@
 
         container.appendChild(head);
 
+        // 搜索行。**必须在滚动容器外面**：renderShell 每次换目录都执行
+        // `bodyEl.textContent = ''`，放里面会连同焦点一起被摧毁 —— 输入到一半
+        // 来一批数据就丢焦点。
+        //
+        // markup 与收藏面板 app.html 里那段逐字同形（同 .fk-search、同
+        // data-icon="search" 的 span、同一个 input），只是位置不同：
+        // 那边在 body 内会随列表滚走，这边固定。
+        const search = document.createElement('div');
+        search.className = 'fk-search';
+        search.appendChild(icon('search'));
+        searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.setAttribute('aria-label', t('app.files.search'));
+        searchInput.placeholder = t('app.files.search');
+        searchInput.addEventListener('input', function () {
+            query = searchInput.value;
+            applyViewChange();
+        });
+        search.appendChild(searchInput);
+        container.appendChild(search);
+
         bodyEl = document.createElement('div');
         bodyEl.className = 'fk-panel-body flikky-scroll';
         container.appendChild(bodyEl);
@@ -393,9 +422,11 @@
      * 真正的墙是这批行本身就有上万个 DOM 节点（见 backlog B32：浏览器端无虚拟化）。
      */
     function selectAll() {
-        if (!lastState || !Array.isArray(lastState.entries)) return;
-        lastState.entries.forEach((e) => {
-            if (e.isDir || e.restricted) return;
+        // 走 selectableHere() 而不是自己遍历 lastState.entries：
+        // 三个函数（全选 / 取消全选 / 判断是否全选）必须看同一份集合，
+        // 否则「全选之后按钮不显示成已全选」这类不一致就出现了。
+        // 过滤态下这份集合只含**可见**的那些（spec §4.3）。
+        selectableHere().forEach((e) => {
             selected.add(childPath(e));
         });
         markRows();
@@ -428,8 +459,9 @@
 
     /** 当前目录里可被选中的条目（目录与沙箱条目都不算）。 */
     function selectableHere() {
-        if (!lastState || !Array.isArray(lastState.entries)) return [];
-        return lastState.entries.filter((e) => !e.isDir && !e.restricted);
+        // 读 allEntries() 而不是 lastState.entries：**「全部」的范围随过滤走**。
+        // 过滤态下选中整个目录，会让用户以为他选的是屏幕上那几个。
+        return allEntries().filter((e) => !e.isDir && !e.restricted);
     }
 
     /** 当前目录里可选的都已选中？空目录不算「全选」。 */
@@ -515,8 +547,20 @@
         if (n === 0) {
             if (footerEl && footerEl.parentNode) footerEl.parentNode.removeChild(footerEl);
             footerEl = null;
+            // **只管过滤态**：目录本身是空的那种情况由 render() 的既有分支
+            // 渲染（`app.files.empty`），两边都渲染会出现两条提示。
+            //
+            // 「没有匹配的文件」与「这个文件夹是空的」是两句不同的话 ——
+            // 混用会让用户以为目录真的空了。
+            // 加载中不说话：那时候「什么都没有」还不成立。
+            if (listingComplete && query.trim()) {
+                showEmptyNotice('app.files.searchEmpty');
+            } else {
+                clearEmptyNotice();
+            }
             return;
         }
+        clearEmptyNotice();
         if (!footerEl) {
             footerEl = document.createElement('p');
             footerEl.className = 'fk-files-footer';
@@ -527,6 +571,24 @@
             : t('app.files.loadingCount', { count: n });
     }
 
+
+    /** 流式路径下「一行都没有」的提示。虚拟化不经过 render()，所以单独一份。 */
+    function showEmptyNotice(key) {
+        if (!bodyEl) return;
+        if (!emptyNoticeEl) {
+            emptyNoticeEl = document.createElement('p');
+            emptyNoticeEl.className = 'fk-panel-notice';
+            bodyEl.appendChild(emptyNoticeEl);
+        }
+        emptyNoticeEl.textContent = t(key);
+    }
+
+    function clearEmptyNotice() {
+        if (emptyNoticeEl && emptyNoticeEl.parentNode) {
+            emptyNoticeEl.parentNode.removeChild(emptyNoticeEl);
+        }
+        emptyNoticeEl = null;
+    }
 
     /** 中性提示（加载中 / 空文件夹）。错误与引导态在 Task 8 接。 */
     function renderNotice(host, key) {
@@ -781,6 +843,11 @@
         // 新壳 = 还没有任何属于它的数据。清掉之后 syncVirtual 画不出任何行，
         // 直到头行到达把 viewEntries 接上 —— 那次 scroll 事件因此无害。
         setViewEntries([]);
+        // 换目录清空关键词。带着上个目录的词进新目录，看到的是一个「空目录」
+        // 假象（Windows 与 Finder 都清空）。
+        query = '';
+        if (searchInput) searchInput.value = '';
+
         // 新目录一律从顶部开始。
         //
         // 摘空子节点**不保证**浏览器把 scrollTop 归零：只有新内容比当前滚动偏移
@@ -788,8 +855,9 @@
         // 用户看到的是列表中段而不是开头。回退时的位置恢复在 renderFromCache 里,
         // 发生在内容铺好之后，所以这里归零不会把它覆盖掉。
         bodyEl.scrollTop = 0;
-        // 页脚与 DOM 同生同死：忘了清会让引用指向已经摘掉的节点。
+        // 页脚与空态提示都与 DOM 同生同死：忘了清会让引用指向已经摘掉的节点。
         footerEl = null;
+        emptyNoticeEl = null;
         renderBreadcrumb(bodyEl, path || '');
         progressEl = document.createElement('mdui-linear-progress');
         progressEl.className = 'fk-files-progress';
@@ -951,6 +1019,9 @@
 
     /** 排序菜单的 DOM 引用，syncSortMenu 用它重打方向箭头。 */
     let sortMenuEl = null;
+
+    /** 搜索输入框。它活在滚动容器**外面**，所以换目录不会重建它。 */
+    let searchInput = null;
 
     /**
      * `viewEntries` 的**唯一写入口**。别的地方一律调它，不要直接赋值。

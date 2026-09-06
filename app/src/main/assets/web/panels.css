@@ -58,6 +58,13 @@
   transition: background-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
 }
 .fk-search:focus-within { background: rgb(var(--mdui-color-surface-container-highest)); }
+
+/* 文件面板的搜索行在滚动容器**外面**（renderShell 会清空 body，放里面会连同
+   焦点一起被摧毁），所以它拿不到 .fk-panel-body 的内边距，在这里补齐 ——
+   补的是同一个 token，与收藏面板那条对齐。 */
+#view-files > .fk-search {
+  margin: 0 var(--flikky-space-xxl) var(--flikky-space-lg);
+}
 .fk-search input {
   flex: 1 1 auto;
   min-width: 0;
