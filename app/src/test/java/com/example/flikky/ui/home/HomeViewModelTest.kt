@@ -9,6 +9,9 @@ import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.data.settings.SettingsRepository
 import com.example.flikky.session.SessionState
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
+import kotlinx.coroutines.flow.first
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -29,6 +32,40 @@ class HomeViewModelTest {
         val settings = mockk<SettingsRepository>()
         every { settings.settings } returns MutableStateFlow(FlikkySettings())
         return settings
+    }
+
+    /** 真 DataStore —— mock 的 SettingsRepository 写不进值，测不了「点两下翻转」。 */
+    private fun realSettings(scope: kotlinx.coroutines.CoroutineScope): SettingsRepository {
+        val ds = androidx.datastore.preferences.core.PreferenceDataStoreFactory.create(
+            scope = scope,
+            produceFile = {
+                java.io.File.createTempFile("home-sort", ".preferences_pb").also { it.delete() }
+            },
+        )
+        return SettingsRepository(ds)
+    }
+
+    @Test fun setSortKey_flipsDirectionOnTheSecondTapOfTheSameKey() = runTest {
+        val app = mockk<Application>(relaxed = true)
+        val repo = mockk<SessionRepository>()
+        every { repo.observeSessions() } returns MutableStateFlow(emptyList())
+        every { repo.observeGroups() } returns MutableStateFlow(emptyList())
+        val settings = realSettings(backgroundScope)
+        val vm = HomeViewModel(app, repo, stubSession(), settingsRepository = settings)
+
+        // 点新键 → 该键的自然方向（名称是升序）
+        vm.setSortKey(SortKey.NAME).join()
+        assertEquals(
+            SortSpec(SortKey.NAME, descending = false),
+            settings.settings.first().homeSort,
+        )
+
+        // 再点同一个键 → 翻转
+        vm.setSortKey(SortKey.NAME).join()
+        assertEquals(
+            SortSpec(SortKey.NAME, descending = true),
+            settings.settings.first().homeSort,
+        )
     }
 
     @Test fun sessions_flow_is_forwarded_from_repository() = runTest {

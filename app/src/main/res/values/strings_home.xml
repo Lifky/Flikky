@@ -98,4 +98,11 @@
     <string name="home_no_wifi_title">未连接 Wi-Fi</string>
     <string name="home_no_wifi_text">同一 Wi-Fi 下的设备使用浏览器即可连接。请先连接 Wi-Fi，再开始传输。</string>
     <string name="home_no_wifi_open_settings">去连接</string>
+    <string name="home_sort_sheet_title">排序与分节</string>
+    <string name="home_sort_section">排序</string>
+    <string name="home_section_mode">分节方式</string>
+    <string name="home_sort_time">按时间</string>
+    <string name="home_section_mode_none">不分节</string>
+    <string name="home_section_mode_status">按状态</string>
+    <string name="home_section_mode_date">按日期</string>
 </resources>

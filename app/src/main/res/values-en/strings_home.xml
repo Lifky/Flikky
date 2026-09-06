@@ -107,4 +107,11 @@
     <string name="home_no_wifi_title">No Wi-Fi connection</string>
     <string name="home_no_wifi_text">Any device on the same Wi-Fi network can connect from its browser. Connect to Wi-Fi, then start the transfer.</string>
     <string name="home_no_wifi_open_settings">Connect</string>
+    <string name="home_sort_sheet_title">Sort &amp; sections</string>
+    <string name="home_sort_section">Sort</string>
+    <string name="home_section_mode">Sections</string>
+    <string name="home_sort_time">By time</string>
+    <string name="home_section_mode_none">No sections</string>
+    <string name="home_section_mode_status">By status</string>
+    <string name="home_section_mode_date">By date</string>
 </resources>

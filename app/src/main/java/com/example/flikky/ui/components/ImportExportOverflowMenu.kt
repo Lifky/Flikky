@@ -3,6 +3,7 @@ package com.example.flikky.ui.components
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -21,6 +22,13 @@ fun ImportExportOverflowMenu(
     exportLabel: String,
     onImport: () -> Unit,
     onExport: () -> Unit,
+    /**
+     * 可选的排序入口。非空时渲染成**第一项**并跟一条分隔线 ——
+     * 「怎么看」在「导入导出」之前，前者天天用、后者偶尔用。
+     * 收藏页不传这两个参数（它的排序菜单是独立的 SortMenuAction）。
+     */
+    sortLabel: String? = null,
+    onSort: (() -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -35,6 +43,22 @@ fun ImportExportOverflowMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {
+            if (sortLabel != null && onSort != null) {
+                DropdownMenuItem(
+                    text = { Text(sortLabel) },
+                    leadingIcon = {
+                        Icon(
+                            painterResource(R.drawable.ic_filter_list),
+                            contentDescription = null,
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        onSort()
+                    },
+                )
+                HorizontalDivider()
+            }
             DropdownMenuItem(
                 text = { Text(importLabel) },
                 onClick = {

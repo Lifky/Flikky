@@ -88,6 +88,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.entities.GroupEntity
+import com.example.flikky.data.settings.GroupMode
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.export.ExportFileName
 import com.example.flikky.export.ExportScope
@@ -142,6 +145,11 @@ fun HomeScreen(
 
     // SearchBar 展开态上提到这里：用于隐藏 FAB，并上报给 MainActivity 隐藏底栏 + 让主页铺满全屏。
     var searchExpanded by rememberSaveable { mutableStateOf(false) }
+    var sortSheetOpen by rememberSaveable { mutableStateOf(false) }
+    val homeSort by viewModel.homeSort.collectAsState(
+        initial = SortSpec(SortKey.TIME, descending = true),
+    )
+    val groupMode by viewModel.groupMode.collectAsState(initial = GroupMode.DATE)
     LaunchedEffect(searchEnabled) {
         if (!searchEnabled && searchExpanded) searchExpanded = false
     }
@@ -327,6 +335,7 @@ fun HomeScreen(
                     onOpenFiles = onOpenFiles,
                     onImport = { importLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed")) },
                     onExport = viewModel::enterSelecting,
+                    onOpenSort = { sortSheetOpen = true },
                 )
             } else {
                 LaunchedEffect(Unit) { onSearchExpandedChange(false) }
@@ -510,6 +519,16 @@ fun HomeScreen(
                 )
             }
         }
+    }
+
+    if (sortSheetOpen) {
+        HomeSortSheet(
+            sort = homeSort,
+            group = groupMode,
+            onPickSort = { viewModel.setSortKey(it) },
+            onPickGroup = { viewModel.setGroupMode(it) },
+            onDismiss = { sortSheetOpen = false },
+        )
     }
 
     if (showImportDialog) {

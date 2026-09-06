@@ -75,8 +75,10 @@ class HomeViewModel @JvmOverloads constructor(
     ) { sessions, settings ->
         HomeListBuilder.build(
             sessions = HomeListBuilder.filterByGroup(sessions, settings.activeGroupId),
-            sort = SortKey.TIME,
-            group = GroupMode.DATE,
+            // 从设置取，不写死。此前这两个实参是字面量，于是 SortKey.NAME 与
+            // GroupMode.NONE / STATUS 全是不可达代码（守卫见 HomeWiringTest）。
+            sort = settings.homeSort.key,
+            group = settings.groupMode,
             today = LocalDate.now(),
             zone = ZoneId.systemDefault(),
         )

@@ -72,6 +72,7 @@ fun HomeSearchBar(
     onOpenFiles: () -> Unit,
     onImport: () -> Unit,
     onExport: () -> Unit,
+    onOpenSort: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val ctx = LocalContext.current
@@ -163,6 +164,8 @@ fun HomeSearchBar(
                                 exportLabel = stringResource(R.string.home_export_sessions),
                                 onImport = onImport,
                                 onExport = onExport,
+                                sortLabel = stringResource(R.string.home_sort_sheet_title),
+                                onSort = onOpenSort,
                             )
                         }
                     }
