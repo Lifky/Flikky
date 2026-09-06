@@ -43,6 +43,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
+import com.example.flikky.util.tap
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -175,8 +178,29 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         LocalStorageBrowser(
             root = android.os.Environment.getExternalStorageDirectory(),
             showHidden = { ServiceLocator.latestShowHiddenFiles },
+            // lambda 而不是值：用户随时可改排序，而这个对象活得比一次设置变更长。
+            sortSpec = { storageSort.value },
         )
     }
+
+    val storageSort: StateFlow<SortSpec> = ServiceLocator.settingsRepository.settings
+        .map { it.storageSort }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, SortSpec.NameAsc)
+
+    /**
+     * 切换排序：先把**当前目录**原地重排（立刻可见），再落设置。
+     *
+     * `storageCache.clear()` 不是多余的：缓存里存的是**旧顺序**的条目，不清的话
+     * 返回上级目录会看到按旧排序排的列表 —— 又一次「一份状态没跟着它的依据一起更新」，
+     * 与本版那六个缺陷同族。
+     */
+    fun setStorageSort(key: SortKey) {
+        val next = storageSort.value.tap(key)
+        _storageState.value = StorageNavigation.resort(_storageState.value, next)
+        storageCache.clear()
+        viewModelScope.launch { ServiceLocator.settingsRepository.setStorageSort(next) }
+    }
+
     private val _storageState = MutableStateFlow(LocalStorageState(path = "", entries = emptyList()))
     val storageState: StateFlow<LocalStorageState> = _storageState
 

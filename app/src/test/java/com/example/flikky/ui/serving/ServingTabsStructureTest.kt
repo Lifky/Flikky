@@ -690,8 +690,10 @@ class ServingTabsStructureTest {
         val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
         val at = tab.indexOf("LazyColumn(")
         assertTrue("no LazyColumn found", at > 0)
-        val keyAt = tab.indexOf("key(state.path)")
-        assertTrue("no key(state.path)", keyAt in 1 until at)
+        // 匹配前缀而不是整串：v1.20.0 起 key 里还带了排序（改排序也要重建列表），
+        // 而这条守的是「按目录分 key」这件事本身，与 key 里还有几个参数无关。
+        val keyAt = tab.indexOf("key(state.path")
+        assertTrue("no key(state.path...)", keyAt in 1 until at)
         // 列表**与它的滚动状态**必须在同一个 per-directory key 块里：
         // 那才能保证换目录时两者一起重建。
         val span = tab.substring(keyAt, at)
@@ -774,9 +776,10 @@ class ServingTabsStructureTest {
         // 修法：把列表状态放进 `key(state.path)`，并用**初值**告诉它该从哪儿开始。
         // 于是第一帧就在正确位置 —— 不需要事后 scrollToItem，也没有中间帧的跳动。
         val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
-        val keyAt = tab.indexOf("key(state.path)")
+        // 匹配前缀，理由同上：key 现在是 (state.path, sortSpec.format())。
+        val keyAt = tab.indexOf("key(state.path")
         val stateAt = tab.indexOf("rememberLazyListState(")
-        assertTrue("no key(state.path)", keyAt > 0)
+        assertTrue("no key(state.path...)", keyAt > 0)
         assertTrue("no rememberLazyListState", stateAt > 0)
         assertTrue(
             "the list state must be created inside key(state.path), so a new directory " +
@@ -859,5 +862,30 @@ class ServingTabsStructureTest {
             "the resume position must be handed to StorageNavigation.begin",
             open.contains("keepIndex, keepOffset"),
         )
+    }
+
+    @Test
+    fun `the storage list is keyed by path and sort, so changing sort starts at the top`() {
+        // 改排序不改路径。列表若只按 path 分 key，状态会存活下来、停在旧下标上 ——
+        // 顺序全变之后那个位置已经没有意义了（与本版「位置错乱」同族）。
+        val tab = source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt")
+        assertTrue(
+            "列表没有按 路径 + 排序 一起 key",
+            Regex("""key\(\s*state\.path\s*,\s*sortSpec\.format\(\)\s*\)""")
+                .containsMatchIn(tab),
+        )
+    }
+
+    @Test
+    fun `switching sort clears the directory cache, which holds the old order`() {
+        // 缓存里存的是旧顺序的条目。不清的话返回上级会看到按旧排序排的列表 ——
+        // 「一份状态没跟着它的依据一起更新」，本版那六个缺陷的同一个形状。
+        val vm = source("com/example/flikky/ui/serving/ServingViewModel.kt")
+        // 切到下一个顶层 fun 之前。用 "    fun " 而不是带行尾的模式：
+        // 这个文件的行尾取决于 git autocrlf，写死任一种都会在另一种下切错。
+        val fn = vm.substring(vm.indexOf("fun setStorageSort") + 1)
+            .substringBefore("    fun ")
+        assertTrue("setStorageSort 没有清缓存", fn.contains("storageCache.clear()"))
+        assertTrue("setStorageSort 没有原地重排当前目录", fn.contains("StorageNavigation.resort"))
     }
 }

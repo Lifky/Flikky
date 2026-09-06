@@ -63,9 +63,12 @@ import com.example.flikky.ui.components.FileLeadingSpec
 import com.example.flikky.ui.components.FileLeadingVisual
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
+import com.example.flikky.ui.components.SortMenuAction
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.components.formatSize
 import com.example.flikky.ui.files.FileCategory
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
 import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.files.iconResource
 import com.example.flikky.ui.theme.Motion
@@ -108,6 +111,8 @@ fun ServingStorageTab(
     onToggleSelection: (String) -> Unit,
     onScrollChanged: (String, Int, Int) -> Unit = { _, _, _ -> },
     onRefresh: () -> Unit = {},
+    sortSpec: SortSpec = SortSpec.NameAsc,
+    onPickSort: (SortKey) -> Unit = {},
     onClearSelection: () -> Unit,
     onSendSelection: () -> Unit,
     modifier: Modifier = Modifier,
@@ -133,6 +138,8 @@ fun ServingStorageTab(
                 path = state.path,
                 onNavigate = onOpenDir,
                 onRefresh = onRefresh,
+                sortSpec = sortSpec,
+                onPickSort = onPickSort,
             )
             // ── 目录切换的方向横移 ──────────────────────────────────────────
             //
@@ -202,7 +209,10 @@ fun ServingStorageTab(
                 //
                 // 同目录内（流式追加、刷新）key 不变，仍然逐项 diff ——
                 // 那才是 animateItem 该管的事。
-                key(state.path) {
+                // key 里带上排序：改排序不改路径，若只按 path 分，
+                // 列表状态会存活下来、停在旧下标上。带上它就自然从顶部开始
+                // （初值 restoredScrollIndex 已被 resort 清成 -1）。
+                key(state.path, sortSpec.format()) {
                 // 每个目录**一份自己的**滚动状态。
                 //
                 // 放在 composable 顶层的话它跟着面板而不是跟着目录，新目录会直接
@@ -342,11 +352,13 @@ private fun StorageBreadcrumb(
     path: String,
     onNavigate: (String) -> Unit,
     onRefresh: () -> Unit,
+    sortSpec: SortSpec,
+    onPickSort: (SortKey) -> Unit,
 ) {
     // 这里曾有一层 AnimatedContent 让面包屑随路径横移淡入。
     // 2026-09-02 用户裁决去掉：面包屑本来就短、变化幅度小，动效意义不大，
     // 而「我进到别处了」这个空间感由**列表整体**的方向横移表达（见 ServingStorageTab）。
-    StorageBreadcrumbRow(path, onNavigate, onRefresh)
+    StorageBreadcrumbRow(path, onNavigate, onRefresh, sortSpec, onPickSort)
 }
 
 @Composable
@@ -354,6 +366,8 @@ private fun StorageBreadcrumbRow(
     path: String,
     onNavigate: (String) -> Unit,
     onRefresh: () -> Unit = {},
+    sortSpec: SortSpec = SortSpec.NameAsc,
+    onPickSort: (SortKey) -> Unit = {},
 ) {
     val rootLabel = stringResource(R.string.serving_storage_root)
     val moreLabel = stringResource(R.string.serving_storage_breadcrumb_more)
@@ -398,6 +412,16 @@ private fun StorageBreadcrumbRow(
         // 「秒回」变回「每次都等」），代价就是必须给用户一个手动的出口。
         // 放在面包屑行末尾：它是**当前目录**这一行的动作，与路径同处一行。
         Spacer(Modifier.weight(1f))
+        // 排在刷新**之前**：排序是「怎么看」，刷新是「重新取」，
+        // 前者天天用、后者偶尔用。与浏览器文件面板同序。
+        var sortExpanded by remember { mutableStateOf(false) }
+        SortMenuAction(
+            spec = sortSpec,
+            timeLabel = R.string.serving_storage_sort_time,
+            expanded = sortExpanded,
+            onExpandedChange = { sortExpanded = it },
+            onPick = onPickSort,
+        )
         IconButton(onClick = onRefresh) {
             Icon(
                 painter = painterResource(R.drawable.ic_refresh),

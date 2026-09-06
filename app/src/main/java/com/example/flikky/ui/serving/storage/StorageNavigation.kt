@@ -1,5 +1,7 @@
 package com.example.flikky.ui.serving.storage
 
+import com.example.flikky.util.SortSpec
+import com.example.flikky.util.StorageListingPolicy
 /**
  * 目录导航的状态迁移。纯函数，无协程无 Android。
  *
@@ -125,5 +127,46 @@ object StorageNavigation {
     ): LocalStorageState {
         val base = listed ?: fallback
         return base.copy(selected = current.selected, loading = false)
+    }
+
+    /**
+     * 原地重排当前目录，**不重扫磁盘**。
+     *
+     * 条目已经全在内存里，重排是纯计算；回去重扫一个上万项的目录是几百毫秒的 I/O，
+     * 把用户的一次视图操作变成一次昂贵的磁盘读（浏览器端同理，见 spec §6.2）。
+     *
+     * `includeHidden = true` **不是笔误**：列表里若有隐藏项，那是「显示隐藏文件」
+     * 开着时列进来的。这里做的是**排序**，再滤一次会把它们悄悄删掉 ——
+     * 而用户刚才明明看得见它们。
+     *
+     * 记忆滚动位置一并作废：顺序全变之后，停在原来的下标上看到的是一堆无关的东西。
+     */
+    fun resort(current: LocalStorageState, spec: SortSpec): LocalStorageState =
+        current.copy(
+            entries = StorageListingPolicy.filterAndSort(
+                current.entries,
+                { it.isDir },
+                { it.name },
+                true,
+                { it.size },
+                { it.mtime },
+                spec,
+            ),
+            restoredScrollIndex = -1,
+            restoredScrollOffset = 0,
+        )
+
+    /**
+     * 当前目录内的关键词过滤。**只过滤当前目录，不递归**（递归搜索需要新的服务端
+     * 路由，是另一个功能的体量，见 spec §4.1）。
+     *
+     * 规则与 `FilesListBuilder.build` 逐条相同：trim 后不区分大小写的子串，
+     * **只匹配名称、不匹配路径** —— 匹配路径会让「进到 Pictures 里搜 pictures」
+     * 把整个目录都算作命中。目录也参与：用户要找的可能就是个文件夹。
+     */
+    fun filter(entries: List<LocalEntry>, query: String): List<LocalEntry> {
+        val q = query.trim()
+        if (q.isEmpty()) return entries
+        return entries.filter { it.name.contains(q, ignoreCase = true) }
     }
 }

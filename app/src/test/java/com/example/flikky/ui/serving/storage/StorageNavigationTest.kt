@@ -1,5 +1,7 @@
 package com.example.flikky.ui.serving.storage
 
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -7,13 +9,19 @@ import org.junit.Test
 
 class StorageNavigationTest {
 
-    private fun entry(name: String) = LocalEntry(
+    private fun entry(
+        name: String,
+        isDir: Boolean = false,
+        size: Long = 1L,
+        mtime: Long = 0L,
+        relativePath: String = name,
+    ) = LocalEntry(
         name = name,
-        relativePath = name,
+        relativePath = relativePath,
         absolutePath = "/root/" + name,
-        isDir = false,
-        size = 1L,
-        mtime = 0L,
+        isDir = isDir,
+        size = size,
+        mtime = mtime,
         mime = null,
         restricted = false,
     )
@@ -267,6 +275,66 @@ class StorageNavigationTest {
         // 列表会从第 0 项开始、却带着一个莫名其妙的像素偏移。
         val out = StorageNavigation.begin(loaded, "X", -1, 999)
         assertEquals(0, out.restoredScrollOffset)
+    }
+
+    // ── 原地重排与过滤（Task 10 / 11）────────────────────────────────────
+
+    @Test
+    fun `resort reorders in place without touching the path or the selection`() {
+        val state = LocalStorageState(
+            path = "DCIM",
+            entries = listOf(entry("b.txt", size = 1), entry("a.txt", size = 9)),
+            selected = setOf("a.txt"),
+        )
+
+        val sorted = StorageNavigation.resort(state, SortSpec(SortKey.SIZE, descending = true))
+
+        assertEquals(listOf("a.txt", "b.txt"), sorted.entries.map { it.name })
+        assertEquals("DCIM", sorted.path)
+        assertEquals(setOf("a.txt"), sorted.selected)
+    }
+
+    @Test
+    fun `resort drops the remembered scroll position`() {
+        // 顺序全变之后，停在原来的下标上看到的是一堆无关的东西 ——
+        // 那个位置已经没有意义了。
+        val state = LocalStorageState(
+            path = "DCIM",
+            entries = listOf(entry("a.txt"), entry("b.txt")),
+            restoredScrollIndex = 7,
+            restoredScrollOffset = 40,
+        )
+
+        val sorted = StorageNavigation.resort(state, SortSpec(SortKey.NAME, descending = true))
+
+        assertEquals(-1, sorted.restoredScrollIndex)
+        assertEquals(0, sorted.restoredScrollOffset)
+    }
+
+    @Test
+    fun `resort keeps hidden entries that are already in the list`() {
+        // 列表里的隐藏项是「显示隐藏文件」开着时列进来的。重排是**排序**，
+        // 不是重新过滤；再滤一次会把它们悄悄删掉，而用户刚才明明看得见。
+        val state = LocalStorageState(
+            path = "",
+            entries = listOf(entry(".nomedia"), entry("a.txt")),
+        )
+
+        val sorted = StorageNavigation.resort(state, SortSpec(SortKey.NAME, descending = false))
+
+        assertEquals(2, sorted.entries.size)
+    }
+
+    @Test
+    fun `resort keeps directories first regardless of direction`() {
+        val state = LocalStorageState(
+            path = "",
+            entries = listOf(entry("z.txt", size = 9), entry("Docs", isDir = true, size = 0)),
+        )
+
+        val desc = StorageNavigation.resort(state, SortSpec(SortKey.SIZE, descending = true))
+
+        assertEquals(listOf("Docs", "z.txt"), desc.entries.map { it.name })
     }
 
 }
