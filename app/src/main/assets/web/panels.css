@@ -501,6 +501,21 @@ button.fk-crumb:hover {
   opacity: 0;
   visibility: hidden;
 }
+
+/* 排序菜单项。容器与交互态由 mdui-menu-item 自己给（D30：需要 scrim /
+   焦点陷阱 / Esc / ARIA 的用官方组件），这里只管方向箭头的呈现。 */
+.fk-sort-item {
+  /* 菜单项自带 padding 与 hover 态；这条存在是为了让「面板 emit 的每个类名
+     都在样式表里」成立（D35 的守卫），并给箭头一个定位上下文。 */
+  position: relative;
+}
+
+/* 当前排序键右侧的方向箭头。它既是选中指示也是方向指示 ——
+   一个元素说完两件事，所以菜单里不再放对勾。 */
+.fk-sort-dir {
+  font-size: 18px;
+  color: rgb(var(--mdui-color-primary));
+}
 @media (prefers-reduced-motion: reduce) {
   .fk-files-progress { transition: none; }
 }

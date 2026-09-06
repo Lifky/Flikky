@@ -248,6 +248,40 @@
         //
         // **只在列表完整到达后可点**：流未结束时「全部」没有确定含义，
         // 一个能点的按钮会让用户以为选中了整个目录（2026-09-02 用户裁决）。
+        // 排序下拉。用 mdui 官方组件：D30 定的归属是「需要 scrim / 焦点陷阱 /
+        // Esc / ARIA 语义的用 mdui」，下拉菜单四样全占，属于「自己写容易写错」。
+        // 排在全选**之前**：排序是「怎么看」，全选是「选什么」。
+        const sortDropdown = document.createElement('mdui-dropdown');
+        sortDropdown.setAttribute('placement', 'bottom-end');
+        const sortTrigger = document.createElement('button');
+        sortTrigger.type = 'button';
+        sortTrigger.className = 'fk-icon-btn';
+        sortTrigger.setAttribute('slot', 'trigger');
+        sortTrigger.setAttribute('aria-label', t('app.files.sort'));
+        sortTrigger.appendChild(icon('filter_list'));
+        sortDropdown.appendChild(sortTrigger);
+        sortMenuEl = document.createElement('mdui-menu');
+        // 文案 key **显式写出**，不用「前缀 + key.toLowerCase()」拼出来 ——
+        // 动态 key 让「两种语言的文案有没有齐」无法静态验证，而那正是
+        // web-i18n 那条守卫存在的理由（拼接时它只看得见前缀，于是报缺失）。
+        // 注：这段注释里也不能出现那种拼接的字面量，否则守卫会把它当成一个 key。
+        const SORT_LABELS = {
+            NAME: 'app.files.sortName',
+            TIME: 'app.files.sortTime',
+            SIZE: 'app.files.sortSize',
+        };
+        sorter.KEYS.forEach(function (key) {
+            const item = document.createElement('mdui-menu-item');
+            item.className = 'fk-sort-item';
+            item.setAttribute('value', key);
+            item.textContent = t(SORT_LABELS[key]);
+            item.addEventListener('click', function () { pickSort(key); });
+            sortMenuEl.appendChild(item);
+        });
+        sortDropdown.appendChild(sortMenuEl);
+        head.appendChild(sortDropdown);
+        syncSortMenu();
+
         selectAllBtn = document.createElement('button');
         selectAllBtn.type = 'button';
         selectAllBtn.className = 'fk-icon-btn';
@@ -746,7 +780,7 @@
         rowElements.clear();
         // 新壳 = 还没有任何属于它的数据。清掉之后 syncVirtual 画不出任何行，
         // 直到头行到达把 viewEntries 接上 —— 那次 scroll 事件因此无害。
-        viewEntries = [];
+        setViewEntries([]);
         // 新目录一律从顶部开始。
         //
         // 摘空子节点**不保证**浏览器把 scrollTop 归零：只有新内容比当前滚动偏移
@@ -881,6 +915,136 @@
     let viewEntries = [];
 
     /**
+     * 过滤 + 排序之后的结果。**虚拟化只读这一份。**
+     *
+     * 不能把过滤排序放进 `allEntries()`：它被 `syncVirtual` 在**每个 scroll 事件**
+     * 里调用，一万项每次滚动重排一遍，虚拟化的意义就没了。
+     */
+    let shownEntries = [];
+
+    /**
+     * 排序内核（`sort.js`）。生产环境由 `app.html` 的 script 顺序保证它先加载。
+     *
+     * 缺失时回落成「什么都不排、什么都不滤」而不是抛 —— 排序是**视图偏好**，
+     * 它不该有能力让整个文件面板打不开。这也让面板保持可单独加载
+     * （十几个既有测试只加载 panel-files.js，让它们逐个改 harness 是错的修法：
+     * 那等于把一个真实的依赖问题摊派给测试）。
+     */
+    const sorter = window.flikkySort || {
+        KEYS: [],
+        natural: function (k) { return { key: k, desc: false }; },
+        format: function (s) { return s.key + ':' + (s.desc ? 'desc' : 'asc'); },
+        parse: function () { return null; },
+        tap: function (s, k) { return { key: k, desc: false }; },
+        sortEntries: function (e) { return e || []; },
+        filterEntries: function (e) { return e || []; },
+        load: function (_k, fallback) { return fallback; },
+        save: function () {},
+    };
+
+    /** 当前排序。初值从 localStorage 读 —— 非敏感的纯展示状态，不触红线。 */
+    const SORT_STORAGE_KEY = 'flikky_sort_files';
+    let sortSpec = sorter.load(SORT_STORAGE_KEY, sorter.natural('NAME'));
+
+    /** 当前关键词（Task 13 用；recomputeShown 需要它，所以在这里声明）。 */
+    let query = '';
+
+    /** 排序菜单的 DOM 引用，syncSortMenu 用它重打方向箭头。 */
+    let sortMenuEl = null;
+
+    /**
+     * `viewEntries` 的**唯一写入口**。别的地方一律调它，不要直接赋值。
+     *
+     * 理由：`shownEntries` 是派生的，源变了必须跟着重算。分开写迟早有一处忘记，
+     * 而症状是「屏幕上还是上一个目录的行」—— 静默、没有异常。
+     * v1.20.0 连着六个缺陷都是这个形状（见 retrospective）。
+     * 守卫见 `panel-files-sort.test.js` 的第一条。
+     */
+    function setViewEntries(list) {
+        viewEntries = list || [];
+        recomputeShown();
+    }
+
+    function recomputeShown() {
+        shownEntries = sorter.sortEntries(
+            sorter.filterEntries(viewEntries, query),
+            sortSpec,
+        );
+    }
+
+    /**
+     * 切换排序。**本地重排，不重新请求** —— 条目已经全在内存里，
+     * 回服务端要重扫一个可能上万项的目录（spec §6.2）。
+     */
+    function pickSort(key) {
+        sortSpec = sorter.tap(sortSpec, key);
+        sorter.save(SORT_STORAGE_KEY, sortSpec);
+        // 目录缓存里存的是**旧顺序**，一并作废，否则返回上级会看到旧排序
+        // （又一次「一份状态没跟着它的依据一起更新」）。
+        cacheClear();
+        applyViewChange();
+        syncSortMenu();
+    }
+
+    /**
+     * 顺序或过滤变了之后重建窗口。
+     *
+     * **绝不走 `renderShell`** —— 那是「换目录」的入口：它重建面包屑、重放方向
+     * 横移、清空 viewEntries。这里路径没变，走它等于让列表无故横移一次还丢数据。
+     *
+     * 回顶放在**窗口复位之后、重建之前**：给一个已滚动过的容器赋 scrollTop 会
+     * 触发一次**异步** scroll 事件，而监听里会调 syncVirtual。顺序错了就是
+     * 2026-09-03 那个缺陷的翻版（见 renderShell 的注释）。
+     *
+     * **这个顺序目前没有测试守着**，逼红实测零条红：那次异步 scroll 事件本身
+     * 会再调一次 syncVirtual 把窗口修正回来，所以先后顺序只影响**中间一帧**，
+     * 最终状态相同 —— 而 mini-dom 只能观察最终状态。真实浏览器上表现为
+     * 切换排序时闪一下列表中段。改动这几行时请自己盯住这一点。
+     */
+    function applyViewChange() {
+        recomputeShown();
+        dropAllRows();
+        winFrom = 0;
+        winTo = 0;
+        winTotal = -1;
+        if (bodyEl) bodyEl.scrollTop = 0;
+        syncVirtual(-1);
+        syncSelectAll();
+        syncToolbar();
+        syncFooter();
+    }
+
+    /**
+     * 给当前键的那一项挂方向箭头，其余项摘掉。
+     *
+     * 箭头既是选中指示也是方向指示，一个元素说完两件事（Windows / Finder 同一
+     * 画法，App 端 SortMenuAction 也是），所以不需要额外的对勾。
+     *
+     * 摘旧箭头用 `while (firstChild) removeChild` 而不是 `querySelector` ——
+     * 后者不在项目共用的那套 DOM 操作里（见 mini-dom 的 KDoc：全项目统一用
+     * removeChild 循环清空重建）。用它的话测试替身里旧箭头永远摘不掉，
+     * 而真实浏览器里能过 —— 一个只在测试里可见的分叉。
+     */
+    function syncSortMenu() {
+        if (!sortMenuEl) return;
+        Array.prototype.forEach.call(sortMenuEl.children, function (item) {
+            const isCurrent = item.getAttribute('value') === sortSpec.key;
+            // 文本 + 可能的箭头：整个重建，语义最简单。
+            const label = item.textContent;
+            while (item.firstChild) item.removeChild(item.firstChild);
+            item.textContent = label;
+            if (!isCurrent) return;
+            // 用项目自己的 icon()（Material Symbols 连字）而不是 mdui 的
+            // end-icon 属性：后者走 mdui 自带的图标字体，而本项目打包的是
+            // 完整的 Material Symbols，靠 content: attr(data-icon) 渲染。
+            const dir = icon(sortSpec.desc ? 'arrow_downward' : 'arrow_upward');
+            dir.classList.add('fk-sort-dir');
+            dir.setAttribute('slot', 'end-icon');
+            item.appendChild(dir);
+        });
+    }
+
+    /**
      * 处理一次失败的加载。
      *
      * **本函数绝不发新请求。** plan 原案是「400 退回根目录并重拉 / 404 重拉当前目录」，
@@ -947,7 +1111,7 @@
         // 就是这一处的顺序写反了。
         currentPath = target;
         lastState = { path: target, entries: entries.slice() };
-        viewEntries = lastState.entries;
+        setViewEntries(lastState.entries);
         if (entries.length > 0) appendBatch(entries, 0, true);
         listingComplete = true;
         hasLoadedOnce = true;
@@ -962,7 +1126,7 @@
 
     /** 全部条目。虚拟化只渲染其中一段，但高度、下标、首尾都按这一份算。 */
     function allEntries() {
-        return viewEntries;
+        return shownEntries;
     }
 
     /**
@@ -1166,7 +1330,13 @@
      */
     async function loadStreaming(target, seq) {
         const r = await fetch(
-            '/api/storage/list?stream=1&path=' + encodeURIComponent(target),
+            // 初次加载由**服务端**按当前排序下发：不带的话，把排序改成
+            // 「按大小」的用户此后每次打开目录都会先看到按名称排的列表、
+            // 流结束时再跳一次（spec §6.1）。形态就是 SortSpec.format()，
+            // 两端共用同一个解析器。
+            '/api/storage/list?stream=1&sort=' +
+                encodeURIComponent(sorter.format(sortSpec)) +
+                '&path=' + encodeURIComponent(target),
             { credentials: 'same-origin' },
         );
         if (seq !== requestSeq) return true;
@@ -1195,6 +1365,10 @@
 
         const flushPending = () => {
             if (!pending.length) return;
+            // `lastState.entries` 是被 push 追加的**同一个数组**，而 shownEntries
+            // 是它排序 / 过滤之后的快照 —— 每批到达都必须重算，否则新到的行
+            // 一个都不会显示（源变了、派生没跟上，本版那六个缺陷的形状）。
+            recomputeShown();
             appendBatch(pending, count - pending.length);
             pending = [];
         };
@@ -1241,7 +1415,7 @@
                     lastState = { path: headPath, entries: [] };
                     if (headPath !== shownPath) renderShell(headPath);
                     // renderShell 会清空 viewEntries，所以**必须在它之后**接上。
-                    viewEntries = lastState.entries;
+                    setViewEntries(lastState.entries);
                     shellReady = true;
                     continue;
                 }
@@ -1253,7 +1427,7 @@
                     currentPath = target;
                     lastState = { path: target, entries: [] };
                     renderShell(target);
-                    viewEntries = lastState.entries;
+                    setViewEntries(lastState.entries);
                     shellReady = true;
                 }
                 lastState.entries.push(obj);

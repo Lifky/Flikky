@@ -398,7 +398,15 @@ test('deep navigation and back keeps every level addressable', async () => {
   await tick();
   const url = c.asked[c.asked.length - 1];
   assert.ok(url.indexOf('path=Z') >= 0, 'must ask for Z, asked: ' + url);
-  assert.equal(url.indexOf('A') >= 0, false, 'no leftover prefix from the descent: ' + url);
+  // 只看 **path 参数**，不看整个 URL：v1.20.0 起 URL 里还带 sort=NAME:asc，
+  // 而在整个 URL 里找字母 'A' 会命中它（编码后的 %3A 也含 A）。
+  // 这条断言想说的一直是「path 里不带刚才那趟深入留下的前缀」。
+  const askedPath = decodeURIComponent(url.split('path=')[1] || '');
+  assert.equal(
+    askedPath.indexOf('A') >= 0,
+    false,
+    'no leftover prefix from the descent, path was: ' + askedPath,
+  );
   assert.deepEqual(titles(c.view), ['z.txt'], 'and Z must actually render');
 });
 
