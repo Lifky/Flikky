@@ -42,7 +42,8 @@ class SortMenuReuseTest {
 
     private val surfaces = listOf(
         "com/example/flikky/ui/files/FilesScreen.kt",
-        // Task 8 / Task 10 会把收藏页与会话页文件 tab 加进来。
+        "com/example/flikky/ui/favorites/FavoritesScreen.kt",
+        // Task 10 会把会话页文件 tab 加进来。
     )
 
     @Test

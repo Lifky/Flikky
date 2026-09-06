@@ -68,4 +68,5 @@
     <string name="favorites_action_open_with">Open with…</string>
     <string name="favorites_move_out_of_group">All (remove from collection)</string>
     <string name="favorites_delete_group">Delete collection</string>
+    <string name="favorites_sort_time">By date saved</string>
 </resources>

@@ -73,6 +73,7 @@ import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.GroupWording
 import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.ImportExportOverflowMenu
+import com.example.flikky.ui.components.SortMenuAction
 import com.example.flikky.ui.components.MAX_CONTENT_WIDTH_DP
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
@@ -112,6 +113,8 @@ fun FavoritesScreen(
     val selection by viewModel.selection.collectAsState()
     val selecting by viewModel.selecting.collectAsState()
     val query by viewModel.searchQuery.collectAsState()
+    val sort by viewModel.sort.collectAsState()
+    var sortExpanded by remember { mutableStateOf(false) }
     val sessionSnap by ServiceLocator.session.snapshot.collectAsState()
     val selectedIds = selection ?: emptySet()
     val selectedFavorites = remember(items, selectedIds) { items.filter { it.id in selectedIds } }
@@ -437,6 +440,17 @@ fun FavoritesScreen(
                                             )
                                         }
                                     }
+                                    // 排在 overflow **之前**：overflow 保持最右，
+                                    // 与浏览器收藏面板同序。收藏页顶栏是 SearchBar
+                                    // 而不是 TopAppBar，所以没有 actions 槽，
+                                    // trailingIcon 的 Row 就是这一行的动作区。
+                                    SortMenuAction(
+                                        spec = sort,
+                                        timeLabel = R.string.favorites_sort_time,
+                                        expanded = sortExpanded,
+                                        onExpandedChange = { sortExpanded = it },
+                                        onPick = { viewModel.setSort(it) },
+                                    )
                                     ImportExportOverflowMenu(
                                         importLabel = stringResource(R.string.favorites_import),
                                         exportLabel = stringResource(R.string.favorites_export),

@@ -63,4 +63,5 @@
     <string name="favorites_action_open_with">用其他应用打开</string>
     <string name="favorites_move_out_of_group">全部（移出合集）</string>
     <string name="favorites_delete_group">删除合集</string>
+    <string name="favorites_sort_time">按收藏时间</string>
 </resources>

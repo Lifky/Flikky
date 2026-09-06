@@ -16,6 +16,9 @@ import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.data.settings.SettingsRepository
 import com.example.flikky.di.ServiceLocator
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
+import com.example.flikky.util.tap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
@@ -54,8 +57,22 @@ class FavoritesViewModel @JvmOverloads constructor(
         } else {
             favorites.filter { it.groupId == settings.activeFavoriteGroupId }
         }
-        repository.search(grouped, q)
+        // 过滤后排序。排序在**最后**一步：先按合集与关键词收窄，再排 —— 反过来
+        // 会对一堆最终不显示的项做无用的比较。
+        FavoritesListOrder.sort(repository.search(grouped, q), settings.favoritesSort)
     }
+
+    val sort: StateFlow<SortSpec> = settingsRepository.settings
+        .map { it.favoritesSort }
+        .stateIn(
+            viewModelScope,
+            kotlinx.coroutines.flow.SharingStarted.Eagerly,
+            SortSpec(SortKey.TIME, descending = true),
+        )
+
+    /** 收「被点的键」，翻转规则交给内核 —— 三个界面都走同一条。 */
+    fun setSort(key: SortKey): Job =
+        viewModelScope.launch { settingsRepository.setFavoritesSort(sort.value.tap(key)) }
 
     private val _selection = MutableStateFlow<Set<Long>?>(null)
     val selection: StateFlow<Set<Long>?> = _selection.asStateFlow()
