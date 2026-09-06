@@ -86,4 +86,7 @@
     <string name="serving_storage_refresh">Refresh</string>
     <string name="serving_storage_send_n_elsewhere">Send %1$d · %2$s (%3$d elsewhere)</string>
     <string name="serving_storage_sort_time">By date modified</string>
+    <string name="serving_storage_search">Search this folder</string>
+    <string name="serving_storage_search_empty">No matching files</string>
+    <string name="serving_storage_search_exit">Exit search</string>
 </resources>

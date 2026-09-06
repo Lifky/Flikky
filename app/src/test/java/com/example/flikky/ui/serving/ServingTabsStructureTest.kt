@@ -870,8 +870,8 @@ class ServingTabsStructureTest {
         // 顺序全变之后那个位置已经没有意义了（与本版「位置错乱」同族）。
         val tab = source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt")
         assertTrue(
-            "列表没有按 路径 + 排序 一起 key",
-            Regex("""key\(\s*state\.path\s*,\s*sortSpec\.format\(\)\s*\)""")
+            "列表没有按 路径 + 排序 + 关键词 一起 key —— 三者任一变化都该从顶部开始",
+            Regex("""key\(\s*state\.path\s*,\s*sortSpec\.format\(\)\s*,\s*query\s*\)""")
                 .containsMatchIn(tab),
         )
     }
@@ -887,5 +887,47 @@ class ServingTabsStructureTest {
             .substringBefore("    fun ")
         assertTrue("setStorageSort 没有清缓存", fn.contains("storageCache.clear()"))
         assertTrue("setStorageSort 没有原地重排当前目录", fn.contains("StorageNavigation.resort"))
+    }
+
+    @Test
+    fun `changing directory clears the search query`() {
+        // 带着上个目录的关键词进新目录，看到的是一个「空目录」假象。
+        // 清空必须发生在**发起列举之前**，否则第一批到达时还在按旧词过滤。
+        val vm = source("com/example/flikky/ui/serving/ServingViewModel.kt")
+        val open = vm.substring(vm.indexOf("fun openStorageDir"))
+            .substringBefore("    fun ")
+        assertTrue(
+            "openStorageDir 没有清空关键词",
+            open.contains("_storageQuery.value = \"\""),
+        )
+        val beforeLaunch = open.substringBefore("viewModelScope.launch")
+        assertTrue(
+            "关键词必须在发起列举之前清掉",
+            beforeLaunch.contains("_storageQuery.value = \"\""),
+        )
+    }
+
+    @Test
+    fun `the list, the count and the empty state all read the filtered rows`() {
+        // 用 state.entries 判空会在「目录非空但没有命中」时显示
+        // 「这个文件夹是空的」—— 那句话此刻是假的。
+        val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+        assertTrue("没有派生过滤后的行", tab.contains("StorageNavigation.filter(state.entries, query)"))
+        assertTrue("列表没有用过滤后的行", tab.contains("itemsIndexed(shown"))
+        // 断言**分支结构**而不是「出现过 shown.isEmpty()」：进度条留白那处也用它，
+        // 所以只查子串时改坏空态分支照样能过（逼红实测零条红）。
+        assertTrue(
+            "空态分支没有用过滤后的行",
+            Regex("""else\s+if\s*\(\s*shown\.isEmpty\(\)\s*\)""").containsMatchIn(tab),
+        )
+        assertTrue(
+            "首批未到的分支也要用过滤后的行",
+            Regex("""if\s*\(\s*shown\.isEmpty\(\)\s*&&\s*state\.loading\s*\)""")
+                .containsMatchIn(tab),
+        )
+        assertTrue(
+            "过滤无命中时必须说「没有匹配」，不能说「文件夹是空的」",
+            tab.contains("serving_storage_search_empty"),
+        )
     }
 }

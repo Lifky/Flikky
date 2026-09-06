@@ -47,6 +47,7 @@ import com.example.flikky.util.SortKey
 import com.example.flikky.util.SortSpec
 import com.example.flikky.util.tap
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
@@ -194,6 +195,13 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
      * 返回上级目录会看到按旧排序排的列表 —— 又一次「一份状态没跟着它的依据一起更新」，
      * 与本版那六个缺陷同族。
      */
+    private val _storageQuery = MutableStateFlow("")
+    val storageQuery: StateFlow<String> = _storageQuery.asStateFlow()
+
+    fun setStorageQuery(value: String) {
+        _storageQuery.value = value
+    }
+
     fun setStorageSort(key: SortKey) {
         val next = storageSort.value.tap(key)
         _storageState.value = StorageNavigation.resort(_storageState.value, next)
@@ -294,6 +302,10 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         // 与浏览器端的 requestSeq 同一个办法。
         val gen = ++storageGen
         val target = relative.trim().trim('/')
+        // 换目录清空关键词。带着上个目录的词进新目录，看到的是一个「空目录」假象
+        // （Windows 与 Finder 都清空）。
+        _storageQuery.value = ""
+
         // 离开之前把当前目录的内容与位置存进缓存 —— 回退时就是靠这一份秒回。
         // 只存**完整**的那份：被取消或失败的列举存进去会让「秒回」永远回一份残缺的。
         val leaving = _storageState.value

@@ -337,6 +337,44 @@ class StorageNavigationTest {
         assertEquals(listOf("Docs", "z.txt"), desc.entries.map { it.name })
     }
 
+    @Test
+    fun `filter matches names case-insensitively after trimming, and includes directories`() {
+        val entries = listOf(
+            entry("Pictures", isDir = true),
+            entry("picture.png"),
+            entry("note.txt"),
+        )
+
+        assertEquals(
+            listOf("Pictures", "picture.png"),
+            StorageNavigation.filter(entries, "  PICT  ").map { it.name },
+        )
+    }
+
+    @Test
+    fun `an empty or blank query filters nothing`() {
+        val entries = listOf(entry("a.txt"), entry("b.txt"))
+        assertEquals(2, StorageNavigation.filter(entries, "").size)
+        assertEquals(2, StorageNavigation.filter(entries, "   ").size)
+    }
+
+    @Test
+    fun `filter matches the name only, never the path`() {
+        // 匹配路径会让「进到 Pictures 里搜 pictures」把整个目录都算作命中。
+        val entries = listOf(entry("shot.png", relativePath = "Pictures/shot.png"))
+        assertEquals(0, StorageNavigation.filter(entries, "Pictures").size)
+    }
+
+    @Test
+    fun `filter preserves the incoming order`() {
+        // 过滤不是排序。自己再排一遍会让「搜索时顺序突然变了」。
+        val entries = listOf(entry("b-hit.txt"), entry("a-hit.txt"), entry("miss.txt"))
+        assertEquals(
+            listOf("b-hit.txt", "a-hit.txt"),
+            StorageNavigation.filter(entries, "hit").map { it.name },
+        )
+    }
+
 }
 
 class StorageTravelDirectionTest {

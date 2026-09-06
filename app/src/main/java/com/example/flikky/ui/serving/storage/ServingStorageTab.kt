@@ -1,16 +1,15 @@
 package com.example.flikky.ui.serving.storage
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,54 +24,58 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.ui.components.FileLeadingSpec
 import com.example.flikky.ui.components.FileLeadingVisual
-import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.SortMenuAction
 import com.example.flikky.ui.components.StoredVideo
+import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.formatSize
 import com.example.flikky.ui.files.FileCategory
-import com.example.flikky.util.SortKey
-import com.example.flikky.util.SortSpec
 import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.files.iconResource
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -113,6 +116,8 @@ fun ServingStorageTab(
     onRefresh: () -> Unit = {},
     sortSpec: SortSpec = SortSpec.NameAsc,
     onPickSort: (SortKey) -> Unit = {},
+    query: String = "",
+    onQueryChange: (String) -> Unit = {},
     onClearSelection: () -> Unit,
     onSendSelection: () -> Unit,
     modifier: Modifier = Modifier,
@@ -124,6 +129,10 @@ fun ServingStorageTab(
     // 操作条是**悬浮 overlay**，必须作为内容区 Box 的子节点并对齐 BottomCenter。
     // 放进 Scaffold 的 bottomBar 槽位会预留等高空白把列表顶走
     // （FlikkySelectingToolbarOverlay 的 KDoc 记着这个 bug）。
+
+    // 过滤后的行。列表、计数、空态**全用这一份** —— 用 state.entries 判空会在
+    // 「目录非空但没有命中」时显示「这个文件夹是空的」，那句话此刻是假的。
+    val shown = remember(state.entries, query) { StorageNavigation.filter(state.entries, query) }
 
     val slideProgress = remember { Animatable(1f) }
     val slideSpec = Motion.spatialFast<Float>()
@@ -140,6 +149,8 @@ fun ServingStorageTab(
                 onRefresh = onRefresh,
                 sortSpec = sortSpec,
                 onPickSort = onPickSort,
+                query = query,
+                onQueryChange = onQueryChange,
             )
             // ── 目录切换的方向横移 ──────────────────────────────────────────
             //
@@ -180,17 +191,23 @@ fun ServingStorageTab(
                         .fillMaxWidth()
                         .padding(
                             horizontal = Spacing.screenEdge,
-                            vertical = if (state.entries.isEmpty()) Spacing.xl else Spacing.sm,
+                            vertical = if (shown.isEmpty()) Spacing.xl else Spacing.sm,
                         ),
                 )
             }
-            if (state.entries.isEmpty() && state.loading) {
+            if (shown.isEmpty() && state.loading) {
                 // 首批还没到：只有进度条，不显示「这个文件夹是空的」——那句话此刻是假的。
                 Spacer(Modifier.weight(1f))
-            } else if (state.entries.isEmpty()) {
+            } else if (shown.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
-                        text = stringResource(R.string.serving_storage_empty),
+                        // 「没有匹配的文件」与「这个文件夹是空的」是两句不同的话。
+                        // 混用会让用户以为目录真的空了。
+                        text = if (query.isNotBlank()) {
+                            stringResource(R.string.serving_storage_search_empty)
+                        } else {
+                            stringResource(R.string.serving_storage_empty)
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -212,7 +229,7 @@ fun ServingStorageTab(
                 // key 里带上排序：改排序不改路径，若只按 path 分，
                 // 列表状态会存活下来、停在旧下标上。带上它就自然从顶部开始
                 // （初值 restoredScrollIndex 已被 resort 清成 -1）。
-                key(state.path, sortSpec.format()) {
+                key(state.path, sortSpec.format(), query) {
                 // 每个目录**一份自己的**滚动状态。
                 //
                 // 放在 composable 顶层的话它跟着面板而不是跟着目录，新目录会直接
@@ -275,7 +292,7 @@ fun ServingStorageTab(
                         },
                     ),
                 ) {
-                    itemsIndexed(state.entries, key = { _, e -> e.relativePath }) { index, entry ->
+                    itemsIndexed(shown, key = { _, e -> e.relativePath }) { index, entry ->
                         // 只有共用件这一层：`animateItem` 管增删与重排，由 lazy 布局
                         // 按 key 自己跟踪，不受 item 回收影响。
                         // **刻意不做逐行入场**——那需要行在入场前不占高度，而零高会
@@ -291,7 +308,7 @@ fun ServingStorageTab(
                         StorageEntryRow(
                             entry = entry,
                             index = index,
-                            count = state.entries.size,
+                            count = shown.size,
                             selected = entry.relativePath in state.selected,
                             onOpenDir = onOpenDir,
                             onToggleSelection = onToggleSelection,
@@ -303,13 +320,18 @@ fun ServingStorageTab(
                     // 加载中报已到数量，完成后报总数——两者都给出确定的语义。
                     item(key = FOOTER_KEY) {
                         Text(
+                            // 加载中报**目录的真实进度**（state.entries），
+                            // 完成后报**当前看到的条数**（shown）。
+                            // 两个计数问的是不同的问题：前者是「还在读」，
+                            // 后者是「这一屏一共这么多」。过滤态下混用会让
+                            // 「共 200 项」配着 3 行显示。
                             text = if (state.loading) {
                                 stringResource(
                                     R.string.serving_storage_loading_count,
                                     state.entries.size,
                                 )
                             } else {
-                                stringResource(R.string.serving_storage_total, state.entries.size)
+                                stringResource(R.string.serving_storage_total, shown.size)
                             },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -354,11 +376,81 @@ private fun StorageBreadcrumb(
     onRefresh: () -> Unit,
     sortSpec: SortSpec,
     onPickSort: (SortKey) -> Unit,
+    query: String,
+    onQueryChange: (String) -> Unit,
 ) {
     // 这里曾有一层 AnimatedContent 让面包屑随路径横移淡入。
     // 2026-09-02 用户裁决去掉：面包屑本来就短、变化幅度小，动效意义不大，
     // 而「我进到别处了」这个空间感由**列表整体**的方向横移表达（见 ServingStorageTab）。
-    StorageBreadcrumbRow(path, onNavigate, onRefresh, sortSpec, onPickSort)
+    //
+    // 搜索是**原地换行**而不是多加一行：文件 tab 是 pager 里的一页、上方还有 tabs，
+    // 垂直空间宝贵。与 FilesScreen 的 searchActive 同一模式。
+    var searching by rememberSaveable { mutableStateOf(false) }
+    // 换目录时关键词被清空（见 openStorageDir），搜索行也跟着收起 ——
+    // 留着一个空输入框占住面包屑，用户就看不到自己在哪了。
+    LaunchedEffect(path) { searching = false }
+
+    if (searching) {
+        StorageSearchRow(
+            query = query,
+            onQueryChange = onQueryChange,
+            onExit = {
+                onQueryChange("")
+                searching = false
+            },
+        )
+    } else {
+        StorageBreadcrumbRow(
+            path = path,
+            onNavigate = onNavigate,
+            onRefresh = onRefresh,
+            sortSpec = sortSpec,
+            onPickSort = onPickSort,
+            onStartSearch = { searching = true },
+        )
+    }
+}
+
+/** 搜索态的面包屑行：整行换成一个输入框。 */
+@Composable
+private fun StorageSearchRow(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onExit: () -> Unit,
+) {
+    val focusRequester = remember { FocusRequester() }
+    // 点了搜索按钮就该能直接打字，不用再点一次输入框。
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            singleLine = true,
+            placeholder = { Text(stringResource(R.string.serving_storage_search)) },
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_search),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(focusRequester),
+        )
+        IconButton(onClick = onExit) {
+            Icon(
+                painter = painterResource(R.drawable.ic_close),
+                contentDescription = stringResource(R.string.serving_storage_search_exit),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }
 
 @Composable
@@ -368,6 +460,7 @@ private fun StorageBreadcrumbRow(
     onRefresh: () -> Unit = {},
     sortSpec: SortSpec = SortSpec.NameAsc,
     onPickSort: (SortKey) -> Unit = {},
+    onStartSearch: () -> Unit = {},
 ) {
     val rootLabel = stringResource(R.string.serving_storage_root)
     val moreLabel = stringResource(R.string.serving_storage_breadcrumb_more)
@@ -412,6 +505,13 @@ private fun StorageBreadcrumbRow(
         // 「秒回」变回「每次都等」），代价就是必须给用户一个手动的出口。
         // 放在面包屑行末尾：它是**当前目录**这一行的动作，与路径同处一行。
         Spacer(Modifier.weight(1f))
+        IconButton(onClick = onStartSearch) {
+            Icon(
+                painter = painterResource(R.drawable.ic_search),
+                contentDescription = stringResource(R.string.serving_storage_search),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         // 排在刷新**之前**：排序是「怎么看」，刷新是「重新取」，
         // 前者天天用、后者偶尔用。与浏览器文件面板同序。
         var sortExpanded by remember { mutableStateOf(false) }
