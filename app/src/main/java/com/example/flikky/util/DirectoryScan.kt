@@ -40,6 +40,9 @@ data class ScannedEntry(
  * 「稳定排序」不可兼得。2026-08-31 用户裁决保排序：先做这一遍廉价扫描（每条 1 次
  * stat），排完再分批流出。首屏等的是扫描而不是全部元数据，2000 项约几十毫秒。
  *
+ * 排序键由调用方给（[SortSpec]），但**必须在分批之前**这条不变 ——
+ * 换了键之后「第一批」是谁会变，先分批再排序会让首屏内容是错的。
+ *
  * 无 Android 依赖，可在 `test/` 直接跑。
  */
 object DirectoryScan {
@@ -70,6 +73,7 @@ object DirectoryScan {
     fun scan(
         dir: File,
         includeHidden: Boolean = false,
+        sort: SortSpec = SortSpec.NameAsc,
         onCancelCheck: () -> Unit = {},
     ): List<ScannedEntry>? {
         if (!dir.isDirectory) return null
@@ -114,6 +118,9 @@ object DirectoryScan {
             { it.isDir },
             { it.name },
             includeHidden,
+            { it.size },
+            { it.mtime },
+            sort,
         )
     }
 

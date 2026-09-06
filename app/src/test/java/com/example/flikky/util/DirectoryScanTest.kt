@@ -24,6 +24,40 @@ class DirectoryScanTest {
     }
 
     @Test
+    fun `scan honours the requested sort before batching`() {
+        val d = tmp.newFolder("sorted")
+        // 名字**故意**与大小反向：a-small 名在前但最小，z-big 名在后但最大。
+        // 用 big/small 这种名字时「大小降序」与「名称升序」结果恰好相同，
+        // 于是 scan 把 sort 丢掉也测不出来（逼红实测零条红就是这么发现的）。
+        File(d, "a-small.txt").writeText("x")             // 1 字节
+        File(d, "z-big.txt").writeText("x".repeat(500))   // 500 字节
+        File(d, "sub").mkdirs()
+
+        val bySizeDesc = DirectoryScan.scan(
+            d,
+            includeHidden = false,
+            sort = SortSpec(SortKey.SIZE, descending = true),
+        )!!.map { it.name }
+
+        // 目录优先不参与翻转，所以 sub 仍在最前；文件按大小降序。
+        assertEquals(listOf("sub", "z-big.txt", "a-small.txt"), bySizeDesc)
+    }
+
+    @Test
+    fun `scan sorts before batching, so the first batch is the real first screen`() {
+        // 排序发生在分批之前是 D37 的核心不变量：先分批再排序会让首屏内容是错的。
+        val d = tmp.newFolder("many")
+        // 倒序创建，让「未排序」与「已排序」能被区分开。
+        for (i in 40 downTo 1) File(d, "f%03d.txt".format(i)).writeText("x")
+
+        val scanned = DirectoryScan.scan(d, sort = SortSpec.NameAsc)!!
+        val firstBatch = DirectoryScan.batches(scanned).first().map { it.name }
+
+        assertEquals("f001.txt", firstBatch.first())
+        assertEquals(DirectoryScan.FIRST_BATCH, firstBatch.size)
+    }
+
+    @Test
     fun `one stat per entry yields isDir, size and mtime together`() {
         // 这是本对象存在的理由：原先每条目 3 次 stat（isDirectory / length / lastModified），
         // readAttributes 一次拿全。2000 项的目录从 6000 次系统调用降到 2000 次。

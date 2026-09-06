@@ -2,6 +2,7 @@ package com.example.flikky.ui.serving.storage
 
 import com.example.flikky.util.DirectoryScan
 import com.example.flikky.util.ScannedEntry
+import com.example.flikky.util.SortSpec
 import com.example.flikky.util.StorageListingPolicy
 import com.example.flikky.util.StoragePathPolicy
 import java.io.File
@@ -116,6 +117,11 @@ class LocalStorageBrowser(
     private val root: File,
     /** 用户是否打开了「显示隐藏文件」。每次列举现取，理由同 SharedStorageBrowser。 */
     private val showHidden: () -> Boolean = { false },
+    /**
+     * 当前排序。lambda 而不是值，理由同 [showHidden]：用户随时可改，
+     * 而这个对象活在 ViewModel 里、生命周期比一次设置变更长得多。
+     */
+    private val sortSpec: () -> SortSpec = { SortSpec.NameAsc },
 ) {
 
     /**
@@ -135,6 +141,13 @@ class LocalStorageBrowser(
             { it.isDirectory },
             { it.name },
             showHidden(),
+            // 目录恒报 0：文件系统给的目录大小各平台不一致（Windows 给 0、
+            // ext4 通常给 4096），对用户也无意义。不统一的话「按大小排」时
+            // 目录之间的顺序会随平台变，而名称兜底只在 size 相等时才生效。
+            // 与 `ScannedEntry` 的同名裁决一致。
+            { if (it.isDirectory) 0L else it.length() },
+            { it.lastModified() },
+            sortSpec(),
         )
         return LocalStorageState(
             path = path,
@@ -199,7 +212,7 @@ class LocalStorageBrowser(
         // 先把 context 取出来：钩子不是 suspend 的（扫描内部是普通紧循环），
         // 而 CoroutineContext.ensureActive() 是普通扩展函数，捕获后可以在里面调。
         val ctx = currentCoroutineContext()
-        val scanned = DirectoryScan.scan(dir, showHidden()) { ctx.ensureActive() }
+        val scanned = DirectoryScan.scan(dir, showHidden(), sortSpec()) { ctx.ensureActive() }
         if (scanned == null) {
             emit(StorageChunk.Failed)
             return@flow

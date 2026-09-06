@@ -1,6 +1,11 @@
 package com.example.flikky.ui.serving.storage
 
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
 import java.io.File
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -26,6 +31,61 @@ class LocalStorageBrowserTest {
         File(root, "A.txt").writeText("xx")
         // 目录优先 + 名称不区分大小写，与 StorageListingPolicy 同源。
         assertEquals(listOf("DCIM", "A.txt", "b.txt"), b.list("")!!.entries.map { it.name })
+    }
+
+    @Test
+    fun `listing uses the injected sort order, resolved fresh on every call`() {
+        val root = tmp.newFolder("sortable")
+        File(root, "a.txt").writeText("x".repeat(10))
+        File(root, "b.txt").writeText("x")
+        var spec = SortSpec.NameAsc
+        val b = LocalStorageBrowser(root = root, sortSpec = { spec })
+
+        assertEquals(listOf("a.txt", "b.txt"), b.list("")!!.entries.map { it.name })
+
+        // lambda 而不是构造时取值：用户改了排序，下一次列举就该用新值
+        // （与 showHidden 同一个理由 —— 这个对象活在 ViewModel 里，比一次设置变更长）。
+        spec = SortSpec(SortKey.SIZE, descending = false)
+        assertEquals(listOf("b.txt", "a.txt"), b.list("")!!.entries.map { it.name })
+    }
+
+    @Test
+    fun `directories report size zero, so sorting by size orders them by name`() {
+        // 目录的 size 必须恒为 0（与 ScannedEntry 同一裁决：文件系统给的目录大小
+        // 各平台不一致、对用户也无意义）。上报真实值的话**目录之间**的顺序会变成
+        // 平台相关的，而名称兜底救不回来 —— 它只在 size 相等时才生效。
+        //
+        // **这一条在 Windows 开发机上恒绿**：那里 `File.length()` 对目录本来就返回 0，
+        // 所以去掉生产代码里的 `if (isDirectory) 0L` 也逼不出红（实测零条红）。
+        // 它守的是 Android/ext4（目录通常报 4096），以及将来在 Linux 上跑 CI 的情况。
+        val root = tmp.newFolder("dirs")
+        File(root, "zeta").mkdirs()
+        File(root, "alpha").mkdirs()
+        val b = LocalStorageBrowser(
+            root = root,
+            sortSpec = { SortSpec(SortKey.SIZE, descending = true) },
+        )
+
+        assertEquals(listOf("alpha", "zeta"), b.list("")!!.entries.map { it.name })
+    }
+
+    @Test
+    fun `listStream emits entries in the injected sort order`() = runBlocking {
+        val root = tmp.newFolder("streamable")
+        File(root, "a.txt").writeText("x".repeat(10))
+        File(root, "b.txt").writeText("x")
+        val b = LocalStorageBrowser(
+            root = root,
+            sortSpec = { SortSpec(SortKey.SIZE, descending = false) },
+        )
+
+        val names = b.listStream("")
+            .filterIsInstance<StorageChunk.Batch>()
+            .toList()
+            .flatMap { it.entries }
+            .map { it.name }
+
+        assertEquals(listOf("b.txt", "a.txt"), names)
     }
 
     @Test
