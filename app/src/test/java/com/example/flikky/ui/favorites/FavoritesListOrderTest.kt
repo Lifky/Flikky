@@ -2,6 +2,11 @@ package com.example.flikky.ui.favorites
 
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.util.SortKey
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import com.example.flikky.util.SortSpec
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -74,6 +79,40 @@ class FavoritesListOrderTest {
             listOf(2L, 3L, 1L),
             FavoritesListOrder.sort(items, SortSpec(SortKey.SIZE, descending = true)).map { it.id },
         )
+    }
+
+    @Test
+    fun `every combination in the shared fixture matches`() {
+        // 跨端共同 oracle：JS 侧 `panel-favorites-sort.test.js` 读**同一份文件**。
+        // 收藏排序也是同一套语义的两份实现，与文件浏览一样的分叉风险。
+        val text = checkNotNull(javaClass.getResourceAsStream("/sort-order.json")) {
+            "sort-order.json 不在测试 classpath 上"
+        }.bufferedReader().use { it.readText() }
+        val fav = Json.parseToJsonElement(text).jsonObject["favorites"]!!.jsonObject
+
+        val items = fav["items"]!!.jsonArray.map {
+            val o = it.jsonObject
+            val id = o["id"]!!.jsonPrimitive.content.toLong()
+            val name = o["name"]!!.jsonPrimitive.content
+            val size = o["size"]!!.jsonPrimitive.contentOrNull?.toLongOrNull()
+            val at = o["createdAt"]!!.jsonPrimitive.content.toLong()
+            if (o["kind"]!!.jsonPrimitive.content == "FILE") {
+                file(id, name, size, at)
+            } else {
+                text(id, name, at)
+            }
+        }
+
+        val expected = fav["expected"]!!.jsonObject
+        assertEquals("fixture 必须覆盖 3 个键 × 2 个方向", 6, expected.size)
+        for ((raw, ids) in expected) {
+            val spec = checkNotNull(SortSpec.parse(raw)) { "fixture 里的键名 $raw 解析不了" }
+            assertEquals(
+                "$raw 的顺序与 fixture 不一致",
+                ids.jsonArray.map { it.jsonPrimitive.content.toLong() },
+                FavoritesListOrder.sort(items, spec).map { it.id },
+            )
+        }
     }
 
     @Test

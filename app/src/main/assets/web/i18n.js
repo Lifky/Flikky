@@ -131,6 +131,10 @@
             'app.settings.github': 'GitHub 仓库',
 
             'app.favorites.search': '搜索收藏',
+            'app.favorites.sort': '排序',
+            'app.favorites.sortName': '按名称',
+            'app.favorites.sortTime': '按收藏时间',
+            'app.favorites.sortSize': '按大小',
             'app.favorites.allGroups': '全部',
             'app.favorites.ungrouped': '未分组',
             'app.favorites.copy': '复制',
@@ -308,6 +312,10 @@
             'app.settings.github': 'GitHub repository',
 
             'app.favorites.search': 'Search favorites',
+            'app.favorites.sort': 'Sort',
+            'app.favorites.sortName': 'By name',
+            'app.favorites.sortTime': 'By date saved',
+            'app.favorites.sortSize': 'By size',
             'app.favorites.allGroups': 'All',
             'app.favorites.ungrouped': 'Ungrouped',
             'app.favorites.copy': 'Copy',

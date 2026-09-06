@@ -19,5 +19,22 @@
     "TIME:desc": ["Alpha", "beta", "apple", "Äpfel", "10", "README", "readme", "2", "中文"],
     "SIZE:asc":  ["Alpha", "beta", "中文", "apple", "Äpfel", "10", "README", "readme", "2"],
     "SIZE:desc": ["Alpha", "beta", "2", "README", "readme", "10", "apple", "Äpfel", "中文"]
+  },
+  "favorites": {
+    "note": "收藏项两类：FILE 有 fileName/fileSize，TEXT 只有正文。名称键用**原始值**（空名就是空串），按大小排时无文件的项两个方向都在末尾。expected 里是 id 序列。",
+    "items": [
+      { "id": 1, "kind": "FILE", "name": "beta.apk",   "size": 900,  "createdAt": 200 },
+      { "id": 2, "kind": "TEXT", "name": "alpha 片段", "size": null, "createdAt": 100 },
+      { "id": 3, "kind": "FILE", "name": "Alpha.png",  "size": 0,    "createdAt": 300 },
+      { "id": 4, "kind": "FILE", "name": "",           "size": 50,   "createdAt": 400 }
+    ],
+    "expected": {
+      "NAME:asc":  [4, 2, 3, 1],
+      "NAME:desc": [1, 3, 2, 4],
+      "TIME:asc":  [2, 1, 3, 4],
+      "TIME:desc": [4, 3, 1, 2],
+      "SIZE:asc":  [3, 4, 1, 2],
+      "SIZE:desc": [1, 4, 3, 2]
+    }
   }
 }

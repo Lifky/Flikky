@@ -103,6 +103,20 @@
             <div class="fk-view" id="view-favorites">
                 <header class="fk-panel-head">
                     <h1 class="fk-panel-title" data-i18n="app.nav.favorites">收藏</h1>
+                    <mdui-dropdown placement="bottom-end">
+                        <button class="fk-icon-btn" id="fav-sort" slot="trigger" type="button"
+                                aria-label="排序" data-i18n-aria-label="app.favorites.sort">
+                            <span class="material-symbols-outlined" data-icon="filter_list" aria-hidden="true"></span>
+                        </button>
+                        <mdui-menu id="fav-sort-menu">
+                            <mdui-menu-item class="fk-sort-item" value="NAME"
+                                            data-i18n="app.favorites.sortName">按名称</mdui-menu-item>
+                            <mdui-menu-item class="fk-sort-item" value="TIME"
+                                            data-i18n="app.favorites.sortTime">按收藏时间</mdui-menu-item>
+                            <mdui-menu-item class="fk-sort-item" value="SIZE"
+                                            data-i18n="app.favorites.sortSize">按大小</mdui-menu-item>
+                        </mdui-menu>
+                    </mdui-dropdown>
                     <button class="fk-icon-btn" id="fav-refresh" type="button"
                             aria-label="刷新" data-i18n-aria-label="app.favorites.refresh">
                         <span class="material-symbols-outlined" data-icon="refresh" aria-hidden="true"></span>

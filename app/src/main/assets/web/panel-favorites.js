@@ -48,6 +48,10 @@
     let viewRoot = null;
     let refreshBtn = null;
     let searchInput = null;
+    let sortMenuEl = null;
+    const SORT_STORAGE_KEY = 'flikky_sort_favorites';
+    // 默认按收藏时间倒序 = 本版之前 DAO 的 createdAt DESC。
+    let favSort = null;
     let chipsHost = null;
     let listHost = null;
     let toolbar = null;
@@ -98,6 +102,19 @@
     }
 
     /** filterFavorites 是纯函数、单独导出——不依赖 DOM，测试直接喂数组即可验证。 */
+    /**
+     * 排序内核（`sort.js`）。生产环境由 app.html 的 script 顺序保证它先加载；
+     * 缺失时回落成「什么都不排」而不是抛 —— 排序是视图偏好，不该让面板打不开。
+     * 与 panel-files.js 同一处理。
+     */
+    const sorter = window.flikkySort || {
+        natural: function (k) { return { key: k, desc: false }; },
+        tap: function (_s, k) { return { key: k, desc: false }; },
+        compareName: function (a, b) { return a < b ? -1 : (a > b ? 1 : 0); },
+        load: function (_k, fallback) { return fallback; },
+        save: function () {},
+    };
+
     function filterFavorites(itemsList, options) {
         const opts = options || {};
         const groupFilter = Object.prototype.hasOwnProperty.call(opts, 'groupId') ? opts.groupId : 'all';
@@ -111,6 +128,68 @@
             if (!q) return true;
             const haystack = item.kind === 'FILE' ? (item.fileName || '') : (item.text || '');
             return haystack.toLowerCase().indexOf(q) !== -1;
+        });
+    }
+
+    /**
+     * 收藏排序。与 App 端 `FavoritesListOrder` 是同一套语义的两份实现，
+     * 由 `app/src/test/resources/sort-order.json` 的 `favorites` 段钉死。
+     *
+     * 名称键用**原始值**（`fileName || text || ''`）：回落到本地化占位串会让
+     * 切换语言改变排序。按大小排时无文件的项两个方向都排末尾 ——
+     * 「没有大小」不是「大小为 0」。末尾兜底恒**升序**，与文件浏览一致。
+     *
+     * 返回新数组，不改入参。
+     */
+    function sortFavorites(itemsList, spec) {
+        const s = spec || sorter.natural('TIME');
+        const nameOf = (it) => it.fileName || it.text || '';
+        return (itemsList || []).slice().sort(function (a, b) {
+            if (s.key === 'SIZE') {
+                const ma = (a.fileSize === null || a.fileSize === undefined) ? 1 : 0;
+                const mb = (b.fileSize === null || b.fileSize === undefined) ? 1 : 0;
+                if (ma !== mb) return ma - mb;
+            }
+            let k;
+            if (s.key === 'NAME') {
+                k = sorter.compareName(nameOf(a), nameOf(b));
+            } else if (s.key === 'TIME') {
+                const ta = a.createdAt || 0;
+                const tb = b.createdAt || 0;
+                k = ta < tb ? -1 : (ta > tb ? 1 : 0);
+            } else {
+                const sa = a.fileSize || 0;
+                const sb = b.fileSize || 0;
+                k = sa < sb ? -1 : (sa > sb ? 1 : 0);
+            }
+            if (s.desc) k = -k;
+            if (k !== 0) return k;
+            return sorter.compareName(nameOf(a), nameOf(b));
+        });
+    }
+
+    /**
+     * 给当前键的那一项挂方向箭头，其余项摘掉。与 panel-files.js 同一画法：
+     * 箭头既是选中指示也是方向指示，所以不再放对勾。
+     *
+     * 摘旧箭头走 `while (firstChild) removeChild`：那是项目共用的那套 DOM 操作
+     * （见 mini-dom 的 KDoc）。本面板一律不按选择器回查 DOM —— 状态活在 JS 里，
+     * 从 DOM 读回既慢又容易和渲染不同步（守卫见 panel-favorites.test.js）。
+     * 连这段注释里也不能出现那个 API 名，否则守卫会把它当成一处调用。
+     */
+    function syncSortMenu() {
+        if (!sortMenuEl || !favSort) return;
+        Array.prototype.forEach.call(sortMenuEl.children, function (item) {
+            const label = item.textContent;
+            while (item.firstChild) item.removeChild(item.firstChild);
+            item.textContent = label;
+            if (item.getAttribute('value') !== favSort.key) return;
+            const dir = document.createElement('span');
+            dir.className = 'material-symbols-outlined fk-sort-dir';
+            dir.setAttribute('data-icon', favSort.desc ? 'arrow_downward' : 'arrow_upward');
+            dir.setAttribute('aria-hidden', 'true');
+            dir.setAttribute('slot', 'end-icon');
+            item.appendChild(dir);
         });
     }
 
@@ -306,7 +385,7 @@
             return;
         }
 
-        const filtered = filterFavorites(items, { groupId, query });
+        const filtered = sortFavorites(filterFavorites(items, { groupId, query }), favSort);
         if (filtered.length === 0) {
             listHost.appendChild(buildMessage(t('app.favorites.noMatches')));
             return;
@@ -492,6 +571,21 @@
         saveSelectedBtn = document.getElementById('fav-save-selected');
         if (!listHost || !chipsHost || !toolbar) return;
 
+        // 排序：默认按收藏时间倒序（= 本版之前 DAO 的 createdAt DESC）。
+        favSort = sorter.load(SORT_STORAGE_KEY, { key: 'TIME', desc: true });
+        sortMenuEl = document.getElementById('fav-sort-menu');
+        if (sortMenuEl) {
+            Array.prototype.forEach.call(sortMenuEl.children, function (item) {
+                item.addEventListener('click', function () {
+                    favSort = sorter.tap(favSort, item.getAttribute('value'));
+                    sorter.save(SORT_STORAGE_KEY, favSort);
+                    syncSortMenu();
+                    render();
+                });
+            });
+            syncSortMenu();
+        }
+
         if (refreshBtn) refreshBtn.addEventListener('click', () => { refresh(); });
         if (searchInput) {
             searchInput.addEventListener('input', () => {
@@ -514,7 +608,7 @@
     }
 
     window.flikkyPanels = window.flikkyPanels || {};
-    window.flikkyPanels.favorites = { mount, refresh, filterFavorites };
+    window.flikkyPanels.favorites = { mount, refresh, filterFavorites, sortFavorites };
 
     mount(document.getElementById('view-favorites'));
 })();
