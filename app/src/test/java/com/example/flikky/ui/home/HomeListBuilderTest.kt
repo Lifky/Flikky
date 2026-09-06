@@ -2,7 +2,7 @@ package com.example.flikky.ui.home
 
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.data.settings.GroupMode
-import com.example.flikky.data.settings.SortMode
+import com.example.flikky.util.SortKey
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.time.LocalDate
@@ -37,7 +37,7 @@ class HomeListBuilderTest {
         val b = session(2, "B", ms(TODAY))
         val p = session(3, "P", ms(TODAY.minusDays(5)), pinned = true)
 
-        val out = HomeListBuilder.build(listOf(a, b, p), SortMode.TIME, GroupMode.NONE, TODAY, ZONE)
+        val out = HomeListBuilder.build(listOf(a, b, p), SortKey.TIME, GroupMode.NONE, TODAY, ZONE)
 
         assertEquals(listOf(3L, 2L, 1L), out.sessionIds())
         assertEquals(emptyList<HomeSection>(), out.headers())
@@ -48,7 +48,25 @@ class HomeListBuilderTest {
         val a = session(1, "banana", ms(TODAY))
         val b = session(2, "Apple", ms(TODAY))
 
-        val out = HomeListBuilder.build(listOf(a, b), SortMode.NAME, GroupMode.NONE, TODAY, ZONE)
+        val out = HomeListBuilder.build(listOf(a, b), SortKey.NAME, GroupMode.NONE, TODAY, ZONE)
+
+        assertEquals(listOf(2L, 1L), out.sessionIds())
+    }
+
+    @Test
+    fun none_byName_sameNameDifferentCaseHasADeterministicOrder() {
+        // 主页的名称比较器必须是共享的 NAME_ORDER，不是 String.CASE_INSENSITIVE_ORDER。
+        //
+        // 两者的区别**不在**大小写敏感性（那两个都不敏感），而在同名兜底：
+        // NAME_ORDER 有 `.thenBy { it }`，所以 "Session"(S=83) 恒在 "session"(115) 前；
+        // CASE_INSENSITIVE_ORDER 对这两个返回 0，顺序只能靠排序稳定性 ——
+        // 也就是**跟着数据库返回顺序变**。
+        //
+        // 逼红实测：换回 CASE_INSENSITIVE_ORDER 时这一条红（倒序输入下得到相反结果）。
+        val lower = session(1, "session", ms(TODAY))
+        val upper = session(2, "Session", ms(TODAY))
+
+        val out = HomeListBuilder.build(listOf(lower, upper), SortKey.NAME, GroupMode.NONE, TODAY, ZONE)
 
         assertEquals(listOf(2L, 1L), out.sessionIds())
     }
@@ -61,7 +79,7 @@ class HomeListBuilderTest {
 
         val out = HomeListBuilder.build(
             listOf(ended, pinned, running),
-            SortMode.TIME,
+            SortKey.TIME,
             GroupMode.STATUS,
             TODAY,
             ZONE,
@@ -75,7 +93,7 @@ class HomeListBuilderTest {
     fun status_omits_empty_groups() {
         val ended = session(1, "Ended", ms(TODAY))
 
-        val out = HomeListBuilder.build(listOf(ended), SortMode.TIME, GroupMode.STATUS, TODAY, ZONE)
+        val out = HomeListBuilder.build(listOf(ended), SortKey.TIME, GroupMode.STATUS, TODAY, ZONE)
 
         assertEquals(listOf(HomeSection.ENDED), out.headers())
         assertEquals(listOf(1L), out.sessionIds())
@@ -90,7 +108,7 @@ class HomeListBuilderTest {
 
         val out = HomeListBuilder.build(
             listOf(earlier, yesterday, today, pinned),
-            SortMode.TIME,
+            SortKey.TIME,
             GroupMode.DATE,
             TODAY,
             ZONE,
@@ -109,7 +127,7 @@ class HomeListBuilderTest {
 
         val out = HomeListBuilder.build(
             listOf(runningYesterday),
-            SortMode.TIME,
+            SortKey.TIME,
             GroupMode.DATE,
             TODAY,
             ZONE,
@@ -126,7 +144,7 @@ class HomeListBuilderTest {
         val p2 = session(3, "beta", ms(TODAY.minusDays(2)), pinned = true)
         val p1 = session(4, "Apple", ms(TODAY.minusDays(3)), pinned = true)
 
-        val out = HomeListBuilder.build(listOf(z, a, p2, p1), SortMode.NAME, GroupMode.DATE, TODAY, ZONE)
+        val out = HomeListBuilder.build(listOf(z, a, p2, p1), SortKey.NAME, GroupMode.DATE, TODAY, ZONE)
 
         assertEquals(listOf(HomeSection.PINNED, HomeSection.TODAY, HomeSection.YESTERDAY), out.headers())
         assertEquals(listOf(4L, 3L, 1L, 2L), out.sessionIds())
@@ -134,7 +152,7 @@ class HomeListBuilderTest {
 
     @Test
     fun empty_list_has_no_headers() {
-        val out = HomeListBuilder.build(emptyList(), SortMode.TIME, GroupMode.DATE, TODAY, ZONE)
+        val out = HomeListBuilder.build(emptyList(), SortKey.TIME, GroupMode.DATE, TODAY, ZONE)
 
         assertEquals(emptyList<HomeSection>(), out.headers())
         assertEquals(emptyList<Long>(), out.sessionIds())

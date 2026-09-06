@@ -78,8 +78,14 @@ data class SettingsExport(
     val keepScreenOnDuringSession: Boolean? = null,
     val storageBrowsingEnabled: Boolean? = null,
     val showHiddenFiles: Boolean? = null,
+    /** 旧字段。v1.20.0 起只读不写，导入时回落到 [homeSort]。 */
     val sortMode: String? = null,
     val groupMode: String? = null,
+    /** v1.20.0 起：四个界面各自的排序，形态是 `SortSpec.format()`（如 `TIME:desc`）。 */
+    val homeSort: String? = null,
+    val favoritesSort: String? = null,
+    val filesSort: String? = null,
+    val storageSort: String? = null,
     val animationSpeed: String? = null,
     val autoCheckUpdate: Boolean? = null,
 )

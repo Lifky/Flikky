@@ -11,7 +11,9 @@ import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.data.settings.GroupMode
 import com.example.flikky.data.settings.SettingsRepository
-import com.example.flikky.data.settings.SortMode
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
+import com.example.flikky.util.tap
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSession
@@ -73,14 +75,14 @@ class HomeViewModel @JvmOverloads constructor(
     ) { sessions, settings ->
         HomeListBuilder.build(
             sessions = HomeListBuilder.filterByGroup(sessions, settings.activeGroupId),
-            sort = SortMode.TIME,
+            sort = SortKey.TIME,
             group = GroupMode.DATE,
             today = LocalDate.now(),
             zone = ZoneId.systemDefault(),
         )
     }
 
-    val sortMode: Flow<SortMode> = settingsRepository.settings.map { it.sortMode }
+    val homeSort: Flow<SortSpec> = settingsRepository.settings.map { it.homeSort }
     val groupMode: Flow<GroupMode> = settingsRepository.settings.map { it.groupMode }
 
     private val _selection = MutableStateFlow<Set<Long>?>(null)
@@ -133,8 +135,10 @@ class HomeViewModel @JvmOverloads constructor(
     fun deleteSession(sessionId: Long): Job =
         viewModelScope.launch { repository.deleteSession(sessionId) }
 
-    fun setSortMode(value: SortMode): Job =
-        viewModelScope.launch { settingsRepository.setSortMode(value) }
+    fun setSortKey(key: SortKey): Job = viewModelScope.launch {
+        val current = settingsRepository.settings.first().homeSort
+        settingsRepository.setHomeSort(current.tap(key))
+    }
 
     fun setGroupMode(value: GroupMode): Job =
         viewModelScope.launch { settingsRepository.setGroupMode(value) }

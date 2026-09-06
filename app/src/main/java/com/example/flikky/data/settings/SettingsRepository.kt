@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import com.example.flikky.export.SettingsExport
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
 import com.example.flikky.util.normalizeThemeSeedArgb
 
 class SettingsRepository(private val ds: DataStore<Preferences>) {
@@ -35,8 +37,13 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val keepScreenOnDuringSession = booleanPreferencesKey("keep_screen_on_during_session")
         val storageBrowsingEnabled = booleanPreferencesKey("storage_browsing_enabled")
         val showHiddenFiles = booleanPreferencesKey("show_hidden_files")
+        /** 旧键。v1.20.0 起**只读不写**，仅供导入旧备份时回落到 [homeSort]。 */
         val sortMode = stringPreferencesKey("sort_mode")
         val groupMode = stringPreferencesKey("group_mode")
+        val homeSort = stringPreferencesKey("home_sort")
+        val favoritesSort = stringPreferencesKey("favorites_sort")
+        val filesSort = stringPreferencesKey("files_sort")
+        val storageSort = stringPreferencesKey("storage_sort")
         val animationSpeed = stringPreferencesKey("animation_speed")
         val autoCheckUpdate = booleanPreferencesKey("auto_check_update")
         val lastUpdateCheckAt = longPreferencesKey("last_update_check_at")
@@ -85,12 +92,22 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             keepScreenOnDuringSession = p[Keys.keepScreenOnDuringSession] ?: false,
             storageBrowsingEnabled = p[Keys.storageBrowsingEnabled] ?: false,
             showHiddenFiles = p[Keys.showHiddenFiles] ?: false,
-            sortMode = p[Keys.sortMode]
-                ?.let { runCatching { SortMode.valueOf(it) }.getOrNull() }
-                ?: SortMode.TIME,
             groupMode = p[Keys.groupMode]
                 ?.let { runCatching { GroupMode.valueOf(it) }.getOrNull() }
-                ?: GroupMode.NONE,
+                ?: GroupMode.DATE,
+            // 旧键回退**只给主页**：那是当时唯一有排序设置的界面。让它同时喂给
+            // 另外三处，会在导入旧备份时把它们的默认值一起改掉。
+            // 只取键，方向用该键的自然方向（旧键里没有方向这个概念）。
+            homeSort = SortSpec.parse(p[Keys.homeSort])
+                ?: p[Keys.sortMode]
+                    ?.let { runCatching { SortKey.valueOf(it) }.getOrNull() }
+                    ?.let { SortSpec.natural(it) }
+                ?: SortSpec(SortKey.TIME, descending = true),
+            favoritesSort = SortSpec.parse(p[Keys.favoritesSort])
+                ?: SortSpec(SortKey.TIME, descending = true),
+            filesSort = SortSpec.parse(p[Keys.filesSort])
+                ?: SortSpec(SortKey.TIME, descending = true),
+            storageSort = SortSpec.parse(p[Keys.storageSort]) ?: SortSpec.NameAsc,
             animationSpeed = p[Keys.animationSpeed]
                 ?.let { runCatching { AnimationSpeed.valueOf(it) }.getOrNull() }
                 ?: AnimationSpeed.STANDARD,
@@ -141,8 +158,19 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setStorageBrowsingEnabled(v: Boolean) = ds.edit { it[Keys.storageBrowsingEnabled] = v }
 
     suspend fun setShowHiddenFiles(v: Boolean) = ds.edit { it[Keys.showHiddenFiles] = v }
-    suspend fun setSortMode(v: SortMode) = ds.edit { it[Keys.sortMode] = v.name }
     suspend fun setGroupMode(v: GroupMode) = ds.edit { it[Keys.groupMode] = v.name }
+    suspend fun setHomeSort(v: SortSpec) = ds.edit { it[Keys.homeSort] = v.format() }
+    suspend fun setFavoritesSort(v: SortSpec) = ds.edit { it[Keys.favoritesSort] = v.format() }
+    suspend fun setFilesSort(v: SortSpec) = ds.edit { it[Keys.filesSort] = v.format() }
+    suspend fun setStorageSort(v: SortSpec) = ds.edit { it[Keys.storageSort] = v.format() }
+
+    /** 只为测试旧键回退而存在 —— 生产代码不再写 `sort_mode`。 */
+    internal suspend fun setLegacySortModeForTest(raw: String) =
+        ds.edit { it[Keys.sortMode] = raw }
+
+    /** 只为测试「存坏了的偏好回落默认值」而存在。 */
+    internal suspend fun setRawSortForTest(key: String, raw: String) =
+        ds.edit { it[stringPreferencesKey(key)] = raw }
     suspend fun setAnimationSpeed(v: AnimationSpeed) = ds.edit { it[Keys.animationSpeed] = v.name }
     suspend fun setAutoCheckUpdate(v: Boolean) = ds.edit { it[Keys.autoCheckUpdate] = v }
 
@@ -216,8 +244,11 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             keepScreenOnDuringSession = s.keepScreenOnDuringSession,
             storageBrowsingEnabled = s.storageBrowsingEnabled,
             showHiddenFiles = s.showHiddenFiles,
-            sortMode = s.sortMode.name,
             groupMode = s.groupMode.name,
+            homeSort = s.homeSort.format(),
+            favoritesSort = s.favoritesSort.format(),
+            filesSort = s.filesSort.format(),
+            storageSort = s.storageSort.format(),
             animationSpeed = s.animationSpeed.name,
             autoCheckUpdate = s.autoCheckUpdate,
         )
@@ -257,7 +288,18 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         backup.keepScreenOnDuringSession?.let { prefs[Keys.keepScreenOnDuringSession] = it }
         backup.storageBrowsingEnabled?.let { prefs[Keys.storageBrowsingEnabled] = it }
         backup.showHiddenFiles?.let { prefs[Keys.showHiddenFiles] = it }
-        backup.sortMode?.enumNameOrNull<SortMode>()?.let { prefs[Keys.sortMode] = it }
+        // 旧备份只有 sortMode（键名，无方向）；新备份有 homeSort（键+方向）。
+        // 新的优先，旧的兜底，两者都没有就保持默认。
+        backup.sortMode?.let { raw ->
+            runCatching { SortKey.valueOf(raw) }.getOrNull()
+                ?.let { prefs[Keys.homeSort] = SortSpec.natural(it).format() }
+        }
+        backup.homeSort?.let { SortSpec.parse(it) }?.let { prefs[Keys.homeSort] = it.format() }
+        backup.favoritesSort?.let { SortSpec.parse(it) }
+            ?.let { prefs[Keys.favoritesSort] = it.format() }
+        backup.filesSort?.let { SortSpec.parse(it) }?.let { prefs[Keys.filesSort] = it.format() }
+        backup.storageSort?.let { SortSpec.parse(it) }
+            ?.let { prefs[Keys.storageSort] = it.format() }
         backup.groupMode?.enumNameOrNull<GroupMode>()?.let { prefs[Keys.groupMode] = it }
         backup.animationSpeed?.enumNameOrNull<AnimationSpeed>()
             ?.let { prefs[Keys.animationSpeed] = it }

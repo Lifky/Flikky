@@ -2,7 +2,8 @@ package com.example.flikky.ui.home
 
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.data.settings.GroupMode
-import com.example.flikky.data.settings.SortMode
+import com.example.flikky.util.NAME_ORDER
+import com.example.flikky.util.SortKey
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -49,14 +50,17 @@ object HomeListBuilder {
 
     fun build(
         sessions: List<SessionEntity>,
-        sort: SortMode,
+        sort: SortKey,
         group: GroupMode,
         today: LocalDate,
         zone: ZoneId,
     ): List<HomeListItem> {
         val comparator = when (sort) {
-            SortMode.TIME -> compareByDescending<SessionEntity> { it.startedAt }
-            SortMode.NAME -> compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }
+            SortKey.TIME -> compareByDescending<SessionEntity> { it.startedAt }
+            SortKey.NAME -> compareBy(NAME_ORDER) { it.name }
+            // 会话没有大小。UI 不给这个选项（HomeSortSheet 只列名称与时间），
+            // 真的收到时按时间处理而不是抛 —— 一个排序键不值得让主页崩掉。
+            SortKey.SIZE -> compareByDescending<SessionEntity> { it.startedAt }
         }
 
         fun sorted(list: List<SessionEntity>) = list.sortedWith(comparator)

@@ -1,5 +1,8 @@
 package com.example.flikky.data.settings
 
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
+
 enum class ThemeMode { DYNAMIC, PRESET, CUSTOM }
 
 /**
@@ -31,7 +34,6 @@ enum class ContrastLevel {
 }
 
 enum class DarkMode { SYSTEM, LIGHT, DARK }
-enum class SortMode { TIME, NAME }
 enum class GroupMode { NONE, STATUS, DATE }
 
 /**
@@ -110,8 +112,22 @@ data class FlikkySettings(
      * 三者用不同判据就是 2026-09-03 那个「副标题 5 项、进去只有 4 行」的成因。
      */
     val showHiddenFiles: Boolean = false,
-    val sortMode: SortMode = SortMode.TIME,
-    val groupMode: GroupMode = GroupMode.NONE,
+    /**
+     * 会话列表的分节方式。
+     *
+     * 默认 `DATE` 而不是 `NONE`：v1.20.0 之前 `HomeViewModel` 写死传 `DATE`，
+     * 没有任何用户见过 `NONE`。接线时若保留 `NONE`，升级后所有人的主页会突然
+     * 不分节 —— 一次静默的行为回归。
+     */
+    val groupMode: GroupMode = GroupMode.DATE,
+    /** 会话列表的排序。默认等于本版之前写死的顺序。 */
+    val homeSort: SortSpec = SortSpec(SortKey.TIME, descending = true),
+    /** 收藏页的排序。默认等于 DAO 原本的 `createdAt DESC`。 */
+    val favoritesSort: SortSpec = SortSpec(SortKey.TIME, descending = true),
+    /** 文件总览页的排序。此前只在内存里，重启即丢。 */
+    val filesSort: SortSpec = SortSpec(SortKey.TIME, descending = true),
+    /** 文件浏览（会话页文件 tab）的排序。默认「目录优先 + 名称升序」。 */
+    val storageSort: SortSpec = SortSpec.NameAsc,
     val animationSpeed: AnimationSpeed = AnimationSpeed.STANDARD,
     /** 启动时自动检查更新，默认关闭。 */
     val autoCheckUpdate: Boolean = false,
