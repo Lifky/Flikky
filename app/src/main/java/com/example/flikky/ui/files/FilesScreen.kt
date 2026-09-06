@@ -86,6 +86,7 @@ import com.example.flikky.ui.components.FlikkyFloatingToolbar
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.ImagePreviewDialog
+import com.example.flikky.ui.components.SortMenuAction
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.formatSize
 import com.example.flikky.ui.components.maxContentWidth
@@ -357,10 +358,11 @@ fun FilesScreen(
                     },
                     actions = {
                         SortMenuAction(
-                            sort = sort,
+                            spec = sort,
+                            timeLabel = R.string.files_sort_time,
                             expanded = sortExpanded,
                             onExpandedChange = { sortExpanded = it },
-                            onSelect = viewModel::setSort,
+                            onPick = viewModel::setSort,
                         )
                     },
                 )
@@ -383,10 +385,11 @@ fun FilesScreen(
                             )
                         }
                         SortMenuAction(
-                            sort = sort,
+                            spec = sort,
+                            timeLabel = R.string.files_sort_time,
                             expanded = sortExpanded,
                             onExpandedChange = { sortExpanded = it },
-                            onSelect = viewModel::setSort,
+                            onPick = viewModel::setSort,
                         )
                     },
                 )
@@ -716,52 +719,6 @@ fun FilesScreen(
 
     previewImage?.let { file ->
         ImagePreviewDialog(file = file, onDismiss = { previewImage = null })
-    }
-}
-
-@Composable
-private fun SortMenuAction(
-    sort: FileSort,
-    expanded: Boolean,
-    onExpandedChange: (Boolean) -> Unit,
-    onSelect: (FileSort) -> Unit,
-) {
-    Box {
-        IconButton(onClick = { onExpandedChange(true) }) {
-            Icon(
-                painterResource(R.drawable.ic_filter_list),
-                contentDescription = stringResource(R.string.files_sort),
-            )
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { onExpandedChange(false) },
-        ) {
-            FileSort.entries.forEach { option ->
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            stringResource(
-                                if (option == FileSort.TIME) {
-                                    R.string.files_sort_time
-                                } else {
-                                    R.string.files_sort_size
-                                },
-                            ),
-                        )
-                    },
-                    leadingIcon = if (sort == option) {
-                        { Icon(Icons.Filled.Done, contentDescription = null) }
-                    } else {
-                        null
-                    },
-                    onClick = {
-                        onSelect(option)
-                        onExpandedChange(false)
-                    },
-                )
-            }
-        }
     }
 }
 

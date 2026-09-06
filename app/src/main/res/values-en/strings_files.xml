@@ -11,9 +11,7 @@
     <string name="files_filter_audio">Audio</string>
     <string name="files_filter_document">Documents</string>
     <string name="files_filter_other">Other</string>
-    <string name="files_sort">Sort</string>
     <string name="files_sort_time">By time</string>
-    <string name="files_sort_size">By size</string>
     <string name="files_direction_received">Received</string>
     <string name="files_direction_sent">Sent</string>
     <string name="files_action_favorite">Favorite</string>

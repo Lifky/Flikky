@@ -45,4 +45,9 @@
     <string name="common_list_separator">，</string>
     <string name="common_got_it">知道了</string>
     <string name="settings_show_info">查看说明</string>
+    <string name="common_sort">排序</string>
+    <string name="common_sort_by_name">按名称</string>
+    <string name="common_sort_by_size">按大小</string>
+    <string name="common_sort_ascending">升序</string>
+    <string name="common_sort_descending">降序</string>
 </resources>

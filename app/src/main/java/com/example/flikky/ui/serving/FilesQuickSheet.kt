@@ -55,8 +55,9 @@ import com.example.flikky.ui.components.sessionFile
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.iconResource
-import com.example.flikky.ui.files.FileSort
 import com.example.flikky.ui.files.FilesListBuilder
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
 import com.example.flikky.ui.files.labelResource
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Spacing
@@ -74,7 +75,9 @@ fun FilesQuickSheet(
     var category by remember { mutableStateOf(FileCategory.ALL) }
     var pressedId by remember { mutableLongStateOf(0L) }
     val visibleRows = remember(rows, query, category) {
-        FilesListBuilder.build(rows, category, query, FileSort.TIME)
+        // 快发 Sheet 刻意不给排序入口：它是一个「挑刚才那个文件」的快捷面板，
+        // 最新在前恒定是对的。排序切换属于文件总览页。
+        FilesListBuilder.build(rows, category, query, SortSpec(SortKey.TIME, descending = true))
     }
 
     LaunchedEffect(pressedId) {

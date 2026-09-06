@@ -46,4 +46,9 @@
     <string name="common_list_separator">, </string>
     <string name="common_got_it">Got it</string>
     <string name="settings_show_info">Show details</string>
+    <string name="common_sort">Sort</string>
+    <string name="common_sort_by_name">By name</string>
+    <string name="common_sort_by_size">By size</string>
+    <string name="common_sort_ascending">Ascending</string>
+    <string name="common_sort_descending">Descending</string>
 </resources>

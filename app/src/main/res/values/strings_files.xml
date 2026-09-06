@@ -11,9 +11,7 @@
     <string name="files_filter_audio">音频</string>
     <string name="files_filter_document">文档</string>
     <string name="files_filter_other">其他</string>
-    <string name="files_sort">排序</string>
     <string name="files_sort_time">按时间</string>
-    <string name="files_sort_size">按大小</string>
     <string name="files_direction_received">接收</string>
     <string name="files_direction_sent">发送</string>
     <string name="files_action_favorite">收藏</string>

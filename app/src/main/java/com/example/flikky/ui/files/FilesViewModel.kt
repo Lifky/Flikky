@@ -5,7 +5,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.FileOverviewRow
+import com.example.flikky.data.settings.SettingsRepository
 import com.example.flikky.di.ServiceLocator
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
+import com.example.flikky.util.tap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +22,7 @@ import kotlinx.coroutines.launch
 class FilesViewModel @JvmOverloads constructor(
     app: Application,
     private val repository: SessionRepository = ServiceLocator.repository,
+    private val settingsRepository: SettingsRepository = ServiceLocator.settingsRepository,
 ) : AndroidViewModel(app) {
     private val _category = MutableStateFlow(FileCategory.ALL)
     val category: StateFlow<FileCategory> = _category.asStateFlow()
@@ -25,8 +30,17 @@ class FilesViewModel @JvmOverloads constructor(
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
-    private val _sort = MutableStateFlow(FileSort.TIME)
-    val sort: StateFlow<FileSort> = _sort.asStateFlow()
+    /**
+     * 排序从设置派生 —— 此前只在 ViewModel 内存里，重启即丢。
+     * `Eagerly` 而不是 `WhileSubscribed`：`rows` 依赖它，晚一步会让首屏用默认值排一次再跳。
+     */
+    val sort: StateFlow<SortSpec> = settingsRepository.settings
+        .map { it.filesSort }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            SortSpec(SortKey.TIME, descending = true),
+        )
 
     private val _selection = MutableStateFlow<Set<Long>?>(null)
     val selection: StateFlow<Set<Long>?> = _selection.asStateFlow()
@@ -39,7 +53,7 @@ class FilesViewModel @JvmOverloads constructor(
         repository.observeAllFiles(),
         _category,
         _query,
-        _sort,
+        sort,
     ) { source, category, query, sort ->
         FilesListBuilder.build(source, category, query, sort)
     }.stateIn(
@@ -64,8 +78,9 @@ class FilesViewModel @JvmOverloads constructor(
         _query.value = query
     }
 
-    fun setSort(sort: FileSort) {
-        _sort.value = sort
+    /** 收「被点的键」，翻转规则交给内核 —— 三个界面都走同一条。 */
+    fun setSort(key: SortKey) {
+        viewModelScope.launch { settingsRepository.setFilesSort(sort.value.tap(key)) }
     }
 
     fun enterSelecting() {

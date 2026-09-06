@@ -2,16 +2,23 @@ package com.example.flikky.ui.files
 
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import com.example.flikky.data.SessionRepository
+import com.example.flikky.data.settings.SettingsRepository
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
 import com.example.flikky.data.db.FileOverviewRow
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import java.io.File
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -68,6 +75,43 @@ class FilesViewModelTest {
         fileMime = mime,
         timestamp = id,
     )
+
+    private fun settingsRepo(): SettingsRepository {
+        val ds = PreferenceDataStoreFactory.create(
+            scope = CoroutineScope(dispatcher),
+            produceFile = { File.createTempFile("files-sort", ".preferences_pb").also { it.delete() } },
+        )
+        return SettingsRepository(ds)
+    }
+
+    @Test
+    fun `setSort writes through to settings instead of living only in memory`() = runTest(dispatcher) {
+        // 此前排序只在 ViewModel 内存里，重启即丢。
+        val settings = settingsRepo()
+        val viewModel = FilesViewModel(app, repository, settings)
+
+        viewModel.setSort(SortKey.SIZE)
+
+        assertEquals(
+            SortSpec(SortKey.SIZE, descending = true),
+            settings.settings.first().filesSort,
+        )
+    }
+
+    @Test
+    fun `tapping the current key flips direction through the shared kernel`() = runTest(dispatcher) {
+        val settings = settingsRepo()
+        val viewModel = FilesViewModel(app, repository, settings)
+        backgroundScope.launch(dispatcher) { viewModel.sort.collect() }
+
+        viewModel.setSort(SortKey.SIZE)
+        viewModel.setSort(SortKey.SIZE)
+
+        assertEquals(
+            SortSpec(SortKey.SIZE, descending = false),
+            settings.settings.first().filesSort,
+        )
+    }
 
     @Test
     fun `rows and stats follow category filtering`() = runTest(dispatcher) {

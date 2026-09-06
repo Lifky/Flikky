@@ -1,6 +1,8 @@
 package com.example.flikky.ui.files
 
 import com.example.flikky.data.db.FileOverviewRow
+import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -25,6 +27,68 @@ class FilesListBuilderTest {
         fileMime = mime,
         timestamp = timestamp,
     )
+
+    @Test
+    fun `sorts by name using the shared comparator, ascending and descending`() {
+        val rows = listOf(
+            row(1, "beta.txt", "text/plain", 1, 1),
+            row(2, "Alpha.txt", "text/plain", 1, 2),
+            row(3, "alpha.txt", "text/plain", 1, 3),
+        )
+
+        val asc = FilesListBuilder.build(
+            rows, FileCategory.ALL, "", SortSpec(SortKey.NAME, descending = false),
+        )
+        assertEquals(listOf("Alpha.txt", "alpha.txt", "beta.txt"), asc.map { it.fileName })
+
+        val desc = FilesListBuilder.build(
+            rows, FileCategory.ALL, "", SortSpec(SortKey.NAME, descending = true),
+        )
+        assertEquals(listOf("beta.txt", "alpha.txt", "Alpha.txt"), desc.map { it.fileName })
+    }
+
+    @Test
+    fun `direction is honoured for time and size, not just the key`() {
+        // 本版之前两个键都写死降序。加了方向之后必须两个方向都真的生效。
+        val rows = listOf(
+            row(1, "a", "text/plain", 10, 100),
+            row(2, "b", "text/plain", 20, 200),
+        )
+
+        assertEquals(
+            listOf("a", "b"),
+            FilesListBuilder.build(
+                rows, FileCategory.ALL, "", SortSpec(SortKey.TIME, descending = false),
+            ).map { it.fileName },
+        )
+        assertEquals(
+            listOf("b", "a"),
+            FilesListBuilder.build(
+                rows, FileCategory.ALL, "", SortSpec(SortKey.TIME, descending = true),
+            ).map { it.fileName },
+        )
+        assertEquals(
+            listOf("a", "b"),
+            FilesListBuilder.build(
+                rows, FileCategory.ALL, "", SortSpec(SortKey.SIZE, descending = false),
+            ).map { it.fileName },
+        )
+    }
+
+    @Test
+    fun `rows with an equal key keep a deterministic order via the name tie-break`() {
+        // 同大小 / 同时间时若不兜底，顺序就跟着 DAO 的返回顺序变。
+        val rows = listOf(
+            row(1, "zeta", "text/plain", 5, 100),
+            row(2, "alpha", "text/plain", 5, 100),
+        )
+        assertEquals(
+            listOf("alpha", "zeta"),
+            FilesListBuilder.build(
+                rows, FileCategory.ALL, "", SortSpec(SortKey.SIZE, descending = true),
+            ).map { it.fileName },
+        )
+    }
 
     @Test
     fun `categoryOf maps mime prefixes and falls back to OTHER`() {
@@ -66,22 +130,22 @@ class FilesListBuilderTest {
 
         assertEquals(
             listOf(3L, 2L),
-            FilesListBuilder.build(rows, FileCategory.IMAGE, "", FileSort.TIME)
+            FilesListBuilder.build(rows, FileCategory.IMAGE, "", SortSpec(SortKey.TIME, descending = true))
                 .map { it.messageId },
         )
         assertEquals(
             listOf(2L, 3L),
-            FilesListBuilder.build(rows, FileCategory.IMAGE, "", FileSort.SIZE)
+            FilesListBuilder.build(rows, FileCategory.IMAGE, "", SortSpec(SortKey.SIZE, descending = true))
                 .map { it.messageId },
         )
         assertEquals(
             listOf(1L),
-            FilesListBuilder.build(rows, FileCategory.ALL, "report", FileSort.TIME)
+            FilesListBuilder.build(rows, FileCategory.ALL, "report", SortSpec(SortKey.TIME, descending = true))
                 .map { it.messageId },
         )
         assertEquals(
             emptyList<Long>(),
-            FilesListBuilder.build(rows, FileCategory.VIDEO, "", FileSort.TIME)
+            FilesListBuilder.build(rows, FileCategory.VIDEO, "", SortSpec(SortKey.TIME, descending = true))
                 .map { it.messageId },
         )
     }
@@ -94,7 +158,7 @@ class FilesListBuilderTest {
             row(3, "dog.jpg", "image/jpeg", size = 30, timestamp = 3),
         )
 
-        val out = FilesListBuilder.build(rows, FileCategory.IMAGE, "cat", FileSort.TIME)
+        val out = FilesListBuilder.build(rows, FileCategory.IMAGE, "cat", SortSpec(SortKey.TIME, descending = true))
 
         assertEquals(listOf(1L), out.map { it.messageId })
     }
