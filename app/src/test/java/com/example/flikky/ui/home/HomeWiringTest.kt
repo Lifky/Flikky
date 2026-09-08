@@ -50,6 +50,18 @@ class HomeWiringTest {
     }
 
     @Test
+    fun `the home list gets the whole sort spec, not just the key`() {
+        // 2026-09-08 装机反馈：`sort = settings.homeSort.key` 把方向丢了。
+        // 类型对、编译过、菜单箭头也翻，唯独列表顺序不动 ——
+        // **传对了类型不等于传全了维度**。
+        assertFalse(
+            "方向又被丢掉了（传的是 .key 而不是整个 SortSpec）",
+            viewModel.contains(Regex("""sort\s*=\s*settings\.homeSort\.key""")),
+        )
+        assertTrue("没有把整个 SortSpec 传给列表构建", viewModel.contains("sort = settings.homeSort,"))
+    }
+
+    @Test
     fun `home list takes its section mode from settings, not a literal`() {
         assertFalse(
             "分节方式又被写死了",

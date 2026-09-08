@@ -4,6 +4,7 @@ import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.data.settings.GroupMode
 import com.example.flikky.util.NAME_ORDER
 import com.example.flikky.util.SortKey
+import com.example.flikky.util.SortSpec
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -50,18 +51,27 @@ object HomeListBuilder {
 
     fun build(
         sessions: List<SessionEntity>,
-        sort: SortKey,
+        sort: SortSpec,
         group: GroupMode,
         today: LocalDate,
         zone: ZoneId,
     ): List<HomeListItem> {
-        val comparator = when (sort) {
-            SortKey.TIME -> compareByDescending<SessionEntity> { it.startedAt }
+        // 键决定比较什么，**方向由 sort.descending 决定**，不写死。
+        //
+        // 早先这里是 `SortKey.TIME -> compareByDescending`、`NAME -> compareBy`,
+        // 方向焊在分支里 —— 于是第二次点同一个键时设置翻转了、菜单箭头也翻了，
+        // 列表顺序却不动（2026-09-08 装机反馈）。守卫见 HomeListBuilderTest
+        // 的四条 direction 用例。
+        val byKey: Comparator<SessionEntity> = when (sort.key) {
             SortKey.NAME -> compareBy(NAME_ORDER) { it.name }
             // 会话没有大小。UI 不给这个选项（HomeSortSheet 只列名称与时间），
             // 真的收到时按时间处理而不是抛 —— 一个排序键不值得让主页崩掉。
-            SortKey.SIZE -> compareByDescending<SessionEntity> { it.startedAt }
+            SortKey.TIME, SortKey.SIZE -> compareBy { it.startedAt }
         }
+        val directed = if (sort.descending) byKey.reversed() else byKey
+        // 兜底恒**升序**，与 StorageListingPolicy / FavoritesListOrder 同一裁决：
+        // 兜底跟着方向翻转的话，同名或同时刻的两项在两个方向下相对顺序会反过来。
+        val comparator = directed.thenBy(NAME_ORDER) { it.name }
 
         fun sorted(list: List<SessionEntity>) = list.sortedWith(comparator)
         fun section(section: HomeSection, list: List<SessionEntity>): List<HomeListItem> =
