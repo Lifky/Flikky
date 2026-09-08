@@ -101,6 +101,7 @@ import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.UpdateAvailableDialog
 import com.example.flikky.ui.exporting.ArchiveViewModel
 import com.example.flikky.ui.exporting.ExportDestinationSheet
+import com.example.flikky.ui.settings.components.SettingExpandableGroup
 import com.example.flikky.ui.settings.components.SettingItem
 import com.example.flikky.ui.settings.components.SettingSection
 import com.example.flikky.ui.settings.sheets.AvatarPickerSheet
@@ -523,22 +524,25 @@ fun SettingsScreen(
                         onClick = { showActionStyleDialog = true },
                         index = 1, total = sectionItems,
                     )
-                    SettingItem(
-                        title = stringResource(R.string.settings_recall),
-                        leadingIcon = painterResource(R.drawable.ic_undo),
-                        subtitle = stringResource(R.string.settings_recall_summary),
-                        trailing = {
-                            Switch(
-                                checked = s.recallBetaEnabled,
-                                onCheckedChange = { viewModel.setRecallBeta(it) },
+                    // 表头 + 展开区收成单一子项：AnimatedVisibility 直接坐在
+                    // SettingSection 的 spacedBy Column 里时，收起动画期间会是
+                    // 两倍间隔（2026-09-08 装机反馈）。详见 SettingExpandableGroup。
+                    SettingExpandableGroup(
+                        expanded = s.recallBetaEnabled,
+                        header = {
+                            SettingItem(
+                                title = stringResource(R.string.settings_recall),
+                                leadingIcon = painterResource(R.drawable.ic_undo),
+                                subtitle = stringResource(R.string.settings_recall_summary),
+                                trailing = {
+                                    Switch(
+                                        checked = s.recallBetaEnabled,
+                                        onCheckedChange = { viewModel.setRecallBeta(it) },
+                                    )
+                                },
+                                index = 2, total = sectionItems,
                             )
                         },
-                        index = 2, total = sectionItems,
-                    )
-                    AnimatedVisibility(
-                        visible = s.recallBetaEnabled,
-                        enter = expandVertically(Motion.spatial()) + fadeIn(Motion.effects()),
-                        exit = shrinkVertically(Motion.spatialFast()) + fadeOut(Motion.effectsFast()),
                     ) {
                         SettingItem(
                             title = stringResource(R.string.settings_allow_peer_recall),
@@ -647,96 +651,92 @@ fun SettingsScreen(
                         onClick = { showHistoryLimitDialog = true },
                         index = 1, total = sectionItems,
                     )
-                    SettingItem(
-                        title = stringResource(R.string.settings_import_export),
-                        leadingIcon = painterResource(R.drawable.ic_swap_vert),
-                        subtitle = if (importExportExpanded) {
-                            stringResource(R.string.settings_import_export_choose)
-                        } else {
-                            stringResource(R.string.settings_import_export_summary)
-                        },
-                        trailing = {
-                            val rotation by animateFloatAsState(
-                                targetValue = if (importExportExpanded) 180f else 0f,
-                                animationSpec = Motion.spatial(),
-                                label = "ImportExportChevron",
-                            )
-                            Icon(
-                                painter = painterResource(R.drawable.ic_expand_more),
-                                contentDescription = null,
-                                modifier = Modifier.rotate(rotation),
-                            )
-                        },
-                        onClick = { importExportExpanded = !importExportExpanded },
-                        modifier = Modifier.semantics {
-                            stateDescription = context.getString(
-                                if (importExportExpanded) R.string.common_expanded
-                                else R.string.common_collapsed
-                            )
-                            customActions = listOf(
-                                CustomAccessibilityAction(
-                                    label = context.getString(
-                                        if (importExportExpanded) R.string.common_collapse
-                                        else R.string.common_expand
-                                    ),
-                                    action = {
-                                        importExportExpanded = !importExportExpanded
-                                        true
-                                    },
+                    // 与撤回那处同一修法：收成单一子项，gap 归 AnimatedVisibility 内部。
+                    SettingExpandableGroup(
+                        expanded = importExportExpanded,
+                        header = {
+                        SettingItem(
+                            title = stringResource(R.string.settings_import_export),
+                            leadingIcon = painterResource(R.drawable.ic_swap_vert),
+                            subtitle = if (importExportExpanded) {
+                                stringResource(R.string.settings_import_export_choose)
+                            } else {
+                                stringResource(R.string.settings_import_export_summary)
+                            },
+                            trailing = {
+                                val rotation by animateFloatAsState(
+                                    targetValue = if (importExportExpanded) 180f else 0f,
+                                    animationSpec = Motion.spatial(),
+                                    label = "ImportExportChevron",
                                 )
-                            )
-                        },
-                        index = 2, total = sectionItems,
-                    )
-                    AnimatedVisibility(
-                        visible = importExportExpanded,
-                        enter = expandVertically(Motion.spatial()) + fadeIn(Motion.effects()),
-                        exit = shrinkVertically(Motion.spatialFast()) + fadeOut(Motion.effectsFast()),
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-                        ) {
-                            SettingItem(
-                                title = stringResource(R.string.settings_import),
-                                leadingIcon = painterResource(R.drawable.ic_file_download),
-                                subtitle = stringResource(R.string.settings_import_summary),
-                                onClick = {
-                                    importLauncher.launch(
-                                        arrayOf("application/zip", "application/x-zip-compressed")
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_expand_more),
+                                    contentDescription = null,
+                                    modifier = Modifier.rotate(rotation),
+                                )
+                            },
+                            onClick = { importExportExpanded = !importExportExpanded },
+                            modifier = Modifier.semantics {
+                                stateDescription = context.getString(
+                                    if (importExportExpanded) R.string.common_expanded
+                                    else R.string.common_collapsed
+                                )
+                                customActions = listOf(
+                                    CustomAccessibilityAction(
+                                        label = context.getString(
+                                            if (importExportExpanded) R.string.common_collapse
+                                            else R.string.common_expand
+                                        ),
+                                        action = {
+                                            importExportExpanded = !importExportExpanded
+                                            true
+                                        },
                                     )
-                                },
-                                index = 3, total = sectionItems,
-                            )
-                            SettingItem(
-                                title = stringResource(R.string.settings_export_sessions),
-                                leadingIcon = painterResource(R.drawable.ic_upload),
-                                subtitle = stringResource(R.string.settings_export_sessions_summary),
-                                onClick = onExportSessions,
-                                index = 4, total = sectionItems,
-                            )
-                            SettingItem(
-                                title = stringResource(R.string.settings_export_favorites),
-                                leadingIcon = painterResource(R.drawable.ic_star_border),
-                                subtitle = stringResource(R.string.settings_export_favorites_summary),
-                                onClick = { exportDestinationScope = ExportScope.FAVORITES },
-                                index = 5, total = sectionItems,
-                            )
-                            SettingItem(
-                                title = stringResource(R.string.settings_export_settings),
-                                leadingIcon = painterResource(R.drawable.ic_settings_outline),
-                                subtitle = stringResource(R.string.settings_export_settings_summary),
-                                onClick = { exportDestinationScope = ExportScope.SETTINGS },
-                                index = 6, total = sectionItems,
-                            )
-                            SettingItem(
-                                title = stringResource(R.string.settings_export_all),
-                                leadingIcon = painterResource(R.drawable.ic_publish),
-                                subtitle = stringResource(R.string.settings_export_all_summary),
-                                onClick = { exportDestinationScope = ExportScope.ALL },
-                                index = 7, total = sectionItems,
-                            )
-                        }
+                                )
+                            },
+                            index = 2, total = sectionItems,
+                        )
+                        },
+                    ) {
+                        SettingItem(
+                            title = stringResource(R.string.settings_import),
+                            leadingIcon = painterResource(R.drawable.ic_file_download),
+                            subtitle = stringResource(R.string.settings_import_summary),
+                            onClick = {
+                                importLauncher.launch(
+                                    arrayOf("application/zip", "application/x-zip-compressed")
+                                )
+                            },
+                            index = 3, total = sectionItems,
+                        )
+                        SettingItem(
+                            title = stringResource(R.string.settings_export_sessions),
+                            leadingIcon = painterResource(R.drawable.ic_upload),
+                            subtitle = stringResource(R.string.settings_export_sessions_summary),
+                            onClick = onExportSessions,
+                            index = 4, total = sectionItems,
+                        )
+                        SettingItem(
+                            title = stringResource(R.string.settings_export_favorites),
+                            leadingIcon = painterResource(R.drawable.ic_star_border),
+                            subtitle = stringResource(R.string.settings_export_favorites_summary),
+                            onClick = { exportDestinationScope = ExportScope.FAVORITES },
+                            index = 5, total = sectionItems,
+                        )
+                        SettingItem(
+                            title = stringResource(R.string.settings_export_settings),
+                            leadingIcon = painterResource(R.drawable.ic_settings_outline),
+                            subtitle = stringResource(R.string.settings_export_settings_summary),
+                            onClick = { exportDestinationScope = ExportScope.SETTINGS },
+                            index = 6, total = sectionItems,
+                        )
+                        SettingItem(
+                            title = stringResource(R.string.settings_export_all),
+                            leadingIcon = painterResource(R.drawable.ic_publish),
+                            subtitle = stringResource(R.string.settings_export_all_summary),
+                            onClick = { exportDestinationScope = ExportScope.ALL },
+                            index = 7, total = sectionItems,
+                        )
                     }
                     SettingItem(
                         title = stringResource(R.string.settings_delete_all),
