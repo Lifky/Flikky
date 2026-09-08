@@ -610,7 +610,9 @@ fun SettingsScreen(
                     // 2026-09-03「副标题 5 项、进去只有 4 行」的成因。
                     SettingItem(
                         title = stringResource(R.string.settings_show_hidden),
-                        leadingIcon = painterResource(R.drawable.ic_folder),
+                        // Folder Eye：这一行说的是「看不看得见隐藏项」，
+                        // 普通 folder 与上面那行「浏览手机存储」撞图（用户点名换的）。
+                        leadingIcon = painterResource(R.drawable.ic_folder_eye),
                         infoText = stringResource(R.string.settings_show_hidden_summary),
                         trailing = {
                             Switch(
