@@ -66,13 +66,36 @@
 /* 文件面板的搜索行在滚动容器**外面**（renderShell 会清空 body，放里面会连同
    焦点一起被摧毁），所以它拿不到 .fk-panel-body 的内边距，在这里补齐 ——
    补的是同一个 token，与收藏面板那条对齐。 */
-#view-files > .fk-search {
-  /* **必须 flex: none**。这一行是 .fk-view（flex 列）的直接子元素，
-     flex 子项默认 flex-shrink: 1 —— 不写的话它的高度取决于「同一列里其他
-     东西有多高」，于是列表长短一变、IME 候选条一开，高度就跟着跳
-     （2026-09-08 装机反馈的症状①与③，同一个根因）。 */
-  flex: none;
-  margin: 0 var(--flikky-space-xxl) var(--flikky-space-lg);
+/* 文件面板的 sticky 头块：搜索行 + 面包屑 + 加载计数 + 进度条。
+   住在滚动容器**内**，所以自动拿到 `scrollbar-gutter: stable` 让出的那条槽位
+   —— 右边缘与列表严丝合缝（2026-09-08 装机反馈「左侧对齐、右侧没对齐」）。
+   负 margin 逃出 body 的水平内边距，与 .fk-crumbs 同一手法。 */
+.fk-files-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 0 calc(-1 * var(--flikky-space-xxl));
+  padding: 0 var(--flikky-space-xxl);
+  background: var(--flikky-pillar-bg);
+}
+/* 头块里的面包屑不再自己 sticky —— 整块一起吸顶，多个 sticky 元素要手工算
+   彼此的 top 偏移，差一像素滚动时就互相穿透。 */
+.fk-files-sticky .fk-crumbs {
+  position: static;
+  margin: 0;
+  padding: var(--flikky-space-sm) 0;
+}
+.fk-files-sticky > .fk-search {
+  margin-bottom: var(--flikky-space-sm);
+}
+
+/* 加载中的计数。**只在加载中出现**：完成后的「共 N 项」只留列表尾那一处
+   （用户裁决 2026-09-08）。刻意复用页脚的排版，两处是同一种信息。 */
+.fk-files-loading-count {
+  margin: 0 0 var(--flikky-space-xs);
+  color: rgb(var(--mdui-color-on-surface-variant));
+  font: var(--flikky-type-body-small) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-small-tracking);
 }
 .fk-search input {
   flex: 1 1 auto;

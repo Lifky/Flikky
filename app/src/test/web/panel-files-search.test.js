@@ -111,9 +111,15 @@ async function type(c, text) {
   await tick();
 }
 
-test('搜索框在滚动容器外面 —— 换目录不会把它连同焦点一起摧毁', async () => {
-  // renderShell 每次换目录都执行 bodyEl.textContent = ''。
-  // 搜索框若在 bodyEl 里，输入到一半来一批数据就丢焦点。
+test('搜索框在滚动容器**内**的 sticky 头块里，且换目录不重建', async () => {
+  // 这一条上一版断言的是「在容器外」，理由是 renderShell 会 `textContent = ''`。
+  // **那个结论被装机反馈推翻了**：容器有 scrollbar-gutter: stable，内容右侧
+  // 让出了一条滚动条的位置，容器外的元素拿不到那条槽位 ——
+  // 于是右边缘与列表差一条滚动条宽（「左侧对齐、右侧没对齐」）。
+  //
+  // 现在搜索行住在容器内的 sticky 头块里，宽度自动与列表一致；
+  // 焦点靠 renderShell 只清头块以外的东西来保住（clearBelowSticky）。
+  // 「不丢焦点」这个要求没变，换了个办法满足。
   const c = await opened();
   const search = byClass(c.view, 'fk-search')[0];
   assert.ok(search, '没有搜索框');
@@ -124,12 +130,33 @@ test('搜索框在滚动容器外面 —— 换目录不会把它连同焦点一
     if (node === body(c.view)) insideBody = true;
     node = node.parentNode;
   }
-  assert.equal(insideBody, false, '搜索框在滚动容器里，换目录时会被连同焦点一起摧毁');
+  assert.equal(insideBody, true, '搜索框必须在滚动容器内，否则宽度与列表差一条滚动条');
 
-  // 换个目录，它必须还在（同一个节点）。
+  // 换个目录，它必须还是**同一个节点**（重建就等于丢焦点）。
   c.api.navigate('Pictures');
   await tick();
   assert.equal(byClass(c.view, 'fk-search')[0], search, '换目录后搜索框被重建了');
+});
+
+test('换目录只清列表，不清 sticky 头块', async () => {
+  // clearBelowSticky 的本体断言。第一版用 `bodyEl.lastChild` 写循环 ——
+  // mini-dom 只有 firstChild，于是清理**静默失效**，换目录后 body 里堆了
+  // 两份列表（打点才发现）。第二版「取出去再放回来」把头块挪到了末尾，
+  // 下一轮就认不出它。
+  const c = await opened();
+  const sticky = byClass(c.view, 'fk-files-sticky')[0];
+  assert.ok(sticky, '没有 sticky 头块');
+
+  c.api.navigate('Pictures');
+  await tick();
+
+  assert.equal(byClass(c.view, 'fk-files-sticky')[0], sticky, '头块被重建了');
+  assert.equal(
+    byClass(c.view, 'fk-files-list').length,
+    1,
+    '换目录后残留了上一个目录的列表',
+  );
+  assert.equal(body(c.view).children[0], sticky, '头块必须留在第一位，否则下次认不出它');
 });
 
 test('输入关键词只过滤当前目录', async () => {
@@ -207,4 +234,30 @@ test('过滤态下的全选只选中可见的那些', async () => {
     count.textContent.indexOf('2') >= 0,
     '全选应当只选中过滤后可见的 2 项，实际：' + count.textContent,
   );
+});
+
+test('加载中的计数在 sticky 头块里，完成后只留列表尾那一处', async () => {
+  // 用户裁决 2026-09-08：两处都显示「共 N 项」= 同一句话同屏说两次。
+  // 头块那句只在加载中出现 —— 它消失本身就是「加载完了」的信号，不用读字。
+  const c = await opened();
+
+  // 本 harness 的列表一次到达即完成，所以这里看的是**完成态**。
+  const head = byClass(c.view, 'fk-files-loading-count')[0];
+  assert.ok(head, '头块里没有加载计数元素');
+  assert.equal(head.hidden, true, '完成后头块那句必须收起');
+
+  const footer = byClass(c.view, 'fk-files-footer')[0];
+  assert.ok(footer, '列表尾没有页脚');
+  assert.equal(footer.textContent, 'app.files.total:4', '尾部应当说「共 N 项」');
+});
+
+test('加载计数与页脚成对更新 —— 读的是同一份数据', () => {
+  // 分开调用的话总有一处会被漏掉，那正是 v1.20.0 那批
+  // 「一份状态没跟着它的依据一起更新」缺陷的形状。
+  const src = fs.readFileSync(path.join(WEB, 'panel-files.js'), 'utf8');
+  const at = src.indexOf('function syncCounts');
+  assert.ok(at > 0, 'syncCounts 不存在');
+  const fn = src.slice(at, src.indexOf('function ', src.indexOf('{', at)));
+  assert.ok(fn.indexOf('syncFooter()') >= 0, 'syncCounts 没有更新页脚');
+  assert.ok(fn.indexOf('syncLoadingCount()') >= 0, 'syncCounts 没有更新头块计数');
 });

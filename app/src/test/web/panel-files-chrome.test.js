@@ -14,9 +14,13 @@ const read = (n) => fs.readFileSync(path.join(WEB, n), 'utf8');
  */
 
 test('the breadcrumb sticks to the top of the scrolling list', () => {
+  // 吸顶的承载者是**整个头块** `.fk-files-sticky`（搜索行 + 面包屑 + 计数 +
+  // 进度条），不再是 .fk-crumbs 自己。改成一整块的理由：多个 sticky 元素要
+  // 手工算彼此的 top 偏移，差一像素滚动时就互相穿透。
+  // 这一条守的意图没变 —— 深路径滚下去之后仍然可知。
   const css = scan.stripBlockComments(read('panels.css'));
-  const rule = scan.ruleBlock(css, '.fk-crumbs');
-  assert.ok(rule, 'no .fk-crumbs rule');
+  const rule = scan.ruleBlock(css, '.fk-files-sticky');
+  assert.ok(rule, 'no .fk-files-sticky rule');
   assert.ok(
     rule.indexOf('position: sticky') >= 0,
     'the breadcrumb must be sticky, or a deep path is unknowable once scrolled: ' + rule,
@@ -45,11 +49,18 @@ test('the scroll container is the one the breadcrumb sticks inside', () => {
   // sticky 只相对**最近的滚动祖先**生效。面包屑是 renderBreadcrumb 塞进 bodyEl 的，
   // 而 .fk-panel-body 正是那个 overflow-y: auto 的元素 —— 这条把这个前提钉住，
   // 免得有人把面包屑挪出去之后 sticky 静默失效（CSS 不会报错）。
+  // 头块是 mount 建的、跨换目录存活（搜索行住在里面，重建会连焦点一起摧毁），
+  // 所以这一条查的是 mount 而不是 renderShell。
   const js = scan.scrub(read('panel-files.js'));
+  assert.ok(
+    js.indexOf('bodyEl.appendChild(stickyEl)') >= 0,
+    'the sticky head block must live inside the scrolling body, or sticky ' +
+      'silently stops working (CSS does not complain)',
+  );
   const shell = scan.functionBody(js, 'function renderShell(');
   assert.ok(
-    shell.indexOf('renderBreadcrumb(bodyEl') >= 0,
-    'the breadcrumb must live inside the scrolling body. Body:' + scan.LF + shell,
+    shell.indexOf('renderBreadcrumb(crumbsHost') >= 0,
+    'renderShell must rewrite the breadcrumb into the head block. Body:' + scan.LF + shell,
   );
   const css = scan.stripBlockComments(read('panels.css'));
   const body = scan.ruleBlock(css, '.fk-panel-body');

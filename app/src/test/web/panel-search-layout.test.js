@@ -43,15 +43,26 @@ function ruleFor(css, selector) {
   return hits.length ? hits[hits.length - 1] : null;
 }
 
-test('搜索行不许被 flex 压缩 —— 症状①③的根因', () => {
-  // .fk-view 是 flex 列，子项默认可收缩。不写 flex: none 的话搜索框的高度
-  // 取决于**同一列里其他东西有多高**，于是列表长短一变它就跟着变。
-  const rule = ruleFor(panels(), '#view-files > .fk-search');
-  assert.ok(rule, '#view-files > .fk-search 的规则不见了');
-  assert.match(
-    rule,
-    /flex:\s*none/,
-    '搜索行没有 flex: none，会被 flex 列压缩：列表长短或 IME 一变高度就跳',
+test('搜索行搬进滚动容器后不再是 flex 子项 —— 症状①③的根因', () => {
+  // 上一版的修法是给容器**外**的搜索行加 flex: none（它当时是 .fk-view 这个
+  // flex 列的直接子元素，默认 flex-shrink: 1，高度会跟着邻居变）。
+  //
+  // 这一版把它搬进了滚动容器内的 sticky 头块（为了拿到 scrollbar-gutter 让出的
+  // 槽位、右边缘与列表对齐），于是它根本不再是 flex 子项 ——
+  // 压缩问题从**结构上**消失了，比加一条 flex: none 更彻底。
+  const css = panels();
+  const sticky = ruleFor(css, '.fk-files-sticky');
+  assert.ok(sticky, '.fk-files-sticky 的规则不见了');
+  assert.doesNotMatch(
+    sticky,
+    /display:\s*flex/,
+    '头块变成 flex 容器了 —— 那搜索行又会被压缩，症状①③会回来',
+  );
+  // 容器外那条规则必须**已经不存在**：留着等于两处规则同时定位搜索行。
+  assert.equal(
+    ruleFor(css, '#view-files > .fk-search'),
+    null,
+    '容器外那条 .fk-search 规则还在 —— 搜索行现在住在头块里，两处规则会打架',
   );
 });
 
@@ -86,28 +97,29 @@ test('滚动条常留位置 —— 症状②的根因', () => {
   );
 });
 
-test('搜索行与列表的左右边距用同一个 token', () => {
-  // 两者宽度必须一致（同一栏里的全局宽度）。搜索行在 body 外面，
-  // 拿不到 .fk-panel-body 的内边距，只能自己补 —— 补的必须是同一个 token，
-  // 否则「差一点」比「差很多」更难看。
-  const bodyRule = ruleFor(panels(), '.fk-panel-body');
-  const searchRule = ruleFor(panels(), '#view-files > .fk-search');
-  assert.ok(bodyRule && searchRule);
+test('头块与列表的左右边界用同一个 token —— 右侧才能对齐', () => {
+  // 头块坐在 body 内，用「负 margin 逃出 body 内边距、再自己补回同样的
+  // padding」这一手（与 .fk-crumbs 逐字同形）。两个值必须是**同一个 token**：
+  // 这正是「左侧对齐、右侧没对齐」那一类问题的来源。
+  const css = panels();
+  const bodyRule = ruleFor(css, '.fk-panel-body');
+  const sticky = ruleFor(css, '.fk-files-sticky');
+  assert.ok(bodyRule && sticky);
 
-  const tokenOf = (rule, prop) => {
-    const m = rule.match(new RegExp(prop + ':\\s*([^;]+)'));
+  const firstToken = (s) => ((s || '').match(/var\(--flikky-space-[a-z]+\)/g) || [])[0];
+  const propOf = (rule, prop) => {
+    const m = rule.match(new RegExp('(?:^|[^-\w])' + prop + ':\s*([^;]+)'));
     return m ? m[1] : null;
   };
-  const bodyPad = tokenOf(bodyRule, 'padding');
-  const searchMargin = tokenOf(searchRule, 'margin');
-  assert.ok(bodyPad && searchMargin, '取不到内边距/外边距');
 
-  const bodyH = (bodyPad.match(/var\(--flikky-space-[a-z]+\)/g) || [])[0];
-  const searchH = (searchMargin.match(/var\(--flikky-space-[a-z]+\)/g) || [])[0];
+  const bodyH = firstToken(propOf(bodyRule, 'padding'));
+  assert.ok(bodyH, '取不到 body 的水平内边距');
   assert.equal(
-    searchH,
-    bodyH,
-    '搜索行的水平外边距与列表的水平内边距不是同一个 token：' +
-      searchH + ' vs ' + bodyH,
+    firstToken(propOf(sticky, 'margin')), bodyH,
+    '头块逃出的量与 body 内边距不是同一个 token',
+  );
+  assert.equal(
+    firstToken(propOf(sticky, 'padding')), bodyH,
+    '头块补回的量与 body 内边距不是同一个 token',
   );
 });

@@ -334,13 +334,18 @@
 
         container.appendChild(head);
 
-        // 搜索行。**必须在滚动容器外面**：renderShell 每次换目录都执行
-        // `bodyEl.textContent = ''`，放里面会连同焦点一起被摧毁 —— 输入到一半
-        // 来一批数据就丢焦点。
+        // 搜索行。放在**滚动容器内的 sticky 头块**里 —— 与面包屑同一套办法
+        // （`.fk-crumbs` 早就是 sticky + 负 margin 逃出 body 内边距）。
+        //
+        // 为什么不放在容器外面：容器有 `scrollbar-gutter: stable`，内容右侧
+        // 让出了一条滚动条的位置；外面的元素拿不到那条槽位，于是右边缘与列表
+        // 差一条滚动条宽（2026-09-08 装机反馈「左侧对齐、右侧没对齐」）。
+        //
+        // 放进去的代价是 renderShell 会清空 body —— 所以它只清列表区，
+        // sticky 头块整块保留（见 renderShell）。焦点因此也不丢。
         //
         // markup 与收藏面板 app.html 里那段逐字同形（同 .fk-search、同
-        // data-icon="search" 的 span、同一个 input），只是位置不同：
-        // 那边在 body 内会随列表滚走，这边固定。
+        // data-icon="search" 的 span、同一个 input）。
         const search = document.createElement('div');
         search.className = 'fk-search';
         search.appendChild(icon('search'));
@@ -353,11 +358,33 @@
             applyViewChange();
         });
         search.appendChild(searchInput);
-        container.appendChild(search);
 
         bodyEl = document.createElement('div');
         bodyEl.className = 'fk-panel-body flikky-scroll';
         container.appendChild(bodyEl);
+
+        // sticky 头块：搜索行 + 面包屑 + 计数 + 进度条。**整块跨换目录存活**，
+        // 只有里面的面包屑/计数/进度条会被 renderShell 重写。
+        //
+        // 一整块而不是各自 sticky：多个 sticky 元素要手工算彼此的 top 偏移，
+        // 差一像素就会在滚动时互相穿透。
+        stickyEl = document.createElement('div');
+        stickyEl.className = 'fk-files-sticky';
+        stickyEl.appendChild(search);
+        crumbsHost = document.createElement('div');
+        stickyEl.appendChild(crumbsHost);
+        // 加载中的计数。**只在加载中说话**：完成后的「共 N 项」留在列表尾部
+        // 那一处，两处都说会同屏出现两次同一句话（用户裁决 2026-09-08）。
+        loadingCountEl = document.createElement('p');
+        loadingCountEl.className = 'fk-files-loading-count';
+        loadingCountEl.hidden = true;
+        stickyEl.appendChild(loadingCountEl);
+        progressEl = document.createElement('mdui-linear-progress');
+        progressEl.className = 'fk-files-progress';
+        progressEl.setAttribute('aria-label', t('app.files.loading'));
+        progressEl.hidden = true;
+        stickyEl.appendChild(progressEl);
+        bodyEl.appendChild(stickyEl);
 
         // 批量下载工具条。**与收藏面板同一套外观与槽位顺序**（计数 → 清除 → 主操作，
         // 主操作在最右且用 --filled 变体），复用 .fk-toolbar / .fk-toolbar-count /
@@ -547,6 +574,46 @@
      * 列表停止生长与「加载完了」在屏幕上长得一样。加载中写「正在载入 N 项」，
      * 完成后写「共 N 项」，两者都给出确定的语义。
      */
+    /**
+     * 清掉 sticky 头块**以外**的所有子节点（列表、页脚、提示）。
+     *
+     * 头块必须留着：搜索行住在里面，整份 `textContent = ''` 会把它连同焦点
+     * 一起摧毁 —— 输入到一半来一批数据就丢焦点。
+     *
+     * 用 `firstChild` 而不是 `lastChild`：项目共用的那套 DOM 操作只有
+     * `while (el.firstChild) el.removeChild(...)`（见 mini-dom 的 KDoc），
+     * `lastChild` 在测试替身里不存在 —— 用它的表现是清理**静默失效**、
+     * 旧目录的行留在 DOM 里（写这一处时就踩到了）。
+     */
+    function clearBelowSticky() {
+        if (!bodyEl) return;
+        // 把要清的先收集出来再删：边遍历边删会让下标错位，
+        // 而「取出去再放回来」会把头块挪到末尾、下一轮就认不出它了
+        // （第一版就是这么错的，表现是换目录后 body 里堆了两份列表）。
+        // Array.prototype.slice：真实 DOM 的 children 是 HTMLCollection，没有 filter。
+        const doomed = Array.prototype.slice.call(bodyEl.children)
+            .filter(function (c) { return c !== stickyEl; });
+        doomed.forEach(function (c) { bodyEl.removeChild(c); });
+    }
+
+    /**
+     * sticky 头块里那句加载计数。
+     *
+     * **只在加载中说话。** 完成后的「共 N 项」留在列表尾部那一处 ——
+     * 两处都说会让同一句话同屏出现两次（用户裁决 2026-09-08）。
+     * 它消失本身也就是「加载完了」的信号，不需要读字。
+     */
+    function syncLoadingCount() {
+        if (!loadingCountEl) return;
+        if (listingComplete) {
+            loadingCountEl.hidden = true;
+            loadingCountEl.textContent = '';
+            return;
+        }
+        loadingCountEl.hidden = false;
+        loadingCountEl.textContent = t('app.files.loadingCount', { count: allEntries().length });
+    }
+
     function syncFooter() {
         if (!bodyEl || !listEl) return;
         const n = allEntries().length;
@@ -572,9 +639,21 @@
             footerEl.className = 'fk-files-footer';
             bodyEl.appendChild(footerEl);
         }
+        // 列表尾部**只在完成后**说「共 N 项」。加载中的进度归 sticky 头块那一句
+        // （用户裁决 2026-09-08：两处都显示「共 N 项」是同一句话说两次）。
         footerEl.textContent = listingComplete
             ? t('app.files.total', { count: n })
             : t('app.files.loadingCount', { count: n });
+    }
+
+    /**
+     * 页脚与头块计数**成对更新**：两者读的是同一个 allEntries().length。
+     * 分开调用的话总有一处会被漏掉 —— 那正是 v1.20.0 那批「一份状态没跟着
+     * 它的依据一起更新」缺陷的形状。
+     */
+    function syncCounts() {
+        syncFooter();
+        syncLoadingCount();
     }
 
 
@@ -844,7 +923,7 @@
         // 兄弟目录会一律判成「返回」，而那更像是横向切换，按「进入」更自然。
         const dir = depthOf(path) >= depthOf(shownPath) ? 'enter' : 'exit';
         shownPath = path || '';
-        bodyEl.textContent = '';
+        clearBelowSticky();
         rowElements.clear();
         // 新壳 = 还没有任何属于它的数据。清掉之后 syncVirtual 画不出任何行，
         // 直到头行到达把 viewEntries 接上 —— 那次 scroll 事件因此无害。
@@ -864,11 +943,14 @@
         // 页脚与空态提示都与 DOM 同生同死：忘了清会让引用指向已经摘掉的节点。
         footerEl = null;
         emptyNoticeEl = null;
-        renderBreadcrumb(bodyEl, path || '');
-        progressEl = document.createElement('mdui-linear-progress');
-        progressEl.className = 'fk-files-progress';
-        progressEl.setAttribute('aria-label', t('app.files.loading'));
-        bodyEl.appendChild(progressEl);
+        if (crumbsHost) {
+            crumbsHost.textContent = '';
+            renderBreadcrumb(crumbsHost, path || '');
+        }
+        // 进度条与加载计数都在头块里，只切显隐 —— 不重建，免得每次换目录
+        // 都重启它的不确定动画。
+        if (progressEl) progressEl.hidden = false;
+        syncLoadingCount();
         listEl = document.createElement('div');
         // 刻意**不带 .fk-group**：那条规则用 `:first-child` / `:last-child` 定外圆角，
         // 而窗口化之后第一个渲染出来的行往往不是列表首行。首尾由 renderRow 按数据
@@ -897,6 +979,8 @@
         // 那会让收回过渡完全不发生。收起态由 CSS 负责高度、外边距、透明度与
         // visibility（后者延到过渡结束才切，以便离开无障碍树）。
         if (progressEl) progressEl.classList.toggle('is-done', !busy);
+        // 加载计数只在加载中出现（用户裁决：完成后的「共 N 项」只留列表尾一处）。
+        syncLoadingCount();
         if (!busy && listEl && allEntries().length === 0) {
             renderNotice(bodyEl, 'app.files.empty');
         }
@@ -904,7 +988,8 @@
 
     function render(state) {
         if (!bodyEl) return;
-        bodyEl.textContent = '';
+        // 与 renderShell 同一处理：sticky 头块整块保留，只清列表区。
+        clearBelowSticky();
         // 索引与 DOM 同生同死：忘了清会让 rowElements 一直握着已经从文档里摘掉的
         // 元素（内存泄漏），而且清除按钮会去改一批看不见的行。
         rowElements.clear();
@@ -914,7 +999,10 @@
             return;
         }
         currentPath = typeof state.path === 'string' ? state.path : '';
-        renderBreadcrumb(bodyEl, currentPath);
+        if (crumbsHost) {
+            crumbsHost.textContent = '';
+            renderBreadcrumb(crumbsHost, currentPath);
+        }
         if (state.entries.length === 0) {
             renderNotice(bodyEl, 'app.files.empty');
             syncToolbar();
@@ -930,9 +1018,8 @@
         state.entries.forEach((entry, i) => renderRow(list, entry, i, state.entries.length));
         bodyEl.appendChild(list);
         listEl = list;
-        progressEl = null;
         syncToolbar();
-        syncFooter();
+        syncCounts();
     }
 
     // ---- 引导态 -------------------------------------------------------------
@@ -1026,8 +1113,13 @@
     /** 排序菜单的 DOM 引用，syncSortMenu 用它重打方向箭头。 */
     let sortMenuEl = null;
 
-    /** 搜索输入框。它活在滚动容器**外面**，所以换目录不会重建它。 */
+    /** 搜索输入框。它活在 sticky 头块里，renderShell 不会重建它。 */
     let searchInput = null;
+
+    /** sticky 头块与它里面会被重写的两块。跨换目录存活。 */
+    let stickyEl = null;
+    let crumbsHost = null;
+    let loadingCountEl = null;
 
     /**
      * 排序菜单的定位层（`sort-menu.js`）。与 sorter 同样的防御：
@@ -1097,7 +1189,7 @@
         syncVirtual(-1);
         syncSelectAll();
         syncToolbar();
-        syncFooter();
+        syncCounts();
     }
 
     /**
@@ -1204,7 +1296,7 @@
         setBusy(false);
         syncSelectAll();
         syncToolbar();
-        syncFooter();
+        syncCounts();
         // 内容已就位、高度已确定，这时候放回滚动位置才不会被夹。
         const at = scrollMemory.get(target);
         if (bodyEl && typeof at === 'number') bodyEl.scrollTop = at;
@@ -1522,7 +1614,7 @@
             }
             if (shellReady) {
                 flushPending();
-                syncFooter();
+                syncCounts();
             }
             if (step.done) break;
         }
@@ -1543,7 +1635,7 @@
         }
         syncSelectAll();
         syncToolbar();
-        syncFooter();
+        syncCounts();
         setBusy(false);
         return true;
     }
