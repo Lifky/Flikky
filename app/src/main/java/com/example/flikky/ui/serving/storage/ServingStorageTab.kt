@@ -12,6 +12,8 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -471,6 +473,27 @@ private fun StorageBreadcrumbRow(
             .padding(horizontal = Spacing.screenEdge, vertical = Spacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // 面包屑必须占**自己那一格**并可横向滚动。
+        //
+        // 早先它直接摊在这个 Row 里，靠末尾一个 `Spacer(weight(1f))` 把按钮推到
+        // 右边 —— 路径一长，面包屑就把整行撑满、Spacer 只能拿到 0，右侧的
+        // 搜索 / 排序 / 刷新被推出屏幕，完全点不到（2026-09-08 装机反馈）。
+        //
+        // `weight(1f)` 的语义正是「你最多吃掉剩余空间」：按钮那几格先按自身
+        // 大小分走，剩下的才归面包屑，内容超出就在自己那一格里滚动。
+        val crumbScroll = rememberScrollState()
+        // 换目录后滚到末尾：当前目录是这一行最重要的信息，停在根上等于把
+        // 「我在哪」藏在滚动区外面。跟着 maxValue 一起触发是因为首帧还没测量完，
+        // 那时 maxValue 是 0，滚了也没用。
+        LaunchedEffect(path, crumbScroll.maxValue) {
+            crumbScroll.scrollTo(crumbScroll.maxValue)
+        }
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(crumbScroll),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
         crumbs.forEachIndexed { index, crumb ->
             if (index > 0) {
                 Icon(
@@ -501,10 +524,10 @@ private fun StorageBreadcrumbRow(
                 },
             )
         }
+        }
         // 目录缓存刻意不做自动刷新（在子目录待久了父目录可能已变，自动重取会把
         // 「秒回」变回「每次都等」），代价就是必须给用户一个手动的出口。
         // 放在面包屑行末尾：它是**当前目录**这一行的动作，与路径同处一行。
-        Spacer(Modifier.weight(1f))
         IconButton(onClick = onStartSearch) {
             Icon(
                 painter = painterResource(R.drawable.ic_search),

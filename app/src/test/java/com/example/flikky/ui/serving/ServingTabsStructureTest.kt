@@ -930,4 +930,41 @@ class ServingTabsStructureTest {
             tab.contains("serving_storage_search_empty"),
         )
     }
+
+    @Test
+    fun `the breadcrumb cannot squeeze the action buttons off the row`() {
+        // 2026-09-08 装机反馈：路径一长，右侧的搜索 / 排序 / 刷新被推出屏幕，
+        // 完全点不到。原因是面包屑直接摊在外层 Row 里、靠一个
+        // `Spacer(weight(1f))` 把按钮推到右边 —— 面包屑撑满时 Spacer 只能拿到 0。
+        //
+        // 修法是把面包屑包进**自己那一格**并给它 weight：它最多吃掉剩余空间，
+        // 按钮那几格永远保得住；内容超出就横向滚动，而不是挤别人。
+        val at = storageTab.indexOf("""private fun StorageBreadcrumbRow""")
+        assertTrue("""StorageBreadcrumbRow 不见了""", at > 0)
+        val fn = storageTab.substring(at, storageTab.indexOf("""@Composable""", at + 10))
+
+        assertTrue(
+            "面包屑没有被包进带 weight 的自己那一格 —— 长路径会挤掉右侧按钮",
+            fn.contains(Regex("""Modifier\s*
+?\s*\.weight\(1f\)\s*
+?\s*\.horizontalScroll""")),
+        )
+        assertFalse(
+            "还留着 Spacer(weight(1f))：两个 weight 会平分，面包屑仍然能挤掉按钮",
+            fn.contains(Regex("""Spacer\(Modifier\.weight\(1f\)\)""")),
+        )
+    }
+
+    @Test
+    fun `the breadcrumb scrolls to the current directory, not the root`() {
+        // 自动滚到末尾。当前目录是这一行最重要的信息；停在根上等于把
+        // 「我在哪」藏在滚动区外面。
+        val at = storageTab.indexOf("""private fun StorageBreadcrumbRow""")
+        val fn = storageTab.substring(at, storageTab.indexOf("""@Composable""", at + 10))
+        assertTrue(
+            "路径变化后没有把面包屑滚到末尾",
+            fn.contains(Regex("""LaunchedEffect\([^)]*maxValue[^)]*\)""")),
+        )
+        assertTrue("没有滚到 maxValue", fn.contains("scrollTo("))
+    }
 }

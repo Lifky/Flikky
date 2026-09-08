@@ -307,6 +307,10 @@ body[data-favorite-enabled="0"] [data-dest="favorites"] { display: none; }
  * 元素上打 data-scrolling，静止约 900ms 后摘掉。:hover 保留作为鼠标用户的兜底。
  * Firefox 走 scrollbar-color，Chromium 走 ::-webkit。 */
 .flikky-scroll {
+  /* 滚动条**常留位置**。按需出现的话，内容一长一短就会让可用宽度突变
+     ——「listitem 宽度跟着搜索跳变」（2026-09-08 装机反馈的症状②）。
+     搜索行在滚动容器外、列表在内，两者宽度差的正是这一条滚动条。 */
+  scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
   transition: scrollbar-color var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
