@@ -115,6 +115,14 @@
         save: function () {},
     };
 
+    /**
+     * 排序菜单的定位层（`sort-menu.js`）。与 sorter 同样的防御：
+     * 缺失时回落成「菜单打不开」而不是抛。
+     */
+    const menus = window.flikkySortMenu || {
+        open: function () {}, close: function () {}, isOpen: function () { return false; },
+    };
+
     function filterFavorites(itemsList, options) {
         const opts = options || {};
         const groupFilter = Object.prototype.hasOwnProperty.call(opts, 'groupId') ? opts.groupId : 'all';
@@ -574,6 +582,15 @@
         // 排序：默认按收藏时间倒序（= 本版之前 DAO 的 createdAt DESC）。
         favSort = sorter.load(SORT_STORAGE_KEY, { key: 'TIME', desc: true });
         sortMenuEl = document.getElementById('fav-sort-menu');
+        const sortTrigger = document.getElementById('fav-sort');
+        if (sortTrigger && sortMenuEl) {
+            // 菜单在 HTML 里带 hidden（不然首帧会平铺在头部）；交给定位层时撤掉。
+            sortTrigger.addEventListener('click', function () {
+                if (menus.isOpen()) { menus.close(); return; }
+                sortMenuEl.hidden = false;
+                menus.open(sortTrigger, sortMenuEl);
+            });
+        }
         if (sortMenuEl) {
             Array.prototype.forEach.call(sortMenuEl.children, function (item) {
                 item.addEventListener('click', function () {
@@ -581,6 +598,8 @@
                     sorter.save(SORT_STORAGE_KEY, favSort);
                     syncSortMenu();
                     render();
+                    // mdui-dropdown 原本免费给的：点了就收起。
+                    menus.close();
                 });
             });
             syncSortMenu();

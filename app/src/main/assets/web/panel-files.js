@@ -256,18 +256,22 @@
         //
         // **只在列表完整到达后可点**：流未结束时「全部」没有确定含义，
         // 一个能点的按钮会让用户以为选中了整个目录（2026-09-02 用户裁决）。
-        // 排序下拉。用 mdui 官方组件：D30 定的归属是「需要 scrim / 焦点陷阱 /
-        // Esc / ARIA 语义的用 mdui」，下拉菜单四样全占，属于「自己写容易写错」。
+        // 排序下拉。菜单容器与菜单项仍是官方 mdui-menu（D30：需要 scrim /
+        // 焦点陷阱 / Esc / ARIA 语义的用 mdui），但**定位自己做** ——
+        // mdui-dropdown 在这套分栏布局里会被 .fk-pillar 的 overflow: hidden
+        // 裁切、菜单跑到按钮右边（2026-09-08 装机反馈）。详见 sort-menu.js。
         // 排在全选**之前**：排序是「怎么看」，全选是「选什么」。
-        const sortDropdown = document.createElement('mdui-dropdown');
-        sortDropdown.setAttribute('placement', 'bottom-end');
         const sortTrigger = document.createElement('button');
         sortTrigger.type = 'button';
         sortTrigger.className = 'fk-icon-btn';
-        sortTrigger.setAttribute('slot', 'trigger');
         sortTrigger.setAttribute('aria-label', t('app.files.sort'));
+        sortTrigger.setAttribute('aria-haspopup', 'true');
         sortTrigger.appendChild(icon('filter_list'));
-        sortDropdown.appendChild(sortTrigger);
+        sortTrigger.addEventListener('click', function () {
+            if (menus.isOpen()) { menus.close(); return; }
+            menus.open(sortTrigger, sortMenuEl);
+        });
+        head.appendChild(sortTrigger);
         sortMenuEl = document.createElement('mdui-menu');
         // 文案 key **显式写出**，不用「前缀 + key.toLowerCase()」拼出来 ——
         // 动态 key 让「两种语言的文案有没有齐」无法静态验证，而那正是
@@ -283,11 +287,13 @@
             item.className = 'fk-sort-item';
             item.setAttribute('value', key);
             item.textContent = t(SORT_LABELS[key]);
-            item.addEventListener('click', function () { pickSort(key); });
+            item.addEventListener('click', function () {
+                pickSort(key);
+                // mdui-dropdown 原本免费给的：点了就收起。自己做定位就要自己接。
+                menus.close();
+            });
             sortMenuEl.appendChild(item);
         });
-        sortDropdown.appendChild(sortMenuEl);
-        head.appendChild(sortDropdown);
         syncSortMenu();
 
         selectAllBtn = document.createElement('button');
@@ -1022,6 +1028,15 @@
 
     /** 搜索输入框。它活在滚动容器**外面**，所以换目录不会重建它。 */
     let searchInput = null;
+
+    /**
+     * 排序菜单的定位层（`sort-menu.js`）。与 sorter 同样的防御：
+     * 缺失时回落成「菜单打不开」而不是抛 —— 排序是视图偏好，
+     * 它不该有能力让整个文件面板打不开。
+     */
+    const menus = window.flikkySortMenu || {
+        open: function () {}, close: function () {}, isOpen: function () { return false; },
+    };
 
     /**
      * `viewEntries` 的**唯一写入口**。别的地方一律调它，不要直接赋值。

@@ -28,6 +28,9 @@ function load(bodyText, opts) {
   const ctx = {
     document: doc,
     window: {
+      // sort-menu.js 用它把菜单夹进视口。
+      innerWidth: 1400,
+      innerHeight: 900,
       flikkyPanels: {},
       flikky: { fileSymbolName: () => 'draft' },
       flikkyI18n: {
@@ -41,6 +44,9 @@ function load(bodyText, opts) {
     },
     TextDecoder: TextDecoder,
     requestAnimationFrame: (fn) => { fn(0); return 1; },
+    // sort-menu.js 用它把「点外部关闭」的监听推到下一帧（否则本次 click
+    // 会立刻关掉刚打开的菜单）。同步执行即可 —— 测试里没有真实的事件循环。
+    setTimeout: (fn) => { fn(); return 1; },
     fetch: (url) => {
       urls.push(url);
       return Promise.resolve({
@@ -63,11 +69,19 @@ function load(bodyText, opts) {
     },
     console: console,
   };
+  // sort-menu.js 在 document 上装/撤全局监听（点外部关闭、Esc 关闭）。
+  // mini-dom 是共享的，不为这一处改它 —— 在 harness 里补两个桩就够。
+  const docListeners = {};
+  doc.addEventListener = (k, fn) => { docListeners[k] = fn; };
+  doc.removeEventListener = (k) => { delete docListeners[k]; };
   ctx.window.document = doc;
   ctx.globalThis = ctx;
   vm.createContext(ctx);
   // sort.js 必须先加载：panel-files.js 在挂载时就要读排序偏好。
+  // sort-menu.js 紧随其后：菜单的定位与开关都在它那儿，不加载的话
+  // 面板会静默回落成「菜单打不开」（防御性回退），菜单项就找不到了。
   vm.runInContext(fs.readFileSync(path.join(WEB, 'sort.js'), 'utf8'), ctx);
+  vm.runInContext(fs.readFileSync(path.join(WEB, 'sort-menu.js'), 'utf8'), ctx);
   vm.runInContext(fs.readFileSync(path.join(WEB, 'panel-files.js'), 'utf8'), ctx);
   return { doc, view, api: ctx.window.flikkyPanels.files, urls, store };
 }
@@ -112,10 +126,32 @@ async function scrollTo(c, px) {
   await tick(6);
 }
 
-/** 点排序菜单里的某个键。 */
-function pickSort(view, key) {
-  const items = byClass(view, 'fk-sort-item');
-  const hit = items.filter((i) => i.getAttribute('value') === key)[0];
+/**
+ * 点排序菜单里的某个键 —— **走真实路径**：先点触发按钮把菜单打开，
+ * 再点菜单项。
+ *
+ * 菜单不再常驻在面板里（那会被 .fk-pillar 的 overflow: hidden 裁切），
+ * 只在打开时挂到 body 上，所以必须先打开才找得到菜单项。
+ */
+function sortItems(c) {
+  return byClass(c.doc.body, 'fk-sort-item');
+}
+
+function openSortMenu(c) {
+  const trigger = byClass(c.view, 'fk-icon-btn')
+    .filter((b) => b.children.some((x) => x.getAttribute('data-icon') === 'filter_list'))[0];
+  assert.ok(trigger, '没有排序触发按钮');
+  // fixed 定位要按钮的屏幕坐标；mini-dom 没有布局引擎，喂一个就够。
+  trigger.getBoundingClientRect = () => ({ left: 60, right: 100, top: 40, bottom: 84 });
+  // **幂等**：已经开着就不再点。触发按钮是切换语义，点第二次是收起 ——
+  // 不判一下的话「先看一眼菜单，再点一项」这种用法会把菜单关掉。
+  if (sortItems(c).length === 0) trigger.dispatch('click');
+  return trigger;
+}
+
+function pickSort(c, key) {
+  openSortMenu(c);
+  const hit = sortItems(c).filter((i) => i.getAttribute('value') === key)[0];
   assert.ok(hit, 'sort menu item not found: ' + key);
   hit.dispatch('click');
 }
@@ -161,7 +197,7 @@ test('切换排序在本地重排，不重新请求', async () => {
   assert.deepEqual(titles(c.view), ['a-small.txt', 'm-mid.txt', 'z-big.txt']);
   const before = c.urls.length;
 
-  pickSort(c.view, 'SIZE');
+  pickSort(c, 'SIZE');
   await tick();
 
   assert.deepEqual(
@@ -174,9 +210,9 @@ test('切换排序在本地重排，不重新请求', async () => {
 
 test('再点同一个键翻转方向', async () => {
   const c = await opened();
-  pickSort(c.view, 'SIZE');
+  pickSort(c, 'SIZE');
   await tick();
-  pickSort(c.view, 'SIZE');
+  pickSort(c, 'SIZE');
   await tick();
   assert.deepEqual(titles(c.view), ['a-small.txt', 'm-mid.txt', 'z-big.txt']);
 });
@@ -211,7 +247,7 @@ test('切换排序把列表滚回顶部', async () => {
   await scrollTo(c, 4000);
   assert.ok(body(c.view).scrollTop > 0, '前提：确实滚下去了');
 
-  pickSort(c.view, 'SIZE');
+  pickSort(c, 'SIZE');
   await tick();
 
   assert.equal(body(c.view).scrollTop, 0, '切换排序后必须回到顶部');
@@ -225,7 +261,7 @@ test('切换排序后窗口对准列表开头', async () => {
   const c = await openedBig(500);
   await scrollTo(c, 4000);
 
-  pickSort(c.view, 'SIZE');
+  pickSort(c, 'SIZE');
   await tick();
 
   // 按大小降序，第一行应当是 size 最大的那个 = f0000.txt。
@@ -259,7 +295,7 @@ test('切换排序不走 renderShell —— 面包屑不重建、方向横移不
   const crumbsBefore = byClass(c.view, 'fk-crumbs')[0];
   const listBefore = byClass(c.view, 'fk-files-list')[0];
 
-  pickSort(c.view, 'SIZE');
+  pickSort(c, 'SIZE');
   await tick();
 
   assert.equal(byClass(c.view, 'fk-crumbs')[0], crumbsBefore, '面包屑被重建了');
@@ -268,7 +304,7 @@ test('切换排序不走 renderShell —— 面包屑不重建、方向横移不
 
 test('排序偏好写进 localStorage，重新挂载后仍然生效', async () => {
   const c = await opened();
-  pickSort(c.view, 'SIZE');
+  pickSort(c, 'SIZE');
   await tick();
   assert.equal(c.store.flikky_sort_files, 'SIZE:desc');
 
@@ -279,12 +315,34 @@ test('排序偏好写进 localStorage，重新挂载后仍然生效', async () =
 
 test('当前排序键在菜单里带方向箭头，其余项没有', async () => {
   const c = await opened();
-  const marked = () => byClass(c.view, 'fk-sort-item')
-    .filter((i) => byClass(i, 'fk-sort-dir').length > 0)
-    .map((i) => i.getAttribute('value'));
+  // 菜单只在打开时挂到 body 上，所以每次都要先开一次再看。
+  const marked = () => {
+    openSortMenu(c);
+    return sortItems(c)
+      .filter((i) => byClass(i, 'fk-sort-dir').length > 0)
+      .map((i) => i.getAttribute('value'));
+  };
 
   assert.deepEqual(marked(), ['NAME'], '默认应当是名称键带箭头');
-  pickSort(c.view, 'SIZE');
+  pickSort(c, 'SIZE');
   await tick();
   assert.deepEqual(marked(), ['SIZE'], '切换后箭头应当只跟着当前键');
+});
+
+test('排序按钮是切换：再点一次收起菜单', async () => {
+  // 写上面那些用例时靠调试才发现的（helper 连点两次把菜单关掉了）。
+  // 这是 mdui-dropdown 原本免费给的行为，自己接管定位后要自己保证。
+  const c = await opened();
+  const trigger = openSortMenu(c);
+  assert.ok(sortItems(c).length > 0, '第一次点应当打开菜单');
+
+  trigger.dispatch('click');
+  assert.equal(sortItems(c).length, 0, '第二次点应当收起菜单');
+});
+
+test('点了菜单项就收起 —— 不用再点一次外部', async () => {
+  const c = await opened();
+  pickSort(c, 'SIZE');
+  await tick();
+  assert.equal(sortItems(c).length, 0, '选了排序键之后菜单还开着');
 });

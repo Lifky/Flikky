@@ -50,7 +50,11 @@
   display: flex;
   align-items: center;
   gap: var(--flikky-space-md);
-  height: var(--flikky-size-touch);
+  /* min- 而不是固定 height：固定值在 IME 候选条把行盒顶高时会溢出，
+     min-height 既保底（不会比触控目标矮）又允许长大。
+     2026-09-08 装机反馈「搜索框太矮、输入字符后忽然变高」。 */
+  min-height: var(--flikky-size-touch);
+  box-sizing: border-box;
   padding: 0 var(--flikky-space-lg);
   border-radius: var(--flikky-shape-full);
   background: rgb(var(--mdui-color-surface-container-high));
@@ -63,6 +67,11 @@
    焦点一起被摧毁），所以它拿不到 .fk-panel-body 的内边距，在这里补齐 ——
    补的是同一个 token，与收藏面板那条对齐。 */
 #view-files > .fk-search {
+  /* **必须 flex: none**。这一行是 .fk-view（flex 列）的直接子元素，
+     flex 子项默认 flex-shrink: 1 —— 不写的话它的高度取决于「同一列里其他
+     东西有多高」，于是列表长短一变、IME 候选条一开，高度就跟着跳
+     （2026-09-08 装机反馈的症状①与③，同一个根因）。 */
+  flex: none;
   margin: 0 var(--flikky-space-xxl) var(--flikky-space-lg);
 }
 .fk-search input {
@@ -507,6 +516,30 @@ button.fk-crumb:hover {
   margin-bottom: 0;
   opacity: 0;
   visibility: hidden;
+}
+
+/* 排序菜单的**定位层**。分工严格照 chat.css 的 .recall-menu：
+   这一层只管「放在哪」，面板背景 / 圆角 / 海拔 / 菜单项交互态全部归内部的
+   官方 mdui-menu —— 所以视觉仍是 mdui 那套，没有自绘。
+
+   为什么需要它：.fk-pillar 有 overflow: hidden，而 mdui 的菜单是普通 DOM
+   子元素（不走 top layer），套 mdui-dropdown 会被祖先裁切、菜单跑到按钮
+   右边（2026-09-08 装机反馈）。z-index 救不了 —— 它不能突破 overflow 裁切。
+   详见 sort-menu.js。 */
+.fk-sort-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 180px;
+  /* 从左上角长出来。原点必须与「左边缘对齐按钮左边缘」这个定位一致，
+     否则视觉上是「淡入到按钮旁边」而不是「从按钮里展开」——
+     用户的原话是「感觉上和按钮是分开的」。 */
+  transform-origin: top left;
+  animation: fk-sort-menu-in var(--flikky-spring-spatial-fast-dur)
+             var(--flikky-spring-spatial-fast) both;
+}
+@keyframes fk-sort-menu-in {
+  from { opacity: 0; transform: scale(.92) translateY(-4px); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* 排序菜单项。容器与交互态由 mdui-menu-item 自己给（D30：需要 scrim /
