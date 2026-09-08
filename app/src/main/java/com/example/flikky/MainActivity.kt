@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -166,6 +167,12 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                     ) { innerPadding ->
+                        // 拿完整 innerPadding 的目的地必须**同时 consume**：padding 只是
+                        // 留出空白、不算「已处理」，于是它们自带的 Scaffold 会把 systemBars
+                        // 再留一次 —— 状态栏高度被算两次，顶部多出一条空白
+                        // （2026-09-09 装机反馈 Screenshot_17 框 1）。
+                        // 四个目的地都自带 Scaffold：serving / exporting / files / history。
+                        // 守卫见 ui/NestedScaffoldInsetTest。
                         // 逐目的地施加 padding（而非给整个 NavHost），让主页能 escape 顶部 status bar inset：
                         // - 主页：交给 SearchBar 自己处理顶部 inset（折叠时落在状态栏下、展开时铺到状态栏下方）；
                         //   只补底部 inset；搜索展开时连底部也不留 → 真全屏铺满。
@@ -236,19 +243,19 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                             composable("serving") {
-                                Box(Modifier.padding(innerPadding)) {
+                                Box(Modifier.padding(innerPadding).consumeWindowInsets(innerPadding)) {
                                     ServingScreen(onStopped = { nav.popBackStack("transfer", inclusive = false) })
                                 }
                             }
                             composable("exporting") {
-                                Box(Modifier.padding(innerPadding)) {
+                                Box(Modifier.padding(innerPadding).consumeWindowInsets(innerPadding)) {
                                     ExportingScreen(
                                         onBack = { nav.popBackStack("transfer", inclusive = false) },
                                     )
                                 }
                             }
                             composable("files") {
-                                Box(Modifier.padding(innerPadding)) {
+                                Box(Modifier.padding(innerPadding).consumeWindowInsets(innerPadding)) {
                                     FilesScreen(
                                         onBack = { nav.popBackStack() },
                                         onOpenMessage = { sessionId, messageId ->
@@ -269,7 +276,7 @@ class MainActivity : ComponentActivity() {
                             ) { backStack ->
                                 val id = backStack.arguments!!.getLong("id")
                                 val highlight = backStack.arguments!!.getLong("messageId").takeIf { it > 0L }
-                                Box(Modifier.padding(innerPadding)) {
+                                Box(Modifier.padding(innerPadding).consumeWindowInsets(innerPadding)) {
                                     HistoryScreen(
                                         sessionId = id,
                                         highlightMessageId = highlight,
