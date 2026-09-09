@@ -31,8 +31,8 @@ fun resolveLeadingColors(
 ): Map<String, LeadingColorPair> = LeadingVisualCatalog.types.associate { type ->
     type.id to when (mode) {
         LeadingColorMode.THEME -> LeadingColorPair(
-            container = theme.primaryContainer,
-            onContainer = theme.onPrimaryContainer,
+            container = theme.secondaryContainer,
+            onContainer = theme.onSecondaryContainer,
         )
         LeadingColorMode.HARMONIZED -> harmonizedColors(type, theme, dark)
         LeadingColorMode.FIXED -> generatedColors(type.fixedArgb.toInt(), dark)

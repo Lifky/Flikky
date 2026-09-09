@@ -71,8 +71,8 @@ internal object FileLeadingSpec {
  *
  * 解码失败回落到容器而不是把 24dp 矢量图拉伸到 40dp，保证失败行与其他非媒体行长得一样。
  *
- * @param selected 多选选中态。选中行底色为 primaryContainer，容器翻成浅色 surface 才既看得见轮廓、
- *   又不像 primary 实心那样压过 headline；沿用 primaryContainer 会与行底色同色、容器直接消失。
+ * @param selected 多选选中态。选中行底色为 primaryContainer，leading 翻成 surface，
+ *   让轮廓与图标在选中行上保持清楚，也避免 primary/secondary 两个实色容器互相争抢视觉层级。
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -98,8 +98,8 @@ internal fun FileLeadingVisual(
         val leadingVisual = LocalLeadingVisual.current
         val leadingTypeId = remember(mime) { LeadingVisualCatalog.typeOf(mime).id }
         val typeColors = leadingVisual.colors[leadingTypeId] ?: LeadingColorPair(
-            container = MaterialTheme.colorScheme.primaryContainer,
-            onContainer = MaterialTheme.colorScheme.onPrimaryContainer,
+            container = MaterialTheme.colorScheme.secondaryContainer,
+            onContainer = MaterialTheme.colorScheme.onSecondaryContainer,
         )
         Box(
             modifier = modifier

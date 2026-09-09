@@ -22,6 +22,8 @@ class FileLeadingSpecTest {
         "src/main/java/com/example/flikky/ui/components/FileLeadingVisual.kt",
     ).readText()
 
+    private fun source(path: String): String = File(path).readText()
+
     private fun withoutCommentsAndImports(source: String): String = source
         .replace(Regex("""(?s)/\*.*?\*/"""), "")
         .replace(Regex("""(?m)//.*$"""), "")
@@ -74,6 +76,33 @@ class FileLeadingSpecTest {
         assertFalse(
             "FileLeadingVisual must resolve the selected shape instead of hard-coding Cookie9Sided",
             implementation.contains("Cookie9Sided"),
+        )
+    }
+
+    @Test
+    fun themeLeadingContainerUsesTheSameTokenFamilyOnAppAndWeb() {
+        val leadingColors = withoutCommentsAndImports(
+            source("src/main/java/com/example/flikky/ui/theme/LeadingColors.kt"),
+        )
+        val themeBranch = Regex(
+            """LeadingColorMode\.THEME\s*->\s*LeadingColorPair\((.*?)\)""",
+            RegexOption.DOT_MATCHES_ALL,
+        ).find(leadingColors)?.groupValues?.get(1)
+        val appFamily = Regex("""theme\.([a-z]+)Container""")
+            .find(themeBranch.orEmpty())?.groupValues?.get(1)
+
+        val panelsCss = withoutCommentsAndImports(source("src/main/assets/web/panels.css"))
+        val webLeadBlock = Regex(
+            """\.fk-item-lead\s*\{(.*?)\}""",
+            RegexOption.DOT_MATCHES_ALL,
+        ).find(panelsCss)?.groupValues?.get(1)
+        val webFamily = Regex("""--mdui-color-([a-z]+)-container""")
+            .find(webLeadBlock.orEmpty())?.groupValues?.get(1)
+
+        assertEquals("App and Web leading containers must use one Material token family", webFamily, appFamily)
+        assertTrue(
+            "The component fallback must use the same container token family",
+            withoutCommentsAndImports(productSource()).contains("colorScheme.${appFamily}Container"),
         )
     }
 
