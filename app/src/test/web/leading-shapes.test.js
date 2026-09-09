@@ -12,11 +12,15 @@ const markup = fs.readFileSync(
   path.join(ROOT, 'app/src/main/assets/web/shapes.svg.html'),
   'utf8',
 );
+const appMarkup = fs.readFileSync(
+  path.join(ROOT, 'app/src/main/assets/web/app.html'),
+  'utf8',
+);
 
-function clipPaths() {
+function clipPaths(source = markup) {
   const clips = new Map();
   const pattern = /<clipPath\s+id="([^"]+)"\s+clipPathUnits="([^"]+)">\s*<path\s+d="([^"]+)"\s*\/>\s*<\/clipPath>/g;
-  for (const match of markup.matchAll(pattern)) {
+  for (const match of source.matchAll(pattern)) {
     clips.set(match[1], { units: match[2], d: match[3] });
   }
   return clips;
@@ -64,4 +68,14 @@ test('legacy cookie9 id remains an exact alias of the official cookie9 path', ()
   assert.equal(legacy.units, 'objectBoundingBox');
   assert.equal(legacy.d, current.d);
   assert.equal(clips.size, 26);
+});
+
+test('the served app page embeds every generated leading shape verbatim', () => {
+  const generated = clipPaths();
+  const served = clipPaths(appMarkup);
+  assert.equal(generated.size, 26, 'generated fragment must contain 25 shapes plus the legacy alias');
+  assert.equal(served.size, generated.size, 'app.html does not serve every generated clipPath');
+  for (const [id, expected] of generated) {
+    assert.deepEqual(served.get(id), expected, `${id} differs between shapes.svg.html and app.html`);
+  }
 });
