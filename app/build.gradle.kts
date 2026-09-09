@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.gradle.api.tasks.testing.Test
 
 plugins {
     alias(libs.plugins.android.application)
@@ -151,3 +152,12 @@ tasks.register<Exec>("webTest") {
 }
 
 tasks.named("check") { dependsOn("webTest") }
+
+// The fixture exporter is opt-in. Gradle does not forward arbitrary -D values to
+// forked test workers, so pass only this dedicated switch through explicitly.
+tasks.withType<Test>().configureEach {
+    systemProperty(
+        "flikky.exportShapes",
+        providers.systemProperty("flikky.exportShapes").getOrElse("false"),
+    )
+}
