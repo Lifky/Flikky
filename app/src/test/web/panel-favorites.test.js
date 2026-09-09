@@ -100,6 +100,9 @@ function load({
   };
   ctx.window = ctx;
   ctx.globalThis = ctx;
+  ctx.window.flikkyLeading = {
+    typeOf: (mime) => ({ id: String(mime || '').startsWith('image/') ? 'image' : 'other' }),
+  };
   vm.runInNewContext(src, ctx, { filename: 'panel-favorites.js' });
 
   const api = ctx.window.flikkyPanels && ctx.window.flikkyPanels.favorites;
@@ -242,6 +245,13 @@ test('only file rows carry a checkbox', async () => {
     .filter((r) => byClass(r, 'fk-check').length > 0)
     .map((r) => r.getAttribute('data-fav-id'));
   assert.deepEqual(withCheck, ['12', '13']);
+});
+
+test('only file rows carry their shared leading type', async () => {
+  const { doc } = await mounted();
+  assert.equal(rowById(doc, '11').dataset.leadingType, undefined);
+  assert.equal(rowById(doc, '12').dataset.leadingType, 'other');
+  assert.equal(rowById(doc, '13').dataset.leadingType, 'image');
 });
 
 test('selecting file rows floats the toolbar with a live count', async () => {

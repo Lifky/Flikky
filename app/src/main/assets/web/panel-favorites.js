@@ -270,6 +270,12 @@
         row.setAttribute('data-fav-id', String(item.id));
         row.setAttribute('data-kind', isFile ? 'file' : 'text');
         row.setAttribute('aria-selected', selected.has(item.id) ? 'true' : 'false');
+        if (isFile) {
+            const leading = window.flikkyLeading;
+            row.dataset.leadingType = leading && typeof leading.typeOf === 'function'
+                ? leading.typeOf(item.mime).id
+                : 'other';
+        }
 
         const lead = document.createElement('span');
         lead.className = 'fk-item-lead';

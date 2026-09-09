@@ -48,8 +48,8 @@ test('the connection chip is an assist chip, 8dp, with no invented dot', () => {
   assert.equal(false, /conn-dot/.test(chat));
 });
 
-test('the file icon container reuses the official Cookie9Sided shape', () => {
-  assert.match(rule('.file-bubble .file-icon'), /clip-path:\s*url\(#flikky-cookie9\)/);
+test('the file icon container reads the global leading shape', () => {
+  assert.match(rule('.file-bubble .file-icon'), /clip-path:\s*var\(--flikky-leading-clip\)/);
 });
 
 test('the dead bare-icon file rule is gone now that the icon is wrapped (C3)', () => {

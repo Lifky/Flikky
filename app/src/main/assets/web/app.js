@@ -521,6 +521,9 @@
             !!data.themeDark,
             data.amoled === true,
         );
+        if (globalThis.flikkyLeading && typeof globalThis.flikkyLeading.applyVisual === 'function') {
+            globalThis.flikkyLeading.applyVisual(data.leadingVisual);
+        }
         applyBubbleRadius(data.bubbleCornerRadius);
         if (Object.prototype.hasOwnProperty.call(data, 'animationSpeed')) {
             applyAnimationSpeed(data.animationSpeed);

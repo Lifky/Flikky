@@ -52,6 +52,9 @@ function load({ response = LISTING, status = 200, throwNetwork = false } = {}) {
     fileSymbolName: (mime) => 'sym(' + (mime || '') + ')',
     formatSize: (b) => b + 'B_fmt',
   };
+  ctx.window.flikkyLeading = {
+    typeOf: (mime) => ({ id: mime === 'application/pdf' ? 'document' : 'image' }),
+  };
   vm.runInNewContext(src, ctx, { filename: 'panel-files.js' });
   const api = ctx.window.flikkyPanels && ctx.window.flikkyPanels.files;
   assert.ok(api, 'panel-files.js must register window.flikkyPanels.files');
@@ -101,6 +104,7 @@ test('a file row takes its category icon from the shared source and shows size a
   // 分类图标必须来自 window.flikky.fileSymbolName —— 面板不许自带第二张映射表。
   assert.equal(iconsOf(byClass(row, 'fk-item-lead')[0])[0].dataset.icon,
     'sym(application/pdf)');
+  assert.equal(row.dataset.leadingType, 'document');
   const sub = byClass(row, 'fk-item-sub')[0].textContent;
   assert.match(sub, /B_fmt/, 'size must come from the shared formatter: ' + sub);
   assert.match(sub, /·/, 'no size-time separator in: ' + sub);

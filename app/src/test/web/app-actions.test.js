@@ -238,7 +238,7 @@ test('maybeInsertTimeDivider marks a group break only on the branch that actuall
     assert.equal(context.afterSkip, false, 'skipping the divider (gap too small) must not set the break flag');
 });
 
-test('buildClassicFileContent wraps the category icon in the Cookie9Sided .file-icon container (C3)', () => {
+test('buildClassicFileContent wraps and types the category icon in the shared .file-icon container (C3)', () => {
     const start = appJs.indexOf('    function buildClassicFileContent');
     const end = appJs.indexOf('    function applyMediaBubble');
     assert.ok(start >= 0 && end > start, 'buildClassicFileContent not found in app.js');
@@ -249,6 +249,7 @@ test('buildClassicFileContent wraps the category icon in the Cookie9Sided .file-
             tagName: tag,
             className: '',
             textContent: '',
+            dataset: {},
             children: [],
             appendChild(child) { this.children.push(child); return child; },
         };
@@ -265,6 +266,7 @@ test('buildClassicFileContent wraps the category icon in the Cookie9Sided .file-
         materialSymbolEl: (name) => { const s = fakeEl('span'); s.__symbol = name; return s; },
         formatSize: () => '1 KB',
         fileSymbolName: () => 'description',
+        flikkyLeading: { typeOf: () => ({ id: 'document' }) },
         bubble,
     };
     vm.createContext(context);
@@ -274,6 +276,7 @@ test('buildClassicFileContent wraps the category icon in the Cookie9Sided .file-
     assert.ok(iconWrap, 'a .file-icon wrapper must be appended to the bubble');
     assert.equal(iconWrap.children.length, 1, 'the wrapper must contain exactly the category icon');
     assert.equal(iconWrap.children[0].__symbol, 'description');
+    assert.equal(iconWrap.dataset.leadingType, 'document');
 });
 
 test('copy has an insecure-context fallback and i18n strings exist in both languages', () => {

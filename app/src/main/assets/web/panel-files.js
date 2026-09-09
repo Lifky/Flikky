@@ -838,6 +838,12 @@
         if (index === 0) row.classList.add('is-first');
         if (index === total - 1) row.classList.add('is-last');
         if (entry.restricted) row.setAttribute('aria-disabled', 'true');
+        if (isFile) {
+            const leading = window.flikkyLeading;
+            row.dataset.leadingType = leading && typeof leading.typeOf === 'function'
+                ? leading.typeOf(entry.mime).id
+                : 'other';
+        }
         // 多选语义用 aria-selected（列表行的正确属性；导航项才是 aria-current）。
         if (isFile) row.setAttribute('aria-selected', selected.has(p) ? 'true' : 'false');
 
