@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
@@ -24,6 +23,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.RoundedPolygon
 import coil3.compose.AsyncImage
+import com.example.flikky.ui.theme.LeadingColorPair
+import com.example.flikky.ui.theme.LocalLeadingVisual
+import com.example.flikky.util.LeadingShape
+import com.example.flikky.util.LeadingShapeGeometry
+import com.example.flikky.util.LeadingVisualCatalog
 
 /**
  * 文件行 leading 的尺寸/形状唯一事实源。
@@ -39,17 +43,19 @@ internal object FileLeadingSpec {
     /** 图标容器内的分类图标直径（M3 `Icon` 标准 24dp）。 */
     val iconSize: Dp = 24.dp
 
-    /** 图片/视频缩略图形状。 */
+    /**
+     * 图片/视频缩略图固定为 8dp 圆角方形，不跟随 leading 设置。
+     * 缩略图是内容，套异形会裁掉画面；异形只属于无缩略图时的装饰容器。
+     */
     val thumbnailShape: Shape = RoundedCornerShape(8.dp)
 
     /**
-     * 非媒体文件的图标容器形状：M3 Expressive 官方异形 [MaterialShapes.Cookie9Sided]。
-     *
-     * 选 9 边 cookie 而不是 Cookie4Sided/Clover4Leaf——后两者凹进太深，40dp 容器里放 24dp 图标会顶到边。
-     * 存 polygon 而不是 `Shape`：`toShape()` 是 @Composable（内部 remember Path），只能在组合里解析。
+     * 从官方 M3 Expressive 几何解析当前选择。入选形状都通过 24dp 内切与 1.10x 拉伸守卫，
+     * 因此图标无需随形状缩放。返回 polygon 是因为 `toShape()` 只能在组合里解析。
      */
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-    val iconContainerPolygon: RoundedPolygon = MaterialShapes.Cookie9Sided
+    fun iconContainerPolygon(shape: LeadingShape): RoundedPolygon =
+        LeadingShapeGeometry.polygonOf(shape)
 
     /** 文件行的垂直对齐：headline 换行时 leading 仍居中。 */
     val rowAlignment: Alignment.Vertical = Alignment.CenterVertically
@@ -73,6 +79,7 @@ internal object FileLeadingSpec {
 internal fun FileLeadingVisual(
     iconRes: Int,
     thumbnailModel: Any?,
+    mime: String? = null,
     modifier: Modifier = Modifier,
     selected: Boolean = false,
 ) {
@@ -88,6 +95,12 @@ internal fun FileLeadingVisual(
                 .clip(FileLeadingSpec.thumbnailShape),
         )
     } else {
+        val leadingVisual = LocalLeadingVisual.current
+        val leadingTypeId = remember(mime) { LeadingVisualCatalog.typeOf(mime).id }
+        val typeColors = leadingVisual.colors[leadingTypeId] ?: LeadingColorPair(
+            container = MaterialTheme.colorScheme.primaryContainer,
+            onContainer = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
         Box(
             modifier = modifier
                 .size(FileLeadingSpec.size)
@@ -95,9 +108,9 @@ internal fun FileLeadingVisual(
                     color = if (selected) {
                         MaterialTheme.colorScheme.surface
                     } else {
-                        MaterialTheme.colorScheme.primaryContainer
+                        typeColors.container
                     },
-                    shape = FileLeadingSpec.iconContainerPolygon.toShape(),
+                    shape = FileLeadingSpec.iconContainerPolygon(leadingVisual.shape).toShape(),
                 ),
             contentAlignment = Alignment.Center,
         ) {
@@ -107,7 +120,7 @@ internal fun FileLeadingVisual(
                 tint = if (selected) {
                     MaterialTheme.colorScheme.primary
                 } else {
-                    MaterialTheme.colorScheme.onPrimaryContainer
+                    typeColors.onContainer
                 },
                 modifier = Modifier.size(FileLeadingSpec.iconSize),
             )

@@ -821,6 +821,7 @@ private fun FileOverviewItem(
     val leadingVisual: @Composable () -> Unit = {
         FileLeadingVisual(
             iconRes = category.iconResource(),
+            mime = row.fileMime,
             thumbnailModel = if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
                 remember(row.sessionId, row.fileId, category) {
                     val file = sessionFile(row.sessionId, row.fileId)

@@ -75,6 +75,12 @@ fun FlikkyTheme(settings: FlikkySettings, content: @Composable () -> Unit) {
         }
     }
     val scheme = if (settings.amoled && useDark) amoledOverride(base) else base
+    val leadingVisual = remember(settings.leadingShape, settings.leadingColorMode, scheme, useDark) {
+        LeadingVisualStyle(
+            shape = settings.leadingShape,
+            colors = resolveLeadingColors(settings.leadingColorMode, scheme, useDark),
+        )
+    }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -100,6 +106,7 @@ fun FlikkyTheme(settings: FlikkySettings, content: @Composable () -> Unit) {
 
     CompositionLocalProvider(
         LocalFlikkySettings provides settings,
+        LocalLeadingVisual provides leadingVisual,
         LocalMotionScale provides motionScale,
     ) {
         MaterialExpressiveTheme(

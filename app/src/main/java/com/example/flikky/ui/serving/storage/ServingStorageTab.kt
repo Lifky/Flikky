@@ -589,6 +589,7 @@ private fun StorageEntryRow(
             )
             else -> FileLeadingVisual(
                 iconRes = category.iconResource(),
+                mime = entry.mime,
                 thumbnailModel = if (FilesListBuilder.isMedia(entry.mime)) {
                     remember(entry.absolutePath, category) {
                         // 只喂本地 File model。禁 coil-network（红线：无运行时外联）。

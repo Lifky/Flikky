@@ -328,6 +328,7 @@ private fun FavoriteQuickRow(
         val category = FilesListBuilder.categoryOf(favorite.fileMime)
         FileLeadingVisual(
             iconRes = if (isText) R.drawable.ic_format_quote else category.iconResource(),
+            mime = if (isText) null else favorite.fileMime,
             thumbnailModel = if (!isText && depotId != null &&
                 FilesListBuilder.isMedia(favorite.fileMime)
             ) {

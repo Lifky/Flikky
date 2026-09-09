@@ -233,6 +233,7 @@ private fun FileQuickRow(
         // leading 与文件总览行逐像素一致，共用 FileLeadingVisual。
         FileLeadingVisual(
             iconRes = category.iconResource(),
+            mime = row.fileMime,
             thumbnailModel = if (category == FileCategory.IMAGE || category == FileCategory.VIDEO) {
                 remember(row.sessionId, row.fileId, category) {
                     val file = sessionFile(row.sessionId, row.fileId)
