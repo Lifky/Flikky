@@ -1,5 +1,7 @@
 package com.example.flikky.util
 
+import java.util.Locale
+
 data class LeadingType(
     val id: String,
     val symbol: String,
@@ -80,4 +82,11 @@ object LeadingVisualCatalog {
         ),
     )
 
+    private val other = types.single { it.id == "other" }
+
+    fun typeOf(mime: String?): LeadingType {
+        val normalized = mime.orEmpty().substringBefore(';').trim().lowercase(Locale.ROOT)
+        if (normalized == "image/svg+xml") return other
+        return types.firstOrNull { it.matches(normalized) } ?: other
+    }
 }

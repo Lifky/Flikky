@@ -97,7 +97,12 @@ class FilesListBuilderTest {
         assertEquals(FileCategory.AUDIO, FilesListBuilder.categoryOf("audio/mpeg"))
         assertEquals(FileCategory.DOCUMENT, FilesListBuilder.categoryOf("application/pdf"))
         assertEquals(FileCategory.DOCUMENT, FilesListBuilder.categoryOf("text/plain"))
-        assertEquals(FileCategory.OTHER, FilesListBuilder.categoryOf("application/zip"))
+        assertEquals(FileCategory.ARCHIVE, FilesListBuilder.categoryOf("application/zip"))
+        assertEquals(FileCategory.ARCHIVE, FilesListBuilder.categoryOf("application/vnd.rar"))
+        assertEquals(FileCategory.ARCHIVE, FilesListBuilder.categoryOf("application/x-7z-compressed"))
+        assertEquals(FileCategory.ARCHIVE, FilesListBuilder.categoryOf("application/x-tar"))
+        assertEquals(FileCategory.ARCHIVE, FilesListBuilder.categoryOf("application/gzip"))
+        assertEquals(FileCategory.OTHER, FilesListBuilder.categoryOf("application/octet-stream"))
         assertEquals(FileCategory.OTHER, FilesListBuilder.categoryOf(null))
         assertEquals(FileCategory.OTHER, FilesListBuilder.categoryOf(""))
     }

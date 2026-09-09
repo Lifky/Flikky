@@ -146,4 +146,16 @@ class MaterialSymbolDrawableTest {
         )
         assertTrue("ic_folder_eye.xml 不存在", File(drawableDir(), "ic_folder_eye.xml").isFile)
     }
+
+    @Test
+    fun `folder zip keeps the official path verbatim`() {
+        val xml = File(drawableDir(), "ic_folder_zip.xml").readText()
+            .replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
+        val official = "M640-480v-80h80v80h-80Zm0 80h-80v-80h80v80Zm0 80v-80h80v80h-80Z" +
+            "M447-640l-80-80H160v480h400v-80h80v80h160v-400H640v80h-80v-80H447Z" +
+            "M160-160q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h240l80 80h320" +
+            "q33 0 56.5 23.5T880-640v400q0 33-23.5 56.5T800-160H160Zm0-80v-480 480Z"
+
+        assertTrue("folder_zip path 与官方 Material Symbol 不同", xml.contains("android:pathData=\"$official\""))
+    }
 }

@@ -2,10 +2,11 @@ package com.example.flikky.ui.files
 
 import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.util.NAME_ORDER
+import com.example.flikky.util.LeadingVisualCatalog
 import com.example.flikky.util.SortKey
 import com.example.flikky.util.SortSpec
 
-enum class FileCategory { ALL, IMAGE, VIDEO, AUDIO, DOCUMENT, OTHER }
+enum class FileCategory { ALL, IMAGE, VIDEO, AUDIO, DOCUMENT, ARCHIVE, OTHER }
 
 data class FileStats(
     val count: Int,
@@ -14,27 +15,10 @@ data class FileStats(
 
 /** Pure list shaping for the cross-session files overview. */
 object FilesListBuilder {
-    private val documentMimes = setOf(
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "application/vnd.ms-excel",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "application/vnd.ms-powerpoint",
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    )
-
     fun categoryOf(mime: String?): FileCategory {
-        val normalized = mime.orEmpty()
-        return when {
-            // SVG 系统层面不算媒体（BitmapFactory 解不出、相册不收录），归 OTHER。
-            normalized == "image/svg+xml" -> FileCategory.OTHER
-            normalized.startsWith("image/") -> FileCategory.IMAGE
-            normalized.startsWith("video/") -> FileCategory.VIDEO
-            normalized.startsWith("audio/") -> FileCategory.AUDIO
-            normalized.startsWith("text/") || normalized in documentMimes -> FileCategory.DOCUMENT
-            else -> FileCategory.OTHER
-        }
+        val type = LeadingVisualCatalog.typeOf(mime)
+        return FileCategory.entries.firstOrNull { it.leadingType()?.id == type.id }
+            ?: FileCategory.OTHER
     }
 
     /** Shared thumbnail and gallery predicate. */
