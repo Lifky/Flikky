@@ -96,6 +96,7 @@
   color: rgb(var(--mdui-color-on-surface-variant));
   font: var(--flikky-type-body-small) var(--flikky-font-family);
   letter-spacing: var(--flikky-type-body-small-tracking);
+  text-align: center;
 }
 .fk-search input {
   flex: 1 1 auto;

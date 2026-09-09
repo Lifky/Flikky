@@ -116,6 +116,16 @@ test('file rows lead with the same tinted container as favourites', () => {
     'the plain variant has no container and no tint — that is the flat grey slab');
 });
 
+test('the loading item count is horizontally centred', () => {
+  const css = scan.stripBlockComments(read('panels.css'));
+  const rule = scan.ruleBlock(css, '.fk-files-loading-count');
+  assert.ok(rule, 'missing .fk-files-loading-count rule');
+  assert.ok(
+    /text-align\s*:\s*center\s*;?/.test(rule),
+    'loading count must be centred in the files panel: ' + rule,
+  );
+});
+
 test('the row entrance animation is per row and staggered, not one group fade', () => {
   // 上一版是「整组淡入一次」，理由是「逐行在几千行里会拖成幻灯片」。
   // 结论下错了：正确答案是封顶而不是放弃。这条钉住新形态，
