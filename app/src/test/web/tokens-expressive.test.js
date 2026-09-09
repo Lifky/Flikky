@@ -72,11 +72,11 @@ test('cookie9 clipPath uses objectBoundingBox so one path fits every size', () =
   assert.match(shapes, /id="flikky-cookie9"/);
 });
 
-test('cookie9 has nine-fold symmetry: one single corner radius', () => {
-  // 复刻 MaterialShapes.Cookie9Sided 时用「全局统一钳制系数」而不是逐边缩放，
-  // 否则先处理的顶点会被反复缩小，出来的是半径不一的歪果子。
-  const radii = new Set([...shapes.matchAll(/A\s+([\d.]+)\s+([\d.]+)/g)].map((m) => m[1]));
-  assert.equal(radii.size, 1, `expected one radius, got ${[...radii].join(', ')}`);
+test('cookie9 compatibility id now carries the official cubic geometry', () => {
+  const legacy = shapes.match(/id="flikky-cookie9"[^>]*>\s*<path d="([^"]+)"/);
+  assert.ok(legacy, 'missing legacy cookie9 path');
+  assert.match(legacy[1], /^M\s+[\d.-]+\s+[\d.-]+\s+C\s+/);
+  assert.doesNotMatch(legacy[1], /\sA\s/);
 });
 
 test('type tokens carry an explicit font-weight so the font shorthand never resets to 400', () => {
