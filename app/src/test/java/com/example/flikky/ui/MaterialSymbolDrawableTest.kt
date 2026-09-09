@@ -158,4 +158,37 @@ class MaterialSymbolDrawableTest {
 
         assertTrue("folder_zip path 与官方 Material Symbol 不同", xml.contains("android:pathData=\"$official\""))
     }
+
+    @Test
+    fun `interests outline keeps the official path verbatim`() {
+        assertOfficialPath(
+            "ic_interests.xml",
+            "m80-520 200-360 200 360H80Zm87 353q-47-47-47-113 0-67 47-113.5T280-440" +
+                "q66 0 113 47t47 113q0 66-47 113t-113 47q-66 0-113-47Zm169.5-56.5Q360-247 360-280" +
+                "t-23.5-56.5Q313-360 280-360t-56.5 23.5Q200-313 200-280t23.5 56.5Q247-200 280-200" +
+                "t56.5-23.5ZM216-600h128l-64-115-64 115Zm304 480v-320h320v320H520Zm80-80h160v-160H600v160Z" +
+                "m80-320q-57-48-95.5-81T523-659q-23-25-33-47t-10-47q0-45 31.5-76t78.5-31q27 0 50.5 12.5" +
+                "T680-813q16-22 39.5-34.5T770-860q47 0 78.5 31t31.5 76q0 25-10 47t-33 47q-23 25-61.5 58" +
+                "T680-520Zm0-105q72-60 96-85t24-41q0-13-7.5-21t-20.5-8q-10 0-19.5 5.5T729-755l-49 47-49-47" +
+                "q-14-14-23.5-19.5T588-780q-13 0-20.5 8t-7.5 21q0 16 24 41t96 85Zm0-78Zm-400 45Zm0 378Zm400 0Z",
+        )
+    }
+
+    @Test
+    fun `interests fill keeps the official path verbatim`() {
+        assertOfficialPath(
+            "ic_interests_fill.xml",
+            "m80-520 200-360 200 360H80Zm200 400q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47" +
+                "t47 113q0 66-47 113t-113 47Zm240 0v-320h320v320H520Zm160-400q-57-48-95.5-81T523-659" +
+                "q-23-25-33-47t-10-47q0-45 31.5-76t78.5-31q27 0 50.5 12.5T680-813q16-22 39.5-34.5" +
+                "T770-860q47 0 78.5 31t31.5 76q0 25-10 47t-33 47q-23 25-61.5 58T680-520Z",
+        )
+    }
+
+    private fun assertOfficialPath(name: String, official: String) {
+        val file = File(drawableDir(), name)
+        assertTrue("$name 不存在", file.isFile)
+        val xml = file.readText().replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
+        assertTrue("$name path 与官方 Material Symbol 不同", xml.contains("android:pathData=\"$official\""))
+    }
 }

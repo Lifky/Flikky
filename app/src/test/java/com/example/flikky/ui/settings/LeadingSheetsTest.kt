@@ -17,6 +17,36 @@ class LeadingSheetsTest {
     }
 
     @Test
+    fun `leading shape rows use the outlined interests symbol`() {
+        val settingsRow = settingRow(
+            productCode("ui/settings/SettingsScreen.kt"),
+            "R.string.leading_shape_title",
+        )
+        val quickSettingsRow = settingRow(
+            productCode("ui/serving/QuickSettingsSheet.kt"),
+            "R.string.leading_shape_title",
+        )
+
+        assertTrue("SettingsScreen 形状行没有使用 ic_interests：\n$settingsRow", settingsRow.contains("R.drawable.ic_interests"))
+        assertTrue("QuickSettingsSheet 形状行没有使用 ic_interests：\n$quickSettingsRow", quickSettingsRow.contains("R.drawable.ic_interests"))
+    }
+
+    @Test
+    fun `leading colour rows use the filled interests symbol`() {
+        val settingsRow = settingRow(
+            productCode("ui/settings/SettingsScreen.kt"),
+            "R.string.leading_color_title",
+        )
+        val quickSettingsRow = settingRow(
+            productCode("ui/serving/QuickSettingsSheet.kt"),
+            "R.string.leading_color_title",
+        )
+
+        assertTrue("SettingsScreen 配色行没有使用 ic_interests_fill：\n$settingsRow", settingsRow.contains("R.drawable.ic_interests_fill"))
+        assertTrue("QuickSettingsSheet 配色行没有使用 ic_interests_fill：\n$quickSettingsRow", quickSettingsRow.contains("R.drawable.ic_interests_fill"))
+    }
+
+    @Test
     fun `every shape preview uses the real file leading visual`() {
         val sheet = productCode("ui/settings/LeadingShapeSheet.kt")
 
@@ -56,6 +86,12 @@ class LeadingSheetsTest {
             ?: File("app/src/main/java/com/example/flikky/$relative")
         assertTrue("找不到源码文件：$relative", file.isFile)
         return stripCommentsAndImports(file.readText())
+    }
+
+    private fun settingRow(source: String, title: String): String {
+        val at = source.indexOf(title)
+        assertTrue("找不到设置行：$title", at >= 0)
+        return source.substring(at, minOf(source.length, at + 500))
     }
 
     /** Comments and imports are not evidence that the product is wired. */

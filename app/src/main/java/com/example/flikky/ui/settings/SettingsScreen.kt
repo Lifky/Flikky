@@ -380,7 +380,7 @@ fun SettingsScreen(
                     )
                     SettingItem(
                         title = stringResource(R.string.leading_shape_title),
-                        leadingIcon = painterResource(R.drawable.ic_rounded_corner),
+                        leadingIcon = painterResource(R.drawable.ic_interests),
                         subtitle = stringResource(R.string.leading_shape_summary),
                         trailing = {
                             Text(
@@ -394,7 +394,7 @@ fun SettingsScreen(
                     )
                     SettingItem(
                         title = stringResource(R.string.leading_color_title),
-                        leadingIcon = painterResource(R.drawable.ic_palette),
+                        leadingIcon = painterResource(R.drawable.ic_interests_fill),
                         subtitle = stringResource(R.string.leading_color_summary),
                         trailing = {
                             Text(
