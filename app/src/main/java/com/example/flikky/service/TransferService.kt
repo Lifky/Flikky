@@ -34,11 +34,15 @@ import com.example.flikky.server.PinAuth
 import com.example.flikky.server.ServiceMode
 import com.example.flikky.server.dto.PeerAvatarChangedDto
 import com.example.flikky.server.dto.PeerInfoDto
+import com.example.flikky.server.dto.LeadingVisualDto
 import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.StatusDto
 import com.example.flikky.server.dto.WireJson
 import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
+import com.example.flikky.ui.theme.resolveFlikkyTheme
+import com.example.flikky.ui.theme.resolveLeadingColors
+import com.example.flikky.ui.theme.toWireColors
 import com.example.flikky.util.BrowserAvatarHelloDecision
 import com.example.flikky.util.BrowserAvatarHelloPolicy
 import com.example.flikky.util.IdGen
@@ -105,6 +109,23 @@ class TransferService : Service() {
      */
     @Volatile private var latestSettings: FlikkySettings = FlikkySettings()
     private var settingsCollectorJob: Job? = null
+
+    private fun currentPeerInfo(settings: FlikkySettings): PeerInfoDto {
+        val systemDark = isSystemDark()
+        val resolvedTheme = resolveFlikkyTheme(settings, this, systemDark)
+        val leadingColors = resolveLeadingColors(
+            settings.leadingColorMode,
+            resolvedTheme.colorScheme,
+            resolvedTheme.dark,
+        ).toWireColors()
+        return with(Companion) {
+            settings.toPeerInfoDto(
+                systemDark = systemDark,
+                defaultDeviceName = getString(R.string.settings_default_device_name),
+                leadingColors = leadingColors,
+            )
+        }
+    }
 
     override fun onBind(intent: Intent?): IBinder = binding
 
@@ -214,10 +235,7 @@ class TransferService : Service() {
                     if (currentMode == ServiceMode.Transfer) {
                         val payload = WireJson.encodeToString(
                             PeerInfoDto.serializer(),
-                            it.toPeerInfoDto(
-                                systemDark = isSystemDark(),
-                                defaultDeviceName = getString(R.string.settings_default_device_name),
-                            ),
+                            currentPeerInfo(it),
                         )
                         ktor?.wsHub?.broadcast("settings_changed", payload)
                     }
@@ -483,10 +501,7 @@ class TransferService : Service() {
         // each KtorServer rebuild on rebind picks up the latest settings without
         // holding a stale reference to a previous KtorServer instance.
         peerInfoProvider = {
-            latestSettings.toPeerInfoDto(
-                systemDark = isSystemDark(),
-                defaultDeviceName = getString(R.string.settings_default_device_name),
-            )
+            currentPeerInfo(latestSettings)
         },
         webLanguageTagProvider = { AppLanguageManager.effectiveLanguageTag(this) },
         favoritesProvider = {
@@ -531,10 +546,7 @@ class TransferService : Service() {
             ServiceLocator.favoriteFileStore.resolve(fileId).takeIf { it.exists() && it.isFile }
         },
         peerInfoProvider = {
-            latestSettings.toPeerInfoDto(
-                systemDark = isSystemDark(),
-                defaultDeviceName = getString(R.string.settings_default_device_name),
-            )
+            currentPeerInfo(latestSettings)
         },
         webLanguageTagProvider = { AppLanguageManager.effectiveLanguageTag(this) },
     )
@@ -732,6 +744,7 @@ class TransferService : Service() {
         internal fun FlikkySettings.toPeerInfoDto(
             systemDark: Boolean,
             defaultDeviceName: String,
+            leadingColors: Map<String, List<String>> = emptyMap(),
         ): PeerInfoDto {
             val (mode, value) = when (val bg = background) {
                 is BackgroundSetting.Default -> "DEFAULT" to null
@@ -773,6 +786,11 @@ class TransferService : Service() {
                 allowPeerRecall = allowPeerRecall,
                 favoriteEnabled = favoriteBetaEnabled,
                 storageBrowsingEnabled = storageBrowsingEnabled,
+                leadingVisual = LeadingVisualDto(
+                    shape = leadingShape.id,
+                    colorMode = leadingColorMode.name,
+                    colors = leadingColors,
+                ),
             )
         }
 

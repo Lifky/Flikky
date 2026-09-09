@@ -18,6 +18,15 @@ class LeadingColorsTest {
     private val dark = presetScheme(PresetTheme.ANAN_BLUE, dark = true)
 
     @Test
+    fun wireColorsUseOpaqueUppercaseRgbHexPairs() {
+        val wire = mapOf(
+            "image" to LeadingColorPair(Color(0xFF102030), Color(0x80A0B0C0)),
+        ).toWireColors()
+
+        assertEquals(listOf("#102030", "#A0B0C0"), wire.getValue("image"))
+    }
+
+    @Test
     fun themeModeUsesOneContainerForEveryType() {
         listOf(light to false, dark to true).forEach { (scheme, isDark) ->
             val colors = resolveLeadingColors(LeadingColorMode.THEME, scheme, isDark)

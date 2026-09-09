@@ -5,6 +5,8 @@ import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.ThemeMode
+import com.example.flikky.util.LeadingColorMode
+import com.example.flikky.util.LeadingShape
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -12,6 +14,25 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TransferServiceThemeMappingTest {
+    @Test
+    fun leadingVisual_sendsSettingsAndResolvedColorMapToBrowser() {
+        val colors = mapOf("image" to listOf("#123456", "#FFFFFF"))
+        val dto = with(TransferService.Companion) {
+            FlikkySettings(
+                leadingShape = LeadingShape.Flower,
+                leadingColorMode = LeadingColorMode.HARMONIZED,
+            ).toPeerInfoDto(
+                systemDark = false,
+                defaultDeviceName = "Phone",
+                leadingColors = colors,
+            )
+        }
+
+        assertEquals("flower", dto.leadingVisual.shape)
+        assertEquals("HARMONIZED", dto.leadingVisual.colorMode)
+        assertEquals(colors, dto.leadingVisual.colors)
+    }
+
     @Test
     fun animationSpeed_sendsSelectedSpeedToBrowser() {
         val dto = with(TransferService.Companion) {

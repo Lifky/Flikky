@@ -39,6 +39,11 @@ fun resolveLeadingColors(
     }
 }
 
+fun Map<String, LeadingColorPair>.toWireColors(): Map<String, List<String>> =
+    mapValues { (_, pair) -> listOf(pair.container.toRgbHex(), pair.onContainer.toRgbHex()) }
+
+private fun Color.toRgbHex(): String = "#%06X".format(toArgb() and 0xFFFFFF)
+
 private fun harmonizedColors(
     type: LeadingType,
     theme: ColorScheme,

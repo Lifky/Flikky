@@ -9,6 +9,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -29,7 +30,7 @@ val LocalFlikkySettings = compositionLocalOf { FlikkySettings() }
  * 把用户对比度档解析成实际三档：[ContrastLevel.SYSTEM] 跟随系统无障碍对比度
  * （API34+ `UiModeManager.getContrast()` 返回 0..1，按阈值分档；低版本回落标准），其余手动锁定。
  */
-private fun resolveContrast(level: ContrastLevel, context: Context): ResolvedContrast = when (level) {
+internal fun resolveContrast(level: ContrastLevel, context: Context): ResolvedContrast = when (level) {
     ContrastLevel.STANDARD -> ResolvedContrast.STANDARD
     ContrastLevel.MEDIUM -> ResolvedContrast.MEDIUM
     ContrastLevel.HIGH -> ResolvedContrast.HIGH
@@ -45,36 +46,59 @@ private fun resolveContrast(level: ContrastLevel, context: Context): ResolvedCon
     }
 }
 
+internal data class ResolvedFlikkyTheme(
+    val colorScheme: ColorScheme,
+    val dark: Boolean,
+)
+
+internal fun resolveFlikkyTheme(
+    settings: FlikkySettings,
+    context: Context,
+    systemDark: Boolean,
+): ResolvedFlikkyTheme {
+    val useDark = when (settings.darkMode) {
+        DarkMode.SYSTEM -> systemDark
+        DarkMode.LIGHT -> false
+        DarkMode.DARK -> true
+    }
+    val base = when {
+        settings.themeMode == ThemeMode.DYNAMIC && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+            if (useDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        else -> {
+            val contrast = resolveContrast(settings.contrastLevel, context)
+            when (settings.themeMode) {
+                ThemeMode.CUSTOM -> customScheme(settings.customThemeSeedArgb, useDark, contrast)
+                ThemeMode.DYNAMIC,
+                ThemeMode.PRESET,
+                -> presetScheme(settings.presetTheme, useDark, contrast)
+            }
+        }
+    }
+    return ResolvedFlikkyTheme(
+        colorScheme = if (settings.amoled && useDark) amoledOverride(base) else base,
+        dark = useDark,
+    )
+}
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FlikkyTheme(settings: FlikkySettings, content: @Composable () -> Unit) {
     val systemDark = isSystemInDarkTheme()
-    val useDark = when (settings.darkMode) {
-        DarkMode.SYSTEM -> systemDark
-        DarkMode.LIGHT  -> false
-        DarkMode.DARK   -> true
+    val context = LocalContext.current
+    val resolvedTheme = remember(
+        settings.themeMode,
+        settings.presetTheme,
+        settings.customThemeSeedArgb,
+        settings.contrastLevel,
+        settings.darkMode,
+        settings.amoled,
+        systemDark,
+        context,
+    ) {
+        resolveFlikkyTheme(settings, context, systemDark)
     }
-    val base = when {
-        settings.themeMode == ThemeMode.DYNAMIC && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val ctx = LocalContext.current
-            if (useDark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
-        }
-        else -> {
-            // 预设与自定义主题走用户对比度档；动态色由系统调色板自带，不二次套。
-            val ctx = LocalContext.current
-            val contrast = remember(settings.contrastLevel, ctx) {
-                resolveContrast(settings.contrastLevel, ctx)
-            }
-            when (settings.themeMode) {
-                ThemeMode.CUSTOM -> remember(settings.customThemeSeedArgb, useDark, contrast) {
-                    customScheme(settings.customThemeSeedArgb, useDark, contrast)
-                }
-                ThemeMode.DYNAMIC,
-                ThemeMode.PRESET -> presetScheme(settings.presetTheme, useDark, contrast)
-            }
-        }
-    }
-    val scheme = if (settings.amoled && useDark) amoledOverride(base) else base
+    val useDark = resolvedTheme.dark
+    val scheme = resolvedTheme.colorScheme
     val leadingVisual = remember(settings.leadingShape, settings.leadingColorMode, scheme, useDark) {
         LeadingVisualStyle(
             shape = settings.leadingShape,
@@ -98,7 +122,6 @@ fun FlikkyTheme(settings: FlikkySettings, content: @Composable () -> Unit) {
 
     // 全局动画速度倍率 = 用户设置（阶段 2.1 接入，暂默认 1.0）× 系统 animatorDurationScale。
     // 系统把动画关掉时 animatorDurationScale==0 → 倍率 0 → Motion 退化 snap，自动尊重 reduce-motion。
-    val context = LocalContext.current
     val systemAnimScale = remember(context) {
         Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
     }

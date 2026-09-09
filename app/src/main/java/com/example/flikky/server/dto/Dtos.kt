@@ -138,6 +138,14 @@ data class StatusDto(
  * `mdui.setTheme`，跟随手机当前主题色相与深浅。[themeSeed] 为 null 时浏览器清回 mdui 默认配色。
  */
 @Serializable
+data class LeadingVisualDto(
+    val shape: String = "cookie9Sided",
+    val colorMode: String = "THEME",
+    /** Type id to [container, onContainer], encoded as #RRGGBB. */
+    val colors: Map<String, List<String>> = emptyMap(),
+)
+
+@Serializable
 data class PeerInfoDto(
     val deviceName: String,
     val phoneAvatarId: Int,
@@ -181,6 +189,7 @@ data class PeerInfoDto(
      * 不失效的话开关翻了也看不出变化。默认 false 与 FlikkySettings 一致。
      */
     val showHiddenFiles: Boolean = false,
+    val leadingVisual: LeadingVisualDto = LeadingVisualDto(),
 )
 
 @Serializable
