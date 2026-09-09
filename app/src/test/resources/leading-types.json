@@ -1,0 +1,66 @@
+[
+  {
+    "id": "image",
+    "symbol": "image",
+    "mimePrefixes": ["image/"],
+    "mimeExact": [],
+    "hueShift": 0,
+    "fixedArgb": 4286470082
+  },
+  {
+    "id": "video",
+    "symbol": "movie",
+    "mimePrefixes": ["video/"],
+    "mimeExact": [],
+    "hueShift": 72,
+    "fixedArgb": 4293673082
+  },
+  {
+    "id": "audio",
+    "symbol": "audio_file",
+    "mimePrefixes": ["audio/"],
+    "mimeExact": [],
+    "hueShift": 144,
+    "fixedArgb": 4280723098
+  },
+  {
+    "id": "document",
+    "symbol": "description",
+    "mimePrefixes": ["text/"],
+    "mimeExact": [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    ],
+    "hueShift": 216,
+    "fixedArgb": 4282557941
+  },
+  {
+    "id": "archive",
+    "symbol": "folder_zip",
+    "mimePrefixes": [],
+    "mimeExact": [
+      "application/zip",
+      "application/x-7z-compressed",
+      "application/vnd.rar",
+      "application/x-rar-compressed",
+      "application/x-tar",
+      "application/gzip",
+      "application/x-gzip"
+    ],
+    "hueShift": 288,
+    "fixedArgb": 4294944550
+  },
+  {
+    "id": "other",
+    "symbol": "draft",
+    "mimePrefixes": [],
+    "mimeExact": [],
+    "hueShift": 0,
+    "fixedArgb": 4286091420
+  }
+]
