@@ -80,6 +80,26 @@ class LeadingSheetsTest {
         )
     }
 
+    @Test
+    fun `colour summary stays on entry rows and is not repeated inside the picker`() {
+        val sheet = productCode("ui/settings/LeadingColorSheet.kt")
+        val settingsRow = settingRow(
+            productCode("ui/settings/SettingsScreen.kt"),
+            "R.string.leading_color_title",
+        )
+        val quickSettingsRow = settingRow(
+            productCode("ui/serving/QuickSettingsSheet.kt"),
+            "R.string.leading_color_title",
+        )
+
+        assertFalse(
+            "配色选择器内部不应重复显示外层入口已有的说明",
+            sheet.contains("R.string.leading_color_summary"),
+        )
+        assertTrue("主设置入口必须保留配色副标题", settingsRow.contains("R.string.leading_color_summary"))
+        assertTrue("快捷设置入口必须保留配色副标题", quickSettingsRow.contains("R.string.leading_color_summary"))
+    }
+
     private fun productCode(relative: String): String {
         val file = File("src/main/java/com/example/flikky/$relative")
             .takeIf { it.isFile }

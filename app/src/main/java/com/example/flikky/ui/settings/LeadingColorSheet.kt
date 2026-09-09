@@ -61,7 +61,7 @@ fun LeadingColorSheet(
                 style = MaterialTheme.typography.titleMedium,
             )
 
-            SettingSection(title = stringResource(R.string.leading_color_summary)) {
+            SettingSection(title = null) {
                 LeadingColorMode.entries.forEachIndexed { index, mode ->
                     val preview = resolveLeadingColors(mode, colorScheme, dark)
                     SettingItem(

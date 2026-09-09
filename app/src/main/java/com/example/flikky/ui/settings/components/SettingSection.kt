@@ -16,7 +16,7 @@ import com.example.flikky.ui.theme.sectionLabel
 /**
  * A labeled group of settings items displayed in the M3 Expressive *segmented* list style.
  *
- * Renders a section title above the [content] composable. Items are laid out in a [Column]
+ * Renders an optional section title above the [content] composable. Items are laid out in a [Column]
  * with the official [ListItemDefaults.SegmentedGap] between them, so each [SettingItem] reads
  * as a distinct rounded segment (the per-position corners come from
  * [ListItemDefaults.segmentedShapes], driven by the `index`/`total` passed to each item).
@@ -34,17 +34,19 @@ import com.example.flikky.ui.theme.sectionLabel
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingSection(
-    title: String,
+    title: String?,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.sectionLabel,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = Spacing.xs, bottom = Spacing.xs),
-        )
+        if (title != null) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.sectionLabel,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = Spacing.xs, bottom = Spacing.xs),
+            )
+        }
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
