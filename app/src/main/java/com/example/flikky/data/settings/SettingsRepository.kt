@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.map
 import com.example.flikky.export.SettingsExport
 import com.example.flikky.util.SortKey
 import com.example.flikky.util.SortSpec
+import com.example.flikky.util.LeadingColorMode
+import com.example.flikky.util.LeadingShape
 import com.example.flikky.util.normalizeThemeSeedArgb
 
 class SettingsRepository(private val ds: DataStore<Preferences>) {
@@ -37,6 +39,8 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val keepScreenOnDuringSession = booleanPreferencesKey("keep_screen_on_during_session")
         val storageBrowsingEnabled = booleanPreferencesKey("storage_browsing_enabled")
         val showHiddenFiles = booleanPreferencesKey("show_hidden_files")
+        val leadingShape = stringPreferencesKey("leading_shape")
+        val leadingColorMode = stringPreferencesKey("leading_color_mode")
         /** 旧键。v1.20.0 起**只读不写**，仅供导入旧备份时回落到 [homeSort]。 */
         val sortMode = stringPreferencesKey("sort_mode")
         val groupMode = stringPreferencesKey("group_mode")
@@ -92,6 +96,8 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             keepScreenOnDuringSession = p[Keys.keepScreenOnDuringSession] ?: false,
             storageBrowsingEnabled = p[Keys.storageBrowsingEnabled] ?: false,
             showHiddenFiles = p[Keys.showHiddenFiles] ?: false,
+            leadingShape = LeadingShape.parse(p[Keys.leadingShape]),
+            leadingColorMode = LeadingColorMode.parse(p[Keys.leadingColorMode]),
             groupMode = p[Keys.groupMode]
                 ?.let { runCatching { GroupMode.valueOf(it) }.getOrNull() }
                 ?: GroupMode.DATE,
@@ -158,6 +164,10 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setStorageBrowsingEnabled(v: Boolean) = ds.edit { it[Keys.storageBrowsingEnabled] = v }
 
     suspend fun setShowHiddenFiles(v: Boolean) = ds.edit { it[Keys.showHiddenFiles] = v }
+    suspend fun setLeadingShape(v: LeadingShape) = ds.edit { it[Keys.leadingShape] = v.id }
+    suspend fun setLeadingColorMode(v: LeadingColorMode) = ds.edit {
+        it[Keys.leadingColorMode] = v.name
+    }
     suspend fun setGroupMode(v: GroupMode) = ds.edit { it[Keys.groupMode] = v.name }
     suspend fun setHomeSort(v: SortSpec) = ds.edit { it[Keys.homeSort] = v.format() }
     suspend fun setFavoritesSort(v: SortSpec) = ds.edit { it[Keys.favoritesSort] = v.format() }
@@ -171,6 +181,10 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     /** 只为测试「存坏了的偏好回落默认值」而存在。 */
     internal suspend fun setRawSortForTest(key: String, raw: String) =
         ds.edit { it[stringPreferencesKey(key)] = raw }
+    internal suspend fun setRawLeadingVisualForTest(shape: String, colorMode: String) = ds.edit {
+        it[Keys.leadingShape] = shape
+        it[Keys.leadingColorMode] = colorMode
+    }
     suspend fun setAnimationSpeed(v: AnimationSpeed) = ds.edit { it[Keys.animationSpeed] = v.name }
     suspend fun setAutoCheckUpdate(v: Boolean) = ds.edit { it[Keys.autoCheckUpdate] = v }
 
@@ -244,6 +258,8 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             keepScreenOnDuringSession = s.keepScreenOnDuringSession,
             storageBrowsingEnabled = s.storageBrowsingEnabled,
             showHiddenFiles = s.showHiddenFiles,
+            leadingShape = s.leadingShape.id,
+            leadingColorMode = s.leadingColorMode.name,
             groupMode = s.groupMode.name,
             homeSort = s.homeSort.format(),
             favoritesSort = s.favoritesSort.format(),
@@ -288,6 +304,11 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         backup.keepScreenOnDuringSession?.let { prefs[Keys.keepScreenOnDuringSession] = it }
         backup.storageBrowsingEnabled?.let { prefs[Keys.storageBrowsingEnabled] = it }
         backup.showHiddenFiles?.let { prefs[Keys.showHiddenFiles] = it }
+        backup.leadingShape
+            ?.let { raw -> LeadingShape.entries.firstOrNull { it.id.equals(raw, ignoreCase = true) } }
+            ?.let { prefs[Keys.leadingShape] = it.id }
+        backup.leadingColorMode?.enumNameOrNull<LeadingColorMode>()
+            ?.let { prefs[Keys.leadingColorMode] = it }
         // 旧备份只有 sortMode（键名，无方向）；新备份有 homeSort（键+方向）。
         // 新的优先，旧的兜底，两者都没有就保持默认。
         backup.sortMode?.let { raw ->

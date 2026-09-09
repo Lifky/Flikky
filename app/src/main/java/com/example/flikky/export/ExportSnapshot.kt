@@ -78,6 +78,8 @@ data class SettingsExport(
     val keepScreenOnDuringSession: Boolean? = null,
     val storageBrowsingEnabled: Boolean? = null,
     val showHiddenFiles: Boolean? = null,
+    val leadingShape: String? = null,
+    val leadingColorMode: String? = null,
     /** 旧字段。v1.20.0 起只读不写，导入时回落到 [homeSort]。 */
     val sortMode: String? = null,
     val groupMode: String? = null,

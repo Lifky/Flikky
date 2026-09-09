@@ -2,6 +2,8 @@ package com.example.flikky.data.settings
 
 import com.example.flikky.util.SortKey
 import com.example.flikky.util.SortSpec
+import com.example.flikky.util.LeadingColorMode
+import com.example.flikky.util.LeadingShape
 
 enum class ThemeMode { DYNAMIC, PRESET, CUSTOM }
 
@@ -112,6 +114,10 @@ data class FlikkySettings(
      * 三者用不同判据就是 2026-09-03 那个「副标题 5 项、进去只有 4 行」的成因。
      */
     val showHiddenFiles: Boolean = false,
+    /** 全局文件 leading 形状；默认保持升级前的九边形。 */
+    val leadingShape: LeadingShape = LeadingShape.Default,
+    /** 全局文件 leading 配色；默认保持升级前的主题单色。 */
+    val leadingColorMode: LeadingColorMode = LeadingColorMode.THEME,
     /**
      * 会话列表的分节方式。
      *

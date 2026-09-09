@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import com.example.flikky.util.LeadingColorMode
+import com.example.flikky.util.LeadingShape
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -41,6 +43,8 @@ class SettingsRepositoryTest {
         assertEquals(true, s.allowBackDuringSession)
         assertEquals(MessageActionStyle.INLINE, s.messageActionStyle)
         assertEquals(AvatarGroupingMode.EACH, s.avatarGrouping)
+        assertEquals(LeadingShape.Cookie9Sided, s.leadingShape)
+        assertEquals(LeadingColorMode.THEME, s.leadingColorMode)
     }
 
     @Test fun defaults_emitted_when_empty() = runTest {
@@ -59,6 +63,43 @@ class SettingsRepositoryTest {
         assertEquals("", s.deviceName)
         assertEquals(MessageActionStyle.INLINE, s.messageActionStyle)
         assertEquals(AvatarGroupingMode.EACH, s.avatarGrouping)
+        assertEquals(LeadingShape.Cookie9Sided, s.leadingShape)
+        assertEquals(LeadingColorMode.THEME, s.leadingColorMode)
+    }
+
+    @Test fun leading_visual_settings_persist_and_emit() = runTest {
+        val repo = makeRepo(this)
+
+        repo.setLeadingShape(LeadingShape.Ghostish)
+        repo.setLeadingColorMode(LeadingColorMode.FIXED)
+
+        val settings = repo.settings.first()
+        assertEquals(LeadingShape.Ghostish, settings.leadingShape)
+        assertEquals(LeadingColorMode.FIXED, settings.leadingColorMode)
+    }
+
+    @Test fun unknown_leading_visual_values_fall_back_to_defaults() = runTest {
+        val repo = makeRepo(this)
+        repo.setRawLeadingVisualForTest("retired-shape", "retired-mode")
+
+        val settings = repo.settings.first()
+        assertEquals(LeadingShape.Cookie9Sided, settings.leadingShape)
+        assertEquals(LeadingColorMode.THEME, settings.leadingColorMode)
+    }
+
+    @Test fun leading_visual_backup_roundtrips() = runTest {
+        val source = makeRepo(this)
+        source.setLeadingShape(LeadingShape.Flower)
+        source.setLeadingColorMode(LeadingColorMode.HARMONIZED)
+
+        val backup = source.exportBackup()
+        assertEquals("flower", backup.leadingShape)
+        assertEquals("HARMONIZED", backup.leadingColorMode)
+
+        val target = makeRepo(this)
+        target.importBackup(backup)
+        assertEquals(LeadingShape.Flower, target.settings.first().leadingShape)
+        assertEquals(LeadingColorMode.HARMONIZED, target.settings.first().leadingColorMode)
     }
 
     @Test fun blank_device_name_restores_localized_default_sentinel() = runTest {
