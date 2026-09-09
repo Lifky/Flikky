@@ -56,10 +56,10 @@ import com.example.flikky.ui.theme.Spacing
 import com.example.flikky.util.formatThemeSeed
 
 /**
- * 快捷设置里需要「钻进去」的三张复用 sheet。它们都是 ModalBottomSheet，不能嵌套在
+ * 快捷设置里需要「钻进去」的五张复用 sheet。它们都是 ModalBottomSheet，不能嵌套在
  * 快捷设置之上，所以由 ServingScreen 托管，见 [QuickSettingsSheet] 的 KDoc。
  */
-enum class QuickPicker { Theme, Avatar, Background }
+enum class QuickPicker { Theme, LeadingShape, LeadingColor, Avatar, Background }
 
 /**
  * 进行中会话的快捷设置 bottom sheet。
@@ -75,12 +75,13 @@ enum class QuickPicker { Theme, Avatar, Background }
  * 一度担心 `LocaleManager.applicationLocales` 会重建 Activity 把当前页面拆掉 ——
  * 不会：MainActivity 声明了 `configChanges` 含 `locale`（守卫见 MainActivityManifestTest）。
  *
- * 收录的 13 项（12 个 PeerInfoDto 字段 + 语言）：
+ * 收录的同步项包括：
  *   主题色 themeSeed · 深色模式 themeDark · AMOLED amoled · 设备名 deviceName ·
  *   两端头像 phoneAvatarKey/browserAvatarKey · 气泡圆角 bubbleCornerRadius ·
  *   头像显示 avatarGrouping · 会话背景 backgroundMode/Value · 会话时间戳
  *   sessionTimestampEnabled · 消息操作样式 messageActionStyle · 撤回 recallEnabled ·
- *   允许对方撤回 allowPeerRecall · 收藏 beta favoriteEnabled · 应用语言 languageTag
+ *   允许对方撤回 allowPeerRecall · 收藏 beta favoriteEnabled · leading 形状/配色 ·
+ *   应用语言 languageTag
  *
  * 刻意不收：
  * - **不进 PeerInfoDto 的**（浏览器跟不了，放这里只是把设置页搬过来）：需要 PIN、
@@ -91,7 +92,7 @@ enum class QuickPicker { Theme, Avatar, Background }
  *   的 deliberatelyExcluded）。它在正式设置页照旧可调。
  *
  * 形状与设置页完全一致：同一批 [SettingSection] / [SettingItem] / [ChoiceDialog]，
- * 复杂选择器直接复用设置页那三张 sheet（主题色 / 头像 / 背景）。三者是
+ * 复杂选择器直接复用设置页那五张 sheet（主题色 / leading 形状 / leading 配色 / 头像 / 背景）。它们是
  * ModalBottomSheet，嵌套在本 sheet 之上不可靠，所以由调用方 [ServingScreen] 托管：
  * 本 sheet 只把请求抛上去，宿主先收起本 sheet 再打开选择器，关掉后本 sheet 自己回来。
  * 而 Dialog 是独立窗口，可以安全地盖在 bottom sheet 上，所以单选类交互全部留在原地。
@@ -118,6 +119,8 @@ fun QuickSettingsSheet(
     onSetFavoriteBeta: (Boolean) -> Unit,
     onSetStorageBrowsing: (Boolean) -> Unit,
     onOpenThemePicker: () -> Unit,
+    onOpenLeadingShapePicker: () -> Unit,
+    onOpenLeadingColorPicker: () -> Unit,
     onOpenAvatarPicker: () -> Unit,
     onOpenBackgroundPicker: () -> Unit,
     onDismiss: () -> Unit,
@@ -166,7 +169,7 @@ fun QuickSettingsSheet(
 
             // ─── 主题与外观 ───────────────────────────────────────────────────
             run {
-                val total = 3
+                val total = 5
                 SettingSection(title = stringResource(R.string.settings_section_theme_color)) {
                     val themeSubtitle = when (settings.themeMode) {
                         ThemeMode.DYNAMIC -> stringResource(R.string.settings_theme_follow_wallpaper)
@@ -181,11 +184,39 @@ fun QuickSettingsSheet(
                         index = 0, total = total,
                     )
                     SettingItem(
+                        title = stringResource(R.string.leading_shape_title),
+                        leadingIcon = painterResource(R.drawable.ic_rounded_corner),
+                        subtitle = stringResource(R.string.leading_shape_summary),
+                        trailing = {
+                            Text(
+                                text = settings.leadingShape.localizedLabel(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        onClick = onOpenLeadingShapePicker,
+                        index = 1, total = total,
+                    )
+                    SettingItem(
+                        title = stringResource(R.string.leading_color_title),
+                        leadingIcon = painterResource(R.drawable.ic_palette),
+                        subtitle = stringResource(R.string.leading_color_summary),
+                        trailing = {
+                            Text(
+                                text = settings.leadingColorMode.localizedLabel(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        onClick = onOpenLeadingColorPicker,
+                        index = 2, total = total,
+                    )
+                    SettingItem(
                         title = stringResource(R.string.settings_dark_mode),
                         leadingIcon = painterResource(R.drawable.ic_dark_mode),
                         subtitle = settings.darkMode.localizedLabel(),
                         onClick = { showDarkModeDialog = true },
-                        index = 1, total = total,
+                        index = 3, total = total,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_amoled),
@@ -194,7 +225,7 @@ fun QuickSettingsSheet(
                         trailing = {
                             Switch(checked = settings.amoled, onCheckedChange = onSetAmoled)
                         },
-                        index = 2, total = total,
+                        index = 4, total = total,
                     )
                 }
             }

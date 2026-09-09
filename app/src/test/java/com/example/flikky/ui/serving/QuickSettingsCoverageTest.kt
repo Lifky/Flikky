@@ -36,6 +36,8 @@ class QuickSettingsCoverageTest {
         "customThemeSeedArgb" to "onOpenThemePicker",
         "darkMode" to "onSetDarkMode",
         "amoled" to "onSetAmoled",
+        "leadingShape" to "onOpenLeadingShapePicker",
+        "leadingColorMode" to "onOpenLeadingColorPicker",
         "phoneAvatarKey" to "onOpenAvatarPicker",
         // 注意：browserAvatarKey **不在**这张表里，因为它不进 PeerInfoDto —— 它走另一条
         // 通道（TransferController → session → `peer_avatar_changed` 事件）。快捷设置里

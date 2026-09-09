@@ -45,6 +45,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import com.example.flikky.util.SortKey
 import com.example.flikky.util.SortSpec
+import com.example.flikky.util.LeadingColorMode
+import com.example.flikky.util.LeadingShape
 import com.example.flikky.util.tap
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -533,6 +535,14 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setAmoled(enabled: Boolean) {
         viewModelScope.launch { ServiceLocator.settingsRepository.setAmoled(enabled) }
+    }
+
+    fun setLeadingShape(shape: LeadingShape) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setLeadingShape(shape) }
+    }
+
+    fun setLeadingColorMode(mode: LeadingColorMode) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setLeadingColorMode(mode) }
     }
 
     fun setDeviceName(name: String) {

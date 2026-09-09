@@ -76,6 +76,8 @@ import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.settings.sheets.AvatarPickerSheet
 import com.example.flikky.ui.settings.sheets.BackgroundPickerSheet
 import com.example.flikky.ui.settings.sheets.ThemePickerSheet
+import com.example.flikky.ui.settings.LeadingColorSheet
+import com.example.flikky.ui.settings.LeadingShapeSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
 import kotlinx.coroutines.flow.collect
@@ -108,7 +110,7 @@ fun ServingScreen(
     var actionTarget by remember { mutableStateOf<Long?>(null) }
     var showFilesQuickSheet by remember { mutableStateOf(false) }
     var showQuickSettings by remember { mutableStateOf(false) }
-    // 快捷设置里「钻进去」的那三张复用 sheet，见下方托管处的注释。
+    // 快捷设置里「钻进去」的五张复用 sheet，见下方托管处的注释。
     var quickPicker by remember { mutableStateOf<QuickPicker?>(null) }
     // 头像选择器的 App / Browser tab，与设置页同一形状（0 = App，1 = Browser）。
     var avatarSheetTab by remember { mutableStateOf(0) }
@@ -375,7 +377,7 @@ fun ServingScreen(
         }
     }
 
-    // 快捷设置里的三个复杂选择器复用设置页那三张 sheet，而它们都是 ModalBottomSheet。
+    // 快捷设置里的五个复杂选择器复用设置页同一批 sheet，而它们都是 ModalBottomSheet。
     // 两层 ModalBottomSheet 叠加在 Compose M3 里不可靠（scrim / 焦点都会打架），所以
     // 在这里托管：quickPicker 非空时不渲染快捷设置本体 —— 「钻进去，关掉再回来」，
     // 全程只有一层 sheet。showQuickSettings 保持为 true，所以关掉选择器它自己就回来了。
@@ -396,6 +398,8 @@ fun ServingScreen(
             onSetFavoriteBeta = { viewModel.setFavoriteBeta(it) },
             onSetStorageBrowsing = { viewModel.setStorageBrowsingEnabled(it) },
             onOpenThemePicker = { quickPicker = QuickPicker.Theme },
+            onOpenLeadingShapePicker = { quickPicker = QuickPicker.LeadingShape },
+            onOpenLeadingColorPicker = { quickPicker = QuickPicker.LeadingColor },
             onOpenAvatarPicker = { avatarSheetTab = 0; quickPicker = QuickPicker.Avatar },
             onOpenBackgroundPicker = { quickPicker = QuickPicker.Background },
             onDismiss = { showQuickSettings = false },
@@ -411,6 +415,16 @@ fun ServingScreen(
             // null = 不渲染对比度段：对比度不进 PeerInfoDto，浏览器跟不了，
             // 而快捷设置的承诺是「这里每一项都会同步」（用户裁决）。
             onSelectContrast = null,
+            onDismiss = { quickPicker = null },
+        )
+        QuickPicker.LeadingShape -> LeadingShapeSheet(
+            current = settings.leadingShape,
+            onSelect = { viewModel.setLeadingShape(it) },
+            onDismiss = { quickPicker = null },
+        )
+        QuickPicker.LeadingColor -> LeadingColorSheet(
+            current = settings.leadingColorMode,
+            onSelect = { viewModel.setLeadingColorMode(it) },
             onDismiss = { quickPicker = null },
         )
         QuickPicker.Avatar -> {

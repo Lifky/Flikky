@@ -126,6 +126,8 @@ internal fun openExternalLink(context: Context, url: String): Boolean = try {
 // Which sheet / dialog is open
 private sealed interface ActiveSheet {
     object Theme      : ActiveSheet
+    object LeadingShape : ActiveSheet
+    object LeadingColor : ActiveSheet
     object Avatar     : ActiveSheet
     object Background : ActiveSheet
 }
@@ -362,7 +364,7 @@ fun SettingsScreen(
 
             // ─── 主题与色彩 ─────────────────────────────────────────────────────
             item {
-                val sectionItems = 4
+                val sectionItems = 6
                 SettingSection(title = stringResource(R.string.settings_section_theme_color)) {
                     val themeSubtitle = when (s.themeMode) {
                         ThemeMode.DYNAMIC -> stringResource(R.string.settings_theme_follow_wallpaper)
@@ -376,13 +378,41 @@ fun SettingsScreen(
                         onClick = { activeSheet = ActiveSheet.Theme },
                         index = 0, total = sectionItems,
                     )
+                    SettingItem(
+                        title = stringResource(R.string.leading_shape_title),
+                        leadingIcon = painterResource(R.drawable.ic_rounded_corner),
+                        subtitle = stringResource(R.string.leading_shape_summary),
+                        trailing = {
+                            Text(
+                                text = s.leadingShape.localizedLabel(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        onClick = { activeSheet = ActiveSheet.LeadingShape },
+                        index = 1, total = sectionItems,
+                    )
+                    SettingItem(
+                        title = stringResource(R.string.leading_color_title),
+                        leadingIcon = painterResource(R.drawable.ic_palette),
+                        subtitle = stringResource(R.string.leading_color_summary),
+                        trailing = {
+                            Text(
+                                text = s.leadingColorMode.localizedLabel(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        onClick = { activeSheet = ActiveSheet.LeadingColor },
+                        index = 2, total = sectionItems,
+                    )
                     val darkSubtitle = s.darkMode.localizedLabel()
                     SettingItem(
                         title = stringResource(R.string.settings_dark_mode),
                         leadingIcon = painterResource(R.drawable.ic_dark_mode),
                         subtitle = darkSubtitle,
                         onClick = { showDarkModeDialog = true },
-                        index = 1, total = sectionItems,
+                        index = 3, total = sectionItems,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_amoled),
@@ -394,7 +424,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setAmoled(it) },
                             )
                         },
-                        index = 2, total = sectionItems,
+                        index = 4, total = sectionItems,
                     )
                     val animSpeedSubtitle = s.animationSpeed.localizedLabel()
                     SettingItem(
@@ -402,7 +432,7 @@ fun SettingsScreen(
                         leadingIcon = painterResource(R.drawable.ic_animation),
                         subtitle = animSpeedSubtitle,
                         onClick = { showAnimSpeedDialog = true },
-                        index = 3, total = sectionItems,
+                        index = 5, total = sectionItems,
                     )
                 }
             }
@@ -863,6 +893,16 @@ fun SettingsScreen(
             onSelectPreset = { viewModel.setPreset(it) },
             onSelectCustomSeed = { viewModel.setCustomThemeSeed(it) },
             onSelectContrast = { viewModel.setContrast(it) },
+            onDismiss = { activeSheet = null },
+        )
+        ActiveSheet.LeadingShape -> LeadingShapeSheet(
+            current = s.leadingShape,
+            onSelect = { viewModel.setLeadingShape(it) },
+            onDismiss = { activeSheet = null },
+        )
+        ActiveSheet.LeadingColor -> LeadingColorSheet(
+            current = s.leadingColorMode,
+            onSelect = { viewModel.setLeadingColorMode(it) },
             onDismiss = { activeSheet = null },
         )
         ActiveSheet.Avatar -> {

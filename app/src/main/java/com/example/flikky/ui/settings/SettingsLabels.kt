@@ -12,6 +12,8 @@ import com.example.flikky.data.settings.ContrastLevel
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.MessageActionStyle
 import com.example.flikky.data.settings.PresetTheme
+import com.example.flikky.util.LeadingColorMode
+import com.example.flikky.util.LeadingShape
 
 @Composable
 internal fun AppLanguage.localizedLabel(): String = stringResource(
@@ -89,5 +91,54 @@ internal fun BackgroundSetting.localizedLabel(): String = stringResource(
         BackgroundSetting.Default -> R.string.common_default
         BackgroundSetting.Blank -> R.string.common_blank
         is BackgroundSetting.Solid -> R.string.common_solid_color
+    }
+)
+
+@Composable
+internal fun LeadingColorMode.localizedLabel(): String = stringResource(
+    when (this) {
+        LeadingColorMode.THEME -> R.string.leading_color_theme
+        LeadingColorMode.HARMONIZED -> R.string.leading_color_harmonized
+        LeadingColorMode.FIXED -> R.string.leading_color_fixed
+    }
+)
+
+@Composable
+internal fun LeadingColorMode.localizedOptionLabel(): String = stringResource(
+    when (this) {
+        LeadingColorMode.THEME -> R.string.leading_color_theme
+        LeadingColorMode.HARMONIZED -> R.string.leading_color_harmonized_option
+        LeadingColorMode.FIXED -> R.string.leading_color_fixed_option
+    }
+)
+
+@Composable
+internal fun LeadingShape.localizedLabel(): String = stringResource(
+    when (this) {
+        LeadingShape.Arch -> R.string.leading_shape_arch
+        LeadingShape.Circle -> R.string.leading_shape_circle
+        LeadingShape.Square -> R.string.leading_shape_square
+        LeadingShape.PixelCircle -> R.string.leading_shape_pixel_circle
+        LeadingShape.Slanted -> R.string.leading_shape_slanted
+        LeadingShape.Clover8Leaf -> R.string.leading_shape_clover_8_leaf
+        LeadingShape.Cookie6Sided -> R.string.leading_shape_cookie_6_sided
+        LeadingShape.Cookie12Sided -> R.string.leading_shape_cookie_12_sided
+        LeadingShape.Cookie9Sided -> R.string.leading_shape_cookie_9_sided
+        LeadingShape.Gem -> R.string.leading_shape_gem
+        LeadingShape.Cookie7Sided -> R.string.leading_shape_cookie_7_sided
+        LeadingShape.Cookie4Sided -> R.string.leading_shape_cookie_4_sided
+        LeadingShape.Pentagon -> R.string.leading_shape_pentagon
+        LeadingShape.Pill -> R.string.leading_shape_pill
+        LeadingShape.Clover4Leaf -> R.string.leading_shape_clover_4_leaf
+        LeadingShape.Sunny -> R.string.leading_shape_sunny
+        LeadingShape.Ghostish -> R.string.leading_shape_ghostish
+        LeadingShape.SoftBurst -> R.string.leading_shape_soft_burst
+        LeadingShape.VerySunny -> R.string.leading_shape_very_sunny
+        LeadingShape.Oval -> R.string.leading_shape_oval
+        LeadingShape.Fan -> R.string.leading_shape_fan
+        LeadingShape.Burst -> R.string.leading_shape_burst
+        LeadingShape.PuffyDiamond -> R.string.leading_shape_puffy_diamond
+        LeadingShape.Flower -> R.string.leading_shape_flower
+        LeadingShape.Bun -> R.string.leading_shape_bun
     }
 )

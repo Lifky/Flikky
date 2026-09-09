@@ -22,6 +22,8 @@ import com.example.flikky.di.ServiceLocator
 import com.example.flikky.network.UpdateChecker
 import com.example.flikky.network.UpdateInfo
 import com.example.flikky.util.UpdateVersion
+import com.example.flikky.util.LeadingColorMode
+import com.example.flikky.util.LeadingShape
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -61,6 +63,12 @@ class SettingsViewModel @JvmOverloads constructor(
     fun setContrast(value: ContrastLevel) = viewModelScope.launch { repository.setContrastLevel(value) }
     fun setDarkMode(value: DarkMode) = viewModelScope.launch { repository.setDarkMode(value) }
     fun setAmoled(value: Boolean) = viewModelScope.launch { repository.setAmoled(value) }
+    fun setLeadingShape(value: LeadingShape) =
+        viewModelScope.launch { repository.setLeadingShape(value) }
+
+    fun setLeadingColorMode(value: LeadingColorMode) =
+        viewModelScope.launch { repository.setLeadingColorMode(value) }
+
     fun setPhoneAvatar(value: Int) = viewModelScope.launch { repository.setPhoneAvatar(value) }
     fun setPhoneAvatarKey(value: String) = viewModelScope.launch { repository.setPhoneAvatarKey(value) }
     fun setBrowserAvatarKey(value: String) = viewModelScope.launch { repository.setBrowserAvatarKey(value) }
