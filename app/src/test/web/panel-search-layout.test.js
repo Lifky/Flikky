@@ -123,3 +123,97 @@ test('头块与列表的左右边界用同一个 token —— 右侧才能对齐
     '头块补回的量与 body 内边距不是同一个 token',
   );
 });
+
+/*
+ * ── sticky 头块里的横向溢出（2026-09-09 装机反馈）─────────────────────────
+ *
+ * 症状两个，同一个根因：
+ *   ① 文件面板底部**始终**有一条横向滚动条，滚动它没有任何意义（Screenshot_32）；
+ *   ② 加载进度条右边超出范围、左边却空出一条（Screenshot_33）。
+ *
+ * 根因：`mdui-linear-progress` 的 host 样式是 `display: inline-block; width: 100%`
+ * （见 vendor/mdui.global.js）。`width: 100%` 已经填满容器，再给它左右外边距，
+ * 总占用宽度就变成「容器 + 2×外边距」—— 左边空出一条、右边溢出一条，
+ * 而溢出让 `.fk-panel-body` 的 overflow-x（`overflow-y: auto` 会把另一轴的
+ * `visible` 计算成 `auto`）长出一条永久的横向滚动条。
+ *
+ * 那对横向外边距是它还住在**无内边距容器**里时的遗留；搬进 sticky 头块之后，
+ * 横向内缩已经由头块的 padding 统一给了。
+ */
+
+/** 规则体里出现的所有**横向**外边距值（shorthand 与 longhand 都认）。 */
+function horizontalMargins(rule) {
+  const out = [];
+  const body = rule || '';
+  const short = body.match(/(?:^|[^-\w])margin:\s*([^;]+)/);
+  if (short) {
+    const parts = short[1].trim().split(/\s+/);
+    if (parts.length === 1) out.push(parts[0]);
+    else if (parts.length === 2 || parts.length === 3) out.push(parts[1]);
+    else if (parts.length >= 4) out.push(parts[1], parts[3]);
+  }
+  ['margin-left', 'margin-right', 'margin-inline', 'margin-inline-start', 'margin-inline-end']
+    .forEach((prop) => {
+      const m = body.match(new RegExp('(?:^|[^-\w])' + prop + ':\s*([^;]+)'));
+      if (m) out.push(m[1].trim());
+    });
+  return out;
+}
+
+const isZero = (v) => /^(0|0px|0%|none)$/.test(v.trim());
+
+test('sticky 头块里的元素不带横向外边距 —— 两个溢出症状的根因', () => {
+  // 头块的子元素宽度都是「填满容器」，任何横向外边距都会直接变成溢出。
+  // 头块**自己**那对负 margin 是刻意的（逃出 body 内边距），由上面那条测试盯。
+  const css = panels();
+  const inside = [
+    '.fk-files-progress',
+    '.fk-files-loading-count',
+    '.fk-files-sticky .fk-crumbs',
+    '.fk-files-sticky > .fk-search',
+  ];
+  const offenders = [];
+  inside.forEach((sel) => {
+    const rule = ruleFor(css, sel);
+    if (!rule) return;   // 选择器可以不存在，但存在就必须没有横向外边距
+    horizontalMargins(rule)
+      .filter((v) => !isZero(v))
+      .forEach((v) => offenders.push(sel + ' → ' + v));
+  });
+  assert.deepEqual(
+    offenders,
+    [],
+    '这些头块内元素带了横向外边距。它们的宽度已经填满容器，外边距会直接溢出 ——\n' +
+      '左边空一条、右边溢一条，还会给滚动容器撑出一条永久的横向滚动条。\n' +
+      '横向内缩交给 .fk-files-sticky 的 padding：',
+  );
+});
+
+test('进度条是块级 —— inline-block 的行高会在收起后仍占位', () => {
+  // mdui 的 host 是 inline-block。作为行内盒它带一个行高，
+  // `.is-done` 把 height 收到 0 之后那份行高还在，头块底部留一条空隙。
+  const rule = ruleFor(panels(), '.fk-files-progress');
+  assert.ok(rule, '.fk-files-progress 的规则不见了');
+  assert.match(
+    rule,
+    /display:\s*block/,
+    '进度条没有覆盖 mdui 的 inline-block —— 收起后会残留一条行高的空隙',
+  );
+});
+
+test('头块自己那对负 margin 与补回的 padding 仍然成对', () => {
+  // 上面把子元素的横向外边距一律清零之后，唯一允许的横向外边距就是头块自己
+  // 这一对。它必须**成对**出现：只逃不补，头块会比列表宽一圈（也是溢出）。
+  const rule = ruleFor(panels(), '.fk-files-sticky');
+  assert.ok(rule, '.fk-files-sticky 的规则不见了');
+  const negative = horizontalMargins(rule).filter((v) => v.indexOf('-1') >= 0);
+  assert.ok(
+    negative.length > 0,
+    '头块不再用负 margin 逃出 body 内边距了 —— 请重新评估本组断言：' + rule,
+  );
+  assert.match(
+    rule,
+    /padding:\s*0\s+var\(--flikky-space-[a-z]+\)/,
+    '头块逃出了 body 的内边距却没有补回同样的横向 padding：' + rule,
+  );
+});

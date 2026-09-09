@@ -524,8 +524,17 @@ button.fk-crumb:hover {
  *
  * 弹簧走 spatial（有位移），与 App 主页 chips 分组的显隐同一档。 */
 .fk-files-progress {
+  /* `mdui-linear-progress` 的 host 样式是 `display: inline-block; width: 100%`。
+     所以**横向外边距一律为 0**：100% 已经填满容器，再加左右外边距会让它
+     整体宽度超出容器 —— 左边空出一条、右边溢出一条，还会给滚动容器撑出一条
+     永久的横向滚动条（2026-09-09 装机反馈的两个症状同此一因）。
+     横向内缩由 .fk-files-sticky 的 padding 统一给，这里不再自己缩。
+
+     改 display 是为了去掉 inline-block 的基线残留：作为行内盒它会带一个
+     行高，`.is-done` 把 height 收到 0 之后那份行高仍占着位置。 */
+  display: block;
   height: 4px;
-  margin: var(--flikky-space-xl) var(--flikky-space-lg);
+  margin: var(--flikky-space-xl) 0;
   overflow: hidden;
   transition:
     height var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
