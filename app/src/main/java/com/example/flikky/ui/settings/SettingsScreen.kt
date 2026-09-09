@@ -532,7 +532,20 @@ fun SettingsScreen(
             item {
                 // +1 是「显示隐藏文件」那一行。这个数是分组圆角的依据（第一行与
                 // 最后一行外圆角更大），少算一个会让最后一行画成中间行的形状。
-                val sectionItems = if (s.recallBetaEnabled) 9 else 8
+                // 分段圆角的 index/total **不许随展开态变化**（2026-09-09 装机反馈）。
+                //
+                // `AnimatedVisibility` 收起动画要跑 ~200ms，期间那几行**仍在组合里**。
+                // 若这个值跟着 flag 瞬间翻转，那几行就带着越界的 index 继续显示一段：
+                // index 3 在 total=4 下被当成「末行」而突然变成下圆角，
+                // 位置正好在两个 listitem 的交界处 —— 就是用户看到的「白线卡一下」。
+                //
+                // 展开时不会有这个现象：flag 先变 true、total 先变大，
+                // 那几行是带着**正确**的 index 出现的。这正是缺陷只在收起时出现的原因。
+                //
+                // 用固定的上界安全，因为 `segmentedShapes` 只区分
+                // 首行（index 0）/ 末行（index == count - 1）/ 中间行：
+                // 收起后可见的 index 有断档（3..7 缺失）也不影响任何一行的圆角。
+                val sectionItems = 9
                 SettingSection(title = stringResource(R.string.settings_section_session_behavior)) {
                     SettingItem(
                         title = stringResource(R.string.settings_require_pin),
@@ -587,7 +600,6 @@ fun SettingsScreen(
                             index = 3, total = sectionItems,
                         )
                     }
-                    val followingIndexOffset = if (s.recallBetaEnabled) 1 else 0
                     SettingItem(
                         title = stringResource(R.string.settings_favorites),
                         leadingIcon = painterResource(R.drawable.ic_star_border),
@@ -598,7 +610,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setFavoriteBeta(it) },
                             )
                         },
-                        index = 3 + followingIndexOffset, total = sectionItems,
+                        index = 4, total = sectionItems,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_allow_back),
@@ -610,7 +622,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setAllowBackDuringSession(it) },
                             )
                         },
-                        index = 4 + followingIndexOffset, total = sectionItems,
+                        index = 5, total = sectionItems,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_keep_screen_on),
@@ -621,7 +633,7 @@ fun SettingsScreen(
                                 onCheckedChange = viewModel::setKeepScreenOnDuringSession,
                             )
                         },
-                        index = 5 + followingIndexOffset, total = sectionItems,
+                        index = 6, total = sectionItems,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_storage_browsing),
@@ -633,7 +645,7 @@ fun SettingsScreen(
                                 onCheckedChange = viewModel::setStorageBrowsingEnabled,
                             )
                         },
-                        index = 6 + followingIndexOffset, total = sectionItems,
+                        index = 7, total = sectionItems,
                     )
                     // 「显示隐藏文件」紧跟在存储浏览下面：它只在浏览存储时才起作用。
                     // 两端共用这一个值，副标题的计数也走它——三者用不同判据就是
@@ -650,14 +662,27 @@ fun SettingsScreen(
                                 onCheckedChange = viewModel::setShowHiddenFiles,
                             )
                         },
-                        index = 7 + followingIndexOffset, total = sectionItems,
+                        index = sectionItems - 1, total = sectionItems,
                     )
                 }
             }
 
             // ─── 数据 ─────────────────────────────────────────────────────────
             item {
-                val sectionItems = if (importExportExpanded) 9 else 4
+                // 分段圆角的 index/total **不许随展开态变化**（2026-09-09 装机反馈）。
+                //
+                // `AnimatedVisibility` 收起动画要跑 ~200ms，期间那几行**仍在组合里**。
+                // 若这个值跟着 flag 瞬间翻转，那几行就带着越界的 index 继续显示一段：
+                // index 3 在 total=4 下被当成「末行」而突然变成下圆角，
+                // 位置正好在两个 listitem 的交界处 —— 就是用户看到的「白线卡一下」。
+                //
+                // 展开时不会有这个现象：flag 先变 true、total 先变大，
+                // 那几行是带着**正确**的 index 出现的。这正是缺陷只在收起时出现的原因。
+                //
+                // 用固定的上界安全，因为 `segmentedShapes` 只区分
+                // 首行（index 0）/ 末行（index == count - 1）/ 中间行：
+                // 收起后可见的 index 有断档（3..7 缺失）也不影响任何一行的圆角。
+                val sectionItems = 9
                 SettingSection(title = stringResource(R.string.settings_section_data)) {
                     val historySubtitle = when (s.historyRetainLimit) {
                         -1 -> stringResource(R.string.settings_history_unlimited)
