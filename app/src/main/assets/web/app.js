@@ -54,25 +54,12 @@
         return icon;
     }
 
-    // 文件气泡分类图标：镜像 App 端 FilesListBuilder.categoryOf + FileCategoryUi.iconResource，
-    // 两端同一文件必须显示同一图标。SVG 系统层面不算媒体，与 App 一致归「其他」。
-    const DOCUMENT_MIMES = new Set([
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-powerpoint',
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    ]);
+    // 文件气泡分类图标来自共享注册表，两端同一 MIME 必须显示同一 Material Symbol。
     function fileSymbolName(mime) {
-        const m = (mime || '').toLowerCase();
-        if (m === 'image/svg+xml') return 'draft';
-        if (m.startsWith('image/')) return 'image';
-        if (m.startsWith('video/')) return 'movie';
-        if (m.startsWith('audio/')) return 'audio_file';
-        if (m.startsWith('text/') || DOCUMENT_MIMES.has(m)) return 'description';
-        return 'draft';
+        const leading = globalThis.flikkyLeading;
+        return leading && typeof leading.typeOf === 'function'
+            ? leading.typeOf(mime).symbol
+            : 'draft';
     }
     // 这一份是与 App 端 FilesListBuilder.categoryOf + FileCategory.iconResource() 对齐的
     // 唯一事实源，收藏面板也取用它（发布点在文件末尾的 window.flikky 那一处——

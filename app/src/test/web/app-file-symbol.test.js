@@ -6,8 +6,10 @@ const vm = require('node:vm');
 
 const webDir = path.join(__dirname, '../../main/assets/web');
 const appJs = fs.readFileSync(path.join(webDir, 'app.js'), 'utf8');
+const leadingTypesJs = fs.readFileSync(path.join(webDir, 'leading-types.js'), 'utf8');
+const leadingJs = fs.readFileSync(path.join(webDir, 'leading.js'), 'utf8');
 
-const start = appJs.indexOf('const DOCUMENT_MIMES');
+const start = appJs.indexOf('function fileSymbolName');
 // End marker used to be the (now-deleted, B1) dead avatar block's header comment;
 // the const declared right after that dead block is a stable boundary instead.
 const end = appJs.indexOf('const AVATAR_DEFAULT_BROWSER');
@@ -15,6 +17,15 @@ assert.ok(start >= 0 && end > start, 'file symbol helpers not found in app.js');
 const slice = appJs.slice(start, appJs.lastIndexOf('\n', end));
 
 function symbolOf(mime) {
+    const context = {};
+    vm.createContext(context);
+    vm.runInContext(leadingTypesJs, context);
+    vm.runInContext(leadingJs, context);
+    vm.runInContext(`${slice}\nglobalThis.result = fileSymbolName(${JSON.stringify(mime)});`, context);
+    return context.result;
+}
+
+function symbolWithoutRuntime(mime) {
     const context = {};
     vm.createContext(context);
     vm.runInContext(`${slice}\nglobalThis.result = fileSymbolName(${JSON.stringify(mime)});`, context);
@@ -28,7 +39,7 @@ test('fileSymbolName mirrors app-side category icons', () => {
     assert.equal(symbolOf('audio/mpeg'), 'audio_file');
     assert.equal(symbolOf('application/pdf'), 'description');
     assert.equal(symbolOf('text/plain'), 'description');
-    assert.equal(symbolOf('application/zip'), 'draft');
+    assert.equal(symbolOf('application/zip'), 'folder_zip');
     assert.equal(symbolOf(''), 'draft');
     assert.equal(symbolOf(undefined), 'draft');
 });
@@ -37,6 +48,10 @@ test('fileSymbolName treats svg as other despite image prefix', () => {
     // SVG 与 App 端一致归「其他」：系统不当媒体处理。
     assert.equal(symbolOf('image/svg+xml'), 'draft');
     assert.equal(symbolOf('IMAGE/SVG+XML'), 'draft');
+});
+
+test('fileSymbolName falls back safely when the leading runtime is unavailable', () => {
+    assert.equal(symbolWithoutRuntime('video/mp4'), 'draft');
 });
 
 test('every classic file bubble render path leads with the category icon', () => {
