@@ -13,5 +13,13 @@
       type.mimePrefixes.some((prefix) => normalized.startsWith(prefix))) || other;
   }
 
-  root.flikkyLeading = Object.freeze({ types, typeOf });
+  function applyShape(shapeId) {
+    const style = root.document && root.document.documentElement && root.document.documentElement.style;
+    if (!style) return;
+    const id = typeof shapeId === 'string' && shapeId.trim() ? shapeId.trim() : 'cookie9Sided';
+    style.setProperty('--flikky-leading-clip', `url(#flikky-shape-${id})`);
+  }
+
+  root.flikkyLeading = Object.freeze({ types, typeOf, applyShape });
+  applyShape();
 })(globalThis);

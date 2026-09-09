@@ -115,7 +115,7 @@
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  clip-path: url(#flikky-cookie9);
+  clip-path: var(--flikky-leading-clip);
   background: rgb(var(--mdui-color-secondary-container));
   color: rgb(var(--mdui-color-on-secondary-container));
 }

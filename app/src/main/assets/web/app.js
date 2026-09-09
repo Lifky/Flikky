@@ -915,9 +915,13 @@
         const size = document.createElement('span');
         size.className = 'size';
         size.textContent = formatSize(sizeBytes);
-        // 文件图标：与 App 文件气泡/文件总览同款分类图标，包一层 Cookie9Sided 容器。
+        // 文件图标：与 App 文件气泡/文件总览共用分类与全局 leading 形状。
         const iconWrap = document.createElement('span');
         iconWrap.className = 'file-icon';
+        iconWrap.dataset.leadingType = globalThis.flikkyLeading &&
+            typeof globalThis.flikkyLeading.typeOf === 'function'
+            ? globalThis.flikkyLeading.typeOf(bubble.dataset.mime).id
+            : 'other';
         iconWrap.appendChild(materialSymbolEl(fileSymbolName(bubble.dataset.mime), false));
         bubble.appendChild(iconWrap);
         bubble.appendChild(a);

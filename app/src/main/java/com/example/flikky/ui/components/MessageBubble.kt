@@ -245,12 +245,10 @@ private fun FileBubbleContent(
     val isDeleted = msg.status == Message.File.Status.DELETED
     val contentColor = if (isDeleted) fg.copy(alpha = 0.38f) else fg
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(
-            // 与文件总览一致：按 MIME 分类取图标（文档/音频/其他分开），不统一用文档图标。
-            painter = painterResource(FilesListBuilder.categoryOf(msg.mime).iconResource()),
-            contentDescription = null,
-            modifier = Modifier.size(28.dp),
-            tint = contentColor,
+        FileLeadingVisual(
+            iconRes = FilesListBuilder.categoryOf(msg.mime).iconResource(),
+            thumbnailModel = null,
+            mime = msg.mime,
         )
         Spacer(Modifier.width(Spacing.md))
         Column {
