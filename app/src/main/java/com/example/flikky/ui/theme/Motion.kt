@@ -98,6 +98,33 @@ object Motion {
     fun <T> spatialFast(): FiniteAnimationSpec<T> =
         scaleMotionSpec(MaterialTheme.motionScheme.fastSpatialSpec(), LocalMotionScale.current)
 
+    /**
+     * 位移/尺寸，快，**不回弹**。收起到零（`shrinkVertically` 一族）专用。
+     *
+     * 官方 spatial 系列是**刻意欠阻尼**的 —— expressive 方案里 `fastSpatial` 的
+     * 阻尼比只有 `0.6`（`defaultSpatial` / `slowSpatial` 是 `0.8`，
+     * effects 系列才是 `1.0`）。那是「有质量的东西在动」的手感，进场时正是要它。
+     *
+     * 但**目标值是 0** 的收起是个例外：欠阻尼弹簧会先冲过头到负值（被钳在 0）、
+     * 再弹回几个 dp 才落定。用户看到的是收起末尾「间隔高度闪一下」。
+     *
+     * 关键在于**回弹幅度按内容高度等比放大**：ζ=0.6 的二次过冲约 0.9%，
+     * 一行的展开区不到 1dp（看不出），五行的就有 3~4dp（能看出）。
+     * 2026-09-10 装机反馈里「导入与导出会跳、允许对端撤回不跳」这个对比，
+     * 就是同一个组件、同一条弹簧在两种内容高度下的两种表现 ——
+     * 那条对比信息本身就是这个根因的指纹。
+     *
+     * 刚度保留官方值（只改阻尼），所以时长仍在 M3 的手感范围内；
+     * 仍然过 [scaleMotionSpec]，全局动画速度设置照常生效。
+     */
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+    @Composable @ReadOnlyComposable
+    fun <T> spatialFastNoBounce(): FiniteAnimationSpec<T> =
+        scaleMotionSpec(
+            criticallyDamped(MaterialTheme.motionScheme.fastSpatialSpec()),
+            LocalMotionScale.current,
+        )
+
     /** 位移/尺寸/形变，慢。大元素/hero 首选。 */
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     @Composable @ReadOnlyComposable
@@ -130,6 +157,21 @@ object Motion {
     fun <T> durationSpec(durationMillis: Int, easing: Easing = Standard): FiniteAnimationSpec<T> =
         scaleMotionSpec(tween(durationMillis = durationMillis, easing = easing), LocalMotionScale.current)
 }
+
+/**
+ * 把一条 spring spec 改成**临界阻尼**（不回弹），刚度与可见阈值原样保留
+ * （纯逻辑，单测见 `MotionSpecScaleTest`）。
+ *
+ * 只处理 [SpringSpec]；tween 本来就不回弹，其余 spec 无法安全改写，一律原样返回
+ * —— 与 [scaleMotionSpec] 同一条保守原则：改不动的别乱改。
+ */
+internal fun <T> criticallyDamped(base: FiniteAnimationSpec<T>): FiniteAnimationSpec<T> =
+    if (base is SpringSpec<*>) {
+        @Suppress("UNCHECKED_CAST") val s = base as SpringSpec<T>
+        spring(dampingRatio = 1f, stiffness = s.stiffness, visibilityThreshold = s.visibilityThreshold)
+    } else {
+        base
+    }
 
 /**
  * 把官方 MotionScheme 返回的 spec 按全局速度倍率 [scale] 缩放（纯逻辑，单测见 `MotionSpecScaleTest`）。

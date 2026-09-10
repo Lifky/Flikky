@@ -56,4 +56,35 @@ class MotionSpecScaleTest {
         assertEquals(600, scaled.durationMillis)
         assertSame(base.easing, scaled.easing)
     }
+    // ── criticallyDamped：收起到零专用（2026-09-10 装机反馈）───────────────────
+
+    @Test
+    fun `criticallyDamped removes the bounce and keeps the official stiffness`() {
+        // 官方 spatial 系列刻意欠阻尼（expressive 的 fastSpatial 实测阻尼比 0.6）。
+        // 收起到 0 时那个回弹会让间隔高度闪一下，所以这一档要临界阻尼。
+        // **刚度必须保留** —— 换刚度就等于换了时长手感，那不是本次要改的东西。
+        val bouncy = spring<Float>(dampingRatio = 0.6f, stiffness = 800f)
+        val damped = criticallyDamped(bouncy) as SpringSpec<Float>
+        assertEquals(1f, damped.dampingRatio, 0f)
+        assertEquals(800f, damped.stiffness, 0f)
+    }
+
+    @Test
+    fun `criticallyDamped leaves a tween alone`() {
+        // tween 本来就不回弹，改它没有意义 —— 与 scaleMotionSpec 同一条保守原则。
+        val base = tween<Float>(durationMillis = 300)
+        assertSame(base, criticallyDamped(base))
+    }
+
+    @Test
+    fun `a critically damped spec still scales with the global speed setting`() {
+        // 两个变换要能叠：去回弹之后仍然过 scaleMotionSpec，
+        // 否则「动画速度」设置对收起动画会静默失效。
+        val scaled = scaleMotionSpec(
+            criticallyDamped(spring<Float>(dampingRatio = 0.6f, stiffness = 800f)),
+            2f,
+        ) as SpringSpec<Float>
+        assertEquals("去回弹后刚度还要能被速度倍率缩放", 400f, scaled.stiffness, 0f)
+        assertEquals("缩放不该把阻尼改回去", 1f, scaled.dampingRatio, 0f)
+    }
 }

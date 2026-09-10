@@ -355,7 +355,8 @@ fun QuickSettingsSheet(
                     AnimatedVisibility(
                         visible = settings.recallBetaEnabled,
                         enter = expandVertically(Motion.spatial()) + fadeIn(Motion.effects()),
-                        exit = shrinkVertically(Motion.spatialFast()) + fadeOut(Motion.effectsFast()),
+                        // 不回弹：收到 0 的弹簧会弹回来，看着像故障（见 Motion.spatialFastNoBounce）
+                        exit = shrinkVertically(Motion.spatialFastNoBounce()) + fadeOut(Motion.effectsFast()),
                     ) {
                         SettingItem(
                             title = stringResource(R.string.settings_allow_peer_recall),

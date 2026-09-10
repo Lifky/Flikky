@@ -65,7 +65,10 @@ fun SettingExpandableGroup(
         AnimatedVisibility(
             visible = expanded,
             enter = expandVertically(Motion.spatial()) + fadeIn(Motion.effects()),
-            exit = shrinkVertically(Motion.spatialFast()) + fadeOut(Motion.effectsFast()),
+            // 收起用**不回弹**的 spatial：官方 fastSpatial 阻尼比 0.6，收到 0 时会
+            // 先冲过头再弹回几个 dp，内容越高越明显（2026-09-10 装机反馈）。
+            // 进场保留官方回弹 —— 展开有弹性是对的，收起弹回来像渲染故障。
+            exit = shrinkVertically(Motion.spatialFastNoBounce()) + fadeOut(Motion.effectsFast()),
         ) {
             Column(
                 modifier = Modifier

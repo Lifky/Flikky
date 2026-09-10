@@ -302,7 +302,8 @@ fun ServingScreen(
                 visible = ui.clientConnected,
                 enter = androidx.compose.animation.expandVertically(Motion.spatial()) +
                     androidx.compose.animation.fadeIn(Motion.effects()),
-                exit = androidx.compose.animation.shrinkVertically(Motion.spatialFast()) +
+                // 不回弹：收到 0 的弹簧会弹回来，看着像故障（见 Motion.spatialFastNoBounce）
+                exit = androidx.compose.animation.shrinkVertically(Motion.spatialFastNoBounce()) +
                     androidx.compose.animation.fadeOut(Motion.effectsFast()),
             ) {
                 // 裁决 A：指示器**贴文字宽**，所以必须显式传 indicator——
