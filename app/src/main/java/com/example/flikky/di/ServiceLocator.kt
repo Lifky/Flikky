@@ -95,7 +95,7 @@ object ServiceLocator {
         appContext = app.applicationContext
         session = SessionState(nowMs = System::currentTimeMillis)
         stats = TransferStats(nowMs = System::currentTimeMillis)
-        fileStore = SessionFileStore(filesDir = appContext.filesDir)
+        fileStore = SessionFileStore(filesDir = appContext.filesDir, cacheDir = appContext.cacheDir)
         favoriteFileStore = FavoriteFileStore(filesDir = appContext.filesDir)
         // showHidden 用 lambda 而不是当场取值：settingsRepository 在它之后才建，
         // 而且设置随时可改，每次列举都该看当前值。

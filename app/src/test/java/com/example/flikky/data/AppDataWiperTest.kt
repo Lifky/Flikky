@@ -33,9 +33,11 @@ class AppDataWiperTest {
 
     @Test fun wipe_clears_everything_in_order_with_settings() = runTest {
         val recorder = Recorder()
-        val fileStore = SessionFileStore(filesDir = tmp.root)
+        val cache = tmp.newFolder("cache")
+        val fileStore = SessionFileStore(filesDir = tmp.root, cacheDir = cache)
         val favoriteStore = FavoriteFileStore(filesDir = tmp.root)
         fileStore.archiveFromStream(1L, "a", ByteArrayInputStream(byteArrayOf(1)))
+        fileStore.storageThumbFile("a".repeat(64)).writeBytes(byteArrayOf(4))
         favoriteStore.copyIn("d", ByteArrayInputStream(byteArrayOf(2)))
         val temp = File(tmp.root, "import_temp.zip").apply { writeBytes(byteArrayOf(3)) }
 
@@ -43,6 +45,7 @@ class AppDataWiperTest {
 
         assertEquals(listOf("db", "settings", "runtime"), recorder.steps)
         assertTrue(!File(tmp.root, "sessions").exists())
+        assertTrue(!cache.resolve("storage-thumbs").exists())
         assertTrue(!File(tmp.root, "favorites").exists())
         assertTrue(!temp.exists())
     }

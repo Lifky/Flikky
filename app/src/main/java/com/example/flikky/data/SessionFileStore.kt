@@ -10,6 +10,7 @@ import java.io.InputStream
  */
 class SessionFileStore(
     private val filesDir: File,
+    private val cacheDir: File = File(filesDir.parentFile ?: filesDir, "cache"),
 ) : FileStore {
 
     override fun fileDir(sessionId: Long): File =
@@ -53,6 +54,22 @@ class SessionFileStore(
     fun deleteAllSessionDirs(): Boolean {
         val root = File(filesDir, "sessions")
         return !root.exists() || root.deleteRecursively()
+    }
+
+    /** cache/storage-thumbs/{key}.jpg: re-creatable storage browsing thumbnails. */
+    fun storageThumbFile(key: String): File {
+        require(key.matches(Regex("[0-9a-f]{64}"))) { "invalid thumbnail cache key" }
+        return File(storageThumbnailCacheDir(), "$key.jpg")
+    }
+
+    /** Directory owned by this store for derived storage thumbnail data. */
+    fun storageThumbnailCacheDir(): File =
+        File(cacheDir, "storage-thumbs").apply { mkdirs() }
+
+    /** Deletes all derived storage thumbnails; missing storage is already clean. */
+    fun deleteStorageThumbnailCache(): Boolean {
+        val dir = File(cacheDir, "storage-thumbs")
+        return !dir.exists() || dir.deleteRecursively()
     }
 
     /**

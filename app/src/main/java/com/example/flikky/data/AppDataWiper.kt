@@ -17,6 +17,7 @@ class AppDataWiper(
     suspend fun wipe(resetSettings: Boolean) {
         runCatching { clearDatabase() }
         runCatching { fileStore.deleteAllSessionDirs() }
+        runCatching { fileStore.deleteStorageThumbnailCache() }
         runCatching { favoriteFileStore.deleteAll() }
         tempFiles().forEach { runCatching { it.delete() } }
         if (resetSettings) runCatching { clearSettings() }

@@ -1,6 +1,7 @@
 package com.example.flikky.data
 
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.fail
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -11,7 +12,7 @@ import java.io.File
 class SessionFileStoreTest {
     @get:Rule val tmp = TemporaryFolder()
 
-    private fun store() = SessionFileStore(filesDir = tmp.root)
+    private fun store() = SessionFileStore(filesDir = tmp.root, cacheDir = tmp.newFolder("cache"))
 
     @Test fun fileDir_creates_sessions_subdir() {
         val dir = store().fileDir(sessionId = 42L)
@@ -78,5 +79,39 @@ class SessionFileStoreTest {
 
         assertTrue(s.deleteAllSessionDirs())
         assertTrue(!File(tmp.root, "sessions").exists())
+    }
+
+    @Test fun storageThumbFile_lives_in_cache_dir_and_creates_parent() {
+        val cache = tmp.newFolder("cache")
+        val f = SessionFileStore(tmp.root, cache).storageThumbFile("a".repeat(64))
+
+        assertTrue(f.parentFile!!.isDirectory)
+        assertTrue(f.absolutePath.startsWith(cache.absolutePath + File.separator))
+        assertTrue(!f.absolutePath.startsWith(tmp.root.absolutePath + File.separator + "sessions"))
+        assertTrue(f.name.endsWith(".jpg"))
+    }
+
+    @Test fun storageThumbFile_rejects_path_traversal_keys() {
+        val s = SessionFileStore(tmp.root, tmp.newFolder("cache"))
+        assertIllegalArgument { s.storageThumbFile("../escape") }
+        assertIllegalArgument { s.storageThumbFile("ab/cd") }
+    }
+
+    @Test fun deleteStorageThumbnailCache_removes_cache_tree() {
+        val cache = tmp.newFolder("cache")
+        val s = SessionFileStore(tmp.root, cache)
+        s.storageThumbFile("a".repeat(64)).writeBytes(byteArrayOf(1))
+
+        assertTrue(s.deleteStorageThumbnailCache())
+        assertTrue(!cache.resolve("storage-thumbs").exists())
+    }
+
+    private fun assertIllegalArgument(block: () -> Unit) {
+        try {
+            block()
+            fail("expected IllegalArgumentException")
+        } catch (_: IllegalArgumentException) {
+            // expected
+        }
     }
 }
