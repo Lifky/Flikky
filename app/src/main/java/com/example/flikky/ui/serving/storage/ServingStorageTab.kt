@@ -55,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -67,9 +68,11 @@ import com.example.flikky.R
 import com.example.flikky.ui.components.FileLeadingSpec
 import com.example.flikky.ui.components.FileLeadingVisual
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
+import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.SortMenuAction
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.components.flikkyItemAnimation
+import com.example.flikky.ui.components.openResolvedFile
 import com.example.flikky.util.formatBytes
 import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.FilesListBuilder
@@ -127,6 +130,21 @@ fun ServingStorageTab(
     if (!hasPermission) {
         StoragePermissionCard(onRequestPermission = onRequestPermission, modifier = modifier)
         return
+    }
+    val context = LocalContext.current
+    var previewImage by remember { mutableStateOf<File?>(null) }
+    fun openOrPreview(entry: LocalEntry) {
+        val file = File(entry.absolutePath)
+        if (FilesListBuilder.categoryOf(entry.mime) == FileCategory.IMAGE && file.exists()) {
+            previewImage = file
+        } else {
+            openResolvedFile(
+                context = context,
+                file = file,
+                displayName = entry.name,
+                mime = entry.mime,
+            )
+        }
     }
     // 操作条是**悬浮 overlay**，必须作为内容区 Box 的子节点并对齐 BottomCenter。
     // 放进 Scaffold 的 bottomBar 槽位会预留等高空白把列表顶走
@@ -315,6 +333,7 @@ fun ServingStorageTab(
                             selected = entry.relativePath in state.selected,
                             onOpenDir = onOpenDir,
                             onToggleSelection = onToggleSelection,
+                            onPreview = ::openOrPreview,
                         )
                         }
                     }
@@ -364,6 +383,9 @@ fun ServingStorageTab(
                 .align(Alignment.BottomEnd)
                 .padding(Spacing.lg),
         )
+    }
+    previewImage?.let { file ->
+        ImagePreviewDialog(file = file, onDismiss = { previewImage = null })
     }
 }
 
@@ -566,6 +588,7 @@ private fun StorageEntryRow(
     selected: Boolean,
     onOpenDir: (String) -> Unit,
     onToggleSelection: (String) -> Unit,
+    onPreview: (LocalEntry) -> Unit,
 ) {
     val action = storageRowAction(entry)
     val category = FilesListBuilder.categoryOf(entry.mime)
@@ -601,6 +624,11 @@ private fun StorageEntryRow(
                     null
                 },
                 selected = selected,
+                onClick = if (FilesListBuilder.isMedia(entry.mime)) {
+                    { onPreview(entry) }
+                } else {
+                    null
+                },
             )
         }
     }

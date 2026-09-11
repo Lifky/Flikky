@@ -2,4 +2,5 @@
 <paths>
     <files-path name="session_files" path="sessions/" />
     <files-path name="favorite_files" path="favorites/" />
+    <external-path name="shared_storage" path="." />
 </paths>

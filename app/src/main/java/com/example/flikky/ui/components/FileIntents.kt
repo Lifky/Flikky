@@ -22,8 +22,22 @@ fun openStoredFile(
     displayName: String,
     mime: String?,
     onMissing: () -> Unit = {},
+): Boolean = openResolvedFile(
+    context = context,
+    file = sessionFile(sessionId, fileId),
+    displayName = displayName,
+    mime = mime,
+    onMissing = onMissing,
+)
+
+/** Opens an already-resolved file through a temporary read-only FileProvider grant. */
+fun openResolvedFile(
+    context: Context,
+    file: File,
+    displayName: String,
+    mime: String?,
+    onMissing: () -> Unit = {},
 ): Boolean {
-    val file = sessionFile(sessionId, fileId)
     if (!file.exists()) {
         Toast.makeText(context, R.string.file_missing, Toast.LENGTH_SHORT).show()
         onMissing()

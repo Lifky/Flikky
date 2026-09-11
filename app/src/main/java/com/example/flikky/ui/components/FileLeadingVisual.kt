@@ -1,6 +1,7 @@
 package com.example.flikky.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -82,6 +83,7 @@ internal fun FileLeadingVisual(
     mime: String? = null,
     modifier: Modifier = Modifier,
     selected: Boolean = false,
+    onClick: (() -> Unit)? = null,
 ) {
     var thumbnailFailed by remember(thumbnailModel) { mutableStateOf(false) }
     if (thumbnailModel != null && !thumbnailFailed) {
@@ -92,7 +94,8 @@ internal fun FileLeadingVisual(
             onError = { thumbnailFailed = true },
             modifier = modifier
                 .size(FileLeadingSpec.size)
-                .clip(FileLeadingSpec.thumbnailShape),
+                .clip(FileLeadingSpec.thumbnailShape)
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         )
     } else {
         val leadingVisual = LocalLeadingVisual.current
