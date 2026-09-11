@@ -1,7 +1,10 @@
 package com.example.flikky.data.settings
 
+import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
@@ -23,13 +26,13 @@ class SettingsRepositoryTest {
     @get:Rule val tmp = TemporaryFolder()
     private var storeIndex = 0
 
-    private fun makeRepo(scope: TestScope): SettingsRepository {
-        val ds = PreferenceDataStoreFactory.create(
+    private fun makeStore(scope: TestScope): DataStore<Preferences> =
+        PreferenceDataStoreFactory.create(
             scope = scope.backgroundScope,
             produceFile = { tmp.newFile("settings-${storeIndex++}.preferences_pb") },
         )
-        return SettingsRepository(ds)
-    }
+
+    private fun makeRepo(scope: TestScope): SettingsRepository = SettingsRepository(makeStore(scope))
 
     @Test fun in_memory_defaults_use_anan_blue_preset_theme() {
         val s = FlikkySettings()
@@ -65,6 +68,36 @@ class SettingsRepositoryTest {
         assertEquals(AvatarGroupingMode.EACH, s.avatarGrouping)
         assertEquals(LeadingShape.Cookie9Sided, s.leadingShape)
         assertEquals(LeadingColorMode.THEME, s.leadingColorMode)
+    }
+
+    @Test fun thumbnail_cache_limit_defaults_to_100_mb() = runTest {
+        assertEquals(listOf(0, 50, 100, 200), THUMBNAIL_CACHE_LIMIT_OPTIONS_MB)
+        assertEquals(100, makeRepo(this).settings.first().thumbnailCacheLimitMb)
+    }
+
+    @Test fun thumbnail_cache_limit_persists_a_supported_choice() = runTest {
+        val repo = makeRepo(this)
+        repo.setThumbnailCacheLimitMb(50)
+
+        assertEquals(50, repo.settings.first().thumbnailCacheLimitMb)
+    }
+
+    @Test fun unknown_thumbnail_cache_limit_falls_back_to_100_mb() = runTest {
+        val store = makeStore(this)
+        store.edit { it[intPreferencesKey("thumbnail_cache_limit_mb")] = 75 }
+
+        assertEquals(100, SettingsRepository(store).settings.first().thumbnailCacheLimitMb)
+    }
+
+    @Test fun thumbnail_cache_limit_backup_roundtrips() = runTest {
+        val sourceStore = makeStore(this)
+        sourceStore.edit { it[intPreferencesKey("thumbnail_cache_limit_mb")] = 200 }
+        val backup = SettingsRepository(sourceStore).exportBackup()
+        assertEquals(200, backup.thumbnailCacheLimitMb)
+
+        val target = makeRepo(this)
+        target.importBackup(backup)
+        assertEquals(200, target.settings.first().thumbnailCacheLimitMb)
     }
 
     @Test fun leading_visual_settings_persist_and_emit() = runTest {

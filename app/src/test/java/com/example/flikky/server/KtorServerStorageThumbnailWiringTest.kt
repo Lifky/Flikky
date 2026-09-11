@@ -36,6 +36,13 @@ class KtorServerStorageThumbnailWiringTest {
         assertTrue("sanity: TransferService code slice is empty", src.contains("class TransferService"))
         assertTrue(src.contains("storageThumbFileProvider ="))
         assertTrue(src.contains("ServiceLocator.fileStore.storageThumbFile(key)"))
+        assertTrue(
+            "thumbnail cache ceiling must be read from the latest settings on every request",
+            src.contains(
+                "storageThumbnailCacheMaxBytes = { " +
+                    "latestSettings.thumbnailCacheLimitMb * 1024L * 1024L }",
+            ),
+        )
         assertTrue(src.contains("favoriteThumbFileProvider ="))
         assertTrue(src.contains("ServiceLocator.favoriteFileStore.thumbnailFile(id)"))
     }

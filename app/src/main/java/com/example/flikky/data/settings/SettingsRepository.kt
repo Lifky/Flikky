@@ -31,6 +31,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val favoriteBeta = booleanPreferencesKey("favorite_beta")
         val requirePin = booleanPreferencesKey("require_pin")
         val retainLimit = intPreferencesKey("retain_limit")
+        val thumbnailCacheLimitMb = intPreferencesKey("thumbnail_cache_limit_mb")
         val bubbleCorner = intPreferencesKey("bubble_corner")
         val msgActionStyle = stringPreferencesKey("msg_action_style")
         val avatarGrouping = stringPreferencesKey("avatar_grouping")
@@ -83,6 +84,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             favoriteBetaEnabled = p[Keys.favoriteBeta] ?: false,
             requirePin = p[Keys.requirePin] ?: true,
             historyRetainLimit = (p[Keys.retainLimit] ?: 20).coerceAtLeast(-1),
+            thumbnailCacheLimitMb = normalizeThumbnailCacheLimitMb(p[Keys.thumbnailCacheLimitMb]),
             bubbleCornerRadius = (p[Keys.bubbleCorner] ?: BUBBLE_CORNER_DEFAULT)
                 .coerceIn(BUBBLE_CORNER_MIN, BUBBLE_CORNER_MAX),
             messageActionStyle = p[Keys.msgActionStyle]
@@ -152,6 +154,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setFavoriteBeta(v: Boolean) = ds.edit { it[Keys.favoriteBeta] = v }
     suspend fun setRequirePin(v: Boolean) = ds.edit { it[Keys.requirePin] = v }
     suspend fun setHistoryRetainLimit(v: Int) = ds.edit { it[Keys.retainLimit] = v.coerceAtLeast(-1) }
+    suspend fun setThumbnailCacheLimitMb(v: Int) = ds.edit {
+        it[Keys.thumbnailCacheLimitMb] = normalizeThumbnailCacheLimitMb(v)
+    }
     suspend fun setBubbleCornerRadius(v: Int) = ds.edit {
         it[Keys.bubbleCorner] = v.coerceIn(BUBBLE_CORNER_MIN, BUBBLE_CORNER_MAX)
     }
@@ -250,6 +255,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             favoriteEnabled = s.favoriteBetaEnabled,
             requirePin = s.requirePin,
             historyRetainLimit = s.historyRetainLimit,
+            thumbnailCacheLimitMb = s.thumbnailCacheLimitMb,
             bubbleCornerRadius = s.bubbleCornerRadius,
             messageActionStyle = s.messageActionStyle.name,
             avatarGrouping = s.avatarGrouping.name,
@@ -292,6 +298,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         backup.favoriteEnabled?.let { prefs[Keys.favoriteBeta] = it }
         backup.requirePin?.let { prefs[Keys.requirePin] = it }
         backup.historyRetainLimit?.let { prefs[Keys.retainLimit] = it.coerceAtLeast(-1) }
+        backup.thumbnailCacheLimitMb?.let {
+            prefs[Keys.thumbnailCacheLimitMb] = normalizeThumbnailCacheLimitMb(it)
+        }
         backup.bubbleCornerRadius?.let {
             prefs[Keys.bubbleCorner] = it.coerceIn(BUBBLE_CORNER_MIN, BUBBLE_CORNER_MAX)
         }

@@ -527,6 +527,7 @@ class TransferService : Service() {
         storageBrowsingEnabled = { latestSettings.storageBrowsingEnabled },
         hasStoragePermission = { android.os.Environment.isExternalStorageManager() },
         storageThumbFileProvider = { key -> ServiceLocator.fileStore.storageThumbFile(key) },
+        storageThumbnailCacheMaxBytes = { latestSettings.thumbnailCacheLimitMb * 1024L * 1024L },
     )
 
     /**

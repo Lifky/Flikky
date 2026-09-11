@@ -90,6 +90,8 @@ import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.MessageActionStyle
+import com.example.flikky.data.settings.THUMBNAIL_CACHE_LIMIT_DEFAULT_MB
+import com.example.flikky.data.settings.THUMBNAIL_CACHE_LIMIT_OPTIONS_MB
 import com.example.flikky.data.settings.ThemeMode
 import com.example.flikky.export.ExportFileName
 import com.example.flikky.export.ExportScope
@@ -167,6 +169,7 @@ fun SettingsScreen(
     var showDarkModeDialog by remember { mutableStateOf(false) }
     var showDeviceNameDialog by remember { mutableStateOf(false) }
     var showHistoryLimitDialog by remember { mutableStateOf(false) }
+    var showThumbnailCacheDialog by remember { mutableStateOf(false) }
     var showActionStyleDialog by remember { mutableStateOf(false) }
     var showAvatarGroupingDialog by remember { mutableStateOf(false) }
     var showAnimSpeedDialog by remember { mutableStateOf(false) }
@@ -682,7 +685,7 @@ fun SettingsScreen(
                 // 用固定的上界安全，因为 `segmentedShapes` 只区分
                 // 首行（index 0）/ 末行（index == count - 1）/ 中间行：
                 // 收起后可见的 index 有断档（3..7 缺失）也不影响任何一行的圆角。
-                val sectionItems = 9
+                val sectionItems = 10
                 SettingSection(title = stringResource(R.string.settings_section_data)) {
                     val historySubtitle = when (s.historyRetainLimit) {
                         -1 -> stringResource(R.string.settings_history_unlimited)
@@ -707,6 +710,20 @@ fun SettingsScreen(
                         subtitle = historySubtitle,
                         onClick = { showHistoryLimitDialog = true },
                         index = 1, total = sectionItems,
+                    )
+                    SettingItem(
+                        title = stringResource(R.string.settings_thumbnail_cache),
+                        leadingIcon = painterResource(R.drawable.ic_image),
+                        subtitle = if (s.thumbnailCacheLimitMb == 0) {
+                            stringResource(R.string.settings_thumbnail_cache_none)
+                        } else {
+                            stringResource(
+                                R.string.settings_thumbnail_cache_limit_value,
+                                s.thumbnailCacheLimitMb,
+                            )
+                        },
+                        onClick = { showThumbnailCacheDialog = true },
+                        index = 2, total = sectionItems,
                     )
                     // 与撤回那处同一修法：收成单一子项，gap 归 AnimatedVisibility 内部。
                     SettingExpandableGroup(
@@ -751,7 +768,7 @@ fun SettingsScreen(
                                     )
                                 )
                             },
-                            index = 2, total = sectionItems,
+                            index = 3, total = sectionItems,
                         )
                         },
                     ) {
@@ -764,35 +781,35 @@ fun SettingsScreen(
                                     arrayOf("application/zip", "application/x-zip-compressed")
                                 )
                             },
-                            index = 3, total = sectionItems,
+                            index = 4, total = sectionItems,
                         )
                         SettingItem(
                             title = stringResource(R.string.settings_export_sessions),
                             leadingIcon = painterResource(R.drawable.ic_upload),
                             subtitle = stringResource(R.string.settings_export_sessions_summary),
                             onClick = onExportSessions,
-                            index = 4, total = sectionItems,
+                            index = 5, total = sectionItems,
                         )
                         SettingItem(
                             title = stringResource(R.string.settings_export_favorites),
                             leadingIcon = painterResource(R.drawable.ic_star_border),
                             subtitle = stringResource(R.string.settings_export_favorites_summary),
                             onClick = { exportDestinationScope = ExportScope.FAVORITES },
-                            index = 5, total = sectionItems,
+                            index = 6, total = sectionItems,
                         )
                         SettingItem(
                             title = stringResource(R.string.settings_export_settings),
                             leadingIcon = painterResource(R.drawable.ic_settings_outline),
                             subtitle = stringResource(R.string.settings_export_settings_summary),
                             onClick = { exportDestinationScope = ExportScope.SETTINGS },
-                            index = 6, total = sectionItems,
+                            index = 7, total = sectionItems,
                         )
                         SettingItem(
                             title = stringResource(R.string.settings_export_all),
                             leadingIcon = painterResource(R.drawable.ic_publish),
                             subtitle = stringResource(R.string.settings_export_all_summary),
                             onClick = { exportDestinationScope = ExportScope.ALL },
-                            index = 7, total = sectionItems,
+                            index = 8, total = sectionItems,
                         )
                     }
                     SettingItem(
@@ -1120,6 +1137,50 @@ fun SettingsScreen(
                     modifier = Modifier
                         .padding(horizontal = 24.dp)
                         .padding(top = Spacing.sm),
+                )
+            }
+        }
+    }
+
+    if (showThumbnailCacheDialog) {
+        var selectedLimitMb by remember(s.thumbnailCacheLimitMb) {
+            mutableStateOf(s.thumbnailCacheLimitMb)
+        }
+        ChoiceDialog(
+            title = stringResource(R.string.settings_thumbnail_cache),
+            onDismiss = { showThumbnailCacheDialog = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.setThumbnailCacheLimitMb(selectedLimitMb)
+                    showThumbnailCacheDialog = false
+                }) {
+                    Text(stringResource(R.string.common_confirm))
+                }
+            },
+        ) {
+            Text(
+                text = stringResource(R.string.settings_thumbnail_cache_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = Spacing.sm),
+            )
+            Text(
+                text = stringResource(R.string.settings_thumbnail_cache_limit),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = Spacing.xs),
+            )
+            THUMBNAIL_CACHE_LIMIT_OPTIONS_MB.forEach { limitMb ->
+                val label = when (limitMb) {
+                    0 -> stringResource(R.string.settings_thumbnail_cache_none)
+                    THUMBNAIL_CACHE_LIMIT_DEFAULT_MB -> stringResource(
+                        R.string.settings_thumbnail_cache_default,
+                    )
+                    else -> stringResource(R.string.settings_thumbnail_cache_megabytes, limitMb)
+                }
+                ChoiceRow(
+                    label = label,
+                    selected = selectedLimitMb == limitMb,
+                    onClick = { selectedLimitMb = limitMb },
                 )
             }
         }

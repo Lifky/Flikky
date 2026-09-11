@@ -153,6 +153,10 @@ class SettingsViewModel @JvmOverloads constructor(
         runCatching { sessionRepository.fifoSweep() }
     }
 
+    fun setThumbnailCacheLimitMb(value: Int) = viewModelScope.launch {
+        repository.setThumbnailCacheLimitMb(value)
+    }
+
     fun deleteAllData(resetSettings: Boolean) {
         val context = getApplication<Application>()
         if (ServiceLocator.session.snapshot.value.currentSessionId != null) {

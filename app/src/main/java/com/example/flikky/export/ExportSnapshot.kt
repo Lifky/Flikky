@@ -70,6 +70,7 @@ data class SettingsExport(
     val favoriteEnabled: Boolean? = null,
     val requirePin: Boolean? = null,
     val historyRetainLimit: Int? = null,
+    val thumbnailCacheLimitMb: Int? = null,
     val bubbleCornerRadius: Int? = null,
     val messageActionStyle: String? = null,
     val avatarGrouping: String? = null,

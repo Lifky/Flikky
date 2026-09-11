@@ -69,6 +69,12 @@ const val BUBBLE_CORNER_MIN = 8
 const val BUBBLE_CORNER_MAX = 28
 const val BUBBLE_CORNER_DEFAULT = 10
 const val CUSTOM_THEME_SEED_DEFAULT = 0xFF33618DL
+const val THUMBNAIL_CACHE_LIMIT_DEFAULT_MB = 100
+val THUMBNAIL_CACHE_LIMIT_OPTIONS_MB = listOf(0, 50, 100, 200)
+
+fun normalizeThumbnailCacheLimitMb(value: Int?): Int =
+    value?.takeIf { it in THUMBNAIL_CACHE_LIMIT_OPTIONS_MB }
+        ?: THUMBNAIL_CACHE_LIMIT_DEFAULT_MB
 
 data class FlikkySettings(
     val themeMode: ThemeMode = ThemeMode.PRESET,
@@ -87,6 +93,7 @@ data class FlikkySettings(
     val favoriteBetaEnabled: Boolean = false,
     val requirePin: Boolean = true,
     val historyRetainLimit: Int = 20,   // 0=不保存, -1=无限制
+    val thumbnailCacheLimitMb: Int = THUMBNAIL_CACHE_LIMIT_DEFAULT_MB,
     val bubbleCornerRadius: Int = BUBBLE_CORNER_DEFAULT,   // dp，钳制 8..28
     val messageActionStyle: MessageActionStyle = MessageActionStyle.INLINE,
     val avatarGrouping: AvatarGroupingMode = AvatarGroupingMode.EACH,

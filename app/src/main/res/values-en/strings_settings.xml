@@ -87,6 +87,13 @@
     <string name="settings_history_unlimited">Unlimited</string>
     <string name="settings_history_disabled">Do not save</string>
     <string name="settings_history_default">Default (20)</string>
+    <string name="settings_thumbnail_cache">Thumbnail cache</string>
+    <string name="settings_thumbnail_cache_description">Image and video previews shown while browsing phone storage are cached on this device so they load faster next time.</string>
+    <string name="settings_thumbnail_cache_limit">Limit</string>
+    <string name="settings_thumbnail_cache_limit_value">Limit %1$d MB</string>
+    <string name="settings_thumbnail_cache_default">Default (100 MB)</string>
+    <string name="settings_thumbnail_cache_megabytes">%1$d MB</string>
+    <string name="settings_thumbnail_cache_none">Do not cache</string>
     <plurals name="settings_history_count">
         <item quantity="one">%1$d session</item>
         <item quantity="other">%1$d sessions</item>
