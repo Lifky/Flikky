@@ -42,4 +42,17 @@ class FavoriteFileStoreTest {
         assertTrue(store.deleteAll())
         assertTrue(!File(tmp.root, "favorites").exists())
     }
+
+    @Test fun thumbnailFile_is_owned_by_favorites_store_and_delete_is_idempotent() {
+        val store = store()
+        val thumbnail = store.thumbnailFile(12L).apply { writeBytes(byteArrayOf(9)) }
+
+        assertTrue(thumbnail.exists())
+        assertTrue(thumbnail.absolutePath.endsWith(
+            File.separator + "favorites" + File.separator + "thumbs" + File.separator + "12.jpg",
+        ))
+        assertTrue(store.deleteThumbnail(12L))
+        assertTrue(!thumbnail.exists())
+        assertTrue(store.deleteThumbnail(12L))
+    }
 }

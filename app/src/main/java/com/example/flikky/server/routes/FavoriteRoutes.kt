@@ -9,16 +9,24 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondOutputStream
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import java.io.File
+import java.net.URLConnection
 
 /**
- * 收藏行 id 解析出的落盘文件 + 下载展示用文件名。不携带 mime —— 这个 endpoint 永远按
- * octet-stream 下发（见下方 §4.2 注释），加 mime 字段没有消费者，属于重新引入已删掉的面。
+ * 收藏行 id 解析出的落盘文件、下载展示名与服务端记录的 mime。
+ *
+ * 下载仍默认按 octet-stream 下发；mime 只供缩略图与受白名单约束的 inline 响应使用，
+ * 不接受调用方通过 query 参数覆盖。
  */
-data class FavoriteFileHandle(val file: File, val fileName: String)
+data class FavoriteFileHandle(
+    val file: File,
+    val fileName: String,
+    val mime: String? = null,
+)
 
 /**
  * v1.19.0: 浏览器端收藏 tab 的只读接口。
@@ -34,6 +42,8 @@ fun Route.favoriteRoutes(
     listProvider: suspend () -> FavoritesResponseDto,
     fileResolver: suspend (favoriteId: Long) -> FavoriteFileHandle?,
     enabled: suspend () -> Boolean = { true },
+    favoriteThumbFile: ((Long) -> File)? = null,
+    thumbnailer: ThumbnailGenerator = ThumbnailGenerator { _, _, _ -> false },
 ) {
     fun authed(call: ApplicationCall): Boolean =
         authGate.isAuthorized(call.request.cookies[AUTH_COOKIE])
@@ -97,5 +107,48 @@ fun Route.favoriteRoutes(
                 flush()
             }
         }
+    }
+
+    get("/api/favorites/{id}/thumb") {
+        if (!authed(call)) {
+            call.respond(HttpStatusCode.Unauthorized)
+            return@get
+        }
+        if (!enabled()) {
+            call.respond(HttpStatusCode.NotFound)
+            return@get
+        }
+        val id = call.parameters["id"]?.toLongOrNull()
+        if (id == null) {
+            call.respond(HttpStatusCode.BadRequest)
+            return@get
+        }
+        val handle = fileResolver(id)
+        if (handle == null || !handle.file.isFile) {
+            call.respond(HttpStatusCode.NotFound)
+            return@get
+        }
+        val mime = handle.mime ?: URLConnection.guessContentTypeFromName(handle.fileName)
+        if (mime !in INLINE_MIME_WHITELIST) {
+            call.respond(HttpStatusCode.NotFound)
+            return@get
+        }
+        val target = favoriteThumbFile?.invoke(id) ?: run {
+            call.respond(HttpStatusCode.ServiceUnavailable)
+            return@get
+        }
+        if (target.isFile && target.length() > 0L) {
+            call.respondBytes(target.readBytes(), ContentType.Image.JPEG)
+            return@get
+        }
+        target.delete()
+        val generated = runCatching { thumbnailer.generate(handle.file, mime, target) }
+            .getOrDefault(false)
+        if (!generated || !target.isFile || target.length() == 0L) {
+            target.delete()
+            call.respond(HttpStatusCode.NotFound)
+            return@get
+        }
+        call.respondBytes(target.readBytes(), ContentType.Image.JPEG)
     }
 }

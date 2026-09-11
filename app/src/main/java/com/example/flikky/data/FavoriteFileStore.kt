@@ -27,6 +27,18 @@ class FavoriteFileStore(
 
     fun resolve(depotFileId: String): File = File(favoriteDir(), depotFileId)
 
+    /** favorites/thumbs/{favoriteId}.jpg: derived thumbnails for saved media. */
+    fun thumbnailFile(favoriteId: Long): File {
+        require(favoriteId > 0L) { "invalid favorite id" }
+        return File(File(favoriteDir(), "thumbs"), "$favoriteId.jpg").apply { parentFile?.mkdirs() }
+    }
+
+    fun deleteThumbnail(favoriteId: Long): Boolean {
+        require(favoriteId > 0L) { "invalid favorite id" }
+        val file = File(File(favoriteDir(), "thumbs"), "$favoriteId.jpg")
+        return !file.exists() || file.delete()
+    }
+
     fun delete(depotFileId: String): Boolean {
         val file = resolve(depotFileId)
         if (!file.exists()) return true

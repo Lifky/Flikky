@@ -511,11 +511,16 @@ class TransferService : Service() {
             toFavoritesResponseDto(favorites = favorites, groups = groups)
         },
         favoriteRowFileResolver = { rowId ->
-            ServiceLocator.favoritesRepository.findFavoriteFile(rowId)?.let { (file, fileName) ->
-                com.example.flikky.server.routes.FavoriteFileHandle(file, fileName)
+            ServiceLocator.favoritesRepository.findFavoriteFileDetails(rowId)?.let { details ->
+                com.example.flikky.server.routes.FavoriteFileHandle(
+                    file = details.file,
+                    fileName = details.fileName,
+                    mime = details.mime,
+                )
             }
         },
         favoriteEnabled = { latestSettings.favoriteBetaEnabled },
+        favoriteThumbFileProvider = { id -> ServiceLocator.favoriteFileStore.thumbnailFile(id) },
         // 存储浏览：主开关只门控对端（App 端自己的文件 tab 不受它约束）。
         // Environment 只出现在这里与 ServiceLocator —— server 包不认识它。
         storageBrowserProvider = { ServiceLocator.storageBrowser },

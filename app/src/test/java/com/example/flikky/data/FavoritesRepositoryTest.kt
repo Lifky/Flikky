@@ -211,6 +211,34 @@ class FavoritesRepositoryTest {
         assertNull(repo.findFavoriteFile(404L))
     }
 
+    @Test fun findFavoriteFileDetails_preserves_the_recorded_mime_without_relying_on_extension() = runTest {
+        sessionFileStore.archiveFromStream(
+            sessionId = 9L,
+            fileId = "source-image",
+            source = "payload".byteInputStream(),
+        )
+        val favoriteId = repo.favoriteFile(
+            sid = 9L,
+            sessionName = "files",
+            msg = Message.File(
+                id = 100L,
+                origin = Origin.BROWSER,
+                timestamp = 1L,
+                fileId = "source-image",
+                name = "cover",
+                sizeBytes = 7L,
+                mime = "image/png",
+                status = Message.File.Status.COMPLETED,
+            ),
+            groupId = null,
+        )
+
+        val handle = repo.findFavoriteFileDetails(favoriteId)
+        assertEquals("cover", handle?.fileName)
+        assertEquals("image/png", handle?.mime)
+        assertArrayEquals("payload".toByteArray(), handle?.file?.readBytes())
+    }
+
     @Test fun snapshot_reads_favorites_and_groups_without_registering_a_flow_observer() = runTest {
         clock = 40L
         val groupId = repo.createGroup("常用")
@@ -347,8 +375,10 @@ class FavoritesRepositoryTest {
         assertEquals(listOf(file), repo.search(repo.observeFavorites().first(), "BETA").map { it.id })
         assertEquals(repo.observeFavorites().first().map { it.id }, repo.search(repo.observeFavorites().first(), "").map { it.id })
 
+        val thumbnail = favoriteFileStore.thumbnailFile(file).apply { writeBytes(byteArrayOf(9)) }
         repo.deleteFavorite(file)
         assertTrue(!favoriteFileStore.resolve("depot-40").exists())
+        assertTrue(!thumbnail.exists())
 
         repo.deleteFavorites(listOf(text))
         assertTrue(repo.observeFavorites().first().isEmpty())

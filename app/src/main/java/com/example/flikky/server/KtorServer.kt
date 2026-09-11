@@ -86,6 +86,8 @@ class KtorServer(
     private val favoriteRowFileResolver: suspend (Long) -> com.example.flikky.server.routes.FavoriteFileHandle? = { null },
     /** v1.19.0 fix wave：favoriteBetaEnabled 功能开关；默认关闭，收藏接口在关闭时统一回 404。 */
     private val favoriteEnabled: suspend () -> Boolean = { false },
+    /** Favorite thumbnail path owned by FavoriteFileStore; resolved per request. */
+    private val favoriteThumbFileProvider: ((Long) -> File)? = null,
     /** Web thumbnail generator. TransferService supplies the Android implementation. */
     private val thumbnailGenerator: ThumbnailGenerator = ThumbnailGenerator { _, _, _ -> false },
     /**
@@ -218,6 +220,8 @@ class KtorServer(
             listProvider = favoritesProvider,
             fileResolver = favoriteRowFileResolver,
             enabled = favoriteEnabled,
+            favoriteThumbFile = favoriteThumbFileProvider,
+            thumbnailer = thumbnailGenerator,
         )
         // 挂在传输模式这侧而非 authRoutes：后者两种模式都注册，会让导出模式也暴露存储接口。
         storageRoutes(

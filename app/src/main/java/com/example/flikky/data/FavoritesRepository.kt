@@ -25,6 +25,12 @@ class FavoritesRepository(
     private val depotIdFactory: () -> String = { UUID.randomUUID().toString() },
     private val localSourceMessageIdFactory: () -> Long = { IdGen.newMessageId() },
 ) {
+    data class FavoriteFileDetails(
+        val file: File,
+        val fileName: String,
+        val mime: String?,
+    )
+
     data class ExportData(
         val groups: List<FavoriteGroupExport>,
         val favorites: List<FavoriteExport>,
@@ -147,6 +153,7 @@ class FavoritesRepository(
     suspend fun deleteFavorite(id: Long) {
         val row = favoriteDao.getById(id) ?: return
         favoriteDao.deleteById(id)
+        favoriteFileStore.deleteThumbnail(id)
         row.fileId?.let { favoriteFileStore.delete(it) }
     }
 
@@ -156,10 +163,18 @@ class FavoritesRepository(
      * fileName 为空（历史脏数据）时回退成 depot id，不让浏览器下到一个空文件名。
      */
     suspend fun findFavoriteFile(id: Long): Pair<File, String>? {
+        return findFavoriteFileDetails(id)?.let { it.file to it.fileName }
+    }
+
+    suspend fun findFavoriteFileDetails(id: Long): FavoriteFileDetails? {
         val row = favoriteDao.getById(id) ?: return null
         val depotId = row.fileId ?: return null
         val file = favoriteFileStore.resolve(depotId).takeIf { it.isFile } ?: return null
-        return file to (row.fileName ?: depotId)
+        return FavoriteFileDetails(
+            file = file,
+            fileName = row.fileName ?: depotId,
+            mime = row.fileMime,
+        )
     }
 
     suspend fun deleteFavorites(ids: List<Long>) {
