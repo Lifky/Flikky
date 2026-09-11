@@ -814,6 +814,15 @@
                 path,
                 url: thumbnailUrl(path),
                 alt: entry.name,
+                onClick: function () {
+                    const open = window.flikky && window.flikky.openLightbox;
+                    if (typeof open !== 'function') return;
+                    open({
+                        kind: mediaKind,
+                        fullUrl: downloadUrl(path) + '&inline=1',
+                        thumbnailUrl: thumbnailUrl(path),
+                    });
+                },
                 onError: function () {
                     while (wrap.firstChild) wrap.removeChild(wrap.firstChild);
                     wrap.classList.remove('fk-item-lead--thumb');

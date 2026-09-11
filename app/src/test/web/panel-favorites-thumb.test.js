@@ -30,6 +30,7 @@ function load(items) {
   const doc = createDocument();
   const root = buildSkeleton(doc);
   const requestedThumbs = [];
+  const previews = [];
   const originalCreate = doc.createElement.bind(doc);
   doc.createElement = (tag) => {
     const el = originalCreate(tag);
@@ -75,13 +76,14 @@ function load(items) {
       }
       return null;
     },
+    openLightbox: (options) => { previews.push(options); },
   };
   vm.createContext(ctx);
   vm.runInContext(leadingTypes, ctx, { filename: 'leading-types.js' });
   vm.runInContext(leading, ctx, { filename: 'leading.js' });
   vm.runInContext(favorites, ctx, { filename: 'panel-favorites.js' });
   ctx.flikkyPanels.favorites.mount(root);
-  return { doc, requestedThumbs };
+  return { doc, requestedThumbs, previews };
 }
 
 const flush = async (n = 12) => { for (let i = 0; i < n; i += 1) await Promise.resolve(); };
@@ -122,6 +124,21 @@ test('favorite thumbnail errors restore the existing type icon', async () => {
   assert.equal(lead.children.some((el) => el.tagName === 'IMG'), false);
   assert.ok(byClass(lead, 'material-symbols-outlined').length > 0,
     'the failed thumbnail must leave the original file-type icon');
+});
+
+test('clicking a favorite thumbnail previews it without selecting its row', async () => {
+  const c = load([file(7, 'photo.jpg', 'image/jpeg')]);
+  await flush();
+  const image = c.doc.created.find((el) => el.tagName === 'IMG');
+  const row = byClass(c.doc.getElementById('fav-list'), 'fk-item')[0];
+  image.click();
+  assert.deepEqual(JSON.parse(JSON.stringify(c.previews)), [{
+    kind: 'image',
+    fullUrl: '/api/favorites/7/file?inline=1',
+    thumbnailUrl: '/api/favorites/7/thumb',
+  }]);
+  assert.equal(row.getAttribute('aria-selected'), 'false',
+    'thumbnail click must not bubble into the row-selection action');
 });
 
 test('storage and favorites share the one thumbnail lifecycle implementation', () => {

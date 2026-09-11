@@ -29,6 +29,7 @@ function load(entries, { viewport = 600 } = {}) {
   const doc = createDocument();
   const view = doc.register('view-files');
   const requestedThumbs = [];
+  const previews = [];
   const originalCreate = doc.createElement.bind(doc);
   doc.createElement = (tag) => {
     const el = originalCreate(tag);
@@ -81,6 +82,7 @@ function load(entries, { viewport = 600 } = {}) {
           }
           return null;
         },
+        openLightbox: (options) => { previews.push(options); },
       },
       flikkyI18n: { t: (key) => key, onChange: () => {} },
     },
@@ -96,7 +98,7 @@ function load(entries, { viewport = 600 } = {}) {
   api.mount(view);
   body(view).clientHeight = viewport;
   api.setEnabled(true);
-  return { doc, view, api, requestedThumbs };
+  return { doc, view, api, requestedThumbs, previews };
 }
 
 const file = (name, mime) => ({
@@ -163,6 +165,21 @@ test('thumbnail errors restore the type icon instead of leaving an empty leading
   assert.equal(byClass(wrapper, 'fk-item-lead--thumb').length, 0);
   assert.equal(images(c.view).length, 0, 'the failed image must be removed');
   assert.ok(icons(wrapper).length > 0, 'the leading type icon must be restored');
+});
+
+test('clicking a storage thumbnail previews it without selecting its row', async () => {
+  const c = load([file('photo.jpg', 'image/jpeg')]);
+  await tick();
+  const row = rows(c.view)[0];
+  const img = images(c.view)[0];
+  img.click();
+  assert.deepEqual(JSON.parse(JSON.stringify(c.previews)), [{
+    kind: 'image',
+    fullUrl: '/api/storage/file?path=photo.jpg&inline=1',
+    thumbnailUrl: '/api/storage/thumb?path=photo.jpg',
+  }]);
+  assert.equal(row.getAttribute('aria-selected'), 'false',
+    'thumbnail click must not bubble into the row-selection action');
 });
 
 test('thumbnail content keeps the fixed 8dp shape instead of the leading clip path', () => {

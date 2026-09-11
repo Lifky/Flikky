@@ -79,6 +79,12 @@
       if (img.dataset.forPath !== path || !img.src) return;
       if (typeof options.onError === 'function') options.onError();
     });
+    if (typeof options.onClick === 'function') {
+      img.addEventListener('click', function (event) {
+        event.stopPropagation();
+        options.onClick();
+      });
+    }
     lead.appendChild(img);
     img.src = String(options.url || '');
     return img;

@@ -290,6 +290,15 @@
                 path: String(item.id),
                 url: `/api/favorites/${item.id}/thumb`,
                 alt: item.fileName || '',
+                onClick: function () {
+                    const open = window.flikky && window.flikky.openLightbox;
+                    if (typeof open !== 'function') return;
+                    open({
+                        kind: mediaKind,
+                        fullUrl: `/api/favorites/${item.id}/file?inline=1`,
+                        thumbnailUrl: `/api/favorites/${item.id}/thumb`,
+                    });
+                },
                 onError: function () {
                     while (lead.firstChild) lead.removeChild(lead.firstChild);
                     lead.classList.remove('fk-item-lead--thumb');

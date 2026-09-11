@@ -784,9 +784,20 @@
 
     function executeMessageAction(action, bubble) {
         if (action.kind === 'copy') { copyBubbleText(bubble); return; }
-        if (action.kind === 'preview') { openLightbox(bubble.dataset.fileId, mediaKind(bubble.dataset.mime)); return; }
+        if (action.kind === 'preview') {
+            openSessionLightbox(bubble.dataset.fileId, mediaKind(bubble.dataset.mime));
+            return;
+        }
         if (action.kind === 'download') { triggerDownload(bubble.dataset.fileId, bubble.dataset.name || ''); return; }
         if (action.kind === 'recall') { confirmRecallMessage(bubble.dataset.messageId); }
+    }
+
+    function openSessionLightbox(fileId, kind) {
+        openLightbox({
+            kind,
+            fullUrl: `/api/files/${fileId}?inline=1`,
+            thumbnailUrl: `/api/files/${fileId}/thumb`,
+        });
     }
 
     function triggerDownload(fileId, name) {
@@ -952,7 +963,7 @@
         }
         wrap.addEventListener('click', () => {
             if (bubble.classList.contains('failed')) return;
-            openLightbox(fileId, kind);
+            openSessionLightbox(fileId, kind);
         });
         bubble.appendChild(wrap);
 
@@ -1868,19 +1879,26 @@
         if (e.key === 'Escape') closeLightbox();
     }
 
-    function openLightbox(fileId, kind) {
+    function openLightbox(options) {
         if (!lightbox || !lightboxContent) return;
         closeLightbox();
+        const kind = options && options.kind;
+        const fullUrl = String(options && options.fullUrl || '');
+        const thumbnailUrl = String(options && options.thumbnailUrl || '');
         let el;
         if (kind === 'video') {
             el = document.createElement('video');
             el.controls = true;
             el.autoplay = true;
-            el.src = `/api/files/${fileId}?inline=1`;
+            el.poster = thumbnailUrl;
+            el.src = fullUrl;
         } else {
             el = document.createElement('img');
-            el.src = `/api/files/${fileId}?inline=1`;
+            el.src = thumbnailUrl;
             el.alt = '';
+            const full = new Image();
+            full.addEventListener('load', function () { el.src = fullUrl; });
+            full.src = fullUrl;
         }
         el.className = 'lightbox-media';
         lightboxContent.appendChild(el);
@@ -2101,6 +2119,7 @@
     // 分类图标映射的唯一事实源，供收藏面板取用（见 fileSymbolName 处的注释）。
     window.flikky.fileSymbolName = fileSymbolName;
     window.flikky.mediaKind = mediaKind;
+    window.flikky.openLightbox = openLightbox;
     // 字节格式化：本文件与 panel-favorites.js 各有一份语义相同的实现（backlog 待收敛）。
     // 新面板一律用这个导出，不要再造第四份。
     window.flikky.formatSize = formatSize;
