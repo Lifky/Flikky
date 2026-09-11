@@ -1,0 +1,30 @@
+{
+  "note": "两端测试读同一份；inlineable 必须与 FileRoutes.INLINE_MIME_WHITELIST 逐项一致。",
+  "thumbnailable": [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "video/mp4",
+    "video/webm",
+    "video/3gpp",
+    "video/quicktime",
+    "video/x-matroska"
+  ],
+  "inlineable": [
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "video/mp4",
+    "video/webm",
+    "video/3gpp",
+    "video/quicktime",
+    "video/x-matroska"
+  ],
+  "excluded": [
+    "image/svg+xml",
+    "application/pdf",
+    "text/plain"
+  ]
+}
