@@ -82,17 +82,19 @@ fun Route.favoriteRoutes(
             return@get
         }
 
-        // 收藏面板只提供“下载”，没有预览/lightbox（spec §4.2），所以这里刻意不提供 inline：
-        // 调用方不能选择渲染的 Content-Type，永远按 attachment + octet-stream 下发。
+        // inline 只对白名单中的服务端 mime 开放（设计 §2.3）。调用方不能通过 query
+        // 选择 Content-Type；白名单外（尤其 SVG）仍按 attachment + octet-stream 下发。
+        val inline = call.request.queryParameters["inline"] == "1" &&
+            handle.mime != null && handle.mime in INLINE_MIME_WHITELIST
         call.response.header(
             HttpHeaders.ContentDisposition,
-            ContentDisposition.Attachment
+            (if (inline) ContentDisposition.Inline else ContentDisposition.Attachment)
                 .withParameter(ContentDisposition.Parameters.FileName, handle.fileName)
                 .toString(),
         )
         call.response.header(HttpHeaders.ContentLength, handle.file.length().toString())
         call.respondOutputStream(
-            contentType = ContentType.Application.OctetStream,
+            contentType = if (inline) ContentType.parse(handle.mime!!) else ContentType.Application.OctetStream,
             status = HttpStatusCode.OK,
         ) {
             // 收藏下载不计入 TransferStats：这是设计裁决（收藏是本机存量数据，不是这次会话

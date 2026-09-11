@@ -160,24 +160,85 @@ class FavoriteRoutesTest {
     }
 
     @Test
-    fun `GET favorite file ignores inline and mime query params and always downloads as octet-stream`() =
-        testApplication {
-            // R7: the favorites panel only offers download, never preview/lightbox (spec §4.2),
-            // so this endpoint must not let the caller pick the rendered Content-Type -- even
-            // when a client tries to force inline SVG rendering (a script-execution vector).
-            val f = tmp.newFile("payload.bin").apply { writeBytes(byteArrayOf(9)) }
-            application(
-                setupApp(fileResolver = { id -> if (id == 12L) FavoriteFileHandle(f, "payload.bin") else null }),
-            )
-            val http = createClient { install(HttpCookies) }
-            authenticate(http)
+    fun `GET favorite image file may render inline with its recorded mime`() = testApplication {
+        val f = tmp.newFile("photo.bin").apply { writeBytes(byteArrayOf(9)) }
+        application(
+            setupApp(fileResolver = { id ->
+                if (id == 12L) FavoriteFileHandle(f, "photo.jpg", "image/jpeg") else null
+            }),
+        )
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
 
-            val resp: HttpResponse = http.get("/api/favorites/12/file?inline=1&mime=image/svg+xml")
-            assertEquals(HttpStatusCode.OK, resp.status)
-            val cd = resp.headers[HttpHeaders.ContentDisposition] ?: ""
-            assertEquals(true, cd.startsWith("attachment"))
-            assertEquals("application/octet-stream", resp.headers[HttpHeaders.ContentType])
-        }
+        val resp = http.get("/api/favorites/12/file?inline=1")
+        assertEquals(HttpStatusCode.OK, resp.status)
+        assertEquals(true, resp.headers[HttpHeaders.ContentDisposition]!!.startsWith("inline"))
+        assertEquals(true, resp.headers[HttpHeaders.ContentType]!!.startsWith("image/jpeg"))
+    }
+
+    @Test
+    fun `GET favorite inline falls back for a non allowlisted mime`() = testApplication {
+        val f = tmp.newFile("document.bin").apply { writeBytes(byteArrayOf(9)) }
+        application(
+            setupApp(fileResolver = { id ->
+                if (id == 12L) FavoriteFileHandle(f, "document.pdf", "application/pdf") else null
+            }),
+        )
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        val resp = http.get("/api/favorites/12/file?inline=1")
+        assertEquals(true, resp.headers[HttpHeaders.ContentDisposition]!!.startsWith("attachment"))
+        assertEquals("application/octet-stream", resp.headers[HttpHeaders.ContentType])
+    }
+
+    @Test
+    fun `GET favorite SVG never renders inline`() = testApplication {
+        val f = tmp.newFile("vector.bin").apply { writeBytes(byteArrayOf(9)) }
+        application(
+            setupApp(fileResolver = { id ->
+                if (id == 12L) FavoriteFileHandle(f, "vector.svg", "image/svg+xml") else null
+            }),
+        )
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        val resp = http.get("/api/favorites/12/file?inline=1")
+        assertEquals(true, resp.headers[HttpHeaders.ContentDisposition]!!.startsWith("attachment"))
+        assertEquals("application/octet-stream", resp.headers[HttpHeaders.ContentType])
+    }
+
+    @Test
+    fun `GET favorite file remains an attachment without inline`() = testApplication {
+        val f = tmp.newFile("clip.bin").apply { writeBytes(byteArrayOf(9)) }
+        application(
+            setupApp(fileResolver = { id ->
+                if (id == 12L) FavoriteFileHandle(f, "clip.mp4", "video/mp4") else null
+            }),
+        )
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        val resp = http.get("/api/favorites/12/file")
+        assertEquals(true, resp.headers[HttpHeaders.ContentDisposition]!!.startsWith("attachment"))
+        assertEquals("application/octet-stream", resp.headers[HttpHeaders.ContentType])
+    }
+
+    @Test
+    fun `GET favorite file ignores a forged mime query`() = testApplication {
+        val f = tmp.newFile("document-forged.bin").apply { writeBytes(byteArrayOf(9)) }
+        application(
+            setupApp(fileResolver = { id ->
+                if (id == 12L) FavoriteFileHandle(f, "document.pdf", "application/pdf") else null
+            }),
+        )
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+
+        val resp = http.get("/api/favorites/12/file?inline=1&mime=image/jpeg")
+        assertEquals(true, resp.headers[HttpHeaders.ContentDisposition]!!.startsWith("attachment"))
+        assertEquals("application/octet-stream", resp.headers[HttpHeaders.ContentType])
+    }
 
     @Test
     fun `GET favorite file returns 404 when the row or file is gone`() = testApplication {

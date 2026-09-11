@@ -90,9 +90,8 @@ interface StorageBrowser {
  * [browser] 是 `() -> StorageBrowser?` 而非 `StorageBrowser`：跨 Wi-Fi rebind 时 KtorServer
  * 整组被替换，直接持有实例会变成死引用（CLAUDE.md 的 rebind 引用规范，本项目踩过三次）。
  *
- * **刻意不提供 `?inline=1`**：存储面板首版只有下载、没有预览/lightbox（spec 5.3），
- * 所以 inline 没有任何消费者，而它会把「用什么 Content-Type 渲染」的选择权交给调用方，
- * 等于白送一个同源 XSS 面。与 [favoriteRoutes] 同一裁决。
+ * `?inline=1` 只对白名单中的服务端 mime 开放（设计 §2.3）；调用方不能选择 Content-Type，
+ * 白名单外（尤其可执行脚本的 SVG）仍按 attachment + octet-stream 下发。
  *
  * `?sort=` 是只读视图参数：在门禁之后解析，非法即回落默认顺序，**不产生新的状态码分支**。
  */
@@ -202,7 +201,12 @@ fun Route.storageRoutes(
         if (!call.passesGate()) return@get
         val b = browser() ?: run { call.respond(HttpStatusCode.ServiceUnavailable); return@get }
         when (val result = b.open(call.request.queryParameters["path"].orEmpty())) {
-            is StorageResult.Ok -> call.respondStorageFile(result.value)
+            is StorageResult.Ok -> {
+                val handle = result.value
+                val inline = call.request.queryParameters["inline"] == "1" &&
+                    handle.mime in INLINE_MIME_WHITELIST
+                call.respondStorageFile(handle, inline)
+            }
             else -> call.respondFailure(result)
         }
     }
@@ -289,19 +293,26 @@ fun Route.storageRoutes(
  * 下载一个存储文件。header 与 64KB 泵**逐行照 [favoriteRoutes] 的下载那半**，
  * 不新写一份——两份下载实现迟早会在 header 细节上分叉。
  *
- * 与那边一致：永远 attachment + octet-stream，调用方不能选择渲染类型。
+ * 默认 attachment + octet-stream；只有路由用服务端 mime 命中白名单后，才允许 inline。
+ * 调用方不能选择渲染类型。
  * 文件名沿用项目既有的 `ContentDisposition.withParameter` 写法（本项目三处下载路由
  * 都是这一套；只在这一处改成 RFC 5987 反而会制造不一致）。
  */
-private suspend fun ApplicationCall.respondStorageFile(handle: StorageFileHandle) {
+private suspend fun ApplicationCall.respondStorageFile(
+    handle: StorageFileHandle,
+    inline: Boolean,
+) {
     response.header(
         HttpHeaders.ContentDisposition,
-        ContentDisposition.Attachment
+        (if (inline) ContentDisposition.Inline else ContentDisposition.Attachment)
             .withParameter(ContentDisposition.Parameters.FileName, handle.fileName)
             .toString(),
     )
     response.header(HttpHeaders.ContentLength, handle.file.length().toString())
-    respondOutputStream(contentType = ContentType.Application.OctetStream, status = HttpStatusCode.OK) {
+    respondOutputStream(
+        contentType = if (inline) ContentType.parse(handle.mime) else ContentType.Application.OctetStream,
+        status = HttpStatusCode.OK,
+    ) {
         handle.file.inputStream().use { input ->
             val buf = ByteArray(64 * 1024)
             while (true) {
