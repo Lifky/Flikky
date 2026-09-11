@@ -20,7 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.example.flikky.R
-import com.example.flikky.ui.components.formatSize
+import com.example.flikky.util.formatBytes
 import com.example.flikky.ui.theme.Motion
 
 /**
@@ -108,14 +108,14 @@ fun StorageSelectionFab(
                             stringResource(
                                 R.string.serving_storage_send_n_elsewhere,
                                 summary.count,
-                                formatSize(summary.totalBytes),
+                                formatBytes(summary.totalBytes),
                                 elsewhere,
                             )
                         } else {
                             stringResource(
                                 R.string.serving_storage_send_n,
                                 summary.count,
-                                formatSize(summary.totalBytes),
+                                formatBytes(summary.totalBytes),
                             )
                         },
                     )

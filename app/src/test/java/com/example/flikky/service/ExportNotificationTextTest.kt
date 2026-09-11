@@ -12,10 +12,10 @@ import org.junit.Test
 class ExportNotificationTextTest {
 
     @Test
-    fun `empty snapshot summarizes 0 sessions and 0 MB`() {
+    fun `empty snapshot summarizes 0 sessions and 0 B`() {
         val snap = ExportSnapshot(sessions = emptyList(), exportedAt = 0L)
         assertEquals(
-            ExportNotificationText.Summary(ExportScope.SESSIONS, 0, "0 MB"),
+            ExportNotificationText.Summary(ExportScope.SESSIONS, 0, "0 B"),
             ExportNotificationText.summary(snap),
         )
     }
@@ -32,7 +32,7 @@ class ExportNotificationTextTest {
             ),
         )
         assertEquals(1, ExportNotificationText.summary(snap).itemCount)
-        assertEquals("0 MB", ExportNotificationText.summary(snap).formattedBytes)
+        assertEquals("0 B", ExportNotificationText.summary(snap).formattedBytes)
     }
 
     @Test
@@ -55,7 +55,7 @@ class ExportNotificationTextTest {
             ),
         )
         assertEquals(2, ExportNotificationText.summary(snap).itemCount)
-        assertEquals("5 MB", ExportNotificationText.summary(snap).formattedBytes)
+        assertEquals("5.0 MB", ExportNotificationText.summary(snap).formattedBytes)
     }
 
     @Test
@@ -67,7 +67,7 @@ class ExportNotificationTextTest {
             ),
         )
         // 500 KB / 1024 = 0.488 MB → shown as "500 KB"
-        assertEquals("500 KB", ExportNotificationText.summary(snap).formattedBytes)
+        assertEquals("500.0 KB", ExportNotificationText.summary(snap).formattedBytes)
     }
 
     @Test
@@ -102,7 +102,7 @@ class ExportNotificationTextTest {
             ),
         )
         assertEquals(
-            ExportNotificationText.Summary(ExportScope.FAVORITES, 1, "2 KB"),
+            ExportNotificationText.Summary(ExportScope.FAVORITES, 1, "2.0 KB"),
             ExportNotificationText.summary(snap),
         )
     }

@@ -45,6 +45,7 @@ import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.theme.Spacing
 import com.example.flikky.export.ExportScope
 import com.example.flikky.R
+import com.example.flikky.util.formatBytes
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -213,8 +214,8 @@ private fun SendingContent(
         Text(
             text = stringResource(
                 R.string.exporting_progress,
-                formatSize(bytesSent),
-                formatSize(totalBytes),
+                formatBytes(bytesSent),
+                formatBytes(totalBytes),
             ),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -342,11 +343,4 @@ private fun DoneContent(
             },
         )
     }
-}
-
-private fun formatSize(bytes: Long): String {
-    if (bytes < 0) return "--"
-    if (bytes >= 1024L * 1024L) return "%.1f MB".format(bytes / 1048576.0)
-    if (bytes >= 1024L) return "%.1f KB".format(bytes / 1024.0)
-    return "$bytes B"
 }

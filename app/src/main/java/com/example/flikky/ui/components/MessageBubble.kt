@@ -51,6 +51,7 @@ import com.example.flikky.session.Message
 import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.files.iconResource
 import com.example.flikky.util.MediaThumbLayout
+import com.example.flikky.util.formatBytes
 import com.example.flikky.session.Origin
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Spacing
@@ -223,7 +224,7 @@ private fun MediaBubbleContent(
             }
         }
         Text(
-            text = "${msg.name}  ·  ${formatSize(msg.sizeBytes)}",
+            text = "${msg.name}  ·  ${formatBytes(msg.sizeBytes)}",
             color = fg.copy(alpha = 0.85f),
             style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
@@ -276,7 +277,7 @@ private fun FileBubbleContent(
                 text = if (isDeleted) {
                     stringResource(R.string.file_deleted)
                 } else {
-                    listOfNotNull(formatSize(msg.sizeBytes), status).joinToString("  ·  ")
+                    listOfNotNull(formatBytes(msg.sizeBytes), status).joinToString("  ·  ")
                 },
                 color = if (isDeleted) contentColor else fg.copy(alpha = 0.75f),
                 style = MaterialTheme.typography.bodySmall,
@@ -292,11 +293,4 @@ private fun FileBubbleContent(
             }
         }
     }
-}
-
-internal fun formatSize(bytes: Long): String {
-    if (bytes < 0) return "--"
-    if (bytes >= 1024L * 1024L) return "%.1f MB".format(bytes / 1048576.0)
-    if (bytes >= 1024L) return "%.1f KB".format(bytes / 1024.0)
-    return "$bytes B"
 }

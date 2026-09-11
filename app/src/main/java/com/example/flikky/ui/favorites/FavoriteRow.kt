@@ -47,7 +47,7 @@ import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.files.iconResource
 import com.example.flikky.ui.theme.Spacing
-import java.text.DecimalFormat
+import com.example.flikky.util.formatBytes
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -349,15 +349,3 @@ private fun FavoriteEntity.subtitle(): String =
 
 private val dateFormatter = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
 private fun formatTime(ms: Long): String = dateFormatter.format(Date(ms))
-
-private fun formatBytes(bytes: Long): String {
-    if (bytes < 1024) return "$bytes B"
-    val units = listOf("KB", "MB", "GB")
-    var value = bytes / 1024.0
-    var index = 0
-    while (value >= 1024 && index < units.lastIndex) {
-        value /= 1024.0
-        index++
-    }
-    return "${DecimalFormat("#.#").format(value)} ${units[index]}"
-}

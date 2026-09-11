@@ -1,6 +1,7 @@
 package com.example.flikky.export
 
 import com.example.flikky.session.Origin
+import com.example.flikky.util.formatBytes
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,7 +48,7 @@ object MessagesTextFormatter {
                 is MessageExport.File -> sb.append("[文件] ")
                     .append(msg.name)
                     .append(" (")
-                    .append(formatSize(msg.sizeBytes))
+                    .append(formatBytes(msg.sizeBytes))
                     .append(')')
             }
             sb.append('\n')
@@ -59,12 +60,5 @@ object MessagesTextFormatter {
     private fun formatOrigin(origin: Origin): String = when (origin) {
         Origin.PHONE -> "[PHONE  ]"
         Origin.BROWSER -> "[BROWSER]"
-    }
-
-    private fun formatSize(bytes: Long): String {
-        if (bytes < 0) return "--"
-        if (bytes >= 1024L * 1024L) return "%.1f MB".format(bytes / 1048576.0)
-        if (bytes >= 1024L) return "%.1f KB".format(bytes / 1024.0)
-        return "$bytes B"
     }
 }

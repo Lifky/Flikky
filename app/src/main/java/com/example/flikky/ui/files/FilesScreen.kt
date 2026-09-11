@@ -88,7 +88,7 @@ import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.SortMenuAction
 import com.example.flikky.ui.components.flikkyItemAnimation
-import com.example.flikky.ui.components.formatSize
+import com.example.flikky.util.formatBytes
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.openStoredFile
 import com.example.flikky.ui.components.saveToGallery
@@ -411,7 +411,7 @@ fun FilesScreen(
                     text = stringResource(
                         R.string.files_stats,
                         stats.count,
-                        formatSize(stats.totalBytes),
+                        formatBytes(stats.totalBytes),
                     ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -676,9 +676,9 @@ fun FilesScreen(
         val selectedSize = deletable.sumOf { it.fileSize ?: 0L }
         val hasActive = targets.any { it.sessionEndedAt == null }
         val message = if (targets.size == 1) {
-            context.getString(R.string.files_delete_text_single, formatSize(selectedSize))
+            context.getString(R.string.files_delete_text_single, formatBytes(selectedSize))
         } else {
-            context.getString(R.string.files_delete_text_batch, formatSize(selectedSize))
+            context.getString(R.string.files_delete_text_batch, formatBytes(selectedSize))
         } + if (hasActive) {
             "\n\n${context.getString(R.string.files_delete_in_progress_hint)}"
         } else {
@@ -701,7 +701,7 @@ fun FilesScreen(
                         if (deleted == requested) {
                             context.getString(
                                 R.string.files_delete_done,
-                                formatSize(selectedSize),
+                                formatBytes(selectedSize),
                             )
                         } else {
                             context.getString(
@@ -784,7 +784,7 @@ private fun FileOverviewItem(
     // 不含会话名：单行副标题放不下四段，会话名最长且可从会话上下文获知，优先保大小/日期可见。
     val subtitle = listOf(
         direction,
-        formatSize(row.fileSize ?: 0L),
+        formatBytes(row.fileSize ?: 0L),
         formatFileDate(row.timestamp),
     ).joinToString(" · ")
 

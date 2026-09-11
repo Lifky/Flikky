@@ -50,7 +50,7 @@ import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.ui.components.FileLeadingVisual
-import com.example.flikky.ui.components.formatSize
+import com.example.flikky.util.formatBytes
 import com.example.flikky.ui.components.sessionFile
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.files.FileCategory
@@ -252,7 +252,7 @@ private fun FileQuickRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "${formatSize(row.fileSize ?: 0L)} · ${row.sessionName}",
+                text = "${formatBytes(row.fileSize ?: 0L)} · ${row.sessionName}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,

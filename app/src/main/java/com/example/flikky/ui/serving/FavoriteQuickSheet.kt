@@ -60,6 +60,7 @@ import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.files.iconResource
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Spacing
+import com.example.flikky.util.formatBytes
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -396,16 +397,4 @@ private fun searchFavorites(all: List<FavoriteEntity>, query: String): List<Favo
         favorite.textContent?.contains(trimmed, ignoreCase = true) == true ||
             favorite.fileName?.contains(trimmed, ignoreCase = true) == true
     }
-}
-
-private fun formatBytes(bytes: Long): String {
-    if (bytes < 1024) return "$bytes B"
-    val units = listOf("KB", "MB", "GB")
-    var value = bytes / 1024.0
-    var index = 0
-    while (value >= 1024 && index < units.lastIndex) {
-        value /= 1024.0
-        index++
-    }
-    return "${java.text.DecimalFormat("#.#").format(value)} ${units[index]}"
 }

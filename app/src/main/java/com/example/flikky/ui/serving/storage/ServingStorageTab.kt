@@ -70,7 +70,7 @@ import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.SortMenuAction
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.components.flikkyItemAnimation
-import com.example.flikky.ui.components.formatSize
+import com.example.flikky.util.formatBytes
 import com.example.flikky.ui.files.FileCategory
 import com.example.flikky.ui.files.FilesListBuilder
 import com.example.flikky.ui.files.iconResource
@@ -612,7 +612,7 @@ private fun StorageEntryRow(
                 entry.isDir -> entry.childCount
                     ?.let { stringResource(R.string.serving_storage_items, it) }
                     ?: stringResource(R.string.serving_storage_folder)
-                else -> formatSize(entry.size) + " · " + formatEntryDate(entry.mtime)
+                else -> formatBytes(entry.size) + " · " + formatEntryDate(entry.mtime)
             },
             style = MaterialTheme.typography.bodySmall,
             maxLines = 1,
