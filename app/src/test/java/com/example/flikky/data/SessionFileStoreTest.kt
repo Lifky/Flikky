@@ -1,6 +1,7 @@
 package com.example.flikky.data
 
 import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -104,6 +105,18 @@ class SessionFileStoreTest {
 
         assertTrue(s.deleteStorageThumbnailCache())
         assertTrue(!cache.resolve("storage-thumbs").exists())
+    }
+
+    @Test fun storageThumbnailCacheBytes_is_zero_when_cache_is_missing() {
+        assertEquals(0L, store().storageThumbnailCacheBytes())
+    }
+
+    @Test fun storageThumbnailCacheBytes_sums_every_cached_file() {
+        val s = store()
+        s.storageThumbFile("a".repeat(64)).writeBytes(ByteArray(3))
+        s.storageThumbFile("b".repeat(64)).writeBytes(ByteArray(5))
+
+        assertEquals(8L, s.storageThumbnailCacheBytes())
     }
 
     private fun assertIllegalArgument(block: () -> Unit) {

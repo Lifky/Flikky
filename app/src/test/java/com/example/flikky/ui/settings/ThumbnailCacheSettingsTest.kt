@@ -47,6 +47,44 @@ class ThumbnailCacheSettingsTest {
         assertFalse("cache ceiling must use choices, not an input", dialog.contains("OutlinedTextField("))
     }
 
+    @Test
+    fun `thumbnail cache usage distinguishes calculating from an empty cache`() {
+        assertTrue("sanity: SettingsScreen product code was not found", screen.contains("fun SettingsScreen("))
+        val row = screen.substringAfter(
+            "title = stringResource(R.string.settings_thumbnail_cache)",
+            missingDelimiterValue = "",
+        ).substringBefore("onClick = { showThumbnailCacheDialog = true }")
+        assertTrue("thumbnail cache row slice is empty", row.isNotBlank())
+        assertTrue(
+            "thumbnail cache usage is not collected by the settings screen",
+            screen.contains("thumbnailCacheUsageBytes.collectAsState"),
+        )
+        assertTrue(
+            "the loading state must not be rendered as zero bytes",
+            row.contains("R.string.settings_thumbnail_cache_calculating"),
+        )
+        assertTrue(
+            "computed usage must use the shared byte formatter",
+            row.contains("formatBytes("),
+        )
+    }
+
+    @Test
+    fun `clear cache is immediate and does not open a confirmation dialog`() {
+        assertTrue("sanity: SettingsScreen product code was not found", screen.contains("fun SettingsScreen("))
+        val dialog = screen.substringAfter("if (showThumbnailCacheDialog)", missingDelimiterValue = "")
+            .substringBefore("if (showDeleteAllDialog)")
+        assertTrue("thumbnail cache dialog slice is empty", dialog.isNotBlank())
+        assertTrue(
+            "clear-cache button is not wired to the view model",
+            dialog.contains("viewModel.clearThumbnailCache()"),
+        )
+        assertFalse(
+            "derived cache clearing must not ask for destructive-action confirmation",
+            dialog.contains("AlertDialog(") || dialog.contains("showDeleteAllDialog = true"),
+        )
+    }
+
     private fun stripCommentsAndImports(source: String): String = source
         .replace(Regex("""/\*[\s\S]*?\*/"""), "")
         .replace(Regex("""//[^\r\n]*"""), "")

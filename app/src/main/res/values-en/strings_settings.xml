@@ -90,10 +90,13 @@
     <string name="settings_thumbnail_cache">Thumbnail cache</string>
     <string name="settings_thumbnail_cache_description">Image and video previews shown while browsing phone storage are cached on this device so they load faster next time.</string>
     <string name="settings_thumbnail_cache_limit">Limit</string>
-    <string name="settings_thumbnail_cache_limit_value">Limit %1$d MB</string>
     <string name="settings_thumbnail_cache_default">Default (100 MB)</string>
     <string name="settings_thumbnail_cache_megabytes">%1$d MB</string>
     <string name="settings_thumbnail_cache_none">Do not cache</string>
+    <string name="settings_thumbnail_cache_calculating">Calculating…</string>
+    <string name="settings_thumbnail_cache_usage">%1$s used / %2$s limit</string>
+    <string name="settings_thumbnail_cache_current_usage">Currently using %1$s</string>
+    <string name="settings_thumbnail_cache_clear">Clear cache</string>
     <plurals name="settings_history_count">
         <item quantity="one">%1$d session</item>
         <item quantity="other">%1$d sessions</item>

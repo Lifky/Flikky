@@ -90,10 +90,13 @@
     <string name="settings_thumbnail_cache">缩略图缓存</string>
     <string name="settings_thumbnail_cache_description">浏览手机存储时，电脑端显示的图片和视频预览图会缓存在本机，加快下次浏览。</string>
     <string name="settings_thumbnail_cache_limit">上限</string>
-    <string name="settings_thumbnail_cache_limit_value">上限 %1$d MB</string>
     <string name="settings_thumbnail_cache_default">默认（100 MB）</string>
     <string name="settings_thumbnail_cache_megabytes">%1$d MB</string>
     <string name="settings_thumbnail_cache_none">不缓存</string>
+    <string name="settings_thumbnail_cache_calculating">正在计算…</string>
+    <string name="settings_thumbnail_cache_usage">已占用 %1$s / 上限 %2$s</string>
+    <string name="settings_thumbnail_cache_current_usage">当前已占用 %1$s</string>
+    <string name="settings_thumbnail_cache_clear">清空缓存</string>
     <plurals name="settings_history_count">
         <item quantity="other">%1$d 条</item>
     </plurals>

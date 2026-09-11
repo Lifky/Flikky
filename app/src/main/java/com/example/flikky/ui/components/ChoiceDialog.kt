@@ -3,6 +3,7 @@ package com.example.flikky.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,7 +34,8 @@ import com.example.flikky.ui.theme.Spacing
  * 但用 `BasicAlertDialog` 自控内边距，让选项行能整宽铺到对话框内边——避免 `AlertDialog` `text` 槽
  * 24dp 横向 padding 造成的「行填不满、ripple 到不了边」。
  *
- * 选项放在 [options]（用 [ChoiceRow]）；[confirmButton] 非空时出现在「取消」右侧（如历史数量的「确定」）。
+ * 选项放在 [options]（用 [ChoiceRow]）；[neutralButton] 非空时出现在「取消」左侧，
+ * [confirmButton] 非空时出现在「取消」右侧（如历史数量的「确定」）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +44,7 @@ fun ChoiceDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     dismissLabel: String? = null,
+    neutralButton: (@Composable () -> Unit)? = null,
     confirmButton: (@Composable () -> Unit)? = null,
     options: @Composable ColumnScope.() -> Unit,
 ) {
@@ -61,19 +64,21 @@ fun ChoiceDialog(
                         .padding(bottom = 16.dp),
                 )
                 Column(Modifier.selectableGroup(), content = options)
-                Row(
+                FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 8.dp)
                         .padding(horizontal = 24.dp),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm, Alignment.End),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.xs),
                 ) {
+                    if (neutralButton != null) {
+                        neutralButton()
+                    }
                     TextButton(onClick = onDismiss) {
                         Text(dismissLabel ?: stringResource(R.string.common_cancel))
                     }
                     if (confirmButton != null) {
-                        Spacer(Modifier.width(Spacing.sm))
                         confirmButton()
                     }
                 }

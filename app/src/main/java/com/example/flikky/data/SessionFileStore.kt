@@ -66,6 +66,13 @@ class SessionFileStore(
     fun storageThumbnailCacheDir(): File =
         File(cacheDir, "storage-thumbs").apply { mkdirs() }
 
+    /** Total bytes occupied by the derived storage thumbnail cache. */
+    fun storageThumbnailCacheBytes(): Long =
+        File(cacheDir, "storage-thumbs")
+            .walkTopDown()
+            .filter { it.isFile }
+            .sumOf { it.length() }
+
     /** Deletes all derived storage thumbnails; missing storage is already clean. */
     fun deleteStorageThumbnailCache(): Boolean {
         val dir = File(cacheDir, "storage-thumbs")

@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.flikky.R
 import com.example.flikky.data.AppDataWiper
+import com.example.flikky.data.SessionFileStore
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.AppLanguage
@@ -24,6 +25,7 @@ import com.example.flikky.network.UpdateInfo
 import com.example.flikky.util.UpdateVersion
 import com.example.flikky.util.LeadingColorMode
 import com.example.flikky.util.LeadingShape
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -41,6 +43,8 @@ class SettingsViewModel @JvmOverloads constructor(
     private val repository: SettingsRepository = ServiceLocator.settingsRepository,
     private val sessionRepository: SessionRepository = ServiceLocator.repository,
     private val updateChecker: UpdateChecker = UpdateChecker(),
+    private val fileStore: SessionFileStore = ServiceLocator.fileStore,
+    private val cacheIoDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : AndroidViewModel(app) {
 
     val settings: StateFlow<FlikkySettings> = repository.settings
@@ -54,6 +58,13 @@ class SettingsViewModel @JvmOverloads constructor(
 
     private val _updateAvailable = MutableStateFlow<UpdateInfo?>(null)
     val updateAvailable: StateFlow<UpdateInfo?> = _updateAvailable
+
+    private val _thumbnailCacheUsageBytes = MutableStateFlow<Long?>(null)
+    val thumbnailCacheUsageBytes: StateFlow<Long?> = _thumbnailCacheUsageBytes
+
+    init {
+        refreshThumbnailCacheUsage()
+    }
 
     fun setThemeMode(value: ThemeMode) = viewModelScope.launch { repository.setThemeMode(value) }
     fun setPreset(value: PresetTheme) = viewModelScope.launch { repository.setPresetTheme(value) }
@@ -155,6 +166,24 @@ class SettingsViewModel @JvmOverloads constructor(
 
     fun setThumbnailCacheLimitMb(value: Int) = viewModelScope.launch {
         repository.setThumbnailCacheLimitMb(value)
+    }
+
+    fun refreshThumbnailCacheUsage() {
+        _thumbnailCacheUsageBytes.value = null
+        viewModelScope.launch(cacheIoDispatcher) {
+            _thumbnailCacheUsageBytes.value = runCatching {
+                fileStore.storageThumbnailCacheBytes()
+            }.getOrDefault(0L)
+        }
+    }
+
+    fun clearThumbnailCache() = viewModelScope.launch(cacheIoDispatcher) {
+        val cleared = runCatching { fileStore.deleteStorageThumbnailCache() }.getOrDefault(false)
+        _thumbnailCacheUsageBytes.value = if (cleared) {
+            0L
+        } else {
+            runCatching { fileStore.storageThumbnailCacheBytes() }.getOrDefault(0L)
+        }
     }
 
     fun deleteAllData(resetSettings: Boolean) {

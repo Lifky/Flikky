@@ -110,6 +110,7 @@ import com.example.flikky.ui.settings.sheets.AvatarPickerSheet
 import com.example.flikky.ui.settings.sheets.BackgroundPickerSheet
 import com.example.flikky.ui.settings.sheets.ThemePickerSheet
 import com.example.flikky.util.formatThemeSeed
+import com.example.flikky.util.formatBytes
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
@@ -147,6 +148,7 @@ fun SettingsScreen(
     val s by viewModel.settings.collectAsState()
     val updateChecking by viewModel.updateChecking.collectAsState()
     val updateAvailable by viewModel.updateAvailable.collectAsState()
+    val cacheUsageBytes by viewModel.thumbnailCacheUsageBytes.collectAsState()
     val appLanguage = AppLanguageManager.current(context)
     val defaultDeviceName = stringResource(R.string.settings_default_device_name)
     val checkingUpdateLabel = stringResource(R.string.settings_checking_update)
@@ -714,12 +716,20 @@ fun SettingsScreen(
                     SettingItem(
                         title = stringResource(R.string.settings_thumbnail_cache),
                         leadingIcon = painterResource(R.drawable.ic_image),
-                        subtitle = if (s.thumbnailCacheLimitMb == 0) {
-                            stringResource(R.string.settings_thumbnail_cache_none)
+                        subtitle = if (cacheUsageBytes == null) {
+                            stringResource(R.string.settings_thumbnail_cache_calculating)
                         } else {
                             stringResource(
-                                R.string.settings_thumbnail_cache_limit_value,
-                                s.thumbnailCacheLimitMb,
+                                R.string.settings_thumbnail_cache_usage,
+                                formatBytes(requireNotNull(cacheUsageBytes)),
+                                if (s.thumbnailCacheLimitMb == 0) {
+                                    stringResource(R.string.settings_thumbnail_cache_none)
+                                } else {
+                                    stringResource(
+                                        R.string.settings_thumbnail_cache_megabytes,
+                                        s.thumbnailCacheLimitMb,
+                                    )
+                                },
                             )
                         },
                         onClick = { showThumbnailCacheDialog = true },
@@ -1149,6 +1159,11 @@ fun SettingsScreen(
         ChoiceDialog(
             title = stringResource(R.string.settings_thumbnail_cache),
             onDismiss = { showThumbnailCacheDialog = false },
+            neutralButton = {
+                TextButton(onClick = { viewModel.clearThumbnailCache() }) {
+                    Text(stringResource(R.string.settings_thumbnail_cache_clear))
+                }
+            },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.setThumbnailCacheLimitMb(selectedLimitMb)
@@ -1183,6 +1198,19 @@ fun SettingsScreen(
                     onClick = { selectedLimitMb = limitMb },
                 )
             }
+            Text(
+                text = if (cacheUsageBytes == null) {
+                    stringResource(R.string.settings_thumbnail_cache_calculating)
+                } else {
+                    stringResource(
+                        R.string.settings_thumbnail_cache_current_usage,
+                        formatBytes(requireNotNull(cacheUsageBytes)),
+                    )
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = Spacing.sm),
+            )
         }
     }
 
