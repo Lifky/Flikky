@@ -39,6 +39,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.WebSockets
 import kotlinx.serialization.json.Json
+import java.io.File
 
 class KtorServer(
     private val host: String,
@@ -110,6 +111,9 @@ class KtorServer(
     private val storageBrowserProvider: () -> StorageBrowser? = { null },
     private val storageBrowsingEnabled: suspend () -> Boolean = { false },
     private val hasStoragePermission: () -> Boolean = { false },
+    /** SessionFileStore-owned path for derived storage thumbnails. */
+    private val storageThumbFileProvider: ((String) -> File)? = null,
+    private val storageThumbnailCacheMaxBytes: () -> Long = { 100L * 1024L * 1024L },
 ) {
     private var engine: EmbeddedServer<*, *>? = null
     var boundPort: Int = -1
@@ -221,6 +225,9 @@ class KtorServer(
             enabled = storageBrowsingEnabled,
             hasPermission = hasStoragePermission,
             browser = storageBrowserProvider,
+            storageThumbFile = storageThumbFileProvider,
+            thumbnailer = thumbnailGenerator,
+            thumbnailCacheMaxBytes = storageThumbnailCacheMaxBytes,
         )
         wsRoutes(authGate, session, wsHub, onClientHello)
     }

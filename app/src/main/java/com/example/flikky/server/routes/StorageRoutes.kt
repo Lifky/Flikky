@@ -6,6 +6,8 @@ import com.example.flikky.server.dto.StorageListDto
 import com.example.flikky.server.dto.WireJson
 import com.example.flikky.server.dto.StorageStreamHeadDto
 import com.example.flikky.util.SortSpec
+import com.example.flikky.util.ThumbnailDiskCache
+import com.example.flikky.util.thumbnailCacheKey
 import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -14,6 +16,7 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondOutputStream
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -98,7 +101,17 @@ fun Route.storageRoutes(
     enabled: suspend () -> Boolean,
     hasPermission: () -> Boolean,
     browser: () -> StorageBrowser?,
+    storageThumbFile: ((String) -> File)? = null,
+    thumbnailer: ThumbnailGenerator = ThumbnailGenerator { _, _, _ -> false },
+    thumbnailCacheMaxBytes: () -> Long = { 100L * 1024L * 1024L },
 ) {
+    val thumbnailCache = storageThumbFile?.let { provider ->
+        ThumbnailDiskCache(
+            directory = provider("0".repeat(64)).parentFile ?: File("."),
+            maxBytes = thumbnailCacheMaxBytes,
+        )
+    }
+
     suspend fun ApplicationCall.passesGate(): Boolean {
         if (!authGate.isAuthorized(request.cookies[AUTH_COOKIE])) {
             respond(HttpStatusCode.Unauthorized)
@@ -192,6 +205,83 @@ fun Route.storageRoutes(
             is StorageResult.Ok -> call.respondStorageFile(result.value)
             else -> call.respondFailure(result)
         }
+    }
+
+    get("/api/storage/thumb") {
+        if (!call.passesGate()) return@get
+        val provider = storageThumbFile ?: run {
+            call.respond(HttpStatusCode.ServiceUnavailable)
+            return@get
+        }
+        val cache = thumbnailCache ?: run {
+            call.respond(HttpStatusCode.ServiceUnavailable)
+            return@get
+        }
+        val b = browser() ?: run { call.respond(HttpStatusCode.ServiceUnavailable); return@get }
+        val opened = withContext(Dispatchers.IO) {
+            b.open(call.request.queryParameters["path"].orEmpty())
+        }
+        if (opened !is StorageResult.Ok) {
+            call.respondFailure(opened)
+            return@get
+        }
+        val handle = opened.value
+        if (!isMediaMime(handle.mime) || !handle.file.isFile) {
+            call.respond(HttpStatusCode.NotFound)
+            return@get
+        }
+
+        val key = thumbnailCacheKey(
+            absolutePath = handle.file.absolutePath,
+            mtime = handle.file.lastModified(),
+            size = handle.file.length(),
+        )
+        val target = provider(key)
+        val cached = cache.get(target.name)
+        if (cached != null && cached.isFile && cached.length() > 0L) {
+            call.respondBytes(cached.readBytes(), ContentType.Image.JPEG)
+            return@get
+        }
+        cached?.delete()
+
+        if (thumbnailCacheMaxBytes() <= 0L) {
+            val parent = target.parentFile ?: run {
+                call.respond(HttpStatusCode.NotFound)
+                return@get
+            }
+            if (!parent.exists() && !parent.mkdirs()) {
+                call.respond(HttpStatusCode.NotFound)
+                return@get
+            }
+            val temp = runCatching { File.createTempFile(".thumb-", ".tmp", parent) }
+                .getOrNull() ?: run {
+                call.respond(HttpStatusCode.NotFound)
+                return@get
+            }
+            try {
+                val generated = runCatching {
+                    thumbnailer.generate(handle.file, handle.mime, temp)
+                }.getOrDefault(false)
+                if (!generated || !temp.isFile || temp.length() == 0L) {
+                    call.respond(HttpStatusCode.NotFound)
+                    return@get
+                }
+                call.respondBytes(temp.readBytes(), ContentType.Image.JPEG)
+            } finally {
+                temp.delete()
+            }
+            return@get
+        }
+
+        val generated = cache.put(target.name) { file ->
+            thumbnailer.generate(handle.file, handle.mime, file)
+        }
+        if (generated == null || !generated.isFile || generated.length() == 0L) {
+            generated?.delete()
+            call.respond(HttpStatusCode.NotFound)
+            return@get
+        }
+        call.respondBytes(generated.readBytes(), ContentType.Image.JPEG)
     }
 }
 
