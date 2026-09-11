@@ -279,7 +279,24 @@
 
         const lead = document.createElement('span');
         lead.className = 'fk-item-lead';
-        lead.appendChild(icon(isFile ? fileIconFor(item) : 'format_quote'));
+        const leadIcon = isFile ? fileIconFor(item) : 'format_quote';
+        lead.appendChild(icon(leadIcon));
+        const leading = window.flikkyLeading;
+        const mediaKind = window.flikky && typeof window.flikky.mediaKind === 'function'
+            ? window.flikky.mediaKind(item.mime)
+            : null;
+        if (isFile && mediaKind && leading && typeof leading.attachThumbnail === 'function') {
+            leading.attachThumbnail(lead, {
+                path: String(item.id),
+                url: `/api/favorites/${item.id}/thumb`,
+                alt: item.fileName || '',
+                onError: function () {
+                    while (lead.firstChild) lead.removeChild(lead.firstChild);
+                    lead.classList.remove('fk-item-lead--thumb');
+                    lead.appendChild(icon(leadIcon));
+                },
+            });
+        }
         row.appendChild(lead);
 
         const text = document.createElement('span');
