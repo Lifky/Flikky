@@ -746,11 +746,11 @@
     }
 
     function mediaKind(mime) {
-        const m = (mime || '').toLowerCase();
-        // SVG 与 App 端一致归「其他」：不给预览/lightbox/缩略图气泡。
-        if (m === 'image/svg+xml') return null;
-        if (m.startsWith('image/')) return 'image';
-        if (m.startsWith('video/')) return 'video';
+        const m = String(mime || '').split(';', 1)[0].trim().toLowerCase();
+        if (['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(m)) return 'image';
+        if (['video/mp4', 'video/webm', 'video/3gpp', 'video/quicktime', 'video/x-matroska'].includes(m)) {
+            return 'video';
+        }
         return null;
     }
 
@@ -2100,6 +2100,7 @@
     window.flikky.animateShellLayout = animateShellLayout;
     // 分类图标映射的唯一事实源，供收藏面板取用（见 fileSymbolName 处的注释）。
     window.flikky.fileSymbolName = fileSymbolName;
+    window.flikky.mediaKind = mediaKind;
     // 字节格式化：本文件与 panel-favorites.js 各有一份语义相同的实现（backlog 待收敛）。
     // 新面板一律用这个导出，不要再造第四份。
     window.flikky.formatSize = formatSize;

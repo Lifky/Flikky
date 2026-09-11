@@ -790,7 +790,7 @@
      *
      * 沙箱目录用 lock 图标但保留同一个容器：占位一致，headline 起点才不会左右跳。
      */
-    function leadFor(entry) {
+    function leadFor(entry, path) {
         const wrap = document.createElement('span');
         wrap.className = 'fk-item-lead';
         // 目录用 folder；文件的分类图标取 app.js 导出的唯一事实源，
@@ -803,6 +803,25 @@
                     ? window.flikky.fileSymbolName(entry.mime)
                     : 'draft'));
         wrap.appendChild(icon(name));
+        const leading = window.flikkyLeading;
+        const mediaKind = window.flikky && typeof window.flikky.mediaKind === 'function'
+            ? window.flikky.mediaKind(entry.mime)
+            : null;
+        if (!entry.isDir && !entry.restricted && mediaKind && leading &&
+            typeof leading.attachThumbnail === 'function') {
+            const image = leading.attachThumbnail(wrap, {
+                mime: entry.mime,
+                path,
+                url: thumbnailUrl(path),
+                alt: entry.name,
+                onError: function () {
+                    while (wrap.firstChild) wrap.removeChild(wrap.firstChild);
+                    wrap.classList.remove('fk-item-lead--thumb');
+                    wrap.appendChild(icon(name));
+                },
+            });
+            wrap._flikkyThumbnail = image;
+        }
         return wrap;
     }
 
@@ -812,6 +831,10 @@
 
     function childPath(entry) {
         return currentPath ? currentPath + '/' + entry.name : entry.name;
+    }
+
+    function thumbnailUrl(relativePath) {
+        return '/api/storage/thumb?path=' + encodeURIComponent(relativePath);
     }
 
     /**
@@ -847,7 +870,9 @@
         // 多选语义用 aria-selected（列表行的正确属性；导航项才是 aria-current）。
         if (isFile) row.setAttribute('aria-selected', selected.has(p) ? 'true' : 'false');
 
-        row.appendChild(leadFor(entry));
+        const leadingEl = leadFor(entry, p);
+        row.appendChild(leadingEl);
+        row._flikkyThumbnail = leadingEl._flikkyThumbnail;
 
         const text = document.createElement('span');
         text.className = 'fk-item-text';
@@ -1345,6 +1370,7 @@
     /** 丢掉一行：DOM、两张索引表、以及勾选用的 path→行 映射都要一起清。 */
     function dropRow(i) {
         const el = rendered.get(i);
+        if (el && el._flikkyThumbnail) el._flikkyThumbnail.src = '';
         if (el) el.remove();
         const p = renderedPath.get(i);
         if (p !== undefined) rowElements.delete(p);

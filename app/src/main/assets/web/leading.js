@@ -48,6 +48,49 @@
     applyColors(value.colors);
   }
 
-  root.flikkyLeading = Object.freeze({ types, typeOf, applyShape, applyColors, applyVisual });
+  /**
+   * Attach one authenticated thumbnail to an existing leading slot.
+   *
+   * The caller owns the fallback icon. This keeps the image lifecycle shared by
+   * storage and favorites while letting each panel retain its own row semantics.
+   */
+  function attachThumbnail(lead, options) {
+    if (!lead || !options) return null;
+    const doc = root.document;
+    if (!doc || typeof doc.createElement !== 'function') return null;
+
+    const path = String(options.path || '');
+    const img = doc.createElement('img');
+    img.alt = options.alt || '';
+    img.loading = 'lazy';
+    img.hidden = true;
+    img.dataset.forPath = path;
+    lead.classList.add('fk-item-lead--thumb');
+
+    img.addEventListener('load', function () {
+      if (img.dataset.forPath !== path || !img.src) return;
+      Array.prototype.slice.call(lead.children).forEach(function (child) {
+        if (child !== img) lead.removeChild(child);
+      });
+      img.hidden = false;
+      img.dataset.thumbLoaded = '1';
+    });
+    img.addEventListener('error', function () {
+      if (img.dataset.forPath !== path || !img.src) return;
+      if (typeof options.onError === 'function') options.onError();
+    });
+    lead.appendChild(img);
+    img.src = String(options.url || '');
+    return img;
+  }
+
+  root.flikkyLeading = Object.freeze({
+    types,
+    typeOf,
+    applyShape,
+    applyColors,
+    applyVisual,
+    attachThumbnail,
+  });
   applyVisual();
 })(globalThis);

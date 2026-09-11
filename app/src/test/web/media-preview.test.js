@@ -24,6 +24,7 @@ function mediaKind(mime) {
 test('fixture media entries are the browser thumbnail catalogue', () => {
   for (const mime of fixture.thumbnailable) assert.ok(mediaKind(mime), mime);
   for (const mime of fixture.excluded) assert.equal(mediaKind(mime), null, mime);
+  assert.equal(mediaKind('image/tiff'), null, 'unlisted image types are not thumbnailable');
   assert.equal(fixture.thumbnailable.length, 9);
   assert.equal(fixture.inlineable.length, 9);
   assert.equal(fixture.excluded.length, 3);
