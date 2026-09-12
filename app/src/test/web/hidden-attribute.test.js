@@ -149,3 +149,175 @@ test('the scan itself can tell a display rule from no rule', () => {
   assert.equal(ruleBlock(shell, '.fk-no-such-class').includes('display:'), false,
     'the scan reports display for a class that does not exist');
 });
+
+/*
+ * ── hidden + loading="lazy" = 图片永不加载（2026-09-12 装机反馈）─────────────
+ *
+ * 上面那条全局 reset 让 `[hidden]` 真正变成 `display: none !important` —— 它修对了
+ * 一个问题，也**造出了一个新的交互**：
+ *
+ *   `loading="lazy"` 的图片，浏览器按「是否接近视口」决定何时发请求。
+ *   一个 `display: none` 的元素没有盒子、永远不与视口相交，
+ *   于是那张图**永远不会被请求**。
+ *
+ * v1.20.0 阶段二的存储/收藏缩略图正是这么写的：`img.loading = 'lazy'` 紧挨着
+ * `img.hidden = true`（hidden 是为了「加载完成前不露出半张图」）。后果是双重的：
+ *
+ *   · load 事件不触发 → 类型图标不被移除 → 一张缩略图都看不到；
+ *   · img 是 display:none → 接不到点击 → 预览也打不开。
+ *
+ * 两个症状同一个根因。
+ *
+ * ## 为什么只能是源码扫描
+ *
+ * mini-dom 没有布局引擎、也没有惰性加载语义：测试里给 `.src` 赋值后由测试自己派发
+ * `load`，所以**行为测试在任何实现下都是绿的**。这个缺陷只在真实浏览器里存在。
+ * 判据本身是结构性的（两个属性不该同时出现在一个元素上），用源码钉住是诚实的做法。
+ *
+ * ## 惰性加载在本项目本来也没有收益
+ *
+ * 列表是虚拟化的，只有视口附近的行存在于 DOM 里 —— 设计文档 §9 风险 4 预判过这点。
+ */
+
+/*
+ * ── hidden + loading="lazy" = 图片永不加载（2026-09-12 装机反馈）─────────────
+ *
+ * 上面那条全局 reset 让 `[hidden]` 真正变成 `display: none !important` —— 它修对了
+ * 一个问题，也**造出了一个新的交互**：
+ *
+ *   `loading="lazy"` 的图片，浏览器按「是否接近视口」决定何时发请求。
+ *   一个 `display: none` 的元素没有盒子、永远不与视口相交，
+ *   于是那张图**永远不会被请求**。
+ *
+ * v1.20.0 阶段二的存储/收藏缩略图正是这么写的：`img.loading = 'lazy'` 紧挨着
+ * `img.hidden = true`（hidden 是为了「加载完成前不露出半张图」）。后果是双重的：
+ *
+ *   · load 事件不触发 → 类型图标不被移除 → 一张缩略图都看不到；
+ *   · img 是 display:none → 接不到点击 → 预览也打不开。
+ *
+ * 两个症状同一个根因（用户报的正是这两条）。
+ *
+ * ## 为什么只能是源码扫描
+ *
+ * mini-dom 没有布局引擎、也没有惰性加载语义：测试里给 `.src` 赋值后由测试自己派发
+ * `load`，所以**行为测试在任何实现下都是绿的**。这个缺陷只在真实浏览器里存在。
+ * 判据本身是结构性的（两个属性不该同时出现在一个元素上），用源码钉住是诚实的做法。
+ */
+
+const JS_FILES = ['leading.js', 'app.js', 'panel-files.js', 'panel-favorites.js', 'panel-settings.js'];
+
+/** 剥注释：本文件与被扫文件的注释里都写着反例，不剥会扫到它们。 */
+function stripJsComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
+test('the lazy-loading scan can actually see assignments', () => {
+  // 防切片失效：剥注释若把整份文件吃掉，下面那条会在零个匹配上通过。
+  const total = JS_FILES.reduce((n, f) => n + stripJsComments(read(f)).length, 0);
+  assert.ok(total > 10000, `剥注释后只剩 ${total} 字符 —— 剥得太狠了，先修切片再谈守卫`);
+  const hiddenAssignments = JS_FILES
+    .reduce((n, f) => n + (stripJsComments(read(f)).match(/\.hidden\s*=/g) || []).length, 0);
+  assert.ok(hiddenAssignments > 0, '扫不到任何 `.hidden =` 赋值 —— 切片失效');
+});
+
+/**
+ * 一个元素是否「既 lazy 又 hidden」。
+ *
+ * 判据必须**精确到同一个元素**，不能一刀切禁掉 lazy：`app.js` 的聊天气泡缩略图
+ * 也是 lazy，但它**没有**被设 hidden，所以一直工作正常；而聊天列表没有虚拟化
+ * （backlog B32），那里的惰性加载是真有收益的。为了守卫去改能用的代码是本末倒置。
+ *
+ * 做法：取 `X.loading = 'lazy'` 里的 X，在它前后各 12 行内找 `X.hidden = true`。
+ *
+ * **不用 `new RegExp` 拼判据** —— 本文件开头记着那个坑（写文件的 heredoc 会吃掉
+ * 一层反斜杠，拼出来的正则永不匹配、断言空转全绿）。写这一条时又踩了一次，
+ * 靠下面那条自检才发现。所以这里只用字面量正则 + 纯字符串查找。
+ */
+function lazyAndHidden(src) {
+  const lines = src.split(/\r?\n/);
+  const isWordChar = (ch) => !!ch && /[\w$]/.test(ch);
+  const hits = [];
+  lines.forEach((line, i) => {
+    const m = line.match(/(\w+)\.loading\s*=\s*['"]lazy['"]/);
+    if (!m) return;
+    const name = m[1];
+    const near = lines.slice(Math.max(0, i - 12), i + 13).join('\n');
+    const needle = name + '.hidden';
+    let at = near.indexOf(needle);
+    while (at >= 0) {
+      // 前一个字符不能是标识符字符，否则 `thumbImg.hidden` 会被当成 `img.hidden`
+      const before = at > 0 ? near.charAt(at - 1) : '';
+      const after = near.slice(at + needle.length, at + needle.length + 24).replace(/\s/g, '');
+      if (!isWordChar(before) && after.indexOf('=true') === 0) {
+        hits.push({ line: i + 1, name });
+        break;
+      }
+      at = near.indexOf(needle, at + 1);
+    }
+  });
+  return hits;
+}
+
+test('no element is both hidden and lazy-loaded', () => {
+  const offenders = [];
+  JS_FILES.forEach((f) => {
+    lazyAndHidden(stripJsComments(read(f))).forEach((h) => {
+      offenders.push(`${f}:${h.line} → ${h.name} 既 lazy 又 hidden`);
+    });
+  });
+  assert.deepEqual(
+    offenders,
+    [],
+    '这些元素既设了 loading="lazy" 又设了 hidden。base.css 的全局 reset 让 hidden\n' +
+      '等于 display:none !important，而 display:none 的元素永远不与视口相交 ——\n' +
+      '浏览器**永不发起请求**，图片永远不出现，也接不到点击。\n' +
+      '要么去掉 lazy（虚拟化列表里它本来就没收益），要么别用 hidden 遮加载中的图：',
+  );
+});
+
+test('the lazy-plus-hidden scan really fires on the shape it guards', () => {
+  // 判据跨行、按变量名匹配，正则写错就会**恒绿** —— 而它正是为一个
+  // 「测试全绿、生产全坏」的缺陷加的，恒绿会让它彻底失去意义。
+  // 所以用一段合成源码证明它会响。
+  const bad = [
+    "const img = document.createElement('img');",
+    "img.alt = 'x';",
+    "img.loading = 'lazy';",
+    "img.hidden = true;",
+  ].join('\n');
+  assert.equal(lazyAndHidden(bad).length, 1, '判据对它本该抓的形状都不响 —— 正则写错了');
+
+  // 反向：只 lazy 不 hidden（聊天气泡那种）必须放行，否则守卫会逼人改能用的代码。
+  const ok = [
+    "const img = document.createElement('img');",
+    "img.loading = 'lazy';",
+    "wrap.appendChild(img);",
+  ].join('\n');
+  assert.equal(lazyAndHidden(ok).length, 0, '只 lazy 不 hidden 被误判了');
+
+  // 反向：两个不同的元素各占一半，不该合判成一个。
+  const twoVars = [
+    "a.loading = 'lazy';",
+    "b.hidden = true;",
+  ].join('\n');
+  assert.equal(lazyAndHidden(twoVars).length, 0, '不同元素被当成了同一个');
+});
+
+test('HTML markup carries no lazy images either', () => {
+  // 静态 markup 里更容易漏看。页面可以不存在；存在就必须守。
+  ['app.html', 'login.html', 'export.html'].forEach((f) => {
+    let html;
+    try {
+      html = read(f);
+    } catch {
+      return;
+    }
+    assert.doesNotMatch(
+      html.replace(/<!--[\s\S]*?-->/g, ''),
+      /loading\s*=\s*["']lazy["'][\s\S]{0,200}?\bhidden\b/,
+      `${f} 里有元素既 loading="lazy" 又 hidden —— 它永远不会加载`,
+    );
+  });
+});

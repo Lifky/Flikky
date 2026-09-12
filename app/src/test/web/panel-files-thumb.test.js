@@ -15,8 +15,11 @@ const tick = async (n = 60) => { for (let i = 0; i < n; i += 1) await Promise.re
 const rows = (view) => byClass(view, 'fk-item');
 const body = (view) => byClass(view, 'fk-panel-body')[0];
 const lead = (row) => byClass(row, 'fk-item-lead')[0];
-const images = (view) => byClass(view, 'fk-item-lead--thumb')
+const images = (view) => byClass(view, 'fk-item-lead')
   .flatMap((wrap) => wrap.children.filter((child) => child.tagName === 'IMG'));
+// 按 .fk-item-lead 找、不按 --thumb 找：那个形状类**加载成功后才加**
+//（提前加会让类型图标在等图期间先失去 M3 异形）。按它定位就看不见在途的 img，
+// 而「在途」正是本组最重要那条断言要观察的状态。
 const icons = (node) => byClass(node, 'material-symbols-outlined');
 
 function line(entry) { return JSON.stringify(entry); }

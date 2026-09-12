@@ -62,16 +62,28 @@
     const path = String(options.path || '');
     const img = doc.createElement('img');
     img.alt = options.alt || '';
-    img.loading = 'lazy';
+    // **不设 `loading = 'lazy'`。** 下一行把它设为 hidden，而 base.css 的全局 reset
+    // 是 `[hidden]:not([data-hidden-animated]) { display: none !important }` ——
+    // 一张 display:none 的图片永远不进视口，于是惰性加载**永不发起请求**：
+    // load 事件不触发 → 类型图标不被移除 → 看不到缩略图；img 又是 display:none、
+    // 接不到点击 → 也点不开预览。装机反馈的两个症状是同一个根因（2026-09-12）。
+    //
+    // 惰性加载在这里本来也没有收益：列表是虚拟化的，只有视口附近的行存在于 DOM 里
+    //（设计 §9 风险 4 已经预判过这一点）。普通 <img> 即使 display:none 也会照常加载，
+    // 所以去掉 lazy 就够了，hidden 保留 —— 它是「加载完成前不露出半张图」的手段。
     img.hidden = true;
     img.dataset.forPath = path;
-    lead.classList.add('fk-item-lead--thumb');
 
     img.addEventListener('load', function () {
       if (img.dataset.forPath !== path || !img.src) return;
       Array.prototype.slice.call(lead.children).forEach(function (child) {
         if (child !== img) lead.removeChild(child);
       });
+      // 形状类**到这里才加**，不在建元素时加：`.fk-item-lead--thumb` 含
+      // `clip-path: none`，提前加会让类型图标在等图期间先失去 M3 异形、
+      // 图到了再变成圆角方块 —— 一次可见的形状闪跳。加载成功才换形状，
+      // 失败路径则从头到尾都是异形图标，不闪。
+      lead.classList.add('fk-item-lead--thumb');
       img.hidden = false;
       img.dataset.thumbLoaded = '1';
     });
