@@ -18,6 +18,8 @@ const LF = String.fromCharCode(10);
  *   · 「没有匹配的文件」与「这个文件夹是空的」是两句不同的话。
  */
 
+// 造一次失败响应：`{ __fail: { status, code } }` 代替正常的 NDJSON 列举。
+// 引导态（403/404）走的是 renderGuidance，那条路径此前没有任何测试覆盖。
 function load(listings, opts) {
   const doc = createDocument();
   const view = doc.register('view-files');
@@ -44,6 +46,15 @@ function load(listings, opts) {
       const at = decodeURIComponent((url.split('path=')[1] || ''));
       const bodyText = listings[at];
       assert.ok(bodyText !== undefined, 'no fixture for path=' + JSON.stringify(at));
+      if (bodyText && bodyText.__fail) {
+        return Promise.resolve({
+          ok: false,
+          status: bodyText.__fail.status,
+          json: () => Promise.resolve({ code: bodyText.__fail.code }),
+          text: () => Promise.resolve(JSON.stringify({ code: bodyText.__fail.code })),
+          body: null,
+        });
+      }
       return Promise.resolve({
         ok: true,
         status: 200,
@@ -69,7 +80,7 @@ function load(listings, opts) {
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(WEB, 'sort.js'), 'utf8'), ctx);
   vm.runInContext(fs.readFileSync(path.join(WEB, 'panel-files.js'), 'utf8'), ctx);
-  return { doc, view, api: ctx.window.flikkyPanels.files, asked };
+  return { doc, view, api: ctx.window.flikkyPanels.files, asked, listings };
 }
 
 const tick = async (n = 60) => { for (let k = 0; k < n; k += 1) await Promise.resolve(); };
@@ -96,7 +107,9 @@ const FIXTURES = {
 };
 
 async function opened() {
-  const c = load(FIXTURES);
+  // 浅拷贝：用例会往里塞失败响应（见文件末尾的引导态两条），
+  // 直接用模块级常量会让状态在用例之间串。
+  const c = load(Object.assign({}, FIXTURES));
   c.api.mount(c.view);
   body(c.view).clientHeight = 600;
   c.api.setEnabled(true);
@@ -260,4 +273,103 @@ test('加载计数与页脚成对更新 —— 读的是同一份数据', () => 
   const fn = src.slice(at, src.indexOf('function ', src.indexOf('{', at)));
   assert.ok(fn.indexOf('syncFooter()') >= 0, 'syncCounts 没有更新页脚');
   assert.ok(fn.indexOf('syncLoadingCount()') >= 0, 'syncCounts 没有更新头块计数');
+});
+
+test('引导态不许摧毁 sticky 头块 —— 搜索框与面包屑必须活过它', async () => {
+  // 2026-09-12 装机反馈：面板上方的搜索行与面包屑整块消失了（Screenshot_35）。
+  //
+  // 根因：`renderGuidance` 用的是 `bodyEl.textContent = ''`，把头块一起清了。
+  // 而头块**只在 mount 时建一次**（搜索行住在里面，重建等于丢焦点），
+  // 所以一次瞬时的引导态（权限 403 / 目录 404）就让它**永久**消失 ——
+  // 之后每次渲染都只重建列表，只有刷新整页才能恢复。
+  //
+  // 引导态是可恢复的状态（用户去手机上授权、或换个目录），头块必须活过它。
+  const c = await opened();
+  const sticky = byClass(c.view, 'fk-files-sticky')[0];
+  const search = byClass(c.view, 'fk-search')[0];
+  assert.ok(sticky && search, '前置：头块与搜索框应当已经存在');
+
+  // 进一个会 403 的目录（缺存储权限）。
+  c.listings.Denied = { __fail: { status: 403, code: 'storage_permission_required' } };
+  c.api.navigate('Denied');
+  await tick();
+
+  assert.ok(byClass(c.view, 'fk-guidance')[0], '前置：应当进入了引导态');
+
+  // **断言布尔值，不要把 DOM 节点交给 assert.equal。** 失败时 node 会序列化两边
+  // 做 diff，而 mini-dom 的节点父子互相引用 —— 序列化一棵脱离文档的子树会
+  // 耗尽堆内存，于是「断言失败」变成 `FATAL ERROR: Reached heap limit`，
+  // 进程被杀、只报「1 tests / 1 fail」，看不出是哪条断言（2026-09-12 逼红时踩到）。
+  assert.equal(
+    byClass(c.view, 'fk-files-sticky')[0] === sticky,
+    true,
+    '引导态把 sticky 头块清掉或重建了',
+  );
+  assert.equal(
+    byClass(c.view, 'fk-search')[0] === search,
+    true,
+    '引导态把搜索框清掉或重建了 —— 焦点会跟着丢',
+  );
+  assert.equal(
+    body(c.view).children[0] === sticky,
+    true,
+    '头块必须仍在第一位，否则下一轮 clearBelowSticky 认不出它',
+  );
+});
+
+test('从引导态回到正常目录后，头块与列表都在', async () => {
+  // 上一条只证明头块没被清掉；这一条证明它**仍然工作** ——
+  // 缺陷的实际表现是「之后每次渲染都只重建列表」，所以要走一个来回。
+  const c = await opened();
+  c.listings.Denied = { __fail: { status: 403, code: 'storage_permission_required' } };
+  c.api.navigate('Denied');
+  await tick();
+
+  c.api.navigate('Pictures');
+  await tick();
+
+  assert.ok(byClass(c.view, 'fk-files-sticky')[0], '回到正常目录后头块不见了');
+  assert.equal(byClass(c.view, 'fk-guidance').length, 0, '引导态没有被清掉');
+  assert.deepEqual(titles(c.view), ['shot.png'], '新目录的列表没渲染出来');
+  assert.equal(
+    byClass(c.view, 'fk-files-list').length,
+    1,
+    '残留了多份列表 —— clearBelowSticky 没生效',
+  );
+});
+
+test('头块被外力清掉后能自愈 —— 纵深防御那一层', async () => {
+  // `renderGuidance` 已经改成走 clearBelowSticky（上两条盯着它），
+  // 但那只挡住了**已知的**那一处。`clearBelowSticky` 里还有一行
+  // 「头块不在 body 里就挂回去」，防的是**以后**有人在别处再写一次
+  // `bodyEl.textContent = ''` —— 头块只在 mount 时建一次，
+  // 丢了就永久丢，刷新整页才能恢复，代价与收益完全不对称。
+  //
+  // 这一条直接模拟那个「外力」：手动清空 body，再触发一次正常渲染。
+  // 没有这条断言的话，自愈那一行可以被静默删掉（逼红实测零条红）。
+  const c = await opened();
+  const sticky = byClass(c.view, 'fk-files-sticky')[0];
+  assert.ok(sticky, '前置：头块应当存在');
+
+  // 外力：把 body 整份清掉（就是那个反复出现的错误写法）
+  const bodyEl = body(c.view);
+  Array.prototype.slice.call(bodyEl.children)
+    .forEach(function (ch) { bodyEl.removeChild(ch); });
+  assert.equal(byClass(c.view, 'fk-files-sticky').length, 0, '前置：头块应当已被清掉');
+
+  // 一次正常渲染就该把它接回来
+  c.api.navigate('Pictures');
+  await tick();
+
+  assert.equal(
+    byClass(c.view, 'fk-files-sticky')[0] === sticky,
+    true,
+    '头块没有自愈 —— 它只在 mount 时建一次，丢了就永久丢',
+  );
+  assert.equal(
+    bodyEl.children[0] === sticky,
+    true,
+    '自愈后头块必须回到第一位，否则 clearBelowSticky 下一轮认不出它',
+  );
+  assert.deepEqual(titles(c.view), ['shot.png'], '自愈不该影响列表渲染');
 });

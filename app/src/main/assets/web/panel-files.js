@@ -587,6 +587,14 @@
      */
     function clearBelowSticky() {
         if (!bodyEl) return;
+        // 头块不在 body 里就先挂回去。它**只在 mount 时建一次**（搜索行住在里面，
+        // 重建等于丢焦点），所以一旦被谁整份 `textContent = ''` 清掉，
+        // 后续每次渲染都只重建列表 —— 搜索框与面包屑从此永久消失，
+        // 刷新整页才能恢复（2026-09-12 装机反馈 Screenshot_35）。
+        // 这一行让「头块丢了」变成自愈的，而不是一个不可逆状态。
+        if (stickyEl && stickyEl.parentNode !== bodyEl) {
+            bodyEl.insertBefore(stickyEl, bodyEl.firstChild || null);
+        }
         // 把要清的先收集出来再删：边遍历边删会让下标错位，
         // 而「取出去再放回来」会把头块挪到末尾、下一轮就认不出它了
         // （第一版就是这么错的，表现是换目录后 body 里堆了两份列表）。
@@ -1072,7 +1080,11 @@
      */
     function renderGuidance(iconName, titleKey, bodyKey) {
         if (!bodyEl) return;
-        bodyEl.textContent = '';
+        // **不用 `textContent = ''`**：那会把 sticky 头块（搜索行 + 面包屑 + 进度条）
+        // 一起摧毁，而它只在 mount 时建一次 —— 一次引导态就让搜索框与面包屑
+        // 永久消失（2026-09-12 装机反馈）。引导态是可恢复的瞬时状态
+        // （用户去手机上授权、或换个目录），头块必须活过它。
+        clearBelowSticky();
         const box = document.createElement('div');
         box.className = 'fk-guidance';
         const ic = icon(iconName);

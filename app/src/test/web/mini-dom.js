@@ -270,9 +270,26 @@ function createDocument() {
 }
 
 /** 深度优先遍历，收集满足条件的节点。 */
+/**
+ * 深度遍历，**带环检测**。
+ *
+ * 无环检测的版本会在 DOM 里出现环时无限递归 —— 表现不是抛异常，而是
+ * `FATAL ERROR: Reached heap limit`，整个测试进程被杀、node --test 只报
+ * 「1 tests / 1 fail」，看不出是哪条用例、也看不出是环。
+ *
+ * 2026-09-12 逼红时踩到：故意把生产代码改回缺陷版（整份 `textContent = ''`
+ * 清掉一个仍被引用的 sticky 节点），DOM 里出现了环，于是逼红实验本身 OOM，
+ * 「测试红了」与「进程崩了」无从区分。
+ *
+ * 环检测让这种情况变成**可读的失败**而不是崩溃：遍历照常结束，
+ * 断言正常报出它看到的 DOM，是哪条断言、缺什么都能看清。
+ */
 function findAll(root, predicate) {
   const out = [];
+  const seen = new Set();
   (function walk(node) {
+    if (!node || seen.has(node)) return;
+    seen.add(node);
     if (predicate(node)) out.push(node);
     node.children.forEach(walk);
   })(root);
