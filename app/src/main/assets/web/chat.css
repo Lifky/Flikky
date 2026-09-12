@@ -646,11 +646,47 @@ body[data-timestamps="on"] .time-divider { display: flex; }
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.85);
+  /* scrim 与媒体**分两条动效**，档位不同：
+     遮罩只是明暗变化（effects 档），媒体有尺寸变化（spatial 档）。
+     混用一条会让「幕布拉上」和「画面推出」同速，那看起来像整块图片
+     被贴上来 —— 用户原话「过渡太硬，体感上较突然」（2026-09-12）。 */
+  animation: flikky-lightbox-in var(--flikky-spring-effects-default-dur)
+             var(--flikky-spring-effects-default) both;
+}
+@keyframes flikky-lightbox-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 .lightbox-media {
   max-width: 92vw;
   max-height: 92vh;
   object-fit: contain;
+  /* 从 96% 推到 100%：幅度刻意小。大幅缩放在全屏尺寸上会显得图片「飞过来」，
+     而这只是一次打开，不是转场。spatial 档（有位移/尺寸变化的都走它）。 */
+  animation: flikky-lightbox-media-in var(--flikky-spring-spatial-default-dur)
+             var(--flikky-spring-spatial-default) both;
+}
+@keyframes flikky-lightbox-media-in {
+  from { opacity: 0; transform: scale(.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* 渐进式加载的第二段：缩略图 → 原图那一次替换也要淡，否则
+   「模糊一下变清晰」会是一次硬切，比没有渐进式还突兀。
+   `data-full` 由 openLightbox 在原图 onload 后打上。 */
+.lightbox-media[data-full='1'] {
+  animation: flikky-lightbox-sharpen var(--flikky-spring-effects-default-dur)
+             var(--flikky-spring-effects-default) both;
+}
+@keyframes flikky-lightbox-sharpen {
+  from { opacity: .72; }
+  to   { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lightbox,
+  .lightbox-media,
+  .lightbox-media[data-full='1'] { animation: none; }
 }
 .lightbox-close {
   position: absolute;

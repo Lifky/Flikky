@@ -1896,8 +1896,15 @@
             el = document.createElement('img');
             el.src = thumbnailUrl;
             el.alt = '';
+            // 预加载完成后才换 src —— 直接赋原图地址会让正在显示的缩略图
+            // 先变空白再出图，那正是渐进式要解决的问题。
             const full = new Image();
-            full.addEventListener('load', function () { el.src = fullUrl; });
+            full.addEventListener('load', function () {
+                el.src = fullUrl;
+                // 打标记触发一次短淡入：不加的话「模糊 → 清晰」是硬切，
+                // 比没有渐进式还突兀（chat.css 的 flikky-lightbox-sharpen）。
+                el.dataset.full = '1';
+            });
             full.src = fullUrl;
         }
         el.className = 'lightbox-media';
