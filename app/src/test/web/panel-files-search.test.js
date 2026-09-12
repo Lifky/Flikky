@@ -25,6 +25,10 @@ function load(listings, opts) {
   const view = doc.register('view-files');
   const o = opts || {};
   const asked = [];
+  // 可控定时器。授权轮询用 setTimeout 自排期，真实计时器会让用例既慢又不确定；
+  // 这里把回调收起来，由用例显式触发（fireTimers）。
+  const timers = new Map();
+  let nextTimerId = 0;
   const ctx = {
     document: doc,
     window: {
@@ -41,8 +45,14 @@ function load(listings, opts) {
     },
     TextDecoder: TextDecoder,
     requestAnimationFrame: (fn) => { fn(0); return 1; },
+    setTimeout: (fn) => { nextTimerId += 1; timers.set(nextTimerId, fn); return nextTimerId; },
+    clearTimeout: (id) => { timers.delete(id); },
     fetch: (url) => {
       asked.push(url);
+      // 竞态注入点：用例可以在「请求已发出、响应还没回来」那一刻插一脚。
+      // 授权轮询在 `await probeAccess()` 上会让出执行权，那正是它唯一的
+      // 危险窗口 —— 没有这个钩子就构造不出来。
+      if (typeof o.onFetch === 'function') o.onFetch(url);
       const at = decodeURIComponent((url.split('path=')[1] || ''));
       const bodyText = listings[at];
       assert.ok(bodyText !== undefined, 'no fixture for path=' + JSON.stringify(at));
@@ -80,7 +90,17 @@ function load(listings, opts) {
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(WEB, 'sort.js'), 'utf8'), ctx);
   vm.runInContext(fs.readFileSync(path.join(WEB, 'panel-files.js'), 'utf8'), ctx);
-  return { doc, view, api: ctx.window.flikkyPanels.files, asked, listings };
+  /** 触发当前挂起的定时器各一次，然后把微任务跑干净。 */
+  const fireTimers = async () => {
+    const pending = Array.from(timers.values());
+    timers.clear();
+    for (const fn of pending) await fn();
+    for (let i = 0; i < 60; i += 1) await Promise.resolve();
+  };
+  return {
+    doc, view, api: ctx.window.flikkyPanels.files, asked, listings,
+    fireTimers, pendingTimers: () => timers.size,
+  };
 }
 
 const tick = async (n = 60) => { for (let k = 0; k < n; k += 1) await Promise.resolve(); };
@@ -372,4 +392,177 @@ test('头块被外力清掉后能自愈 —— 纵深防御那一层', async () 
     '自愈后头块必须回到第一位，否则 clearBelowSticky 下一轮认不出它',
   );
   assert.deepEqual(titles(c.view), ['shot.png'], '自愈不该影响列表渲染');
+});
+
+// ── 引导态：藏头块 + 授权后自动恢复（2026-09-12 装机反馈 Screenshot_36）──────
+
+const PERM_FAIL = { __fail: { status: 403, code: 'storage_permission_required' } };
+
+/** 开面板时根目录就没有权限 —— 用户第一次打开、还没在手机上授权的样子。 */
+async function denied() {
+  const c = load(Object.assign({}, FIXTURES, { '': PERM_FAIL }));
+  c.api.mount(c.view);
+  body(c.view).clientHeight = 600;
+  c.api.setEnabled(true);
+  await tick();
+  return c;
+}
+
+test('引导态把 sticky 头块藏起来，而不是留在那儿说谎', async () => {
+  // Screenshot_36：没授权时，搜索框 /「内部存储」面包屑 /「正在载入... 已 0 项」
+  // 连同一条卡在半路的进度条全都还杵在上面。三个控件全在说谎 ——
+  // 搜不到东西、指着一个读不到的位置、而且根本没有在载入。
+  //
+  // 上一轮修的是「头块不许被**摧毁**」（摧毁了就永久回不来）。这一轮是
+  // 「引导态下不许**显示**」。两件事：活着，但藏着。
+  const c = await denied();
+
+  assert.ok(byClass(c.view, 'fk-guidance')[0], '前置：应当进入引导态');
+  const sticky = byClass(c.view, 'fk-files-sticky')[0];
+  assert.ok(sticky, '头块不该被摧毁 —— 它只在 mount 时建一次，没了就永久没了');
+  assert.equal(sticky.hidden, true, '引导态下头块必须藏起来（Screenshot_36 的红框）');
+});
+
+test('藏起来时，卡住的进度条与加载计数一并归位', async () => {
+  // 只藏外层的话，进度条会带着上一次的半截进度潜伏下来 ——
+  // 恢复后第一眼看到的就是一条卡住的进度条。
+  const c = await denied();
+  const sticky = byClass(c.view, 'fk-files-sticky')[0];
+  const progress = byClass(sticky, 'fk-files-progress')[0];
+  const count = byClass(sticky, 'fk-files-loading-count')[0];
+  assert.ok(progress && count, '前置：进度条与计数应当在头块里');
+  assert.equal(progress.hidden, true, '进度条没归位 —— 恢复后会露出半截旧进度');
+  assert.equal(count.hidden, true, '加载计数没归位');
+  assert.equal(count.textContent, '', '加载计数的旧文案没清掉');
+});
+
+test('手机上授权完成后，浏览器端自己恢复，不需要点刷新', async () => {
+  // 文案写着「完成后这里会自动恢复」。这一条就是那句话的实现。
+  const c = await denied();
+  assert.ok(byClass(c.view, 'fk-guidance')[0], '前置：应当停在引导态');
+
+  // 用户在手机上点了「去授权」—— 服务端从此读得到了。
+  c.listings[''] = FIXTURES[''];
+
+  // 轮询到点：先静默探测，确认读得到才走真实加载。
+  await c.fireTimers();
+
+  assert.equal(byClass(c.view, 'fk-guidance').length, 0, '引导态没有自动退出');
+  const sticky = byClass(c.view, 'fk-files-sticky')[0];
+  assert.equal(sticky.hidden, false, '恢复后头块没有重新露面');
+  // 与正常加载**逐项相同**（同一份期望见本文件上方那条搜索用例）：
+  // 自动恢复不是「画点什么出来」，是走完整的那条加载路径。
+  assert.deepEqual(
+    titles(c.view),
+    ['Pictures', 'notes.txt', 'Report-old.pdf', 'report.pdf'],
+    '恢复后的列表与正常加载不一致',
+  );
+});
+
+test('探测失败时一个像素都不许动 —— 否则每 3 秒闪一次', async () => {
+  // 这是整段自动恢复最容易做错的地方：直接 `load()` 重试会走 renderShell，
+  // 把引导文案整块清掉、亮出进度条，403 回来再重画一遍。
+  // 用户看到的是每 3 秒闪一下的引导页，比不恢复还糟。
+  const c = await denied();
+  const box = byClass(c.view, 'fk-guidance')[0];
+  const sticky = byClass(c.view, 'fk-files-sticky')[0];
+  assert.ok(box, '前置：应当停在引导态');
+
+  const before = c.asked.length;
+  await c.fireTimers();   // 权限仍未授予
+
+  assert.equal(c.asked.length, before + 1, '一次轮询应当只发一个探测请求');
+  assert.equal(
+    byClass(c.view, 'fk-guidance')[0] === box,
+    true,
+    '引导文案被重建了 —— 探测碰了 DOM，用户会看到每 3 秒闪一次',
+  );
+  assert.equal(sticky.hidden, true, '探测过程中头块露出来了 —— 同样是闪烁');
+});
+
+test('探测失败后轮询链不断，下一次照常再探', async () => {
+  // 失败一次就不再排期的话，用户授权得稍慢一点就永远等不到恢复了。
+  const c = await denied();
+  await c.fireTimers();
+  assert.ok(c.pendingTimers() > 0, '探测失败后没有排下一次 —— 自动恢复只有一次机会');
+
+  c.listings[''] = FIXTURES[''];
+  await c.fireTimers();
+  assert.equal(byClass(c.view, 'fk-guidance').length, 0, '第二轮探测没有恢复');
+});
+
+test('恢复之后不再轮询', async () => {
+  const c = await denied();
+  c.listings[''] = FIXTURES[''];
+  await c.fireTimers();
+  assert.equal(byClass(c.view, 'fk-guidance').length, 0, '前置：应当已经恢复');
+  assert.equal(c.pendingTimers(), 0, '恢复后定时器还在跑 —— 会一直白发请求');
+});
+
+test('只有「等用户去授权」才轮询，系统锁死的目录不轮询', async () => {
+  // `storage_restricted` 是 Android/data 这类系统永远锁死的位置 ——
+  // 它不会因为用户做了什么而变。对它轮询只是每 3 秒白发一个注定失败的请求。
+  const c = await opened();
+  c.listings.Locked = { __fail: { status: 403, code: 'storage_restricted' } };
+  c.api.navigate('Locked');
+  await tick();
+
+  assert.ok(byClass(c.view, 'fk-guidance')[0], '前置：应当进入引导态');
+  assert.equal(c.pendingTimers(), 0, '对系统锁死的目录也开了轮询');
+});
+
+test('轮询不叠加', async () => {
+  // 每次失败都排一个新定时器的话，探测频率会随失败次数翻倍。
+  const c = await denied();
+  assert.equal(c.pendingTimers(), 1, '进入权限引导态后应当只有一个定时器');
+
+  // 手动刷新一次，又失败一次 —— 仍然只能有一个。
+  c.api.navigate('');
+  await tick();
+  assert.equal(c.pendingTimers(), 1, '重复进入权限引导态把定时器叠起来了');
+});
+
+test('主开关关掉后停止轮询', async () => {
+  // 开关关掉连面板入口都藏了，再探授权是纯浪费。
+  const c = await denied();
+  assert.equal(c.pendingTimers(), 1, '前置：应当正在轮询');
+  c.api.setEnabled(false);
+  assert.equal(c.pendingTimers(), 0, '主开关关掉后定时器还在跑');
+});
+
+test('探测途中用户手动刷新，也只留一个定时器', async () => {
+  // 轮询唯一的危险窗口：`await probeAccess()` 会让出执行权。这期间用户点了刷新，
+  // 那条链会走完整的 load → renderShell → 403 → 排期；等探测的 promise 回来，
+  // 轮询回调**接着往下跑**，又排一个。两个定时器从此并行，探测频率翻倍，
+  // 而且每失败一次再翻一次。
+  //
+  // 挡住它的是探测之后那条 `if (!awaitingPermission || !enabled) return;` ——
+  // renderShell 已经把标志清掉了，所以回调认出「这一轮已经作废」直接退出。
+  let armed = false;
+  let raced = false;
+  const c = load(Object.assign({}, FIXTURES, { '': PERM_FAIL }), {
+    onFetch: () => {
+      // **只在探测那一发上插一脚。** 挂在第一发上是没用的 ——
+      // 那是面板初次加载，还没进引导态，构造不出竞态（第一版就是这么写的，
+      // 于是删掉被测的那行代码零条红）。
+      if (!armed || raced) return;
+      raced = true;
+      c.api.navigate('');   // 用户此刻点了刷新
+    },
+  });
+  c.api.mount(c.view);
+  body(c.view).clientHeight = 600;
+  c.api.setEnabled(true);
+  await tick();
+  assert.ok(byClass(c.view, 'fk-guidance')[0], '前置：应当停在引导态');
+
+  armed = true;            // 从这里开始的下一发 fetch 就是探测
+  await c.fireTimers();
+
+  assert.equal(raced, true, '竞态没被构造出来 —— 这条用例什么都没验证');
+  assert.equal(
+    c.pendingTimers(),
+    1,
+    '探测与手动刷新各排了一个定时器 —— 轮询频率会随失败次数翻倍',
+  );
 });

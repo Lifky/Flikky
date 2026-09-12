@@ -605,6 +605,29 @@
     }
 
     /**
+     * sticky 头块的显隐。**只切 hidden，不销毁** —— 它只在 mount 时建一次
+     * （搜索行住在里面，重建等于丢焦点），销毁一次就永久没了。
+     *
+     * 引导态要把它藏起来：那时候搜索框搜不到东西、面包屑指着一个读不到的位置、
+     * 进度条还停在半路显示「正在载入... 已 0 项」——三个控件全在说谎
+     * （2026-09-12 装机反馈 Screenshot_36）。
+     */
+    function showSticky() {
+        if (stickyEl) stickyEl.hidden = false;
+    }
+
+    function hideSticky() {
+        if (stickyEl) stickyEl.hidden = true;
+        // 顺手把加载指示器归位。只藏外层的话，它们会带着上一次的半截进度
+        // 潜伏到下一次显示 —— 恢复后第一眼看到的就是一条卡住的进度条。
+        if (progressEl) progressEl.hidden = true;
+        if (loadingCountEl) {
+            loadingCountEl.hidden = true;
+            loadingCountEl.textContent = '';
+        }
+    }
+
+    /**
      * sticky 头块里那句加载计数。
      *
      * **只在加载中说话。** 完成后的「共 N 项」留在列表尾部那一处 ——
@@ -972,6 +995,9 @@
         const dir = depthOf(path) >= depthOf(shownPath) ? 'enter' : 'exit';
         shownPath = path || '';
         clearBelowSticky();
+        showSticky();
+        // 有真实加载在跑了，等授权那轮就结束了（失败的话 handleFailure 会重开）。
+        stopPermissionPoll();
         rowElements.clear();
         // 新壳 = 还没有任何属于它的数据。清掉之后 syncVirtual 画不出任何行，
         // 直到头行到达把 viewEntries 接上 —— 那次 scroll 事件因此无害。
@@ -1038,6 +1064,7 @@
         if (!bodyEl) return;
         // 与 renderShell 同一处理：sticky 头块整块保留，只清列表区。
         clearBelowSticky();
+        showSticky();
         // 索引与 DOM 同生同死：忘了清会让 rowElements 一直握着已经从文档里摘掉的
         // 元素（内存泄漏），而且清除按钮会去改一批看不见的行。
         rowElements.clear();
@@ -1085,6 +1112,7 @@
         // 永久消失（2026-09-12 装机反馈）。引导态是可恢复的瞬时状态
         // （用户去手机上授权、或换个目录），头块必须活过它。
         clearBelowSticky();
+        hideSticky();
         const box = document.createElement('div');
         box.className = 'fk-guidance';
         const ic = icon(iconName);
@@ -1099,6 +1127,88 @@
         b.textContent = t(bodyKey);
         box.appendChild(b);
         bodyEl.appendChild(box);
+    }
+
+    // ---- 授权后的自动恢复 ---------------------------------------------------
+
+    /**
+     * 「需要在手机上授权」是唯一一个**用户正在别处主动解决**的引导态 ——
+     * 他此刻正拿着手机点「去授权」，几秒后就会走回电脑前。
+     * 文案承诺「完成后这里会自动恢复」，这段就是兑现它的地方。
+     *
+     * ## 为什么是轮询而不是等推送
+     *
+     * 服务端的 `settings_changed` 只在 DataStore 设置变化时广播，而系统权限
+     * **不是设置**（`Environment.isExternalStorageManager()`）。要走推送就得
+     * 新开一条 UI → Service → WS 的链路，动到广播层与 PeerInfoDto——
+     * 在验收返工期动那里的风险，远大于浏览器端自己探一下。
+     *
+     * ## 轮询成本可以忽略
+     *
+     * App 本来就**每 1 秒推一帧 status**（TransferService 的状态循环）。
+     * 3 秒一次、只在这个罕见等待态里发的探测，比既有基线还轻。
+     *
+     * ## 探测必须静默
+     *
+     * 不能直接 `load()` 重试：那会走 renderShell，把引导文案整块清掉、
+     * 亮出进度条，403 回来再重画一遍 —— 每 3 秒闪一次，比不恢复还糟。
+     * 所以先发一个只看状态码的探测，确认读得到了才走真实加载。
+     */
+    const PERMISSION_POLL_MS = 3000;
+    let awaitingPermission = false;
+    let permissionPollTimer = null;
+
+    function stopPermissionPoll() {
+        awaitingPermission = false;
+        if (permissionPollTimer !== null && typeof clearTimeout === 'function') {
+            clearTimeout(permissionPollTimer);
+        }
+        permissionPollTimer = null;
+    }
+
+    /** 只看状态码的静默探测。**不动任何 DOM。** */
+    async function probeAccess() {
+        try {
+            const r = await fetch(listUrl(currentPath), { credentials: 'same-origin' });
+            // 正文一律丢弃 —— 不取消的话，一个上千项的目录会被整份读完，
+            // 而我们只要那个状态码。
+            if (r && r.body && typeof r.body.cancel === 'function') {
+                try { r.body.cancel(); } catch (e) { /* 流已经关了就算了 */ }
+            }
+            return !!(r && r.ok);
+        } catch (e) {
+            // 网络抖动不是「没授权」，也不该让轮询链断掉：当作这次没成，下次再探。
+            return false;
+        }
+    }
+
+    function schedulePermissionPoll() {
+        if (typeof setTimeout !== 'function') return;
+        // 已经排了就不叠。多个定时器同时跑会让探测频率随失败次数翻倍。
+        //
+        // 这一条与下面「探测之后重新核对 awaitingPermission」**互为冗余**：
+        // 单独去掉任意一条，另一条都还兜得住（逼红实测各 0 条红），
+        // 两条一起去掉才会红。别因为「删了不红」就当它是死代码清掉 ——
+        // 它们挡的是同一个竞态的两端（排期端 / 回调端）。
+        // 守卫见 panel-files-search.test.js「探测途中用户手动刷新」。
+        if (permissionPollTimer !== null) return;
+        permissionPollTimer = setTimeout(async function () {
+            permissionPollTimer = null;
+            if (!awaitingPermission || !enabled) return;
+            // 标签页在后台就只等、不发请求。用户不在看，恢复给谁看都没意义，
+            // 而手机那头还得为此醒着。回到前台后最多 3 秒就会探到。
+            const vis = document ? document.visibilityState : undefined;
+            if (vis === 'hidden') { schedulePermissionPoll(); return; }
+            const ok = await probeAccess();
+            // 探测期间状态可能已经变了（用户手动刷新过、或关掉了面板）。
+            if (!awaitingPermission || !enabled) return;
+            if (ok) {
+                stopPermissionPoll();
+                load(currentPath, true);
+                return;
+            }
+            schedulePermissionPoll();
+        }, PERMISSION_POLL_MS);
     }
 
     function notifyError(text) {
@@ -1283,9 +1393,15 @@
      */
     function handleFailure(status, code) {
         if (status === 403 && code === 'storage_permission_required') {
+            // 唯一开启轮询的分支：用户此刻正在手机上解决它。
+            awaitingPermission = true;
             renderGuidance('folder_off', 'app.files.needPermission', 'app.files.needPermissionHow');
+            schedulePermissionPoll();
             return;
         }
+        // 其余失败都不是「等用户去授权」：`storage_restricted` 是系统锁死的目录
+        // （Android/data，永远不会变），404 是位置没了。对它们轮询只是白发请求。
+        stopPermissionPoll();
         if (status === 403 && code === 'storage_restricted') {
             renderGuidance('lock', 'app.files.restricted', 'app.files.restrictedWhy');
             return;
@@ -1559,17 +1675,24 @@
      * 不支持 `body.getReader()` 时把同一个响应整体取文本，用同一个解析器跑
      * —— 只有一个请求，两条路径共用一份解析逻辑。
      */
+    /**
+     * 列举请求的 URL。**唯一事实源** —— 真实加载与授权探测都走它。
+     *
+     * 初次加载由**服务端**按当前排序下发：不带 sort 的话，把排序改成「按大小」的
+     * 用户此后每次打开目录都会先看到按名称排的列表、流结束时再跳一次（spec §6.1）。
+     * 形态就是 SortSpec.format()，两端共用同一个解析器。
+     *
+     * 探测必须与真实加载**同形**：少一个参数就可能命中不同的服务端分支，
+     * 于是「探测说能读了、真加载又失败」，自动恢复反倒变成闪烁。
+     */
+    function listUrl(target) {
+        return '/api/storage/list?stream=1&sort=' +
+            encodeURIComponent(sorter.format(sortSpec)) +
+            '&path=' + encodeURIComponent(target || '');
+    }
+
     async function loadStreaming(target, seq) {
-        const r = await fetch(
-            // 初次加载由**服务端**按当前排序下发：不带的话，把排序改成
-            // 「按大小」的用户此后每次打开目录都会先看到按名称排的列表、
-            // 流结束时再跳一次（spec §6.1）。形态就是 SortSpec.format()，
-            // 两端共用同一个解析器。
-            '/api/storage/list?stream=1&sort=' +
-                encodeURIComponent(sorter.format(sortSpec)) +
-                '&path=' + encodeURIComponent(target),
-            { credentials: 'same-origin' },
-        );
+        const r = await fetch(listUrl(target), { credentials: 'same-origin' });
         if (seq !== requestSeq) return true;
         if (!r.ok) {
             loadingPath = null;
@@ -1768,6 +1891,8 @@
         if (on === enabled) return;
         enabled = on;
         if (!enabled) {
+            // 主开关关了：连面板入口都藏起来了，再探授权没有意义。
+            stopPermissionPoll();
             lastState = null;
             hasLoadedOnce = false;
             currentPath = '';
