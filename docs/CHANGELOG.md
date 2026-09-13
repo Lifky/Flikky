@@ -4,57 +4,65 @@
 
 This file records user-facing changes for each Flikky release, loosely following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow `x.y.z`: x for major architectural changes, y for new features, z for bug fixes. Dates are tag creation dates.
 
-## [v1.20.0](https://github.com/Lifky/Flikky/releases/tag/v1.20.0) · unreleased
+## [v1.20.0](https://github.com/Lifky/Flikky/releases/tag/v1.20.0) · 2026-09-13
+
+The largest release so far, built in three stages: the phone's own storage becomes browsable from both ends, every file surface gains sorting and search, thumbnails and preview reach the storage and favorites lists, and the leading visual is customizable throughout.
 
 ### Added
-- A **files tab in the session screen**: browse the phone's own storage, tap files to select them (selection accumulates across directories), and send the whole selection into the session in one go. Images and videos show local thumbnails. The tab sits next to the chat tab and swipes between them
-- A **files panel in the browser**: browse the phone's storage remotely, walk into directories through a collapsing breadcrumb, and download individual files. Sending from the phone is not required
+
+#### Browsing the phone's storage
+- A **files tab in the session screen**: browse the phone's own storage, tap files to select them (selection accumulates across directories), and send the whole selection into the session in one go. The tab sits next to the chat tab and swipes between them
+- A **files panel in the browser**: browse the phone's storage remotely, walk into directories through a collapsing breadcrumb, and download files one at a time or as a multi-select batch. Sending from the phone is not required
 - A new **"let the computer browse phone storage" switch, off on a fresh install**. While it is off the browser shows no files destination at all, and every storage endpoint answers `404`. Listing files needs Android's "All files access" permission, which has no read-only variant — Flikky only ever reads. See the security section of the README
+- A **show hidden files** setting, off by default
 - The server now **binds the hotspot address when the phone itself is the access point**. This case was in the stated security model from the start but had never worked: with no Wi-Fi network connected the app could not find an address and the service refused to start
 
+#### Sorting and search
+- **Sorting on six surfaces**: the home screen, favorites, the files overview, the files tab on the phone, and the files and favorites panels in the browser. Tapping a new key uses that key's natural direction — name ascending, time and size descending — and tapping the current key flips it. Every surface remembers its own choice, and the phone and the browser remember separately
+- What "time" means is stated per surface: session start on the home screen, the moment it was saved in favorites, message time in the files overview, and filesystem modification time for storage files
+- **Search within the current folder** on both ends: filtering happens as you type with no new request, and matches folders as well as files. The keyword clears when you change directory
+- The home screen's **sectioning choice** — none, by state, or by date. All three modes had been built but were never connected to anything, so none of them had ever rendered on a device
+
+#### Thumbnails and preview
+- Images and videos in the storage list and the favorites panel now show **thumbnails on both ends**, served from a disk cache keyed by path, modification time and size, and evicted least-recently-used under a ceiling
+- Tapping a thumbnail **opens a preview**: the in-app viewer with pinch-to-zoom for images on the phone, the system player for video, and one shared fullscreen lightbox for all three sources in the browser. Tapping the row itself still selects, exactly as before
+- A **thumbnail cache setting**: a ceiling of 0 (no caching), 50, 100 or 200 MB, the space currently used, and a button to clear it. "Delete all data" clears it too
+- SVG files are deliberately excluded from both thumbnails and inline rendering
+
+#### Customizable leading visual
+- **The shape of the leading container can be chosen** from a grid of 25 official Material 3 Expressive shapes, and applies everywhere a file row has one: the files overview, favorites, both quick-send sheets, the files tab, the chat file bubble, and the three matching surfaces in the browser
+- **Three colour modes for the leading container**: one theme colour for every type (as before), colours harmonized with the theme, or fixed colours. Each mode shows a six-colour preview strip matching the six file categories
+- **Archives are their own file category**, with the official `folder_zip` symbol — ZIP, RAR and 7z no longer fall in with "other". The category filter now carries seven chips and scrolls horizontally on a narrow screen
+- Both choices sync to the browser live, survive a restart, and travel in an export/import
+
 ### Changed
-- The phone's loading bar now collapses upward when a listing finishes, like the browser's
-- The loading bar collapses upward on a spring when a listing finishes, so the list glides up instead of jumping
-- The browser's file list renders only the rows near the viewport. A 10,000-entry folder used to put 110,000 elements in the page; it now holds a few hundred, which is where the memory use and the scrolling stutter came from
-- Select all and deselect are one two-state button in the browser's panel head, and it hides when the folder holds nothing selectable; the toolbar keeps its original close button
-- Both ends say how much of the selection sits in other folders, so a count that exceeds the ticks on screen is no longer a mystery
-- Going back to a folder you have already opened is instant and lands where you left off, on both the phone and the browser. There is deliberately no automatic re-read; a refresh button in each panel is the manual way
-- A new setting shows hidden files, off by default
-- Select all and deselect all in the browser's file panel. Select all waits until the listing is complete, because "all" has no defined meaning while rows are still arriving
-- Both file lists now end with a marker — "Loading… N so far" while entries arrive, "N items" once done — so it is possible to tell a finished list from one that merely stopped growing
-- Favourite rows share the file rows' staggered entrance, so the two panels read as one system
 - Opening a large folder now fills in progressively on both ends. The server streams the listing as NDJSON, flushed per entry, and each end appends rows as they arrive instead of waiting for the whole directory. Reading each entry's attributes in one call rather than three cuts a 2000-entry folder from roughly 6000 filesystem calls to 2000
-- File rows fade in one by one with a capped stagger, and the list slides in the direction of travel when you enter or leave a folder
-- The session screen shows its tab row only once a browser is connected — everything the files tab can do needs a connection
-- The files list, breadcrumb and selection affordance are animated on both ends
+- The browser's file list renders only the rows near the viewport. A 10,000-entry folder used to put 110,000 elements in the page; it now holds a few hundred, which is where the memory use and the scrolling stutter came from
+- On the phone, listing runs off the main thread, the path and a progress indicator appear the instant you tap, and a new navigation cancels the previous one
+- Going back to a folder you have already opened is instant and lands where you left off, on both the phone and the browser. There is deliberately no automatic re-read; a refresh button in each panel is the manual way
+- Both ends say how much of the selection sits in other folders, so a count that exceeds the ticks on screen is no longer a mystery
+- Select all and deselect are one two-state button in the browser's panel head, and it hides when the folder holds nothing selectable. It stays inert until the listing is complete, because "all" has no defined meaning while rows are still arriving
+- Both file lists now end with a marker — "Loading… N so far" while entries arrive, "N items" once done — so it is possible to tell a finished list from one that merely stopped growing
 - A directory reads as an item count on both ends, instead of "Folder" on the phone and "13 items" in the browser
+- The app's selection toolbar is now a Material 3 FAB menu
+- The session screen shows its tab row only once a browser is connected — everything the files tab can do needs a connection
+- File rows fade in one by one with a capped stagger, the list slides in the direction of travel when you enter or leave a folder, and favourite rows share the same entrance, so the two panels read as one system
+- The loading bar collapses upward on a spring when a listing finishes, so the list glides up instead of jumping. Both ends do this now
+- The browser's lightbox eases open: the scrim fades, the image settles in from slightly smaller, and the swap from thumbnail to full image cross-fades instead of cutting. The chat lightbox gained this too, since all three sources share one implementation. "Reduce motion" turns all of it off
 - Icons throughout the browser are now hidden from screen readers. A destination used to be read out as "star Favorites", because the icon glyph is generated content carrying an internal identifier
 - The browser's navigation reports the current destination with `aria-current` instead of `aria-selected`. The latter is ignored on a plain button inside a `<nav>`, so which destination you were on was never announced at all
+- Under the single-colour mode, the leading container on the phone moved from the primary tones to the secondary tones — which is what the browser already used. One token now, on both ends
+- Storage browsing uses the plain folder symbol rather than `folder_shared`, and the show-hidden-files row uses Folder Eye
+- Six separate byte-formatting implementations in the Kotlin source were collapsed into one
 
 ### Fixed
-- Entering a folder from a scrolled parent showed the parent's rows instead of the folder's own
-- On the phone, a folder opened part-way down the list instead of at the top
-- Browser rows sat too close together instead of matching the favourites list
-- The browser list flickered while a large directory loaded
-- The list appeared to blink when moving between folders on the phone
-- Rows drew on top of each other on the phone after moving between directories
-- Browser rows lost the gap between them and read as one solid block
-- The sticky breadcrumb was a different shade from the panel around it
-- The browser breadcrumb scrolled out of sight, so a deep path was unknowable without scrolling back
-- Select all refused clicks while a listing loaded but was styled as if it worked, lighting up on hover and scaling on press
-- Dotfiles were filtered out of listings but still counted, so a folder's subtitle said 5 items and the folder showed 4
-- The browser's select-all was clickable throughout the request, and would then add the *previous* directory's files to the selection
-- Selecting thousands of rows at once froze the page
-- Going back to a folder re-read it from scratch and returned to the top of the list
-- The phone's streaming list only revealed a row or two at a time and needed dragging to the bottom to continue, replayed its entrance animation on every scroll back, and stuttered when switching tabs in a large folder — all one cause, an entrance wrapper that left each row zero-height until it became visible, which a lazy list cannot lay out
-- Files rows in the browser had lost the press feedback favourites rows have: the entrance animation's fill mode pinned `transform` permanently, which outranks `:active`
-- The directional slide animated a container that was still empty, so it was never visible
-- Selecting a favourite rebuilt the whole list, the same defect already fixed for files
-- The browser's file list flashed on every selection: the click handler re-rendered, and the first thing that does is empty the container, so every row and the breadcrumb were rebuilt and the entrance animation replayed
-- **The browser showed a files destination, and an error toast, while the switch was off.** The rail entry was set hidden but drawn anyway — an author `display: flex` outranks the browser's own `[hidden]` rule — and the panel fetched at page load, before it knew the switch state, so the resulting 404 was reported as "this location no longer exists"
-- **Entering a large folder appeared to do nothing, then jumped back.** The listing ran on the main thread with three stat calls per entry, so taps queued; a slow result also landed after the user had moved on, dragging them back into the folder they had left. Listing now runs off the main thread, the path and a progress indicator appear the instant you tap, and a new navigation cancels the previous one
-- The files panel in the browser had no typography of its own: four `font:` shorthands omitted the family, which makes the whole declaration invalid, and the listing container named a CSS class that did not exist, so the list group's shape was simply absent
-- The app's selection bar rendered as a large ellipse across the screen; it is now a FAB menu
+
+- Collapsing a settings row left a double gap behind it, and the spring overshoot made the row bounce on the way in
+- A segmented control's indices shifted while the row above it was collapsing
+- Nested scaffolds reapplied the window insets, so the navigation bar was padded twice
+- `hidden` did not actually hide in the browser: an author `display` rule outranks the browser's own `[hidden]` rule, so an element hidden that way was still drawn. This was a global defect, and is fixed globally
+- Selecting a favourite rebuilt the whole favorites list
+- A further 31 defects in this release's own new code — storage browsing, sorting, thumbnails — were found and fixed before it shipped, so no released build ever carried them
 
 ## [v1.19.0](https://github.com/Lifky/Flikky/releases/tag/v1.19.0) · 2026-08-26
 

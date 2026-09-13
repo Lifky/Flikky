@@ -79,8 +79,8 @@
     <string name="settings_allow_back">允许会话中返回</string>
     <string name="settings_allow_back_summary">默认拦截返回键保护会话；开启后可返回主页查看历史（会话期间设置入口锁定）</string>
     <string name="settings_keep_screen_on">会话中保持屏幕常亮</string>
-    <string name="settings_storage_browsing">允许电脑浏览手机存储</string>
-    <string name="settings_storage_browsing_summary">开启后，已连接的电脑可以浏览并下载手机共享存储里的文件。Flikky 只读取，不写入、不修改、不删除。关闭后电脑端立即失去该入口。</string>
+    <string name="settings_storage_browsing">允许浏览器浏览手机存储</string>
+    <string name="settings_storage_browsing_summary">开启后，已连接的浏览器可以浏览并下载手机共享存储里的文件。Flikky 只读取，不写入、不修改、不删除。关闭后浏览器端立即失去该入口。</string>
 
     <string name="settings_section_data">数据</string>
     <string name="settings_history_limit">历史保存数量</string>
@@ -88,7 +88,7 @@
     <string name="settings_history_disabled">不保存</string>
     <string name="settings_history_default">默认（20 条）</string>
     <string name="settings_thumbnail_cache">缩略图缓存</string>
-    <string name="settings_thumbnail_cache_description">浏览手机存储时，电脑端显示的图片和视频预览图会缓存在本机，加快下次浏览。</string>
+    <string name="settings_thumbnail_cache_description">浏览手机存储时，浏览器端显示的图片和视频预览图会缓存在本机，加快下次浏览。</string>
     <string name="settings_thumbnail_cache_limit">上限</string>
     <string name="settings_thumbnail_cache_default">默认（100 MB）</string>
     <string name="settings_thumbnail_cache_megabytes">%1$d MB</string>

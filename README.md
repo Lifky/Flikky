@@ -20,8 +20,8 @@ Flikky is designed for trusted local networks and keeps the operational complexi
 
 | Channel | Revision | State |
 | --- | --- | --- |
-| Stable source | [`v1.19.0`](https://github.com/Lifky/Flikky/tree/v1.19.0) · 2026-08-26 | The browser client rebuilt in Material 3 Expressive (three-pane shell, bottom navigation on narrow windows), new favorites and settings panels in the browser, and in-session quick settings covering every synced setting. |
-| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.19.0...main) | No unreleased changes beyond the stable tag. |
+| Stable source | [`v1.20.0`](https://github.com/Lifky/Flikky/tree/v1.20.0) · 2026-09-13 | The phone's own storage is browsable from both ends behind a default-off switch, every file surface gained sorting and in-folder search, thumbnails and preview reached the storage and favorites lists, and the leading container's shape and colours are customizable. |
+| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.20.0...main) | No unreleased changes beyond the stable tag. |
 
 Use the stable tag for a reproducible build. Use `main` when evaluating the latest unreleased work. Per-release changes are documented in the [changelog](./docs/CHANGELOG.md); version history is available from the repository's [tags](https://github.com/Lifky/Flikky/tags).
 
@@ -50,9 +50,10 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 - **Session history:** Room-backed sessions support search, pin, rename, grouping, per-message actions, configurable retention, and crash recovery.
 - **Recall and cleanup:** messages can be recalled during an active session, optionally including the other end's messages; local history items and sessions can be deleted with confirmation or undo where appropriate. Deleting a file frees its on-disk copy while History keeps an inert record.
 - **Files overview:** browse files from all sessions in one place with direction/category filters, search, sorting, and multi-select actions (favorite, save, share, jump to message, delete).
+- **Browse the phone's storage:** with the default-off switch on, the phone's own storage is browsable from the session screen's files tab and from the browser's files panel — breadcrumb navigation, in-folder search, sorting, thumbnails and preview for images and video, a batch download in the browser, and a multi-directory selection sent into the session from the phone. Flikky only ever reads.
 - **Favorites:** keep independent text or file snapshots in collections, add local items without a session, search them, and send them back into an active transfer.
 - **Portable archives:** export sessions, favorites, settings, or all data to a ZIP archive; save it on Android or serve it to a browser, then import it later. When imported sessions already exist locally, choose to skip or overwrite them.
-- **Adaptive appearance:** Material 3 Expressive themes, custom theme color, dark mode, contrast, motion speed, avatars (including a browser-side avatar), bubble shape, grouping, and selected appearance settings stay aligned across phone and browser.
+- **Adaptive appearance:** Material 3 Expressive themes, custom theme color, dark mode, contrast, motion speed, avatars (including a browser-side avatar), bubble shape, grouping, the leading container's shape and per-type colours, and selected appearance settings stay aligned across phone and browser.
 - **Multilingual:** both the app and the browser client support Chinese and English, and the language setting stays in sync across both ends.
 - **Offline browser client:** the HTML, CSS, JavaScript, mdui components, Material Symbols font, and design tokens are bundled in the APK; no CDN is used.
 
@@ -133,6 +134,15 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 - [x] Files tab in the session screen: browse the phone's own storage and send a multi-directory selection
 - [x] Files panel in the browser: browse the phone's storage remotely and download (behind a default-off switch)
 - [x] Binds the hotspot address when the phone itself is the access point
+- [x] Sorting on six surfaces (home, favorites, files overview, files tab, browser files/favorites panels), remembered per surface and per end
+- [x] In-folder search on both ends
+- [x] Home screen sectioning (none / by state / by date)
+- [x] Show hidden files
+- [x] Thumbnails and preview in the storage list and the favorites panel (both ends)
+- [x] Thumbnail cache with a size ceiling, a usage readout and a clear button
+- [x] Customizable leading container shape (25 official Material 3 Expressive shapes)
+- [x] Customizable leading container colours (one theme colour / harmonized / fixed per type)
+- [x] Archives as their own file category
 - [ ] More... iterating...
 
 ## Security Model and Limits
@@ -146,6 +156,7 @@ Flikky reduces exposure, but it does not turn an untrusted LAN into a secure tra
 - Notifications show the connection URL but never expose the PIN or token on the lock screen.
 - Browsing the phone's storage from the browser is gated by an explicit switch that is **off on a fresh install**. While it is off the browser shows no files destination and every storage endpoint answers `404`.
 - To list files the app declares `MANAGE_EXTERNAL_STORAGE` (All files access). **Android provides no read-only variant of this permission**, so granting it also grants write access. Flikky only reads: it never writes, modifies or deletes anything in shared storage. `Android/data` and `Android/obb` stay inaccessible because the system locks them regardless.
+- Thumbnails of shared-storage files are cached inside the app's own private storage, never in shared storage. The cache has a user-chosen ceiling (0 disables caching entirely), can be cleared from Settings, and is wiped by "Delete all data".
 - SAF is not an option here: on Android 11+ `ACTION_OPEN_DOCUMENT_TREE` refuses to grant the internal-storage root and the Download directory, so it cannot express "browse all shared storage".
 - The only network request outside the LAN is the optional update check, which fetches `https://api.github.com/repos/Lifky/Flikky/releases/latest` over HTTPS. It runs only when triggered manually or when auto-check is explicitly enabled (off by default), and sends no device identifier, account, or telemetry data.
 
