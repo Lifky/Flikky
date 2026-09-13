@@ -76,7 +76,7 @@
   z-index: 3;
   margin: 0 calc(-1 * var(--flikky-space-xxl));
   padding: 0 var(--flikky-space-xxl);
-  background: var(--flikky-pillar-bg);
+  background: var(--flikky-pillar-surface);
 }
 /* 头块里的面包屑不再自己 sticky —— 整块一起吸顶，多个 sticky 元素要手工算
    彼此的 top 偏移，差一像素滚动时就互相穿透。 */
@@ -410,8 +410,11 @@
  * 面包屑正是 renderBreadcrumb 塞进它里面的。移出去 sticky 就静默失效 ——
  * CSS 不会报错，所以那个前提在 panel-files-chrome.test.js 里单独钉着。
  *
- * 背景用 `--flikky-pillar-bg` —— 面板就坐在 .fk-pillar 上，深浅色两档都由那个
- * token 自己解析。用别的 surface token 会与四周差一档（装机验收看到一条色带）。
+ * 背景用 `--flikky-pillar-surface` —— 面板就坐在 .fk-pillar 上，那个变量由柱子
+ * 自己声明（shell.css），宽屏窄屏各解析成不同的值。**不要直接引
+ * `--flikky-pillar-bg`**：窄屏下柱子换成了 --flikky-page-bg，写死那个 token
+ * 会露出一块与四周不齐的色板（2026-09-13 装机反馈 Screenshot_37）。
+ * 用别的 surface token 同样会差一档（更早一次装机验收看到一条色带）。
  *
  * 背景与 z-index 都是必需的：不给背景，滚上来的行会从它下面透出来；
  * 不给 z-index，行的 `:active` transform 会创建层叠上下文并盖在它上面。
@@ -422,7 +425,7 @@
   z-index: 2;
   margin: 0 calc(-1 * var(--flikky-space-xxl));
   padding: var(--flikky-space-sm) var(--flikky-space-xxl);
-  background: var(--flikky-pillar-bg);
+  background: var(--flikky-pillar-surface);
 }
 .fk-crumbs ol {
   display: flex;

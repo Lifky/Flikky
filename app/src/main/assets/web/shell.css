@@ -51,7 +51,20 @@ body {
 }
 
 .fk-pillar {
-  background: var(--flikky-pillar-bg);
+  /* `--flikky-pillar-surface` = 「这根柱子此刻实际的底色」。
+   *
+   * 面板里凡是要与柱子**齐色**的元素（吸顶头块、面包屑 —— 它们靠背景挡住
+   * 从下面滚上来的行）都读这一个变量，而不是各自去引 `--flikky-pillar-bg`。
+   *
+   * 为什么需要这一层：窄屏下（见本文件底部的 max-width: 839px）柱子换成了
+   * `--flikky-page-bg`，而吸顶元素还写死 `--flikky-pillar-bg` ——
+   * 宽屏两者同源看不出来，窄屏就露出一块纯白色板
+   *（2026-09-13 装机反馈 Screenshot_37）。
+   *
+   * 定义在这里而不是 tokens.css：那份是脚本从 Kotlin 常量生成的，不能手改；
+   * 而且这个值的真相就在「谁给柱子上色」这条规则旁边，离得越近越不容易再分叉。 */
+  --flikky-pillar-surface: var(--flikky-pillar-bg);
+  background: var(--flikky-pillar-surface);
   border-radius: var(--flikky-shape-xl-increased) var(--flikky-shape-xl-increased) 0 0;
   box-shadow: none;
   min-width: 0;
@@ -350,7 +363,10 @@ body[data-favorite-enabled="0"] [data-dest="favorites"] { display: none; }
   .fk-pillar {
     border-radius: 0;
     box-shadow: none;
-    background: var(--flikky-page-bg);
+    /* 改**变量**而不是改 background：吸顶头块与面包屑都跟着这一个值走，
+       改底色的地方负责声明底色，免得漏掉某个要齐色的元素。 */
+    --flikky-pillar-surface: var(--flikky-page-bg);
+    background: var(--flikky-pillar-surface);
   }
   .fk-pillar--rail,
   .fk-splitter { display: none; }

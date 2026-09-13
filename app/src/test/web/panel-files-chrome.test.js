@@ -28,13 +28,16 @@ test('the breadcrumb sticks to the top of the scrolling list', () => {
   assert.ok(rule.indexOf('top: 0') >= 0, 'sticky needs an offset to stick at: ' + rule);
   // 必须有不透明背景：否则滚上来的行会从它下面透出来。
   //
-  // 而且必须是**面板自己那个背景**。第一版用了 `--mdui-color-surface`，
-  // 那是另一个 token —— 装机验收看到吸顶条与四周颜色不同（Screenshot_8 里
-  // 「内部存储」后面有一条色带）。面板坐在 .fk-pillar 上，它的背景是
-  // `--flikky-pillar-bg`，深浅色两档都由那个 token 自己解析。
+  // 而且必须与**柱子当前的底色**一致。这条断言栽过两次：
+  //   · 第一版用 `--mdui-color-surface`，那是另一个 token ——
+  //     吸顶条与四周颜色不同（Screenshot_8 里「内部存储」后面一条色带）；
+  //   · 第二版改成 `--flikky-pillar-bg`，宽屏对了，但窄屏下
+  //     `.fk-pillar` 换成了 `--flikky-page-bg`，于是露出一整块纯白
+  //     （Screenshot_37）——**这条断言当时把错的形状钉住了**。
+  // 现在柱子自己声明 `--flikky-pillar-surface`，吸顶元素一律读它。
   assert.ok(
-    rule.indexOf('var(--flikky-pillar-bg)') >= 0,
-    'the sticky band must use the panel background token, not a different surface: ' + rule,
+    rule.indexOf('var(--flikky-pillar-surface)') >= 0,
+    'the sticky band must track the pillar surface variable: ' + rule,
   );
   assert.equal(
     rule.indexOf('--mdui-color-surface)') >= 0,
@@ -149,5 +152,115 @@ test('the progress bar collapses instead of hard-cutting', () => {
   assert.ok(
     done.indexOf('visibility: hidden') >= 0,
     'a collapsed progress bar must leave the accessibility tree: ' + done,
+  );
+});
+
+/*
+ * ── 吸顶元素必须与柱子齐色（2026-09-13 装机反馈 Screenshot_37）─────────────
+ *
+ * 窄屏浏览器上，文件面板的搜索框与面包屑露出一整块纯白，和上面的标题栏、
+ * 下面的列表都不是一个颜色（收藏面板没有吸顶头块，所以躲过了）。
+ *
+ * 根因：吸顶元素写死 `--flikky-pillar-bg`，而窄屏下（max-width: 839px）
+ * `.fk-pillar` 的背景被换成了 `--flikky-page-bg`。两个 token 在宽屏下同源，
+ * 所以这个分叉在宽屏上完全看不出来 —— 一个**只在某个断点存在**的缺陷。
+ *
+ * 修法是引入 `--flikky-pillar-surface`：柱子自己声明「我此刻是什么底色」，
+ * 吸顶元素一律读它。改底色的地方负责声明底色，不会再漏掉某个要齐色的元素。
+ *
+ * 这里只能扫源码 —— 测试 DOM 没有布局也没有 CSS 级联，算不出实际颜色。
+ * 判据本身是结构性的（谁引用谁），用源码钉住是诚实的做法。
+ */
+
+const shellCss = scan.stripBlockComments(read('shell.css'));
+const panelsCss = scan.stripBlockComments(read('panels.css'));
+
+/** 取某条选择器的规则体。整条选择器相等，不用子串 —— 子串会把派生选择器混进来。 */
+function ruleBodies(css, selector) {
+  const out = [];
+  const re = /([^{}]+)\{([^{}]*)\}/g;
+  let m = re.exec(css);
+  while (m) {
+    if (m[1].trim() === selector) out.push(m[2]);
+    m = re.exec(css);
+  }
+  return out;
+}
+
+test('the pillar declares the surface variable it actually paints with', () => {
+  const bodies = ruleBodies(shellCss, '.fk-pillar');
+  assert.ok(bodies.length >= 2, `sanity: 应当至少有基础与窄屏两条 .fk-pillar 规则，实际 ${bodies.length}`);
+
+  bodies.forEach((body, i) => {
+    // 每一条给柱子上色的规则，都必须同时声明那个变量 ——
+    // 只改 background 不改变量，吸顶元素就会留在旧颜色上（这次的缺陷形状）。
+    if (!/background\s*:/.test(body)) return;
+    assert.match(
+      body,
+      /--flikky-pillar-surface\s*:/,
+      `第 ${i + 1} 条 .fk-pillar 规则改了 background 却没声明 --flikky-pillar-surface —— ` +
+        '吸顶元素会停在旧底色上（窄屏下就是一块纯白）',
+    );
+    assert.match(
+      body,
+      /background\s*:\s*var\(--flikky-pillar-surface\)/,
+      `第 ${i + 1} 条 .fk-pillar 规则没有用那个变量上色 —— 变量与实际底色会分叉`,
+    );
+  });
+});
+
+test('the narrow breakpoint redefines the surface, not just the background', () => {
+  // 这次缺陷的**确切形状**：窄屏换了底色，但吸顶元素不知道。
+  const at = shellCss.indexOf('max-width: 839px');
+  assert.ok(at > 0, 'sanity: 找不到窄屏断点');
+  const narrow = shellCss.slice(at);
+  const pillarAt = narrow.indexOf('.fk-pillar');
+  assert.ok(pillarAt > 0, 'sanity: 窄屏断点里没有 .fk-pillar 规则');
+  const body = narrow.slice(pillarAt, narrow.indexOf('}', pillarAt));
+  assert.match(
+    body,
+    /--flikky-pillar-surface\s*:\s*var\(--flikky-page-bg\)/,
+    '窄屏改了柱子底色却没改 --flikky-pillar-surface —— Screenshot_37 的那块白板',
+  );
+});
+
+test('sticky chrome reads the surface variable, never the raw token', () => {
+  // 吸顶元素靠背景挡住从下面滚上来的行，所以它们必须与柱子**齐色**。
+  // 直接引 `--flikky-pillar-bg` 就会在窄屏下分叉。
+  ['.fk-files-sticky', '.fk-crumbs'].forEach((sel) => {
+    const bodies = ruleBodies(panelsCss, sel);
+    assert.equal(bodies.length, 1, `sanity: ${sel} 应当恰好有一条规则，实际 ${bodies.length}`);
+    const body = bodies[0];
+    assert.match(body, /background\s*:/, `${sel} 没有背景 —— 滚上来的行会从它下面透出来`);
+    assert.match(
+      body,
+      /background\s*:\s*var\(--flikky-pillar-surface\)/,
+      `${sel} 没有读 --flikky-pillar-surface`,
+    );
+    assert.doesNotMatch(
+      body,
+      /var\(--flikky-pillar-bg\)/,
+      `${sel} 直接引了 --flikky-pillar-bg —— 窄屏下柱子不是这个颜色`,
+    );
+  });
+});
+
+test('no panel chrome still hard-codes the raw pillar token', () => {
+  // 扫全量：以后新加的吸顶元素也不许绕过那个变量。
+  // 只有 shell.css 里「柱子给变量赋值」那一处可以出现 --flikky-pillar-bg。
+  const offenders = [];
+  // **不扫 pages.css**：登录页的 `.fk-card` 不在 .fk-pillar 里（登录页没有
+  // 三栏外壳），那个变量对它不可用，直接引 token 才是对的。第一版扫了它，
+  // 抓到一个不是缺陷的用法 —— 判据的范围要恰好等于「柱子内部」。
+  ['panels.css', 'chat.css'].forEach((f) => {
+    const css = scan.stripBlockComments(read(f));
+    const n = (css.match(/var\(--flikky-pillar-bg\)/g) || []).length;
+    if (n > 0) offenders.push(`${f} → ${n} 处`);
+  });
+  assert.deepEqual(
+    offenders,
+    [],
+    '这些地方直接引了 --flikky-pillar-bg。窄屏下柱子换成了 --flikky-page-bg，\n' +
+      '写死那个 token 会露出一块与四周不齐的色板。改读 --flikky-pillar-surface：',
   );
 });
