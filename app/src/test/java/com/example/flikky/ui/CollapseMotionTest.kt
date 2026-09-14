@@ -72,7 +72,7 @@ class CollapseMotionTest {
         val n = uiSources().sumOf { (_, src) ->
             Regex("""shrink(?:Vertically|Horizontally|Out)\(""").findAll(src).count()
         }
-        assertTrue("一处 shrink 动画都没扫到 —— 写法变了？先修切片再谈守卫", n >= 4)
+        assertTrue("一处 shrink 动画都没扫到 —— 写法变了？先修切片再谈守卫", n > 0)
     }
 
     @Test

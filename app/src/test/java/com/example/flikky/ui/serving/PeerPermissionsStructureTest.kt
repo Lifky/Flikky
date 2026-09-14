@@ -58,6 +58,8 @@ class PeerPermissionsStructureTest {
         get() = stripComments(source("com/example/flikky/ui/serving/ServingScreen.kt"))
     private val header
         get() = stripComments(source("com/example/flikky/ui/components/ConversationHeader.kt"))
+    private val quickSettings
+        get() = stripComments(source("com/example/flikky/ui/serving/QuickSettingsSheet.kt"))
 
     @Test
     fun `the panel derives every row state from the shared helper`() {
@@ -148,6 +150,22 @@ class PeerPermissionsStructureTest {
         assertTrue(
             "the stop button should retain its errorContainer colour",
             stopButton.contains("errorContainer"),
+        )
+    }
+
+    @Test
+    fun `quick settings no longer mixes peer gates in with appearance`() {
+        assertFalse(
+            "storageBrowsingEnabled must move to the peer permissions panel",
+            quickSettings.contains("settings_storage_browsing"),
+        )
+        assertFalse(
+            "allowPeerRecall must move to the peer permissions panel",
+            quickSettings.contains("settings_allow_peer_recall"),
+        )
+        assertTrue(
+            "the favourites beta flag is an app-side switch and stays in quick settings",
+            quickSettings.contains("settings_favorites"),
         )
     }
 }

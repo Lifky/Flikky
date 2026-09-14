@@ -9,8 +9,8 @@ import org.junit.Test
  * 快捷设置的收录完整性守卫。
  *
  * 会话运行期间底部「设置」tab 被锁（MainActivity 的 `settingsEnabled = !servingActive`），
- * 所以**凡是「双端同步」的设置项，只要不在快捷设置里，整场会话就都调不了**——双端同步
- * 这个能力也就发挥不出来。用户实测报的正是这个：有些同步项当时不在快捷设置里。
+ * 所以会话中的外观与行为同步项只要不在快捷设置里，整场会话就都调不了。对端门控是
+ * 明确例外：它们统一进入顶栏的对端权限面板，避免把安全边界混进外观设置。
  *
  * 判据是机械的：`PeerInfoDto` 的字段就是「会同步」的定义，而 `toPeerInfoDto` 把
  * `FlikkySettings` 映射进去。所以「某个设置会同步」等价于「它出现在 toPeerInfoDto 的
@@ -51,9 +51,7 @@ class QuickSettingsCoverageTest {
         "messageActionStyle" to "onSetMessageActionStyle",
         "sessionTimestampEnabled" to "onSetSessionTimestamp",
         "recallBetaEnabled" to "onSetRecallBeta",
-        "allowPeerRecall" to "onSetAllowPeerRecall",
         "favoriteBetaEnabled" to "onSetFavoriteBeta",
-        "storageBrowsingEnabled" to "onSetStorageBrowsing",
     )
 
     /**
@@ -73,6 +71,9 @@ class QuickSettingsCoverageTest {
     private val deliberatelyExcluded = mapOf(
         // v1.19.0 用户裁决：动效速度「意义不大」，且要给快捷设置减项。正式设置页照旧可调。
         "animationSpeed" to "用户裁决：意义不大，减少快捷设置项",
+        // v1.21.0：对端门控统一放进顶栏权限面板，不能再和会话外观混在一个 sheet 里。
+        "allowPeerRecall" to "对端权限面板负责对端能做什么",
+        "storageBrowsingEnabled" to "对端权限面板负责对端能看什么",
     )
 
     @Test

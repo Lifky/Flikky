@@ -1,10 +1,5 @@
 package com.example.flikky.ui.serving
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -50,7 +45,6 @@ import com.example.flikky.ui.components.ChoiceRow
 import com.example.flikky.ui.settings.components.SettingItem
 import com.example.flikky.ui.settings.components.SettingSection
 import com.example.flikky.ui.settings.localizedLabel
-import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Spacing
 import com.example.flikky.util.formatThemeSeed
@@ -65,10 +59,8 @@ enum class QuickPicker { Theme, LeadingShape, LeadingColor, Avatar, Background }
  * 进行中会话的快捷设置 bottom sheet。
  *
  * 会话运行期间底部「设置」tab 被锁（[MainActivity] 的 `settingsEnabled = !servingActive`），
- * 用户进不了设置页。于是**凡是「双端同步」的设置项，只要不在这里，整场会话就都调不了**——
- * 双端同步这个能力也就发挥不出来。所以本 sheet 的收录标准不是「常用」而是「会同步」：
- * 判据就是它是否进了 [com.example.flikky.server.dto.PeerInfoDto]（改动经 `settings_changed`
- * 广播给已连浏览器）。
+ * 用户进不了设置页，所以这里集中会话中的外观与行为设置。对端能看什么、能做什么属于
+ * 安全边界，统一放在顶栏的对端权限面板，避免和外观偏好混在同一组里。
  *
  * 语言是唯一不走 PeerInfoDto 的收录项：它经 `/api/web-theme` 的 languageTag 同步，
  * 而 i18n.js 每秒轮询一次该端点（`setInterval(refresh, 1000)`），所以浏览器实时跟随。
@@ -80,8 +72,7 @@ enum class QuickPicker { Theme, LeadingShape, LeadingColor, Avatar, Background }
  *   两端头像 phoneAvatarKey/browserAvatarKey · 气泡圆角 bubbleCornerRadius ·
  *   头像显示 avatarGrouping · 会话背景 backgroundMode/Value · 会话时间戳
  *   sessionTimestampEnabled · 消息操作样式 messageActionStyle · 撤回 recallEnabled ·
- *   允许对方撤回 allowPeerRecall · 收藏 beta favoriteEnabled · leading 形状/配色 ·
- *   应用语言 languageTag
+ *   收藏 beta favoriteEnabled · leading 形状/配色 · 应用语言 languageTag
  *
  * 刻意不收：
  * - **不进 PeerInfoDto 的**（浏览器跟不了，放这里只是把设置页搬过来）：需要 PIN、
@@ -90,6 +81,7 @@ enum class QuickPicker { Theme, LeadingShape, LeadingColor, Avatar, Background }
  *   ThemePickerSheet 的 onSelectContrast 传 null 即不渲染那一段。
  * - **动效速度**：会同步，但用户裁决「意义不大」，刻意不收（见 QuickSettingsCoverageTest
  *   的 deliberatelyExcluded）。它在正式设置页照旧可调。
+ * - **对端门控**：会同步，但统一放在顶栏的对端权限面板，不与外观和本地功能开关混放。
  *
  * 形状与设置页完全一致：同一批 [SettingSection] / [SettingItem] / [ChoiceDialog]，
  * 复杂选择器直接复用设置页那五张 sheet（主题色 / leading 形状 / leading 配色 / 头像 / 背景）。它们是
@@ -115,9 +107,7 @@ fun QuickSettingsSheet(
     onSetSessionTimestamp: (Boolean) -> Unit,
     onSetMessageActionStyle: (MessageActionStyle) -> Unit,
     onSetRecallBeta: (Boolean) -> Unit,
-    onSetAllowPeerRecall: (Boolean) -> Unit,
     onSetFavoriteBeta: (Boolean) -> Unit,
-    onSetStorageBrowsing: (Boolean) -> Unit,
     onOpenThemePicker: () -> Unit,
     onOpenLeadingShapePicker: () -> Unit,
     onOpenLeadingColorPicker: () -> Unit,
@@ -324,14 +314,7 @@ fun QuickSettingsSheet(
 
             // ─── 会话行为 ─────────────────────────────────────────────────────
             run {
-                // 「允许对方撤回」跟着撤回开关折叠，所以总数随之变化。
-                //
-                // 这里曾是 5/4 —— 照搬了设置页的数字，却没搬它那三行（需要 PIN、允许
-                // 会话中返回、屏幕常亮）。差一的后果不是少画一行，而是**最后一行永远
-                // 拿不到 index == total - 1**，于是「收藏功能」的底部圆角一直是中间行
-                // 的小圆角，跟首行「消息操作样式」的顶部大圆角不对称（用户截图 29）。
-                // 本区实际可见行数：操作样式 + 撤回 + [允许对端撤回] + 收藏 + 允许电脑浏览存储。
-                val total = if (settings.recallBetaEnabled) 5 else 4
+                val total = 3
                 SettingSection(title = stringResource(R.string.settings_section_session_behavior)) {
                     SettingItem(
                         title = stringResource(R.string.settings_message_action_style),
@@ -352,25 +335,6 @@ fun QuickSettingsSheet(
                         },
                         index = 1, total = total,
                     )
-                    AnimatedVisibility(
-                        visible = settings.recallBetaEnabled,
-                        enter = expandVertically(Motion.spatial()) + fadeIn(Motion.effects()),
-                        // 不回弹：收到 0 的弹簧会弹回来，看着像故障（见 Motion.spatialFastNoBounce）
-                        exit = shrinkVertically(Motion.spatialFastNoBounce()) + fadeOut(Motion.effectsFast()),
-                    ) {
-                        SettingItem(
-                            title = stringResource(R.string.settings_allow_peer_recall),
-                            leadingIcon = painterResource(R.drawable.ic_redo),
-                            subtitle = stringResource(R.string.settings_allow_peer_recall_summary),
-                            trailing = {
-                                Switch(
-                                    checked = settings.allowPeerRecall,
-                                    onCheckedChange = onSetAllowPeerRecall,
-                                )
-                            },
-                            index = 2, total = total,
-                        )
-                    }
                     SettingItem(
                         title = stringResource(R.string.settings_favorites),
                         leadingIcon = painterResource(R.drawable.ic_star_border),
@@ -381,21 +345,7 @@ fun QuickSettingsSheet(
                                 onCheckedChange = onSetFavoriteBeta,
                             )
                         },
-                        index = if (settings.recallBetaEnabled) 3 else 2, total = total,
-                    )
-                    // 会话运行中设置页是锁的，而「现在别让电脑再看我的文件」恰恰是最需要
-                    // 即时可达的操作——这是它必须出现在快捷设置里的产品理由。
-                    SettingItem(
-                        title = stringResource(R.string.settings_storage_browsing),
-                        leadingIcon = painterResource(R.drawable.ic_folder),
-                        subtitle = stringResource(R.string.settings_storage_browsing_summary),
-                        trailing = {
-                            Switch(
-                                checked = settings.storageBrowsingEnabled,
-                                onCheckedChange = onSetStorageBrowsing,
-                            )
-                        },
-                        index = if (settings.recallBetaEnabled) 4 else 3, total = total,
+                        index = 2, total = total,
                     )
                 }
             }
