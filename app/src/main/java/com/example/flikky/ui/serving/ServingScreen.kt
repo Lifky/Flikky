@@ -243,19 +243,22 @@ fun ServingScreen(
                             ),
                         ),
                     )
+                    // chip 上已经有盾形图标，「可见：」这个前缀就成了冗余 ——
+                    // 图标说明了这是什么，标签只需说清是哪些。
                     val visibleText = if (visibleLabels.isEmpty()) {
                         stringResource(R.string.peer_permissions_visible_none)
                     } else {
-                        stringResource(R.string.peer_permissions_visible_prefix) +
-                            visibleLabels.joinToString(
-                                stringResource(R.string.peer_permissions_visible_sep),
-                            )
+                        visibleLabels.joinToString(
+                            stringResource(R.string.peer_permissions_visible_sep),
+                        )
                     }
                     ConversationHeader(
                         peerAvatarId = peerAvatarId,
                         peerAvatarKey = peerAvatarKey,
                         peerName = "",
-                        subtitle = stringResource(R.string.conversation_connected) + " · " + visibleText,
+                        // 副标题回到单纯的连接状态。「可见：…」挪进 chip ——
+                        // 那一半既是状态又是入口，拼在同一句文字里就点不了。
+                        subtitle = stringResource(R.string.conversation_connected),
                         onAvatarClick = { showPeerAvatarPicker = true },
                         // 第一行只留停止服务。它是 errorContainer 色的破坏性动作，与三个
                         // 「打开面板」不同类；分行之后这条隔离做得比同排更彻底。
@@ -273,29 +276,14 @@ fun ServingScreen(
                                 )
                             }
                         },
-                        // 三个面板动作下移到第二行靠右。**不能留在 trailing 里** —— 那一行的
-                        // trailing 不可压缩而文字是 weight(1f)，按钮每多一个副标题就少一截，
-                        // 「可见：文件、收藏」会被压成「...」（装机反馈 Screenshot_2）。
-                        // 而那句话正是这一版新加的核心信息。
-                        actions = {
-                            CompactActionGroup(
-                                items = listOf(
-                                    CompactActionGroupItem(
-                                        label = stringResource(R.string.serving_files_quick),
-                                        painter = painterResource(R.drawable.ic_folder_open),
-                                        onClick = { showFilesQuickSheet = true },
-                                    ),
-                                    CompactActionGroupItem(
-                                        label = stringResource(R.string.peer_permissions_entry),
-                                        painter = painterResource(R.drawable.ic_shield_toggle),
-                                        onClick = { showPeerPermissions = true },
-                                    ),
-                                    CompactActionGroupItem(
-                                        label = stringResource(R.string.serving_quick_settings),
-                                        painter = painterResource(R.drawable.ic_settings),
-                                        onClick = { showQuickSettings = true },
-                                    ),
-                                ),
+                        // 可见性做成**可点 chip**：状态与入口合成一个控件，
+                        // 所以顶栏少一个按钮（盾形那个已取消）。它在副标题这一行，
+                        // 不增加任何高度 —— 上一版给动作单独开一行，头部三层 ≈168dp，
+                        // 装机反馈「太厚」（Screenshot_4）。
+                        statusChip = {
+                            PeerVisibilityChip(
+                                visibleText = visibleText,
+                                onClick = { showPeerPermissions = true },
                             )
                         },
                     )
@@ -346,7 +334,20 @@ fun ServingScreen(
                     stringResource(R.string.serving_tab_chat),
                     stringResource(R.string.serving_tab_files),
                 )
+                // tab 栏与面板动作**共用一行**。
+                //
+                // 只有两个 tab，右侧本来就大片空着 —— 那片空地装得下这两个按钮，
+                // 于是上一版为它们单开的那一行（56dp）可以整个省掉：头部从三层
+                // ≈168dp 回到两层 ≈112dp（装机反馈 Screenshot_4「太厚」）。
+                //
+                // SecondaryTabRow 默认铺满整宽，所以必须显式给它 weight(1f) ——
+                // 不给的话它会把按钮挤出屏幕，而且**不会报错**，只是看不见。
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                 SecondaryTabRow(
+                    modifier = Modifier.weight(1f),
                     selectedTabIndex = pagerState.currentPage,
                     indicator = {
                         TabRowDefaults.SecondaryIndicator(
@@ -365,6 +366,26 @@ fun ServingScreen(
                             text = { Text(label) },
                         )
                     }
+                }
+                // 两个，不是三个 —— 对端权限那个入口已经并进副标题旁边的 chip 里。
+                //
+                // 这一行右侧的留白是它们的，不必再与任何文字争宽度：tab 标签
+                // 有 weight(1f) 兜着，而 chip 在上面那一行。
+                CompactActionGroup(
+                    items = listOf(
+                        CompactActionGroupItem(
+                            label = stringResource(R.string.serving_files_quick),
+                            painter = painterResource(R.drawable.ic_folder_open),
+                            onClick = { showFilesQuickSheet = true },
+                        ),
+                        CompactActionGroupItem(
+                            label = stringResource(R.string.serving_quick_settings),
+                            painter = painterResource(R.drawable.ic_settings),
+                            onClick = { showQuickSettings = true },
+                        ),
+                    ),
+                    modifier = Modifier.padding(end = Spacing.screenEdge),
+                )
                 }
             }
             HorizontalPager(

@@ -144,8 +144,15 @@ class PeerPermissionsStructureTest {
 
     @Test
     fun `the destructive stop button stays outside the button group`() {
+        // 面板动作 2026-09-14 起在 **tab 栏那一行**，不在 header 调用里了
+        // （头部从三层压回两层，见另一条守卫）。所以 group 要在整个屏幕里找，
+        // 而不是在 ConversationHeader 的实参里找。
+        //
+        // 这一条守的意图没变：破坏性动作不许与「打开面板」编在同一组 ——
+        // group 视觉上在说「这些是一伙的」，把 errorContainer 色的停止服务
+        // 放进去等于邀请误触。
         val headerCall = call(screen, "ConversationHeader")
-        val groupCall = call(headerCall, "CompactActionGroup")
+        val groupCall = call(screen, "CompactActionGroup")
         assertFalse(
             "the stop action must stay outside CompactActionGroup",
             groupCall.contains("ic_power"),
@@ -236,36 +243,43 @@ class PeerPermissionsStructureTest {
 
     @Test
     fun `the header keeps its panel actions off the title row`() {
-        // 装机反馈 Screenshot_2：四个按钮与加长的副标题抢同一行宽度，
-        // 「可见：文件、收藏」被压成「...」—— 而那句话正是这一版新加的核心信息。
+        // 装机反馈两轮的合并结论：
         //
-        // 根因：Row 里 trailing 不可压缩、文字那列是 weight(1f)，所以永远先压文字；
-        // ButtonGroup 因此拿得到全部想要的宽度，官方 overflow 也就永远不触发。
-        // 唯一真正消除宽度竞争的办法是分行。
+        // Screenshot_2 —— 四个按钮与加长的副标题抢同一行，「可见：文件、收藏」
+        // 被压成省略号。Row 里 trailing 不可压缩而文字带 weight(1f)，永远先压文字；
+        // ButtonGroup 的官方 overflow 也兜不住（它在那个 Row 里拿得到全部宽度）。
+        //
+        // Screenshot_4 —— 给动作单开一行之后头部变成三层 ≈168dp，「太厚」。
+        //
+        // 现在的形态：可见性是副标题旁的**可点 chip**（状态与入口合一，
+        // 所以盾形按钮取消），面板动作并进 **tab 栏那一行**右侧的空地。
+        // 两个问题同时消失，且没有任何一层多出来的高度。
         val headerCall = call(screen, "ConversationHeader")
         assertTrue(
-            "the panel actions must go in the second-row actions slot, not trailing: " + headerCall,
-            headerCall.contains("actions = {"),
+            "the visibility state must be a tappable chip in the header: " + headerCall,
+            headerCall.contains("statusChip = {") && headerCall.contains("PeerVisibilityChip("),
         )
-        assertTrue(
-            "sanity: the compact group should be the thing that moved",
+        assertFalse(
+            "the panel actions must not sit in the header call -- that is what made it thick",
             headerCall.contains("CompactActionGroup("),
         )
-        // trailing 只剩停止服务。判据：trailing 那一段里不许出现 CompactActionGroup。
-        val trailingAt = headerCall.indexOf("trailing = {")
-        assertTrue("sanity: no trailing slot found in the header call", trailingAt >= 0)
-        val actionsAt = headerCall.indexOf("actions = {")
-        assertTrue("sanity: no actions slot found in the header call", actionsAt >= 0)
-        val trailingBody =
-            if (actionsAt > trailingAt) headerCall.substring(trailingAt, actionsAt)
-            else headerCall.substring(trailingAt)
-        assertFalse(
-            "the trailing slot must hold only the destructive stop button: " + trailingBody,
-            trailingBody.contains("CompactActionGroup"),
+        // 它们必须落在 tab 栏那一行，而且 tab 栏必须显式让出宽度 ——
+        // SecondaryTabRow 默认铺满整宽，不给 weight 会把按钮挤出屏幕**且不报错**。
+        val tabRowAt = screen.indexOf("SecondaryTabRow(")
+        assertTrue("sanity: no SecondaryTabRow found", tabRowAt > 0)
+        val tabRowCall = call(screen.substring(tabRowAt), "SecondaryTabRow")
+        assertTrue(
+            "SecondaryTabRow must yield width with weight(1f), or the actions get pushed off-screen",
+            tabRowCall.contains("Modifier.weight(1f)"),
         )
         assertTrue(
-            "the stop button must stay in the trailing slot: " + trailingBody,
-            trailingBody.contains("ic_power"),
+            "the panel actions must live on the tab row",
+            screen.indexOf("CompactActionGroup(") > tabRowAt,
+        )
+        // trailing 只剩停止服务。
+        assertTrue(
+            "the stop button must stay in the header trailing slot",
+            headerCall.contains("ic_power"),
         )
     }
 

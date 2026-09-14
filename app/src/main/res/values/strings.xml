@@ -19,7 +19,6 @@
     <string name="peer_permissions_recall">允许对端撤回消息</string>
     <string name="peer_permissions_recall_summary">电脑端可以撤回它自己发出的消息</string>
     <string name="peer_permissions_recall_need_feature">需要先开启撤回功能 · 去设置</string>
-    <string name="peer_permissions_visible_prefix">可见：</string>
     <string name="peer_permissions_visible_none">未开放任何内容</string>
     <string name="peer_permissions_visible_sep">、</string>
     <string name="storage_lock_peer_on">对端可访问文件 · 点击关闭</string>

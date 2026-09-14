@@ -20,7 +20,6 @@
     <string name="peer_permissions_recall">Let the peer recall messages</string>
     <string name="peer_permissions_recall_summary">The computer can recall messages it sent</string>
     <string name="peer_permissions_recall_need_feature">Turn on recall first · Settings</string>
-    <string name="peer_permissions_visible_prefix">Visible: </string>
     <string name="peer_permissions_visible_none">Nothing shared</string>
     <string name="peer_permissions_visible_sep">, </string>
     <string name="storage_lock_peer_on">Peer can browse files · tap to close</string>

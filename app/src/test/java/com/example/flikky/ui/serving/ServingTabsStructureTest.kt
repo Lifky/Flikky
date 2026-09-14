@@ -384,10 +384,24 @@ class ServingTabsStructureTest {
         // （顺带解决「切换太硬」那条），断言就误报了。这里只要求门控落在 tab 栏之前。
         val rowAt = servingScreen.indexOf("SecondaryTabRow(")
         assertTrue("no SecondaryTabRow in ServingScreen", rowAt > 0)
-        val gate = servingScreen.substring(maxOf(0, rowAt - 700), rowAt)
+        // 判据从**包住 tab 栏的那个门控结构**开始，不是「往前数 N 个字符」。
+        //
+        // 原来取的是 rowAt - 700 的字符窗口。2026-09-14 在 tab 栏前面加了 12 行
+        // 注释（说明面板按钮为什么并进这一行），门控就被挤出窗口 —— 守卫红了，
+        // 而它守的规则一点没变。字符窗口是本项目第四次栽的地方，一律改成贴语法边界。
+        val gateAt = listOf(
+            servingScreen.lastIndexOf("AnimatedVisibility(", rowAt),
+            servingScreen.lastIndexOf("if (ui.clientConnected)", rowAt),
+        ).filter { it >= 0 }.maxOrNull() ?: -1
         assertTrue(
-            "the tab row must be gated on ui.clientConnected; preceding code:" +
-                System.lineSeparator() + gate.takeLast(400),
+            "no gating structure found before the tab row -- it must be wrapped in " +
+                "AnimatedVisibility(visible = ui.clientConnected) or an equivalent if",
+            gateAt >= 0,
+        )
+        val gate = servingScreen.substring(gateAt, rowAt)
+        assertTrue(
+            "the tab row must be gated on ui.clientConnected; gating block:" +
+                System.lineSeparator() + gate.take(400),
             gate.contains("visible = ui.clientConnected") ||
                 gate.contains("if (ui.clientConnected)"),
         )
