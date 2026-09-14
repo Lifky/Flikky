@@ -3,7 +3,9 @@ package com.example.flikky.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,39 +36,67 @@ fun ConversationHeader(
     modifier: Modifier = Modifier,
     onAvatarClick: (() -> Unit)? = null,
     trailing: @Composable () -> Unit = {},
+    /**
+     * 第二行的动作区，靠右排列。null 时不占任何高度。
+     *
+     * 为什么另起一行而不是继续塞进 [trailing]：同一个 Row 里 [trailing] 不可压缩，
+     * 而文字那一列是 `weight(1f)` —— Row 永远**先压文字**。于是按钮每多一个，
+     * 副标题就少一截，`已连接 · 可见：文件、收藏` 被压成 `已连接 · ...`
+     *（装机反馈 2026-09-14 Screenshot_2）。那句话是这一版新加的核心信息，
+     * 压掉它等于功能白做。
+     *
+     * 同理也不能靠 ButtonGroup 的官方 overflow 兜：它在这个 Row 里拿得到
+     * 全部想要的宽度，overflow 永远不触发。**只有把两者分行，宽度竞争才真正消失。**
+     */
+    actions: (@Composable () -> Unit)? = null,
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.screenEdge, vertical = Spacing.md),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+    Column(
+        modifier = modifier.fillMaxWidth()
+            .padding(horizontal = Spacing.screenEdge, vertical = Spacing.md),
     ) {
-        val avatar: @Composable () -> Unit = {
-            if (peerAvatarKey != null) {
-                Avatar(avatarKey = peerAvatarKey, size = Sizes.avatar)
-            } else {
-                Avatar(avatarId = peerAvatarId, size = Sizes.avatar)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+        ) {
+            val avatar: @Composable () -> Unit = {
+                if (peerAvatarKey != null) {
+                    Avatar(avatarKey = peerAvatarKey, size = Sizes.avatar)
+                } else {
+                    Avatar(avatarId = peerAvatarId, size = Sizes.avatar)
+                }
             }
-        }
-        if (onAvatarClick != null) {
-            IconButton(onClick = onAvatarClick) {
+            if (onAvatarClick != null) {
+                IconButton(onClick = onAvatarClick) {
+                    avatar()
+                }
+            } else {
                 avatar()
             }
-        } else {
-            avatar()
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = peerName.ifBlank { stringResource(R.string.conversation_peer_device) },
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = subtitle ?: stringResource(R.string.conversation_connected),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.connected,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                )
+            }
+            trailing()
         }
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = peerName.ifBlank { stringResource(R.string.conversation_peer_device) },
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = subtitle ?: stringResource(R.string.conversation_connected),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.connected,
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
+        // 第二行：面板动作靠右。null 时连 Spacer 都不加 —— 没有动作的调用点
+        // 不该为此多出一段空白。
+        actions?.let { row ->
+            Spacer(Modifier.height(Spacing.sm))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End,
+            ) { row() }
         }
-        trailing()
     }
 }

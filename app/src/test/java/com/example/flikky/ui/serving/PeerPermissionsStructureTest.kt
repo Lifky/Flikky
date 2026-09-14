@@ -191,6 +191,74 @@ class PeerPermissionsStructureTest {
             "the lock fab must be aligned to the start side, away from the selection fab",
             storageTabSrc.contains("BottomStart"),
         )
+        // 两个 FAB 尺寸不同（锁 56dp / 选择 large≈80dp），底边对齐会看着一高一低
+        // （装机反馈 2026-09-14 Screenshot_1）。锁必须补上尺寸差的一半，
+        // 让两个圆心落在同一条水平线上。
+        //
+        // 判据落在那个具名常量上而不是某个 dp 字面量：常量的 KDoc 写明了它与
+        // StorageSelectionFab 档位的绑定关系，换档时两处要一起改。
+        assertTrue(
+            "the lock fab must offset its bottom padding to centre against the larger " +
+                "selection fab -- plain screenEdge padding puts them at different heights",
+            storageTabSrc.contains("bottom = LockFabBottomPadding"),
+        )
+        assertTrue(
+            "LockFabBottomPadding must account for the size difference, not just the screen edge",
+            Regex("""val LockFabBottomPadding = Spacing\.screenEdge \+ \d+\.dp""")
+                .containsMatchIn(storageTabSrc),
+        )
+    }
+
+    @Test
+    fun `the lock fab uses a size the spec still offers`() {
+        // M3 Expressive 把 small（40dp）FAB 标记为 deprecated（本地文档
+        // components/FloatingActionButton.md：「Deprecated **small** FAB size」），
+        // 而本项目 Shapes.medium 是 16dp —— 40dp 上圆角占边长 40%，读起来是「圆」
+        // 而不是「圆角方」（装机反馈 Screenshot_1）。56dp 上同一个圆角只占 29%。
+        assertFalse(
+            "SmallFloatingActionButton is deprecated in M3 Expressive and reads as a circle " +
+                "at this project 16dp corner radius",
+            lockFab.contains("SmallFloatingActionButton"),
+        )
+        assertTrue(
+            "sanity: the lock fab should still be a FAB",
+            lockFab.contains("FloatingActionButton("),
+        )
+    }
+
+    @Test
+    fun `the header keeps its panel actions off the title row`() {
+        // 装机反馈 Screenshot_2：四个按钮与加长的副标题抢同一行宽度，
+        // 「可见：文件、收藏」被压成「...」—— 而那句话正是这一版新加的核心信息。
+        //
+        // 根因：Row 里 trailing 不可压缩、文字那列是 weight(1f)，所以永远先压文字；
+        // ButtonGroup 因此拿得到全部想要的宽度，官方 overflow 也就永远不触发。
+        // 唯一真正消除宽度竞争的办法是分行。
+        val headerCall = call(screen, "ConversationHeader")
+        assertTrue(
+            "the panel actions must go in the second-row actions slot, not trailing: " + headerCall,
+            headerCall.contains("actions = {"),
+        )
+        assertTrue(
+            "sanity: the compact group should be the thing that moved",
+            headerCall.contains("CompactActionGroup("),
+        )
+        // trailing 只剩停止服务。判据：trailing 那一段里不许出现 CompactActionGroup。
+        val trailingAt = headerCall.indexOf("trailing = {")
+        assertTrue("sanity: no trailing slot found in the header call", trailingAt >= 0)
+        val actionsAt = headerCall.indexOf("actions = {")
+        assertTrue("sanity: no actions slot found in the header call", actionsAt >= 0)
+        val trailingBody =
+            if (actionsAt > trailingAt) headerCall.substring(trailingAt, actionsAt)
+            else headerCall.substring(trailingAt)
+        assertFalse(
+            "the trailing slot must hold only the destructive stop button: " + trailingBody,
+            trailingBody.contains("CompactActionGroup"),
+        )
+        assertTrue(
+            "the stop button must stay in the trailing slot: " + trailingBody,
+            trailingBody.contains("ic_power"),
+        )
     }
 
     @Test

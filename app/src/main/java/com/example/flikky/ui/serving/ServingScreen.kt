@@ -257,43 +257,46 @@ fun ServingScreen(
                         peerName = "",
                         subtitle = stringResource(R.string.conversation_connected) + " · " + visibleText,
                         onAvatarClick = { showPeerAvatarPicker = true },
+                        // 第一行只留停止服务。它是 errorContainer 色的破坏性动作，与三个
+                        // 「打开面板」不同类；分行之后这条隔离做得比同排更彻底。
                         trailing = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                            FilledTonalIconButton(
+                                onClick = { viewModel.stopService(); onStopped() },
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                ),
                             ) {
-                                CompactActionGroup(
-                                    items = listOf(
-                                        CompactActionGroupItem(
-                                            label = stringResource(R.string.serving_files_quick),
-                                            painter = painterResource(R.drawable.ic_folder_open),
-                                            onClick = { showFilesQuickSheet = true },
-                                        ),
-                                        CompactActionGroupItem(
-                                            label = stringResource(R.string.peer_permissions_entry),
-                                            painter = painterResource(R.drawable.ic_shield_toggle),
-                                            onClick = { showPeerPermissions = true },
-                                        ),
-                                        CompactActionGroupItem(
-                                            label = stringResource(R.string.serving_quick_settings),
-                                            painter = painterResource(R.drawable.ic_settings),
-                                            onClick = { showQuickSettings = true },
-                                        ),
-                                    ),
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_power),
+                                    contentDescription = stringResource(R.string.serving_stop_service),
                                 )
-                                FilledTonalIconButton(
-                                    onClick = { viewModel.stopService(); onStopped() },
-                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                    ),
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_power),
-                                        contentDescription = stringResource(R.string.serving_stop_service),
-                                    )
-                                }
                             }
+                        },
+                        // 三个面板动作下移到第二行靠右。**不能留在 trailing 里** —— 那一行的
+                        // trailing 不可压缩而文字是 weight(1f)，按钮每多一个副标题就少一截，
+                        // 「可见：文件、收藏」会被压成「...」（装机反馈 Screenshot_2）。
+                        // 而那句话正是这一版新加的核心信息。
+                        actions = {
+                            CompactActionGroup(
+                                items = listOf(
+                                    CompactActionGroupItem(
+                                        label = stringResource(R.string.serving_files_quick),
+                                        painter = painterResource(R.drawable.ic_folder_open),
+                                        onClick = { showFilesQuickSheet = true },
+                                    ),
+                                    CompactActionGroupItem(
+                                        label = stringResource(R.string.peer_permissions_entry),
+                                        painter = painterResource(R.drawable.ic_shield_toggle),
+                                        onClick = { showPeerPermissions = true },
+                                    ),
+                                    CompactActionGroupItem(
+                                        label = stringResource(R.string.serving_quick_settings),
+                                        painter = painterResource(R.drawable.ic_settings),
+                                        onClick = { showQuickSettings = true },
+                                    ),
+                                ),
+                            )
                         },
                     )
                 } else {

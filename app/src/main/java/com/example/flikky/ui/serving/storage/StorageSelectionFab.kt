@@ -11,6 +11,7 @@ import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -71,6 +72,9 @@ fun StorageSelectionFab(
                 ToggleFloatingActionButton(
                     checked = expanded,
                     onCheckedChange = { expanded = it },
+                    // large 档（≈80dp）。左下的通道锁是 56dp 标准档 —— 主操作（发送选中项）
+                    // 更大，两者大小差异是刻意的，参考装机时给的并存形态。
+                    containerSize = ToggleFloatingActionButtonDefaults.containerSizeLarge(),
                 ) {
                     // checkedProgress 是 0..1 的形变进度。过半再换图标，
                     // 让「箭头 → ×」的切换发生在形状已经明显在动之后，而不是一开始就跳。
