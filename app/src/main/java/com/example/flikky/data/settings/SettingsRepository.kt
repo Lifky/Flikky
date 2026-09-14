@@ -29,6 +29,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val recallBeta = booleanPreferencesKey("recall_beta")
         val allowPeerRecall = booleanPreferencesKey("allow_peer_recall")
         val favoriteBeta = booleanPreferencesKey("favorite_beta")
+        val favoriteBrowsing = booleanPreferencesKey("favorite_browsing")
         val requirePin = booleanPreferencesKey("require_pin")
         val retainLimit = intPreferencesKey("retain_limit")
         val thumbnailCacheLimitMb = intPreferencesKey("thumbnail_cache_limit_mb")
@@ -82,6 +83,10 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             recallBetaEnabled = p[Keys.recallBeta] ?: true,
             allowPeerRecall = p[Keys.allowPeerRecall] ?: true,
             favoriteBetaEnabled = p[Keys.favoriteBeta] ?: false,
+            favoriteBrowsingEnabled = resolveFavoriteBrowsing(
+                p[Keys.favoriteBrowsing],
+                p[Keys.favoriteBeta],
+            ),
             requirePin = p[Keys.requirePin] ?: true,
             historyRetainLimit = (p[Keys.retainLimit] ?: 20).coerceAtLeast(-1),
             thumbnailCacheLimitMb = normalizeThumbnailCacheLimitMb(p[Keys.thumbnailCacheLimitMb]),
@@ -152,6 +157,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setRecallBeta(v: Boolean) = ds.edit { it[Keys.recallBeta] = v }
     suspend fun setAllowPeerRecall(v: Boolean) = ds.edit { it[Keys.allowPeerRecall] = v }
     suspend fun setFavoriteBeta(v: Boolean) = ds.edit { it[Keys.favoriteBeta] = v }
+    suspend fun setFavoriteBrowsingEnabled(v: Boolean) = ds.edit { it[Keys.favoriteBrowsing] = v }
     suspend fun setRequirePin(v: Boolean) = ds.edit { it[Keys.requirePin] = v }
     suspend fun setHistoryRetainLimit(v: Int) = ds.edit { it[Keys.retainLimit] = v.coerceAtLeast(-1) }
     suspend fun setThumbnailCacheLimitMb(v: Int) = ds.edit {
@@ -253,6 +259,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             recallEnabled = s.recallBetaEnabled,
             allowPeerRecall = s.allowPeerRecall,
             favoriteEnabled = s.favoriteBetaEnabled,
+            favoriteBrowsingEnabled = s.favoriteBrowsingEnabled,
             requirePin = s.requirePin,
             historyRetainLimit = s.historyRetainLimit,
             thumbnailCacheLimitMb = s.thumbnailCacheLimitMb,
@@ -296,6 +303,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         backup.recallEnabled?.let { prefs[Keys.recallBeta] = it }
         backup.allowPeerRecall?.let { prefs[Keys.allowPeerRecall] = it }
         backup.favoriteEnabled?.let { prefs[Keys.favoriteBeta] = it }
+        backup.favoriteBrowsingEnabled?.let { prefs[Keys.favoriteBrowsing] = it }
         backup.requirePin?.let { prefs[Keys.requirePin] = it }
         backup.historyRetainLimit?.let { prefs[Keys.retainLimit] = it.coerceAtLeast(-1) }
         backup.thumbnailCacheLimitMb?.let {
@@ -375,3 +383,10 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         const val LEGACY_DEFAULT_DEVICE_NAME = "我的手机"
     }
 }
+
+/**
+ * Resolves the peer gate while preserving the v1.20 behaviour for existing installations.
+ * Once the new key has been written it is authoritative over the legacy app-side flag.
+ */
+fun resolveFavoriteBrowsing(newKey: Boolean?, legacyBeta: Boolean?): Boolean =
+    newKey ?: (legacyBeta ?: false)

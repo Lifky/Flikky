@@ -68,6 +68,8 @@ data class SettingsExport(
     val allowPeerRecall: Boolean? = null,
     @JsonNames("favoriteBetaEnabled")
     val favoriteEnabled: Boolean? = null,
+    /** v1.21.0 peer gate, separate from the app-side [favoriteEnabled] feature flag. */
+    val favoriteBrowsingEnabled: Boolean? = null,
     val requirePin: Boolean? = null,
     val historyRetainLimit: Int? = null,
     val thumbnailCacheLimitMb: Int? = null,
