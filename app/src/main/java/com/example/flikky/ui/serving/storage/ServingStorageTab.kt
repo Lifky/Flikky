@@ -3,6 +3,7 @@ package com.example.flikky.ui.serving.storage
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -40,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -111,15 +113,33 @@ import java.util.Locale
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 /**
- * 通道锁 FAB 的底部 padding。
- *
- * = 屏幕边距 + (选择 FAB 80dp - 锁 56dp) / 2。两个 FAB 尺寸不同，底边对齐会
- * 看着一高一低；补上差值的一半，两个圆心就落在同一条水平线上。
- *
- * 写成常量而不是内联算式：这个值与 StorageSelectionFab 的档位绑定，
- * 那边换档时这里必须跟着改，给它一个名字才找得到。
+ * 通道锁 FAB 的边长。56dp 标准档 —— M3 Expressive 已废弃 40dp small，
+ * 而 40dp 配本项目 16dp 的圆角会读成圆（见 StorageChannelLockFab 的 KDoc）。
  */
-private val LockFabBottomPadding = Spacing.screenEdge + 12.dp
+private val LockFabSize = 56.dp
+
+/**
+ * 选择 FAB 收起时的边长，**从官方尺寸函数取**而不是写死 80.dp。
+ *
+ * `containerSizeMedium()` 的签名是 `(Float) -> Dp`（尺寸随展开进度变），
+ * 传 0f 拿收起态。这样换档或库升级时这里自动跟着走 —— 上一版我把选择 FAB
+ * 从 medium 改成 large（80dp → 96dp），装机一眼看出不协调；那种事
+ * 不该靠记住一个魔数来避免。
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private val SelectionFabCollapsedSize =
+    ToggleFloatingActionButtonDefaults.containerSizeMedium()(0f)
+
+/**
+ * 锁 FAB 要补的底部偏移：两者尺寸差的一半。
+ *
+ * 底边对齐时人眼看着一高一低 —— 对齐的是**视觉中心**而不是底边
+ *（装机反馈 2026-09-14 Screenshot_1）。
+ */
+private val LockFabCenterOffset = (SelectionFabCollapsedSize - LockFabSize) / 2
+
+/** 两个 FAB 之间的间隙。参考图里它们是紧邻的一对，不是分居两端。 */
+private val FabPairGap = Spacing.md
 
 @Composable
 fun ServingStorageTab(
@@ -384,21 +404,42 @@ fun ServingStorageTab(
                 }
             }
         }
-        // 通道锁在左下，与右下的选择 FAB 分居两侧：前者管对端通道，后者管选中项操作。
+        // 通道锁**紧邻**选择 FAB 左侧（装机反馈 Screenshot_5 + 用户给的参考图）。
+        // 上一版分居屏幕两端，那是读错参考图。
         //
-        // **视觉中心对齐**：锁是 56dp 标准档，选择 FAB 是 large（≈80dp）。两者底边
-        // 对齐时看着一高一低（装机反馈 2026-09-14 Screenshot_1），所以把尺寸差的一半
-        // 补进锁的底部 padding，让两个圆心落在同一条水平线上。
+        // 两者都独立挂在 Box 上、各自 BottomEnd，锁靠 end padding 让出选择 FAB 的宽度。
+        // **刻意不用 Row 把它们装在一起**：选择 FAB 是 FloatingActionButtonMenu，
+        // 展开菜单时菜单项比按钮宽，Row 会因此变宽并把锁往左推 —— 一个开合动作
+        // 不该让旁边那个按钮跟着移动。分开挂则展开时锁纹丝不动。
         //
-        // 不用 Row + CenterVertically 把两者装进同一个容器：选择 FAB 是
-        // FloatingActionButtonMenu —— 一个**纵向**容器（菜单项在上、按钮在下），
-        // 装进 Row 会让锁对齐到整个菜单容器的中心，展开菜单时跟着往上跑。
+        // 位置随邻居在不在而变，并且**是动画**（用户 2026-09-14 要求）：
+        // 选择 FAB 只在有选中项时出现，它不在时锁若还守着让位后的坐标，
+        // 右边就空着 80+12dp —— 既不在角上也没有可对齐的邻居，看着像掉在半路。
+        // 邻居出现时锁让开它的宽度、并抬起半个尺寸差让圆心齐平；邻居消失则退回角上。
+        // 走 spatial 档：这是位移，不是淡入淡出。
+        val selectionFabVisible = summary.count > 0
+        val lockEndPadding by animateDpAsState(
+            targetValue = if (selectionFabVisible) {
+                Spacing.lg + SelectionFabCollapsedSize + FabPairGap
+            } else {
+                Spacing.lg
+            },
+            animationSpec = Motion.spatial(),
+            label = "LockFabEndPadding",
+        )
+        val lockBottomPadding by animateDpAsState(
+            // 没有邻居时不抬 —— 抬起是为了与那个更大的按钮对齐圆心，
+            // 邻居不在却仍抬着，就变成一个莫名悬空的按钮。
+            targetValue = Spacing.lg + if (selectionFabVisible) LockFabCenterOffset else 0.dp,
+            animationSpec = Motion.spatial(),
+            label = "LockFabBottomPadding",
+        )
         StorageChannelLockFab(
             peerEnabled = peerStorageEnabled,
             onToggle = onSetPeerStorageEnabled,
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = Spacing.screenEdge, bottom = LockFabBottomPadding),
+                .align(Alignment.BottomEnd)
+                .padding(end = lockEndPadding, bottom = lockBottomPadding),
         )
         // 官方 MD3 FAB 菜单，右下角。**不是** floating toolbar：那个组件的 content
         // 契约是「一串 IconButton」，塞进选中计数这类自由文本会把容器撑成一个

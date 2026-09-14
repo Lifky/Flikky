@@ -178,7 +178,7 @@ class PeerPermissionsStructureTest {
     }
 
     @Test
-    fun `the lock fab and the selection fab sit on opposite sides`() {
+    fun `the lock fab sits next to the selection fab`() {
         assertTrue(
             "sanity: the selection fab should still be mounted",
             storageTabSrc.contains("StorageSelectionFab("),
@@ -188,23 +188,31 @@ class PeerPermissionsStructureTest {
             storageTabSrc.contains("StorageChannelLockFab("),
         )
         assertTrue(
-            "the lock fab must be aligned to the start side, away from the selection fab",
-            storageTabSrc.contains("BottomStart"),
+            "both fabs must be on the end side -- they are a neighbouring pair, not two corners",
+            storageTabSrc.contains("Alignment.BottomEnd"),
         )
-        // 两个 FAB 尺寸不同（锁 56dp / 选择 large≈80dp），底边对齐会看着一高一低
-        // （装机反馈 2026-09-14 Screenshot_1）。锁必须补上尺寸差的一半，
-        // 让两个圆心落在同一条水平线上。
-        //
-        // 判据落在那个具名常量上而不是某个 dp 字面量：常量的 KDoc 写明了它与
-        // StorageSelectionFab 档位的绑定关系，换档时两处要一起改。
+        // 两个 FAB 是**紧邻的一对**（都在 BottomEnd，锁在选择 FAB 左侧），
+        // 不是分居屏幕两端 —— 后者是我读错参考图做出来的形态（装机反馈 Screenshot_5）。
         assertTrue(
-            "the lock fab must offset its bottom padding to centre against the larger " +
-                "selection fab -- plain screenEdge padding puts them at different heights",
-            storageTabSrc.contains("bottom = LockFabBottomPadding"),
+            "the lock fab must sit next to the selection fab, both at the end side",
+            storageTabSrc.contains("end = lockEndPadding"),
+        )
+        // 让位宽度必须**从官方尺寸函数推导**，不许写死 dp。上一版我把选择 FAB
+        // 从 medium(80dp) 改成 large(96dp)，装机一眼看出不协调；换档时
+        // 让位宽度要自动跟着走，不能靠记住一个魔数。
+        assertTrue(
+            "the gap must derive from the official container size, not a hard-coded dp",
+            storageTabSrc.contains("ToggleFloatingActionButtonDefaults.containerSizeMedium()(0f)"),
+        )
+        // 位置随邻居在不在而变，且是动画（用户 2026-09-14 要求）：选择 FAB 只在
+        // 有选中项时出现，它不在时锁若还守着让位后的坐标，右边就空着 92dp。
+        assertTrue(
+            "the lock fab must animate its position when the selection fab appears or leaves",
+            storageTabSrc.contains("animateDpAsState"),
         )
         assertTrue(
-            "LockFabBottomPadding must account for the size difference, not just the screen edge",
-            Regex("""val LockFabBottomPadding = Spacing\.screenEdge \+ \d+\.dp""")
+            "the position animation must use the spatial spec -- it is movement, not a fade",
+            Regex("""animateDpAsState\([\s\S]{0,400}?Motion\.spatial\(\)""")
                 .containsMatchIn(storageTabSrc),
         )
     }
