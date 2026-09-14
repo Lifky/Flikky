@@ -205,7 +205,7 @@ fun Route.storageRoutes(
                 val handle = result.value
                 val inline = call.request.queryParameters["inline"] == "1" &&
                     handle.mime in INLINE_MIME_WHITELIST
-                call.respondStorageFile(handle, inline)
+                call.respondStorageFile(handle, inline, stillAllowed = enabled)
             }
             else -> call.respondFailure(result)
         }
@@ -301,6 +301,7 @@ fun Route.storageRoutes(
 private suspend fun ApplicationCall.respondStorageFile(
     handle: StorageFileHandle,
     inline: Boolean,
+    stillAllowed: suspend () -> Boolean,
 ) {
     response.header(
         HttpHeaders.ContentDisposition,
@@ -318,6 +319,8 @@ private suspend fun ApplicationCall.respondStorageFile(
             while (true) {
                 val n = input.read(buf)
                 if (n <= 0) break
+                // Re-read the live gate for every block so closing peer access stops this stream.
+                if (!stillAllowed()) break
                 write(buf, 0, n)
             }
             flush()
