@@ -7,4 +7,19 @@
     <string name="language_system">Follow system</string>
     <string name="language_simplified_chinese">Simplified Chinese</string>
     <string name="language_english">English</string>
+    <string name="peer_permissions_title">Peer permissions</string>
+    <string name="peer_permissions_entry">Peer permissions</string>
+    <string name="peer_permissions_section_see">The peer can see</string>
+    <string name="peer_permissions_section_do">The peer can do</string>
+    <string name="peer_permissions_files">Files</string>
+    <string name="peer_permissions_files_summary">Let the computer browse this phone’s shared storage</string>
+    <string name="peer_permissions_files_need_permission">Storage permission needed · Grant</string>
+    <string name="peer_permissions_favorites">Favourites</string>
+    <string name="peer_permissions_favorites_summary">Let the computer see your favourites</string>
+    <string name="peer_permissions_favorites_need_feature">Turn on favourites first · Settings</string>
+    <string name="peer_permissions_recall">Let the peer recall messages</string>
+    <string name="peer_permissions_recall_summary">The computer can recall messages it sent</string>
+    <string name="peer_permissions_recall_need_feature">Turn on recall first · Settings</string>
+    <string name="peer_permissions_visible_prefix">Visible: </string>
+    <string name="peer_permissions_visible_none">Nothing shared</string>
 </resources>

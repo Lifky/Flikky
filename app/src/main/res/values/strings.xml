@@ -6,4 +6,19 @@
     <string name="language_system">跟随系统</string>
     <string name="language_simplified_chinese">简体中文</string>
     <string name="language_english">English</string>
+    <string name="peer_permissions_title">对端权限</string>
+    <string name="peer_permissions_entry">对端权限</string>
+    <string name="peer_permissions_section_see">对端能看到</string>
+    <string name="peer_permissions_section_do">对端能做</string>
+    <string name="peer_permissions_files">文件</string>
+    <string name="peer_permissions_files_summary">允许电脑端浏览这台手机的共享存储</string>
+    <string name="peer_permissions_files_need_permission">需要存储权限 · 去授权</string>
+    <string name="peer_permissions_favorites">收藏</string>
+    <string name="peer_permissions_favorites_summary">允许电脑端查看收藏</string>
+    <string name="peer_permissions_favorites_need_feature">需要先开启收藏功能 · 去设置</string>
+    <string name="peer_permissions_recall">允许对端撤回消息</string>
+    <string name="peer_permissions_recall_summary">电脑端可以撤回它自己发出的消息</string>
+    <string name="peer_permissions_recall_need_feature">需要先开启撤回功能 · 去设置</string>
+    <string name="peer_permissions_visible_prefix">可见：</string>
+    <string name="peer_permissions_visible_none">未开放任何内容</string>
 </resources>
