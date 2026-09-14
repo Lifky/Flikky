@@ -68,7 +68,11 @@ import androidx.compose.animation.fadeOut
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.di.ServiceLocator
+import com.example.flikky.session.peerChannelState
+import com.example.flikky.session.visibleChannelLabels
 import com.example.flikky.ui.components.ConnectionInfoCard
+import com.example.flikky.ui.components.CompactActionGroup
+import com.example.flikky.ui.components.CompactActionGroupItem
 import com.example.flikky.ui.components.ConversationHeader
 import com.example.flikky.ui.components.AvatarKey
 import com.example.flikky.ui.components.NetworkStatusBanner
@@ -109,6 +113,7 @@ fun ServingScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var actionTarget by remember { mutableStateOf<Long?>(null) }
     var showFilesQuickSheet by remember { mutableStateOf(false) }
+    var showPeerPermissions by remember { mutableStateOf(false) }
     var showQuickSettings by remember { mutableStateOf(false) }
     // 快捷设置里「钻进去」的五张复用 sheet，见下方托管处的注释。
     var quickPicker by remember { mutableStateOf<QuickPicker?>(null) }
@@ -226,31 +231,56 @@ fun ServingScreen(
                 label = "ConnHeader",
             ) { connected ->
                 if (connected) {
+                    val visibleLabels = visibleChannelLabels(
+                        listOf(
+                            stringResource(R.string.peer_permissions_files) to peerChannelState(
+                                available = hasStoragePermission,
+                                peerEnabled = settings.storageBrowsingEnabled,
+                            ),
+                            stringResource(R.string.peer_permissions_favorites) to peerChannelState(
+                                available = settings.favoriteBetaEnabled,
+                                peerEnabled = settings.favoriteBrowsingEnabled,
+                            ),
+                        ),
+                    )
+                    val visibleText = if (visibleLabels.isEmpty()) {
+                        stringResource(R.string.peer_permissions_visible_none)
+                    } else {
+                        stringResource(R.string.peer_permissions_visible_prefix) +
+                            visibleLabels.joinToString(
+                                stringResource(R.string.peer_permissions_visible_sep),
+                            )
+                    }
                     ConversationHeader(
                         peerAvatarId = peerAvatarId,
                         peerAvatarKey = peerAvatarKey,
                         peerName = "",
+                        subtitle = stringResource(R.string.conversation_connected) + " · " + visibleText,
                         onAvatarClick = { showPeerAvatarPicker = true },
                         trailing = {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                             ) {
-                                FilledTonalIconButton(onClick = { showFilesQuickSheet = true }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_folder_open),
-                                        contentDescription = stringResource(
-                                            R.string.serving_files_quick
+                                CompactActionGroup(
+                                    items = listOf(
+                                        CompactActionGroupItem(
+                                            label = stringResource(R.string.serving_files_quick),
+                                            painter = painterResource(R.drawable.ic_folder_open),
+                                            onClick = { showFilesQuickSheet = true },
                                         ),
-                                    )
-                                }
-                                // 快捷设置：会话期间「设置」tab 被锁，这里就近调气泡圆角 / 深色模式。
-                                FilledTonalIconButton(onClick = { showQuickSettings = true }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_settings),
-                                        contentDescription = stringResource(R.string.serving_quick_settings),
-                                    )
-                                }
+                                        CompactActionGroupItem(
+                                            label = stringResource(R.string.peer_permissions_entry),
+                                            painter = painterResource(R.drawable.ic_shield_toggle),
+                                            onClick = { showPeerPermissions = true },
+                                        ),
+                                        CompactActionGroupItem(
+                                            label = stringResource(R.string.serving_quick_settings),
+                                            painter = painterResource(R.drawable.ic_settings),
+                                            onClick = { showQuickSettings = true },
+                                        ),
+                                    ),
+                                )
                                 FilledTonalIconButton(
                                     onClick = { viewModel.stopService(); onStopped() },
                                     colors = IconButtonDefaults.filledTonalIconButtonColors(
@@ -376,6 +406,22 @@ fun ServingScreen(
             }
         }
         }
+    }
+
+    if (showPeerPermissions) {
+        PeerPermissionsSheet(
+            settings = settings,
+            hasStoragePermission = hasStoragePermission,
+            onSetStorageBrowsing = viewModel::setStorageBrowsingEnabled,
+            onSetFavoriteBrowsing = viewModel::setFavoriteBrowsingEnabled,
+            onSetAllowPeerRecall = viewModel::setAllowPeerRecall,
+            onRequestStoragePermission = { requestAllFilesAccess(ctx) },
+            onOpenSettings = {
+                showPeerPermissions = false
+                showQuickSettings = true
+            },
+            onDismiss = { showPeerPermissions = false },
+        )
     }
 
     // 快捷设置里的五个复杂选择器复用设置页同一批 sheet，而它们都是 ModalBottomSheet。

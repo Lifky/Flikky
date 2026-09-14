@@ -21,4 +21,5 @@
     <string name="peer_permissions_recall_need_feature">需要先开启撤回功能 · 去设置</string>
     <string name="peer_permissions_visible_prefix">可见：</string>
     <string name="peer_permissions_visible_none">未开放任何内容</string>
+    <string name="peer_permissions_visible_sep">、</string>
 </resources>

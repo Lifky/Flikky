@@ -33,10 +33,31 @@ class PeerPermissionsStructureTest {
         .replace(Regex("""(?m)^\s*//.*$"""), "")
         .replace(Regex("""(?m)^import .*$"""), "")
 
+    private fun call(source: String, name: String): String {
+        val at = source.indexOf(name + "(")
+        assertTrue("sanity: no $name call found", at >= 0)
+        val open = source.indexOf('(', at)
+        var depth = 0
+        for (index in open until source.length) {
+            when (source[index]) {
+                '(' -> depth += 1
+                ')' -> {
+                    depth -= 1
+                    if (depth == 0) return source.substring(at, index + 1)
+                }
+            }
+        }
+        error("unterminated $name call")
+    }
+
     private val sheet
         get() = stripComments(
             source("com/example/flikky/ui/serving/PeerPermissionsSheet.kt"),
         )
+    private val screen
+        get() = stripComments(source("com/example/flikky/ui/serving/ServingScreen.kt"))
+    private val header
+        get() = stripComments(source("com/example/flikky/ui/components/ConversationHeader.kt"))
 
     @Test
     fun `the panel derives every row state from the shared helper`() {
@@ -83,6 +104,50 @@ class PeerPermissionsStructureTest {
         assertTrue(
             "sanity: the panel should call the peer gate setter",
             sheet.contains("onSetFavoriteBrowsing"),
+        )
+    }
+
+    @Test
+    fun `the header subtitle says what the peer can see`() {
+        assertTrue(
+            "ServingScreen must compute the visible-channel labels for the header",
+            screen.contains("visibleChannelLabels("),
+        )
+        assertTrue(
+            "ConversationHeader must accept a subtitle instead of hard-coding connected",
+            header.contains("subtitle"),
+        )
+        val headerCall = call(screen, "ConversationHeader")
+        assertTrue(
+            "ServingScreen must pass the live visible-channel subtitle to ConversationHeader",
+            headerCall.contains("subtitle ="),
+        )
+    }
+
+    @Test
+    fun `nothing shared is stated, not left blank`() {
+        assertTrue(
+            "missing the explicit nothing-shared copy -- a blank subtitle is ambiguous",
+            screen.contains("peer_permissions_visible_none"),
+        )
+    }
+
+    @Test
+    fun `the destructive stop button stays outside the button group`() {
+        val headerCall = call(screen, "ConversationHeader")
+        val groupCall = call(headerCall, "CompactActionGroup")
+        assertFalse(
+            "the stop action must stay outside CompactActionGroup",
+            groupCall.contains("ic_power"),
+        )
+        val stopAt = headerCall.indexOf("ic_power")
+        assertTrue("sanity: no stop button found (ic_power)", stopAt > 0)
+        val stopButtonAt = headerCall.lastIndexOf("FilledTonalIconButton(", stopAt)
+        assertTrue("sanity: no FilledTonalIconButton owns ic_power", stopButtonAt >= 0)
+        val stopButton = call(headerCall.substring(stopButtonAt), "FilledTonalIconButton")
+        assertTrue(
+            "the stop button should retain its errorContainer colour",
+            stopButton.contains("errorContainer"),
         )
     }
 }

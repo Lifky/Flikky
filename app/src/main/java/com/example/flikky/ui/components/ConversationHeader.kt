@@ -29,6 +29,8 @@ fun ConversationHeader(
     peerAvatarId: Int,
     peerAvatarKey: String? = null,
     peerName: String,
+    /** Optional live status; null preserves the default connected subtitle. */
+    subtitle: String? = null,
     modifier: Modifier = Modifier,
     onAvatarClick: (() -> Unit)? = null,
     trailing: @Composable () -> Unit = {},
@@ -59,7 +61,7 @@ fun ConversationHeader(
                 maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = stringResource(R.string.conversation_connected),
+                text = subtitle ?: stringResource(R.string.conversation_connected),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.connected,
                 maxLines = 1, overflow = TextOverflow.Ellipsis,

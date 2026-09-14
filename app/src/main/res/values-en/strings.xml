@@ -22,4 +22,5 @@
     <string name="peer_permissions_recall_need_feature">Turn on recall first · Settings</string>
     <string name="peer_permissions_visible_prefix">Visible: </string>
     <string name="peer_permissions_visible_none">Nothing shared</string>
+    <string name="peer_permissions_visible_sep">, </string>
 </resources>
