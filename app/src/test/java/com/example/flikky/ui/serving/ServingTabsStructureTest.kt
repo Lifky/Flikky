@@ -75,6 +75,7 @@ class ServingTabsStructureTest {
     private val servingScreen get() = stripComments(source("com/example/flikky/ui/serving/ServingScreen.kt"))
     private val chatTab get() = stripComments(source("com/example/flikky/ui/serving/ServingChatTab.kt"))
     private val storageTab get() = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+    private val transferService get() = stripComments(source("com/example/flikky/service/TransferService.kt"))
 
     @Test
     fun `keep screen on stays in ServingScreen and never moves into a tab`() {
@@ -966,5 +967,30 @@ class ServingTabsStructureTest {
             fn.contains(Regex("""LaunchedEffect\([^)]*maxValue[^)]*\)""")),
         )
         assertTrue("没有滚到 maxValue", fn.contains("scrollTo("))
+    }
+
+    @Test
+    fun `the peer gate for favourites never leaks into the app side chat tab`() {
+        assertTrue(
+            "sanity: ServingChatTab should still read the app-side beta flag",
+            chatTab.contains("favoriteBetaEnabled"),
+        )
+        assertFalse(
+            "ServingChatTab must not read favoriteBrowsingEnabled: that is the peer gate, " +
+                "and gating the app side with it makes the user's own favourites vanish (D33)",
+            chatTab.contains("favoriteBrowsingEnabled"),
+        )
+    }
+
+    @Test
+    fun `the service feeds the peer DTO both axes, not just the beta flag`() {
+        val line = transferService
+            .lineSequence()
+            .firstOrNull { it.contains("favoriteEnabled = ") && it.contains("latestSettings") }
+        assertTrue("sanity: no favoriteEnabled wiring found in TransferService", line != null)
+        assertTrue(
+            "favoriteEnabled must combine BOTH axes, found: $line",
+            line!!.contains("favoriteBetaEnabled") && line.contains("favoriteBrowsingEnabled"),
+        )
     }
 }

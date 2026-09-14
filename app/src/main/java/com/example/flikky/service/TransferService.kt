@@ -519,7 +519,8 @@ class TransferService : Service() {
                 )
             }
         },
-        favoriteEnabled = { latestSettings.favoriteBetaEnabled },
+        // The app feature and peer gate are independent; both must be open for the browser.
+        favoriteEnabled = { latestSettings.favoriteBetaEnabled && latestSettings.favoriteBrowsingEnabled },
         favoriteThumbFileProvider = { id -> ServiceLocator.favoriteFileStore.thumbnailFile(id) },
         // 存储浏览：主开关只门控对端（App 端自己的文件 tab 不受它约束）。
         // Environment 只出现在这里与 ServiceLocator —— server 包不认识它。
