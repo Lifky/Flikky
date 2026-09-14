@@ -390,6 +390,8 @@ fun ServingScreen(
                         onRequestPermission = { requestAllFilesAccess(ctx) },
                         state = storageState,
                         summary = storageSummary,
+                        peerStorageEnabled = settings.storageBrowsingEnabled,
+                        onSetPeerStorageEnabled = viewModel::setStorageBrowsingEnabled,
                         onOpenDir = { viewModel.openStorageDir(it) },
                         onToggleSelection = { viewModel.toggleStorageSelection(it) },
                         onScrollChanged = { p, i, o -> viewModel.rememberStorageScroll(p, i, o) },

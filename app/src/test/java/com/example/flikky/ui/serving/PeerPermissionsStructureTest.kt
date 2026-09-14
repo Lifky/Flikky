@@ -60,6 +60,14 @@ class PeerPermissionsStructureTest {
         get() = stripComments(source("com/example/flikky/ui/components/ConversationHeader.kt"))
     private val quickSettings
         get() = stripComments(source("com/example/flikky/ui/serving/QuickSettingsSheet.kt"))
+    private val lockFab
+        get() = stripComments(
+            source("com/example/flikky/ui/serving/storage/StorageChannelLockFab.kt"),
+        )
+    private val storageTabSrc
+        get() = stripComments(
+            source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"),
+        )
 
     @Test
     fun `the panel derives every row state from the shared helper`() {
@@ -166,6 +174,34 @@ class PeerPermissionsStructureTest {
         assertTrue(
             "the favourites beta flag is an app-side switch and stays in quick settings",
             quickSettings.contains("settings_favorites"),
+        )
+    }
+
+    @Test
+    fun `the lock fab and the selection fab sit on opposite sides`() {
+        assertTrue(
+            "sanity: the selection fab should still be mounted",
+            storageTabSrc.contains("StorageSelectionFab("),
+        )
+        assertTrue(
+            "the lock fab must be mounted in the storage tab",
+            storageTabSrc.contains("StorageChannelLockFab("),
+        )
+        assertTrue(
+            "the lock fab must be aligned to the start side, away from the selection fab",
+            storageTabSrc.contains("BottomStart"),
+        )
+    }
+
+    @Test
+    fun `the lock never pretends to revoke the system permission`() {
+        assertFalse(
+            "the lock fab must not call any permission-revoking API: it gates the peer, not the app",
+            lockFab.contains("revokeOwnPermission"),
+        )
+        assertTrue(
+            "sanity: the lock fab should toggle the peer gate",
+            lockFab.contains("onToggle"),
         )
     }
 }

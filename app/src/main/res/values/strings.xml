@@ -22,4 +22,6 @@
     <string name="peer_permissions_visible_prefix">可见：</string>
     <string name="peer_permissions_visible_none">未开放任何内容</string>
     <string name="peer_permissions_visible_sep">、</string>
+    <string name="storage_lock_peer_on">对端可访问文件 · 点击关闭</string>
+    <string name="storage_lock_peer_off">对端无法访问文件 · 点击开启</string>
 </resources>

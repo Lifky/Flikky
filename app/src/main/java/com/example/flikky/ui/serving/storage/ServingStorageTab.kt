@@ -89,14 +89,15 @@ import java.util.Locale
 /**
  * 会话页「文件」tab：本机共享存储浏览器（只读）。
  *
- * ## 这个 composable 刻意不知道 `storageBrowsingEnabled`
+ * ## 对端门控只控制通道锁
  *
  * `storageBrowsingEnabled` 是**给对端浏览器用的**主开关（默认关）。App 端浏览自己的存储
  * 只受系统权限约束。四态矩阵里最容易写错的一格是「开关关 + 已授权」——
  * 用同一个布尔量把两端一起门控，会让用户在自己手机上也看不到文件，
  * 而设置项的文案说的是「允许电脑端浏览」。
  *
- * 因此这里连参数都不收：拿不到的东西没法误用。守卫见 `ui/serving/ServingTabsStructureTest`。
+ * 因此 [peerStorageEnabled] 只供 [StorageChannelLockFab] 显示和切换通道，绝不参与内容渲染。
+ * 守卫见 `ui/serving/ServingTabsStructureTest`。
  *
  * ## 行的视觉必须与文件总览页 / 收藏页零差异
  *
@@ -115,6 +116,8 @@ fun ServingStorageTab(
     onRequestPermission: () -> Unit,
     state: LocalStorageState,
     summary: StorageSelectionSummary,
+    peerStorageEnabled: Boolean,
+    onSetPeerStorageEnabled: (Boolean) -> Unit,
     onOpenDir: (String) -> Unit,
     onToggleSelection: (String) -> Unit,
     onScrollChanged: (String, Int, Int) -> Unit = { _, _, _ -> },
@@ -370,6 +373,14 @@ fun ServingStorageTab(
                 }
             }
         }
+        // 通道锁在左下，与右下的选择 FAB 分居两侧。前者管对端通道，后者管选中项操作。
+        StorageChannelLockFab(
+            peerEnabled = peerStorageEnabled,
+            onToggle = onSetPeerStorageEnabled,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(Spacing.screenEdge),
+        )
         // 官方 MD3 FAB 菜单，右下角。**不是** floating toolbar：那个组件的 content
         // 契约是「一串 IconButton」，塞进选中计数这类自由文本会把容器撑成一个
         // 巨型椭圆（装机验收 Screenshot_4）。计数改放进菜单项文案，见 StorageSelectionFab。

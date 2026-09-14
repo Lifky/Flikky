@@ -124,18 +124,35 @@ class ServingTabsStructureTest {
     fun `the app side storage tab is not gated by the browser master switch`() {
         // 四态矩阵最容易写错的一格：「主开关关 + 已授权」。storageBrowsingEnabled 门控的是
         // 对端浏览器；拿同一个布尔量把两端一起门控，用户在自己手机上也看不到文件，
-        // 而设置项文案说的是「允许电脑端浏览」。ServingStorageTab 连这个参数都不该收。
-        assertFalse(
-            "ServingStorageTab must not know about storageBrowsingEnabled — " +
-                "the master switch gates the browser peer, not the phone itself",
-            storageTab.contains("storageBrowsingEnabled"),
+        // 而设置项文案说的是「允许电脑端浏览」。v1.21.0 起 tab 左下的通道锁需要读这个值，
+        // 但它只能从参数直接流进 StorageChannelLockFab，不能参与任何内容渲染。
+        assertTrue(
+            "ServingStorageTab must receive the peer gate under its role-specific name",
+            storageTab.contains("peerStorageEnabled: Boolean"),
         )
-        // 传入侧同样不许把两者与起来。
+        assertEquals(
+            "peerStorageEnabled may appear only in the parameter and the channel-lock call; " +
+                "any other use risks gating the phone-side contents",
+            2,
+            Regex("""\bpeerStorageEnabled\b""").findAll(storageTab).count(),
+        )
+        val lockCall = Regex("""StorageChannelLockFab\(([\s\S]*?)\n {8}\)""").find(storageTab)
+        assertTrue("no StorageChannelLockFab call found in ServingStorageTab", lockCall != null)
+        assertTrue(
+            "the peer gate must flow directly into the lock FAB: ${lockCall!!.value}",
+            lockCall.value.contains("peerEnabled = peerStorageEnabled"),
+        )
+
+        // 传入侧要接到真实门控值，但仍不得把它与 hasPermission 组合后再传入。
         val call = Regex("""ServingStorageTab\(([\s\S]*?)\n {12}\)""").find(servingScreen)
         assertTrue("no ServingStorageTab call site found in ServingScreen", call != null)
-        assertFalse(
-            "the ServingStorageTab call site must not mix in storageBrowsingEnabled: ${call!!.value}",
-            call.value.contains("storageBrowsing"),
+        assertTrue(
+            "the lock FAB state must come from the persisted peer gate: ${call!!.value}",
+            call.value.contains("peerStorageEnabled = settings.storageBrowsingEnabled"),
+        )
+        assertTrue(
+            "the lock FAB must write the same gate as the permissions panel: ${call.value}",
+            call.value.contains("onSetPeerStorageEnabled = viewModel::setStorageBrowsingEnabled"),
         )
     }
 
