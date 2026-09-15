@@ -14,6 +14,9 @@
     <string name="peer_permissions_files">Files</string>
     <string name="peer_permissions_files_summary">Let the computer browse this phone’s shared storage</string>
     <string name="peer_permissions_files_need_permission">Storage permission needed · Grant</string>
+    <string name="peer_permissions_album">Album</string>
+    <string name="peer_permissions_album_summary">The peer can browse and download your photos and videos</string>
+    <string name="peer_permissions_album_need_permission">Photo access needed first · Grant</string>
     <string name="peer_permissions_favorites">Favourites</string>
     <string name="peer_permissions_favorites_summary">Let the computer see your favourites</string>
     <string name="peer_permissions_favorites_need_feature">Turn on favourites first · Settings</string>

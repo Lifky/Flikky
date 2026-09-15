@@ -84,6 +84,7 @@ import com.example.flikky.ui.settings.LeadingColorSheet
 import com.example.flikky.ui.settings.LeadingShapeSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
+import com.example.flikky.util.AlbumAccess
 import com.example.flikky.util.AlbumItemId
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -261,6 +262,10 @@ fun ServingScreen(
                                 available = hasStoragePermission,
                                 peerEnabled = settings.storageBrowsingEnabled,
                             ),
+                            stringResource(R.string.peer_permissions_album) to peerChannelState(
+                                available = albumState.access != AlbumAccess.None,
+                                peerEnabled = settings.albumBrowsingEnabled,
+                            ),
                             stringResource(R.string.peer_permissions_favorites) to peerChannelState(
                                 available = settings.favoriteBetaEnabled,
                                 peerEnabled = settings.favoriteBrowsingEnabled,
@@ -430,10 +435,13 @@ fun ServingScreen(
         PeerPermissionsSheet(
             settings = settings,
             hasStoragePermission = hasStoragePermission,
+            albumAccess = albumState.access,
             onSetStorageBrowsing = viewModel::setStorageBrowsingEnabled,
+            onSetAlbumBrowsing = viewModel::setAlbumBrowsingEnabled,
             onSetFavoriteBrowsing = viewModel::setFavoriteBrowsingEnabled,
             onSetAllowPeerRecall = viewModel::setAllowPeerRecall,
             onRequestStoragePermission = { requestAllFilesAccess(ctx) },
+            onRequestAlbumPermission = requestAlbumPermission,
             onOpenSettings = {
                 showPeerPermissions = false
                 showQuickSettings = true

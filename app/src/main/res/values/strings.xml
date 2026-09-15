@@ -13,6 +13,9 @@
     <string name="peer_permissions_files">文件</string>
     <string name="peer_permissions_files_summary">允许电脑端浏览这台手机的共享存储</string>
     <string name="peer_permissions_files_need_permission">需要存储权限 · 去授权</string>
+    <string name="peer_permissions_album">相册</string>
+    <string name="peer_permissions_album_summary">对端可以浏览并下载你的照片和视频</string>
+    <string name="peer_permissions_album_need_permission">需要先授权照片访问 · 去授权</string>
     <string name="peer_permissions_favorites">收藏</string>
     <string name="peer_permissions_favorites_summary">允许电脑端查看收藏</string>
     <string name="peer_permissions_favorites_need_feature">需要先开启收藏功能 · 去设置</string>

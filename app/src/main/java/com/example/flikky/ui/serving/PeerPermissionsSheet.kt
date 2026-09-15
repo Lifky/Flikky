@@ -23,6 +23,7 @@ import com.example.flikky.session.peerChannelState
 import com.example.flikky.ui.settings.components.SettingItem
 import com.example.flikky.ui.settings.components.SettingSection
 import com.example.flikky.ui.theme.Spacing
+import com.example.flikky.util.AlbumAccess
 
 /** Controls what the authenticated browser peer can see and do. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,10 +31,13 @@ import com.example.flikky.ui.theme.Spacing
 fun PeerPermissionsSheet(
     settings: FlikkySettings,
     hasStoragePermission: Boolean,
+    albumAccess: AlbumAccess,
     onSetStorageBrowsing: (Boolean) -> Unit,
+    onSetAlbumBrowsing: (Boolean) -> Unit,
     onSetFavoriteBrowsing: (Boolean) -> Unit,
     onSetAllowPeerRecall: (Boolean) -> Unit,
     onRequestStoragePermission: () -> Unit,
+    onRequestAlbumPermission: () -> Unit,
     onOpenSettings: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -72,7 +76,22 @@ fun PeerPermissionsSheet(
                     onResolve = onRequestStoragePermission,
                     onToggle = onSetStorageBrowsing,
                     index = 0,
-                    total = 2,
+                    total = 3,
+                )
+                PeerChannelRow(
+                    state = peerChannelState(
+                        available = albumAccess != AlbumAccess.None,
+                        peerEnabled = settings.albumBrowsingEnabled,
+                    ),
+                    title = stringResource(R.string.peer_permissions_album),
+                    summary = stringResource(R.string.peer_permissions_album_summary),
+                    unavailableHint = stringResource(
+                        R.string.peer_permissions_album_need_permission,
+                    ),
+                    onResolve = onRequestAlbumPermission,
+                    onToggle = onSetAlbumBrowsing,
+                    index = 1,
+                    total = 3,
                 )
                 PeerChannelRow(
                     state = peerChannelState(
@@ -86,8 +105,8 @@ fun PeerPermissionsSheet(
                     ),
                     onResolve = onOpenSettings,
                     onToggle = onSetFavoriteBrowsing,
-                    index = 1,
-                    total = 2,
+                    index = 2,
+                    total = 3,
                 )
             }
 

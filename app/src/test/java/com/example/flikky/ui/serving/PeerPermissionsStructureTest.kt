@@ -203,4 +203,52 @@ class PeerPermissionsStructureTest {
             lockFab.contains("onToggle"),
         )
     }
+
+    @Test
+    fun `the see group carries all three peer visible channels`() {
+        assertTrue(sheet.contains("R.string.peer_permissions_files"))
+        assertTrue(sheet.contains("R.string.peer_permissions_album"))
+        assertTrue(sheet.contains("R.string.peer_permissions_favorites"))
+    }
+
+    @Test
+    fun `the see group indices span three rows, not two`() {
+        val seeAt = sheet.indexOf("peer_permissions_section_see")
+        assertTrue("sanity: no peer-visible section", seeAt >= 0)
+        val seeGroup = sheet.substring(seeAt).take(2500)
+
+        assertFalse("still carries the old two-row total", seeGroup.contains("total = 2"))
+        assertTrue("the peer-visible group must contain three rows", seeGroup.contains("total = 3"))
+        listOf("index = 0", "index = 1", "index = 2").forEach {
+            assertTrue("missing $it", seeGroup.contains(it))
+        }
+    }
+
+    @Test
+    fun `the album row derives its state from the shared helper`() {
+        val albumAt = sheet.indexOf("R.string.peer_permissions_album")
+        assertTrue("sanity: no album channel row", albumAt >= 0)
+        val albumBlock = sheet.substring(maxOf(0, albumAt - 600)).take(900)
+
+        assertTrue("the album row bypasses peerChannelState", albumBlock.contains("peerChannelState("))
+        assertTrue("album availability does not use the permission scope", albumBlock.contains("AlbumAccess.None"))
+    }
+
+    @Test
+    fun `the album row never toggles the app side setting`() {
+        assertTrue(
+            "sanity: the album row must expose the peer gate setter",
+            sheet.contains("onSetAlbumBrowsing"),
+        )
+        assertFalse(
+            "the peer panel must not write an app-side album setting",
+            sheet.contains("setAlbumEnabled") || sheet.contains("albumBetaEnabled"),
+        )
+    }
+
+    @Test
+    fun `the header subtitle can list three channels`() {
+        assertTrue(screen.contains("R.string.peer_permissions_album"))
+        assertTrue(screen.contains("visibleChannelLabels("))
+    }
 }
