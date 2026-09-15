@@ -73,6 +73,14 @@ object LeadingVisualCatalog {
             fixedArgb = 0xFFFFA726,
         ),
         LeadingType(
+            id = "apk",
+            symbol = "apk_document",
+            mimePrefixes = emptyList(),
+            mimeExact = listOf(MimeGuess.APK_MIME),
+            hueShift = 324,
+            fixedArgb = 0xFF3DDC84,
+        ),
+        LeadingType(
             id = "other",
             symbol = "draft",
             mimePrefixes = emptyList(),

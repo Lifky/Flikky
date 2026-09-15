@@ -11,6 +11,7 @@ internal fun FileCategory.labelResource(): Int = when (this) {
     FileCategory.AUDIO -> R.string.files_filter_audio
     FileCategory.DOCUMENT -> R.string.files_filter_document
     FileCategory.ARCHIVE -> R.string.files_filter_archive
+    FileCategory.APK -> R.string.files_filter_apk
     FileCategory.OTHER -> R.string.files_filter_other
 }
 
@@ -20,6 +21,7 @@ internal fun FileCategory.iconResource(): Int = when (this) {
     FileCategory.AUDIO -> R.drawable.ic_audio_file
     FileCategory.DOCUMENT -> R.drawable.ic_description
     FileCategory.ARCHIVE -> R.drawable.ic_folder_zip
+    FileCategory.APK -> R.drawable.ic_apk_document
     FileCategory.ALL,
     FileCategory.OTHER,
     -> R.drawable.ic_draft

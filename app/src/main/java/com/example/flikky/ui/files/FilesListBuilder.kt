@@ -6,7 +6,7 @@ import com.example.flikky.util.LeadingVisualCatalog
 import com.example.flikky.util.SortKey
 import com.example.flikky.util.SortSpec
 
-enum class FileCategory { ALL, IMAGE, VIDEO, AUDIO, DOCUMENT, ARCHIVE, OTHER }
+enum class FileCategory { ALL, IMAGE, VIDEO, AUDIO, DOCUMENT, ARCHIVE, APK, OTHER }
 
 data class FileStats(
     val count: Int,

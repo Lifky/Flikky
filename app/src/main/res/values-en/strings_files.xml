@@ -11,6 +11,7 @@
     <string name="files_filter_audio">Audio</string>
     <string name="files_filter_document">Documents</string>
     <string name="files_filter_archive">Archives</string>
+    <string name="files_filter_apk">APK</string>
     <string name="files_filter_other">Other</string>
     <string name="files_sort_time">By time</string>
     <string name="files_direction_received">Received</string>

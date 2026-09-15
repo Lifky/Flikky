@@ -34,6 +34,13 @@
   color: var(--flikky-leading-fg-archive, rgb(var(--mdui-color-on-secondary-container)));
 }
 
+.fk-item[data-leading-type="apk"] .fk-item-lead,
+.file-bubble .file-icon[data-leading-type="apk"],
+.bubble-row.me .file-bubble .file-icon[data-leading-type="apk"] {
+  background: var(--flikky-leading-bg-apk, rgb(var(--mdui-color-secondary-container)));
+  color: var(--flikky-leading-fg-apk, rgb(var(--mdui-color-on-secondary-container)));
+}
+
 .fk-item[data-leading-type="other"] .fk-item-lead,
 .file-bubble .file-icon[data-leading-type="other"],
 .bubble-row.me .file-bubble .file-icon[data-leading-type="other"] {

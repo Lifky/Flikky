@@ -65,6 +65,16 @@ globalThis.flikkyLeadingTypes = Object.freeze([
     "fixedArgb": 4294944550
   },
   {
+    "id": "apk",
+    "symbol": "apk_document",
+    "mimePrefixes": [],
+    "mimeExact": [
+      "application/vnd.android.package-archive"
+    ],
+    "hueShift": 324,
+    "fixedArgb": 4282244228
+  },
+  {
     "id": "other",
     "symbol": "draft",
     "mimePrefixes": [],
