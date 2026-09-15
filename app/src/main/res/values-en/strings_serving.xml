@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="apps_title">Apps</string>
+    <string name="apps_search_hint">Search apps</string>
+    <string name="apps_include_system">Include system apps</string>
+    <string name="apps_empty">No matching apps</string>
+    <string name="apps_loading">Reading installed apps…</string>
+    <string name="apps_split_badge">Split</string>
+    <string name="apps_split_warning_title">This app ships as split APKs</string>
+    <string name="apps_split_warning_body">%1$s is made up of several packages. Flikky sends only the base package, so the peer may be missing some screen resources or languages after installing. Continue?</string>
+    <string name="apps_split_warning_confirm">Send anyway</string>
+    <string name="apps_sending">Extracting %1$s</string>
     <string name="serving_favorite">Favorite</string>
     <string name="serving_unfavorite">Remove favorite</string>
     <string name="serving_copy">Copy</string>

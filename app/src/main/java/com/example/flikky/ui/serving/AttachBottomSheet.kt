@@ -27,6 +27,7 @@ import com.example.flikky.R
 import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.ui.components.OptionCard
 import com.example.flikky.ui.theme.Spacing
+import com.example.flikky.util.AppEntry
 
 /**
  * One attachment sheet for system pickers and previously transferred files.
@@ -35,7 +36,10 @@ import com.example.flikky.ui.theme.Spacing
 @Composable
 fun AttachBottomSheet(
     existingFiles: List<FileOverviewRow>,
+    installedApps: List<AppEntry>,
+    appsLoading: Boolean,
     onSendExistingFile: (FileOverviewRow) -> Unit,
+    onSendApp: (AppEntry) -> Unit,
     onPickFile: () -> Unit,
     onPickImage: () -> Unit,
     onDismiss: () -> Unit,
@@ -51,7 +55,7 @@ fun AttachBottomSheet(
     ) {
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.65f)) {
             SecondaryTabRow(selectedTabIndex = selectedTab) {
-                listOf(R.string.attach_title, R.string.files_quick_title).forEachIndexed { index, label ->
+                listOf(R.string.attach_title, R.string.apps_title, R.string.files_quick_title).forEachIndexed { index, label ->
                     Tab(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
@@ -61,9 +65,10 @@ fun AttachBottomSheet(
             }
             Box(Modifier.weight(1f).padding(top = Spacing.lg)) {
                 tabState.SaveableStateProvider(selectedTab) {
-                    if (selectedTab == 1) {
-                        ExistingFilesContent(rows = existingFiles, onSend = onSendExistingFile)
-                    } else {
+                    when (selectedTab) {
+                    1 -> AppPickerContent(installedApps, appsLoading, onSendApp)
+                    2 -> ExistingFilesContent(rows = existingFiles, onSend = onSendExistingFile)
+                    else -> {
                         Column(
                             Modifier
                                 .fillMaxWidth()
@@ -90,7 +95,7 @@ fun AttachBottomSheet(
                                 )
                             }
                         }
-                    }
+                    }}
                 }
             }
         }

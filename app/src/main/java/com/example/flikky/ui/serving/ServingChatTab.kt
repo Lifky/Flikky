@@ -507,6 +507,9 @@ fun ServingChatTab(
 
     if (showAttachSheet) {
         AttachBottomSheet(
+            installedApps = emptyList(),
+            appsLoading = false,
+            onSendApp = {},
             existingFiles = existingFiles,
             onSendExistingFile = onSendExistingFile,
             onPickFile = { showAttachSheet = false; pickFile.launch("*/*") },
