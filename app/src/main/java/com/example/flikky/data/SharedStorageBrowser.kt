@@ -12,7 +12,7 @@ import com.example.flikky.util.SortSpec
 import com.example.flikky.util.StorageListingPolicy
 import com.example.flikky.util.StoragePathPolicy
 import java.io.File
-import java.net.URLConnection
+import com.example.flikky.util.MimeGuess
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.flow
@@ -108,7 +108,7 @@ class SharedStorageBrowser(
             mime = if (scanned.isDir) {
                 null
             } else {
-                URLConnection.guessContentTypeFromName(scanned.name)
+                MimeGuess.fromName(scanned.name)
             },
             // list() 而不是 listFiles()：只要个数，不需要为每个子项建 File 对象。
             childCount = if (scanned.isDir) StorageListingPolicy.visibleCount(child.list(), showHidden()) else null,
@@ -148,5 +148,5 @@ class SharedStorageBrowser(
      * 按扩展名猜 mime。用 `URLConnection.guessContentTypeFromName` 而不是 Android 的
      * `MimeTypeMap`：后者是 Android 框架类，会让本类不可在 JVM 上测。
      */
-    private fun guessMime(name: String): String? = URLConnection.guessContentTypeFromName(name)
+    private fun guessMime(name: String): String? = MimeGuess.fromName(name)
 }

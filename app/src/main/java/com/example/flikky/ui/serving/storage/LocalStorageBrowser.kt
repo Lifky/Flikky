@@ -6,7 +6,7 @@ import com.example.flikky.util.SortSpec
 import com.example.flikky.util.StorageListingPolicy
 import com.example.flikky.util.StoragePathPolicy
 import java.io.File
-import java.net.URLConnection
+import com.example.flikky.util.MimeGuess
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
@@ -161,7 +161,7 @@ class LocalStorageBrowser(
                     isDir = isDir,
                     size = if (isDir) 0L else child.length(),
                     mtime = child.lastModified(),
-                    mime = if (isDir) null else URLConnection.guessContentTypeFromName(child.name),
+                    mime = if (isDir) null else MimeGuess.fromName(child.name),
                     restricted = StorageListingPolicy.isRestricted(childPath),
                     // list() 而不是 listFiles()：只要个数，不需要为每个子项建 File 对象。
                     childCount = if (isDir) StorageListingPolicy.visibleCount(child.list(), showHidden()) else null,
@@ -240,7 +240,7 @@ class LocalStorageBrowser(
             mime = if (scanned.isDir) {
                 null
             } else {
-                URLConnection.guessContentTypeFromName(scanned.name)
+                MimeGuess.fromName(scanned.name)
             },
             restricted = StorageListingPolicy.isRestricted(childPath),
             // list() 而不是 listFiles()：只要个数，不需要为每个子项建 File 对象。
