@@ -33,4 +33,9 @@ class QrMatrixTest {
     @Test fun `blank text yields null`() { assertNull(QrMatrix.encode("")); assertNull(QrMatrix.encode("   ")) }
     @Test fun `text beyond QR capacity yields null instead of throwing`() { assertNull(QrMatrix.encode("x".repeat(10_000))) }
     @Test fun `quiet zone is the spec mandated four modules`() { assertEquals(4, QrMatrix.QUIET_ZONE) }
+    @Test fun `matrix coordinates stay in x then y order`() {
+        val m = QrMatrix.encode(url)!!
+        assertFalse(m.isDark(8, 0))
+        assertTrue(m.isDark(0, 8))
+    }
 }
