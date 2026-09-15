@@ -1,7 +1,9 @@
 package com.example.flikky.util
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AlbumItemIdTest {
@@ -16,4 +18,9 @@ class AlbumItemIdTest {
     @Test fun `overflowing ids are rejected instead of throwing`() { assertNull(AlbumItemId.parse("img:99999999999999999999")) }
     @Test fun `case variants and whitespace are rejected`() { listOf("IMG:1","Img:1","VID:1"," img:1","img:1 ","img: 1","img :1","").forEach { assertNull(it,AlbumItemId.parse(it)) } }
     @Test fun `leading zeros are rejected`() { assertNull(AlbumItemId.parse("img:01")); assertNull(AlbumItemId.parse("img:0001")) }
+    @Test fun `additional separators are rejected before numeric conversion`() {
+        val file = File("src/main/java/com/example/flikky/util/AlbumItemId.kt").takeIf { it.isFile }
+            ?: File("app/src/main/java/com/example/flikky/util/AlbumItemId.kt")
+        assertTrue(file.readText().contains("raw.indexOf(':', cut + 1) >= 0"))
+    }
 }
