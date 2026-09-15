@@ -44,12 +44,13 @@ class FileCategoryUiTest {
         assertEquals("audio", FileCategory.AUDIO.leadingType()?.id)
         assertEquals("document", FileCategory.DOCUMENT.leadingType()?.id)
         assertEquals("archive", FileCategory.ARCHIVE.leadingType()?.id)
+        assertEquals("apk", FileCategory.APK.leadingType()?.id)
         assertEquals("other", FileCategory.OTHER.leadingType()?.id)
     }
 
     @Test
     fun fileOverviewRendersOneChipPerCategory() {
-        assertEquals(7, FileCategory.entries.size)
+        assertEquals(8, FileCategory.entries.size)
         val source = stripSourceNoise(sourceFile("ui/files/FilesScreen.kt").readText())
         assertTrue(Regex("""items\s*\(\s*FileCategory\.entries\s*,""").containsMatchIn(source))
     }

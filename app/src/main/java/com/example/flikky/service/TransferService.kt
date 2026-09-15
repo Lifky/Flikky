@@ -10,6 +10,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Binder
+import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
@@ -46,6 +47,8 @@ import com.example.flikky.ui.theme.toWireColors
 import com.example.flikky.util.BrowserAvatarHelloDecision
 import com.example.flikky.util.BrowserAvatarHelloPolicy
 import com.example.flikky.util.IdGen
+import com.example.flikky.util.AlbumAccess
+import com.example.flikky.util.albumAccess
 import com.example.flikky.util.formatThemeSeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -529,7 +532,22 @@ class TransferService : Service() {
         hasStoragePermission = { android.os.Environment.isExternalStorageManager() },
         storageThumbFileProvider = { key -> ServiceLocator.fileStore.storageThumbFile(key) },
         storageThumbnailCacheMaxBytes = { latestSettings.thumbnailCacheLimitMb * 1024L * 1024L },
+        albumBrowsingEnabled = { latestSettings.albumBrowsingEnabled },
+        albumAccessProvider = { currentAlbumAccess() },
+        mediaLibraryProvider = { ServiceLocator.mediaLibrary },
+        albumThumbFileProvider = { key -> ServiceLocator.fileStore.storageThumbFile(key) },
     )
+
+    private fun currentAlbumAccess(): AlbumAccess = albumAccess(
+        manageAllFiles = android.os.Environment.isExternalStorageManager(),
+        readImages = hasPermission(android.Manifest.permission.READ_MEDIA_IMAGES),
+        readVideo = hasPermission(android.Manifest.permission.READ_MEDIA_VIDEO),
+        userSelected = Build.VERSION.SDK_INT >= 34 &&
+            hasPermission(android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED),
+    )
+
+    private fun hasPermission(name: String): Boolean =
+        checkSelfPermission(name) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
     /**
      * Builds an Export-mode KtorServer. Mirrors buildTransferKtor so the

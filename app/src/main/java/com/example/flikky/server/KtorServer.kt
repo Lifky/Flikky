@@ -11,10 +11,12 @@ import com.example.flikky.server.routes.ThumbnailGenerator
 import com.example.flikky.server.routes.AuthGate
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.server.routes.authRoutes
+import com.example.flikky.server.routes.albumRoutes
 import com.example.flikky.server.routes.exportRoutes
 import com.example.flikky.server.routes.favoriteRoutes
 import com.example.flikky.server.routes.fileRoutes
 import com.example.flikky.server.routes.StorageBrowser
+import com.example.flikky.server.routes.MediaLibrary
 import com.example.flikky.server.routes.messageRoutes
 import com.example.flikky.server.routes.storageRoutes
 import com.example.flikky.server.routes.peerInfoRoutes
@@ -22,6 +24,7 @@ import com.example.flikky.server.routes.wsRoutes
 import com.example.flikky.session.Message
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
+import com.example.flikky.util.AlbumAccess
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCallPipeline
@@ -116,6 +119,10 @@ class KtorServer(
     /** SessionFileStore-owned path for derived storage thumbnails. */
     private val storageThumbFileProvider: ((String) -> File)? = null,
     private val storageThumbnailCacheMaxBytes: () -> Long = { 100L * 1024L * 1024L },
+    private val albumBrowsingEnabled: suspend () -> Boolean = { false },
+    private val albumAccessProvider: () -> AlbumAccess = { AlbumAccess.None },
+    private val mediaLibraryProvider: () -> MediaLibrary? = { null },
+    private val albumThumbFileProvider: ((String) -> File)? = null,
 ) {
     private var engine: EmbeddedServer<*, *>? = null
     var boundPort: Int = -1
@@ -231,6 +238,14 @@ class KtorServer(
             browser = storageBrowserProvider,
             storageThumbFile = storageThumbFileProvider,
             thumbnailer = thumbnailGenerator,
+            thumbnailCacheMaxBytes = storageThumbnailCacheMaxBytes,
+        )
+        albumRoutes(
+            authGate = authGate,
+            enabled = albumBrowsingEnabled,
+            access = albumAccessProvider,
+            library = mediaLibraryProvider,
+            albumThumbFile = albumThumbFileProvider,
             thumbnailCacheMaxBytes = storageThumbnailCacheMaxBytes,
         )
         wsRoutes(authGate, session, wsHub, onClientHello)

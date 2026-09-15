@@ -114,6 +114,8 @@ data class FlikkySettings(
      * 会开一个内层注释，把后面整个文件吃掉。踩过一次。）
      */
     val storageBrowsingEnabled: Boolean = false,
+    /** Allows an authenticated browser to view the phone album. */
+    val albumBrowsingEnabled: Boolean = false,
 
     /**
      * v1.20.0: 浏览存储时是否显示 `.` 开头的隐藏项。

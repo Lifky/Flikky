@@ -3,7 +3,9 @@ package com.example.flikky.di
 import android.content.Context
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.flikky.data.FavoriteFileStore
+import com.example.flikky.data.MediaStoreLibrary
 import com.example.flikky.data.SharedStorageBrowser
+import com.example.flikky.server.routes.MediaLibrary
 import com.example.flikky.server.routes.StorageBrowser
 import com.example.flikky.data.FavoritesRepository
 import com.example.flikky.data.SessionFileStore
@@ -49,6 +51,8 @@ object ServiceLocator {
      * 后者在多用户 / 工作资料下是错的（第二用户是 `/storage/emulated/10`）。
      */
     lateinit var storageBrowser: StorageBrowser
+        private set
+    lateinit var mediaLibrary: MediaLibrary
         private set
     lateinit var networkInfo: NetworkInfo
         private set
@@ -103,6 +107,7 @@ object ServiceLocator {
             root = android.os.Environment.getExternalStorageDirectory(),
             showHidden = { latestShowHiddenFiles },
         )
+        mediaLibrary = MediaStoreLibrary(appContext.contentResolver)
         networkInfo = NetworkInfo(appContext)
         database = FlikkyDatabase.build(appContext)
         settingsRepository = SettingsRepository(appContext.settingsDataStore)
