@@ -62,7 +62,7 @@ class PeerPermissionsStructureTest {
         get() = stripComments(source("com/example/flikky/ui/serving/QuickSettingsSheet.kt"))
     private val lockFab
         get() = stripComments(
-            source("com/example/flikky/ui/serving/storage/StorageChannelLockFab.kt"),
+            source("com/example/flikky/ui/components/PeerChannelLockFab.kt"),
         )
 
     @Test

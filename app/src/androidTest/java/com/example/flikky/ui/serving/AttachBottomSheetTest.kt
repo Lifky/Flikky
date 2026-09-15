@@ -38,7 +38,10 @@ class AttachBottomSheetTest {
             FlikkyTheme(settings = FlikkySettings()) {
                 AttachBottomSheet(
                     existingFiles = rows,
+                    installedApps = emptyList(),
+                    appsLoading = false,
                     onSendExistingFile = { sent += it.messageId },
+                    onSendApp = {},
                     onPickFile = { filePicks++ },
                     onPickImage = { imagePicks++ },
                     onDismiss = {},

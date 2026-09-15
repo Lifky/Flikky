@@ -1,39 +1,16 @@
 package com.example.flikky.ui.serving.storage
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
+import com.example.flikky.ui.components.ChannelSelectionFabMenu
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleFloatingActionButton
-import androidx.compose.material3.ToggleFloatingActionButtonDefaults
-import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.example.flikky.R
 import com.example.flikky.util.formatBytes
-import com.example.flikky.ui.theme.Motion
-import com.example.flikky.ui.theme.Spacing
-import androidx.compose.ui.unit.dp
-
-internal val StorageLockFabSize = 56.dp
-internal val StorageSelectionFabSize = ToggleFloatingActionButtonDefaults.containerSizeMedium()(0f)
 
 /**
  * 文件 tab 的选择操作入口：官方 MD3 **FAB 菜单**。
@@ -66,108 +43,49 @@ fun StorageSelectionFab(
     channelLock: @Composable (Modifier) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
     val elsewhere = StorageSelectionScope.split(selected, currentPath).elsewhere
-    val visible = summary.count > 0
-    // 选择被清空（发送完 / 点清除）时菜单必须跟着收起，否则下次有选中时它是展开状态。
-    if (!visible && expanded) expanded = false
-
-    val lockShift by animateDpAsState(
-        targetValue = if (visible) {
-            StorageSelectionFabSize / 2 + StorageLockFabSize / 2 + Spacing.md
-        } else {
-            0.dp
-        },
-        animationSpec = Motion.spatial(),
-        label = "StorageLockHorizontalShift",
-    )
-    FloatingActionButtonMenu(
-        expanded = expanded,
+    ChannelSelectionFabMenu(
+        visible = summary.count > 0,
+        channelLock = channelLock,
         modifier = modifier,
-        button = {
-            // The fixed button slot is the shared anchor. Menu padding and menu growth
-            // affect both buttons equally, including before a selection exists.
-            Box(Modifier.size(StorageSelectionFabSize), contentAlignment = Alignment.Center) {
-                channelLock(Modifier.offset(x = -lockShift).size(StorageLockFabSize))
-                AnimatedVisibility(
-                    visible = visible,
-                    enter = scaleIn(Motion.spatial()) + fadeIn(Motion.effects()),
-                    exit = scaleOut(Motion.spatialFastNoBounce()) + fadeOut(Motion.effectsFast()),
-                ) {
-                    ToggleFloatingActionButton(
-                        checked = expanded,
-                        onCheckedChange = { expanded = it },
-                        contentAlignment = Alignment.Center,
-                        containerSize = ToggleFloatingActionButtonDefaults.containerSizeMedium(),
-                        containerCornerRadius = ToggleFloatingActionButtonDefaults.containerCornerRadiusMedium(),
-                    ) {
-                        // checkedProgress 是 0..1 的形变进度。过半再换图标，
-                        // 让「箭头 → ×」的切换发生在形状已经明显在动之后，而不是一开始就跳。
-                        val closing = checkedProgress > 0.5f
-                        Icon(
-                            painter = painterResource(
-                                if (closing) R.drawable.ic_close else R.drawable.ic_arrow_upward,
-                            ),
-                            contentDescription = stringResource(
-                                if (closing) R.string.serving_storage_actions_close
-                                else R.string.serving_storage_actions,
-                            ),
-                            modifier = Modifier.animateIcon(
-                                checkedProgress = { checkedProgress },
-                                size = ToggleFloatingActionButtonDefaults.iconSizeMedium(),
-                            ),
-                        )
-                    }
-                }
-            }
+        menuItems = {
+            FloatingActionButtonMenuItem(
+                onClick = onSend,
+                icon = {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_arrow_upward),
+                        contentDescription = null,
+                    )
+                },
+                text = {
+                    Text(
+                        if (elsewhere > 0) {
+                            stringResource(
+                                R.string.serving_storage_send_n_elsewhere,
+                                summary.count,
+                                formatBytes(summary.totalBytes),
+                                elsewhere,
+                            )
+                        } else {
+                            stringResource(
+                                R.string.serving_storage_send_n,
+                                summary.count,
+                                formatBytes(summary.totalBytes),
+                            )
+                        },
+                    )
+                },
+            )
+            FloatingActionButtonMenuItem(
+                onClick = onClear,
+                icon = {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_deselect),
+                        contentDescription = null,
+                    )
+                },
+                text = { Text(stringResource(R.string.serving_storage_clear)) },
+            )
         },
-    ) {
-        FloatingActionButtonMenuItem(
-            onClick = {
-                expanded = false
-                onSend()
-            },
-            icon = {
-                Icon(
-                    painter = painterResource(R.drawable.ic_arrow_upward),
-                    contentDescription = null,
-                )
-            },
-            // 计数在这里，不在容器里塞自由文本 —— 见类注释。
-            text = {
-                // 选择集跨目录保留，所以「已选 N 项」可能包含当前屏幕上看不到的行。
-                // 有别处的就把它写出来 —— 否则用户既不知道那些在哪，
-                // 也无从判断按下发送会发出什么（装机验收 2026-09-03）。
-                Text(
-                    if (elsewhere > 0) {
-                        stringResource(
-                            R.string.serving_storage_send_n_elsewhere,
-                            summary.count,
-                            formatBytes(summary.totalBytes),
-                            elsewhere,
-                        )
-                    } else {
-                        stringResource(
-                            R.string.serving_storage_send_n,
-                            summary.count,
-                            formatBytes(summary.totalBytes),
-                        )
-                    },
-                )
-            },
-        )
-        FloatingActionButtonMenuItem(
-            onClick = {
-                expanded = false
-                onClear()
-            },
-            icon = {
-                Icon(
-                    painter = painterResource(R.drawable.ic_deselect),
-                    contentDescription = null,
-                )
-            },
-            text = { Text(stringResource(R.string.serving_storage_clear)) },
-        )
-    }
+    )
 }

@@ -125,7 +125,7 @@ class ServingTabsStructureTest {
         // 四态矩阵最容易写错的一格：「主开关关 + 已授权」。storageBrowsingEnabled 门控的是
         // 对端浏览器；拿同一个布尔量把两端一起门控，用户在自己手机上也看不到文件，
         // 而设置项文案说的是「允许电脑端浏览」。v1.21.0 起 tab 左下的通道锁需要读这个值，
-        // 但它只能从参数直接流进 StorageChannelLockFab，不能参与任何内容渲染。
+        // 但它只能从参数直接流进 PeerChannelLockFab，不能参与任何内容渲染。
         assertTrue(
             "ServingStorageTab must receive the peer gate under its role-specific name",
             storageTab.contains("peerStorageEnabled: Boolean"),
@@ -136,8 +136,8 @@ class ServingTabsStructureTest {
             2,
             Regex("""\bpeerStorageEnabled\b""").findAll(storageTab).count(),
         )
-        val lockCall = Regex("""StorageChannelLockFab\(([\s\S]*?)\n\s+\)""").find(storageTab)
-        assertTrue("no StorageChannelLockFab call found in ServingStorageTab", lockCall != null)
+        val lockCall = Regex("""PeerChannelLockFab\(([\s\S]*?)\n\s+\)""").find(storageTab)
+        assertTrue("no PeerChannelLockFab call found in ServingStorageTab", lockCall != null)
         assertTrue(
             "the peer gate must flow directly into the lock FAB: ${lockCall!!.value}",
             lockCall.value.contains("peerEnabled = peerStorageEnabled"),
@@ -336,7 +336,7 @@ class ServingTabsStructureTest {
         // 列表底部仍要留出高度，否则最后一行被 FAB 压住、选不到。
         assertTrue(
             "the list must reserve room for the floating affordance",
-            tab.contains("StorageSelectionFabSize + Spacing.xxxl"),
+            tab.contains("ChannelSelectionFabSize + Spacing.xxxl"),
         )
     }
 
@@ -346,6 +346,9 @@ class ServingTabsStructureTest {
         val fab = stripComments(
             source("com/example/flikky/ui/serving/storage/StorageSelectionFab.kt"),
         )
+        val shared = stripComments(
+            source("com/example/flikky/ui/components/ChannelSelectionFabMenu.kt"),
+        )
         assertTrue(
             "visibility must be derived from the selection count",
             fab.contains("summary.count > 0"),
@@ -353,7 +356,7 @@ class ServingTabsStructureTest {
         // 选择被清空时菜单必须跟着收起，否则下次有选中时它是展开状态。
         assertTrue(
             "clearing the selection must collapse the menu",
-            fab.contains("expanded = false"),
+            shared.contains("expanded = false"),
         )
     }
 

@@ -67,7 +67,9 @@ import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.ui.components.FileLeadingSpec
 import com.example.flikky.ui.components.FileLeadingVisual
+import com.example.flikky.ui.components.ChannelSelectionFabSize
 import com.example.flikky.ui.components.ImagePreviewDialog
+import com.example.flikky.ui.components.PeerChannelLockFab
 import com.example.flikky.ui.components.SortMenuAction
 import com.example.flikky.ui.components.StoredVideo
 import com.example.flikky.ui.components.flikkyItemAnimation
@@ -95,7 +97,7 @@ import java.util.Locale
  * 用同一个布尔量把两端一起门控，会让用户在自己手机上也看不到文件，
  * 而设置项的文案说的是「允许电脑端浏览」。
  *
- * 因此 [peerStorageEnabled] 只供 [StorageChannelLockFab] 显示和切换通道，绝不参与内容渲染。
+ * 因此 [peerStorageEnabled] 只供 [PeerChannelLockFab] 显示和切换通道，绝不参与内容渲染。
  * 守卫见 `ui/serving/ServingTabsStructureTest`。
  *
  * ## 行的视觉必须与文件总览页 / 收藏页零差异
@@ -307,7 +309,7 @@ fun ServingStorageTab(
                     // 底部留出浮动操作条的高度，否则最后一行永远被它压住、选不到。
                     contentPadding = PaddingValues(
                         top = Spacing.sm,
-                        bottom = StorageSelectionFabSize + Spacing.xxxl,
+                        bottom = ChannelSelectionFabSize + Spacing.xxxl,
                     ),
                 ) {
                     itemsIndexed(shown, key = { _, e -> e.relativePath }) { index, entry ->
@@ -375,9 +377,11 @@ fun ServingStorageTab(
             onClear = onClearSelection,
             onSend = onSendSelection,
             channelLock = { lockModifier ->
-                StorageChannelLockFab(
+                PeerChannelLockFab(
                     peerEnabled = peerStorageEnabled,
                     onToggle = onSetPeerStorageEnabled,
+                    descriptionOn = stringResource(R.string.storage_lock_peer_on),
+                    descriptionOff = stringResource(R.string.storage_lock_peer_off),
                     modifier = lockModifier,
                 )
             },

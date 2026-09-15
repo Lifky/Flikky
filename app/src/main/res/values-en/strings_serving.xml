@@ -88,7 +88,7 @@
     <string name="serving_storage_sent_skipped">Sent %1$d files, skipped %2$d (no longer there)</string>
     <string name="serving_storage_send_none">No files left to send</string>
     <string name="serving_storage_send_n">Send %1$d files · %2$s</string>
-    <string name="serving_storage_actions">File actions</string>
+    <string name="serving_storage_actions">Actions</string>
     <string name="serving_storage_actions_close">Close</string>
     <string name="serving_storage_items">%1$d items</string>
     <string name="serving_storage_total">%1$d items</string>

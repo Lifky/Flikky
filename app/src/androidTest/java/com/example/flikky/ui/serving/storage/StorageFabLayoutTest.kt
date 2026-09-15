@@ -15,6 +15,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.flikky.R
 import com.example.flikky.data.settings.FlikkySettings
+import com.example.flikky.ui.components.ChannelLockFabSize
+import com.example.flikky.ui.components.ChannelSelectionFabSize
 import com.example.flikky.ui.theme.FlikkyTheme
 import com.example.flikky.ui.serving.captureServingUi
 import org.junit.Assert.assertEquals
@@ -33,7 +35,7 @@ class StorageFabLayoutTest {
     ).fetchSemanticsNode().boundsInRoot
 
     @Test
-    fun lockMovesOnlyHorizontallyFromTheSelectionCenterAndReturns() {
+    fun sharedLockMovesOnlyHorizontallyFromTheSelectionCenterAndReturns() {
         val selected = mutableStateOf(false)
         var lockClicks = 0
         compose.setContent {
@@ -70,6 +72,12 @@ class StorageFabLayoutTest {
         val action = bounds(R.string.serving_storage_actions)
         assertEquals("Initial lock and selection must share X", initial.center.x, action.center.x, 1f)
         assertEquals("Both buttons must share Y", lock.center.y, action.center.y, 1f)
+        assertEquals(
+            "Rendered width ratio must come from the shared FAB constants",
+            ChannelLockFabSize.value / ChannelSelectionFabSize.value,
+            lock.width / action.width,
+            0.05f,
+        )
         assertTrue("Lock must be visibly smaller", lock.width < action.width * 0.8f)
         assertTrue("Buttons must not overlap", lock.right < action.left)
         compose.onNodeWithContentDescription(context.getString(R.string.storage_lock_peer_off))
