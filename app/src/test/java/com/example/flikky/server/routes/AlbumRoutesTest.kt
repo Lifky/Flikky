@@ -75,7 +75,10 @@ class AlbumRoutesTest {
     @Test fun `the feature on but no media permission gets 403 with a machine readable code`()=run(access=AlbumAccess.None){ val r=it.get("/api/album/list"); assertEquals(HttpStatusCode.Forbidden,r.status); assertTrue(r.bodyAsText().contains("album_permission_required")) }
     @Test fun `partial access is allowed through the gate`()=run(access=AlbumAccess.Partial){ assertEquals(HttpStatusCode.OK,it.get("/api/album/list").status) }
     @Test fun `the stream starts with a total and ends with done`()=run(lib=two){ val l=it.get("/api/album/list?stream=1").bodyAsText().trim().lines(); assertTrue(l.first().contains("\"total\"")); assertEquals("{\"done\":true}",l.last()); assertEquals(4,l.size) }
-    @Test fun `stream items keep fields that equal their defaults`()=run(lib=two){ val b=it.get("/api/album/list?stream=1").bodyAsText(); assertTrue(b.contains("\"durationMs\"")); assertTrue(b.contains("\"takenAtMs\"")) }
+    @Test fun `stream items keep fields that equal their defaults`()=run(lib=two){
+        val line=it.get("/api/album/list?stream=1").bodyAsText().lines().single { row -> row.contains("\"id\":\"img:1\"") }
+        assertTrue(line.contains("\"durationMs\"")); assertTrue(line.contains("\"takenAtMs\""))
+    }
     @Test fun `library absence reports service unavailable`()=run(lib=empty){ assertEquals(HttpStatusCode.OK,it.get("/api/album/list").status) }
     @Test fun `non streaming list contains every item`()=run(lib=two){ val b=it.get("/api/album/list").bodyAsText(); assertTrue(b.contains("img:1")); assertTrue(b.contains("vid:2")) }
 
