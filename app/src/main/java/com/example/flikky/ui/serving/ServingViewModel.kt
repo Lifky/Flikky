@@ -22,6 +22,7 @@ import com.example.flikky.ui.serving.storage.StorageSelectionSummary
 import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.SessionRepository
+import com.example.flikky.data.InstalledAppScanner
 import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.DarkMode
@@ -48,6 +49,9 @@ import com.example.flikky.util.SortSpec
 import com.example.flikky.util.LeadingColorMode
 import com.example.flikky.util.LeadingShape
 import com.example.flikky.util.tap
+import com.example.flikky.util.AppEntry
+import com.example.flikky.util.MimeGuess
+import com.example.flikky.util.apkFileName
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -501,6 +505,34 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
                     getApplication<Application>().getString(R.string.files_quick_missing)
                 )
             }
+        }
+    }
+
+    private val _installedApps = MutableStateFlow<List<AppEntry>>(emptyList())
+    val installedApps: StateFlow<List<AppEntry>> = _installedApps.asStateFlow()
+    private val _appsLoading = MutableStateFlow(false)
+    val appsLoading: StateFlow<Boolean> = _appsLoading.asStateFlow()
+
+    fun ensureInstalledAppsLoaded() {
+        if (_appsLoading.value || _installedApps.value.isNotEmpty()) return
+        _appsLoading.value = true
+        viewModelScope.launch {
+            _installedApps.value = runCatching {
+                InstalledAppScanner(getApplication<Application>().packageManager).scan()
+            }.getOrDefault(emptyList())
+            _appsLoading.value = false
+        }
+    }
+
+    fun sendInstalledApp(app: AppEntry) {
+        val source = File(app.sourceApkPath)
+        val name = apkFileName(app.label, app.versionName, app.versionCode, app.packageName)
+        viewModelScope.launch {
+            _events.trySend(getApplication<Application>().getString(R.string.apps_sending, app.label))
+            val sent = controller?.offerStoredFile(
+                source, name, app.apkBytes.takeIf { it > 0 } ?: source.length(), MimeGuess.APK_MIME,
+            ) == true
+            if (!sent) _events.trySend(getApplication<Application>().getString(R.string.files_quick_missing))
         }
     }
 

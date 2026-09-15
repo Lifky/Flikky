@@ -144,6 +144,8 @@ fun ServingChatTab(
     val starPainter = painterResource(R.drawable.ic_star)
     val starBorderPainter = painterResource(R.drawable.ic_star_border)
     val currentSessionId = ServiceLocator.session.snapshot.collectAsState().value.currentSessionId
+    val installedApps by viewModel.installedApps.collectAsState()
+    val appsLoading by viewModel.appsLoading.collectAsState()
 
     fun openOrPreview(msg: Message.File) {
         val file = currentSessionId?.let { sessionFile(it, msg.fileId) }
@@ -450,7 +452,7 @@ fun ServingChatTab(
                 enabled = ui.clientConnected,
             )
             IconButton(
-                onClick = { showAttachSheet = true },
+                onClick = { viewModel.ensureInstalledAppsLoaded(); showAttachSheet = true },
                 enabled = ui.clientConnected,
             ) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.serving_add))
@@ -507,9 +509,9 @@ fun ServingChatTab(
 
     if (showAttachSheet) {
         AttachBottomSheet(
-            installedApps = emptyList(),
-            appsLoading = false,
-            onSendApp = {},
+            installedApps = installedApps,
+            appsLoading = appsLoading,
+            onSendApp = { app -> showAttachSheet = false; viewModel.sendInstalledApp(app) },
             existingFiles = existingFiles,
             onSendExistingFile = onSendExistingFile,
             onPickFile = { showAttachSheet = false; pickFile.launch("*/*") },
