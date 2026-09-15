@@ -11,6 +11,28 @@ data class AppEntry(
     val isSystem: Boolean,
 )
 
+private const val FLAG_SYSTEM = 1
+private const val FLAG_UPDATED_SYSTEM_APP = 128
+
+fun appEntryFrom(
+    packageName: String,
+    label: String,
+    versionName: String?,
+    versionCode: Long,
+    sourceDir: String?,
+    splitSourceDirs: Array<String>?,
+    appFlags: Int,
+    apkBytes: Long,
+): AppEntry? {
+    val path = sourceDir?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    val preinstalled = appFlags and FLAG_SYSTEM != 0
+    val updated = appFlags and FLAG_UPDATED_SYSTEM_APP != 0
+    return AppEntry(
+        packageName, label.trim().ifEmpty { packageName }, versionName, versionCode,
+        path, splitSourceDirs?.size ?: 0, apkBytes, preinstalled && !updated,
+    )
+}
+
 object AppListPolicy {
     fun shape(all: List<AppEntry>, includeSystem: Boolean, query: String): List<AppEntry> {
         val needle = query.trim()
