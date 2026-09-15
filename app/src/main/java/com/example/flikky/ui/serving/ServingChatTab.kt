@@ -54,6 +54,7 @@ import com.example.flikky.session.Origin
 import com.example.flikky.ui.components.ConversationBackground
 import com.example.flikky.ui.components.ConversationStatusRow
 import com.example.flikky.ui.components.ImagePreviewDialog
+import com.example.flikky.ui.components.installApk
 import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
@@ -121,6 +122,7 @@ fun ServingChatTab(
     val openLabel = stringResource(R.string.serving_open)
     val previewLabel = stringResource(R.string.files_action_preview)
     val galleryLabel = stringResource(R.string.files_action_gallery)
+    val installLabel = stringResource(R.string.files_action_install)
     val recallLabel = stringResource(R.string.serving_recall)
     val deleteLabel = stringResource(R.string.serving_delete)
     val deletedMessage = stringResource(R.string.serving_deleted)
@@ -143,6 +145,7 @@ fun ServingChatTab(
     val deletePainter = painterResource(R.drawable.ic_delete)
     val starPainter = painterResource(R.drawable.ic_star)
     val starBorderPainter = painterResource(R.drawable.ic_star_border)
+    val installPainter = painterResource(R.drawable.ic_apk_install)
     val currentSessionId = ServiceLocator.session.snapshot.collectAsState().value.currentSessionId
     val installedApps by viewModel.installedApps.collectAsState()
     val appsLoading by viewModel.appsLoading.collectAsState()
@@ -176,6 +179,20 @@ fun ServingChatTab(
     // Single source of truth for a message's available actions; used by both the
     // legacy inline bar and the floating toolbar so the logic never diverges.
     fun buildActionsFor(msg: Message): List<MessageAction> = buildList {
+        if (msg is Message.File && msg.status == Message.File.Status.COMPLETED &&
+            FilesListBuilder.categoryOf(msg.mime) == FileCategory.APK
+        ) {
+            currentSessionId?.let { sid ->
+                add(MessageAction(
+                    icon = installPainter,
+                    label = installLabel,
+                    onClick = {
+                        onActionTargetChange(null)
+                        installApk(ctx, sessionFile(sid, msg.fileId), msg.name)
+                    },
+                ))
+            }
+        }
         if (settings.favoriteBetaEnabled &&
             (msg is Message.Text || (msg is Message.File && msg.status == Message.File.Status.COMPLETED))
         ) {
