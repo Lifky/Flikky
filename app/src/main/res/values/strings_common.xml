@@ -17,6 +17,9 @@
     <string name="common_rename_session">重命名会话</string>
     <string name="connection_open_in_browser">在浏览器中打开</string>
     <string name="connection_copy_address">复制地址</string>
+    <string name="connection_show_qr">显示二维码</string>
+    <string name="connection_qr_title">扫码打开地址</string>
+    <string name="connection_qr_hint">用另一台设备的相机扫描，即可直接打开这个地址</string>
     <string name="connection_method">连接方式</string>
     <string name="connection_without_pin">免 PIN 连接</string>
     <string name="network_switching">正在切换网络…</string>

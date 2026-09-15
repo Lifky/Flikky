@@ -17,6 +17,9 @@
     <string name="common_rename_session">Rename session</string>
     <string name="connection_open_in_browser">Open in browser</string>
     <string name="connection_copy_address">Copy address</string>
+    <string name="connection_show_qr">Show QR code</string>
+    <string name="connection_qr_title">Scan to open the address</string>
+    <string name="connection_qr_hint">Scan with another device\'s camera to open this address directly</string>
     <string name="connection_method">Connection</string>
     <string name="connection_without_pin">Connect without PIN</string>
     <string name="network_switching">Switching network…</string>
