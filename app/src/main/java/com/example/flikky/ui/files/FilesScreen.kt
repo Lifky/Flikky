@@ -720,7 +720,7 @@ fun FilesScreen(
     }
 
     previewImage?.let { file ->
-        ImagePreviewDialog(file = file, onDismiss = { previewImage = null })
+        ImagePreviewDialog(model = file, onDismiss = { previewImage = null })
     }
 }
 

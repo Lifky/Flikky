@@ -72,6 +72,22 @@
     <!-- v1.20.0 serving tabs and storage permission -->
     <string name="serving_tab_chat">Chat</string>
     <string name="serving_tab_files">Files</string>
+    <string name="serving_tab_album">Album</string>
+    <string name="album_permission_title">Let Flikky see your photos</string>
+    <string name="album_permission_body">Once allowed, you can pick photos and videos here to send, and optionally open them to the computer. Flikky reads only images and videos — no other files.</string>
+    <string name="album_permission_action">Allow photo access</string>
+    <string name="album_scope_partial">%1$d photos and videos available</string>
+    <string name="album_scope_change">Change</string>
+    <string name="album_empty">No photos yet</string>
+    <string name="album_lock_peer_on">Peer can browse the album · tap to close</string>
+    <string name="album_lock_peer_off">Peer cannot browse the album · tap to open</string>
+    <string name="album_send_n">Send %1$d items · %2$s</string>
+    <string name="album_clear">Clear selection</string>
+    <string name="album_date_today">Today</string>
+    <string name="album_date_yesterday">Yesterday</string>
+    <string name="album_date_same_year">%1$d/%2$d</string>
+    <string name="album_date_older">%1$d/%2$d/%3$d</string>
+    <string name="album_select">Select</string>
     <string name="serving_storage_permission_title">All files access required</string>
     <string name="serving_storage_permission_body">Flikky needs the "All files access" permission to list the files on your phone. Android offers no read-only version of it, so the system grants write access too — Flikky only reads, and never writes, changes or deletes anything.</string>
     <string name="serving_storage_permission_grant">Grant access</string>

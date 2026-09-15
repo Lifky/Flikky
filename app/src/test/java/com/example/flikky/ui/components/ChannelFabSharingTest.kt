@@ -10,6 +10,7 @@ class ChannelFabSharingTest {
 
     private val tabs = listOf(
         "ui/serving/storage/ServingStorageTab.kt",
+        "ui/serving/album/ServingAlbumTab.kt",
     )
 
     @Test

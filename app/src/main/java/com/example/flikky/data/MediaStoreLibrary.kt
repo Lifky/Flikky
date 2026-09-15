@@ -32,7 +32,7 @@ class MediaStoreLibrary(private val resolver: ContentResolver) : MediaLibrary {
     }
 
     override fun open(id: AlbumItemId): AlbumResult<AlbumFileHandle> {
-        val uri = uriOf(id)
+        val uri = contentUri(id)
         val row = queryOne(id) ?: return AlbumResult.NotFound
         val probe = runCatching { resolver.openInputStream(uri) }.getOrNull()
             ?: return AlbumResult.NotFound
@@ -51,7 +51,7 @@ class MediaStoreLibrary(private val resolver: ContentResolver) : MediaLibrary {
 
     override fun thumbnail(id: AlbumItemId, maxPx: Int): AlbumResult<ByteArray> {
         val bitmap = runCatching {
-            resolver.loadThumbnail(uriOf(id), Size(maxPx, maxPx), null)
+            resolver.loadThumbnail(contentUri(id), Size(maxPx, maxPx), null)
         }.getOrNull() ?: return AlbumResult.NotFound
         val output = ByteArrayOutputStream()
         val compressed = runCatching {
@@ -67,17 +67,6 @@ class MediaStoreLibrary(private val resolver: ContentResolver) : MediaLibrary {
         val mime: String,
         val size: Long,
     )
-
-    /** Rebuilds a content URI from the validated kind and numeric MediaStore ID. */
-    private fun uriOf(id: AlbumItemId): Uri {
-        val collection = when (id.kind) {
-            AlbumMediaKind.IMAGE ->
-                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
-            AlbumMediaKind.VIDEO ->
-                MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
-        }
-        return ContentUris.withAppendedId(collection, id.mediaStoreId)
-    }
 
     private fun queryAll(): List<AlbumItemDto> =
         (queryKind(AlbumMediaKind.IMAGE) + queryKind(AlbumMediaKind.VIDEO))
@@ -138,7 +127,18 @@ class MediaStoreLibrary(private val resolver: ContentResolver) : MediaLibrary {
         return Row(name = dto.name, mime = dto.mime, size = dto.size)
     }
 
-    private companion object {
+    internal companion object {
         const val BATCH_SIZE = 200
+
+        /** Rebuilds a content URI from a validated kind and numeric MediaStore ID. */
+        fun contentUri(id: AlbumItemId): Uri {
+            val collection = when (id.kind) {
+                AlbumMediaKind.IMAGE ->
+                    MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+                AlbumMediaKind.VIDEO ->
+                    MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+            }
+            return ContentUris.withAppendedId(collection, id.mediaStoreId)
+        }
     }
 }

@@ -28,11 +28,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import com.example.flikky.R
-import java.io.File
 
-/** Full-screen local image preview with pinch, pan, and double-tap zoom. */
+/** Full-screen image preview for any local model supported by Coil. */
 @Composable
-fun ImagePreviewDialog(file: File, onDismiss: () -> Unit) {
+fun ImagePreviewDialog(model: Any, onDismiss: () -> Unit) {
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -64,7 +63,7 @@ fun ImagePreviewDialog(file: File, onDismiss: () -> Unit) {
                 },
         ) {
             AsyncImage(
-                model = file,
+                model = model,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
