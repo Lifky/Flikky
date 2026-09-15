@@ -181,6 +181,8 @@ data class PeerInfoDto(
      * 默认 false 与 FlikkySettings 一致；DTO 不依赖 data 层，故此处内联默认值。
      */
     val storageBrowsingEnabled: Boolean = false,
+    /** Whether the authenticated browser may render and browse the phone album. */
+    val albumBrowsingEnabled: Boolean = false,
 
     /**
      * v1.20.0: 浏览存储时是否显示 `.` 开头的隐藏项。

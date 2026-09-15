@@ -80,6 +80,7 @@ data class SettingsExport(
     val sessionTimestampEnabled: Boolean? = null,
     val keepScreenOnDuringSession: Boolean? = null,
     val storageBrowsingEnabled: Boolean? = null,
+    val albumBrowsingEnabled: Boolean? = null,
     val showHiddenFiles: Boolean? = null,
     val leadingShape: String? = null,
     val leadingColorMode: String? = null,

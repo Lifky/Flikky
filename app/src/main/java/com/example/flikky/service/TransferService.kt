@@ -812,6 +812,7 @@ class TransferService : Service() {
                 allowPeerRecall = allowPeerRecall,
                 favoriteEnabled = favoriteBetaEnabled,
                 storageBrowsingEnabled = storageBrowsingEnabled,
+                albumBrowsingEnabled = albumBrowsingEnabled,
                 leadingVisual = LeadingVisualDto(
                     shape = leadingShape.id,
                     colorMode = leadingColorMode.name,

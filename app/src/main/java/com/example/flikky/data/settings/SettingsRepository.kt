@@ -40,6 +40,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val sessionTimestampEnabled = booleanPreferencesKey("session_timestamp_enabled")
         val keepScreenOnDuringSession = booleanPreferencesKey("keep_screen_on_during_session")
         val storageBrowsingEnabled = booleanPreferencesKey("storage_browsing_enabled")
+        val albumBrowsingEnabled = booleanPreferencesKey("album_browsing_enabled")
         val showHiddenFiles = booleanPreferencesKey("show_hidden_files")
         val leadingShape = stringPreferencesKey("leading_shape")
         val leadingColorMode = stringPreferencesKey("leading_color_mode")
@@ -102,6 +103,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             sessionTimestampEnabled = p[Keys.sessionTimestampEnabled] ?: false,
             keepScreenOnDuringSession = p[Keys.keepScreenOnDuringSession] ?: false,
             storageBrowsingEnabled = p[Keys.storageBrowsingEnabled] ?: false,
+            albumBrowsingEnabled = p[Keys.albumBrowsingEnabled] ?: false,
             showHiddenFiles = p[Keys.showHiddenFiles] ?: false,
             leadingShape = LeadingShape.parse(p[Keys.leadingShape]),
             leadingColorMode = LeadingColorMode.parse(p[Keys.leadingColorMode]),
@@ -173,6 +175,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setKeepScreenOnDuringSession(v: Boolean) = ds.edit { it[Keys.keepScreenOnDuringSession] = v }
 
     suspend fun setStorageBrowsingEnabled(v: Boolean) = ds.edit { it[Keys.storageBrowsingEnabled] = v }
+    suspend fun setAlbumBrowsingEnabled(v: Boolean) = ds.edit { it[Keys.albumBrowsingEnabled] = v }
 
     suspend fun setShowHiddenFiles(v: Boolean) = ds.edit { it[Keys.showHiddenFiles] = v }
     suspend fun setLeadingShape(v: LeadingShape) = ds.edit { it[Keys.leadingShape] = v.id }
@@ -270,6 +273,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             sessionTimestampEnabled = s.sessionTimestampEnabled,
             keepScreenOnDuringSession = s.keepScreenOnDuringSession,
             storageBrowsingEnabled = s.storageBrowsingEnabled,
+            albumBrowsingEnabled = s.albumBrowsingEnabled,
             showHiddenFiles = s.showHiddenFiles,
             leadingShape = s.leadingShape.id,
             leadingColorMode = s.leadingColorMode.name,
@@ -320,6 +324,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         backup.sessionTimestampEnabled?.let { prefs[Keys.sessionTimestampEnabled] = it }
         backup.keepScreenOnDuringSession?.let { prefs[Keys.keepScreenOnDuringSession] = it }
         backup.storageBrowsingEnabled?.let { prefs[Keys.storageBrowsingEnabled] = it }
+        backup.albumBrowsingEnabled?.let { prefs[Keys.albumBrowsingEnabled] = it }
         backup.showHiddenFiles?.let { prefs[Keys.showHiddenFiles] = it }
         backup.leadingShape
             ?.let { raw -> LeadingShape.entries.firstOrNull { it.id.equals(raw, ignoreCase = true) } }
