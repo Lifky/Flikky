@@ -21,6 +21,11 @@ class FileCategoryApkTest {
     @Test fun `apk sits between archive and other in the catalogue`() {
         val ids = LeadingVisualCatalog.types.map { it.id }; assertEquals("other", ids.last()); assertEquals(ids.indexOf("archive") + 1, ids.indexOf("apk"))
     }
+    @Test fun `apk category sits between archive and other`() {
+        val categories = FileCategory.entries
+        assertEquals(categories.indexOf(FileCategory.ARCHIVE) + 1, categories.indexOf(FileCategory.APK))
+        assertEquals(categories.indexOf(FileCategory.APK) + 1, categories.indexOf(FileCategory.OTHER))
+    }
     @Test fun `apk hue does not collide with the five existing semantic hues`() {
         val apk = LeadingVisualCatalog.types.single { it.id == "apk" }; assertEquals(324, apk.hueShift)
         assertEquals(listOf(0, 72, 144, 216, 288), LeadingVisualCatalog.types.filterNot { it.id == "apk" || it.id == "other" }.map { it.hueShift })
