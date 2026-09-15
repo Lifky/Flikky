@@ -87,6 +87,8 @@ class StorageRowOverlapTest {
                     onRequestPermission = {},
                     state = state.value,
                     summary = StorageSelectionSummary(0, 0L, 0),
+                    peerStorageEnabled = false,
+                    onSetPeerStorageEnabled = {},
                     onOpenDir = {},
                     onToggleSelection = {},
                     onClearSelection = {},

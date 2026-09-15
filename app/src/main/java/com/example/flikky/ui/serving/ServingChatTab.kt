@@ -46,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
+import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.session.Message
@@ -78,10 +79,7 @@ import kotlinx.coroutines.withContext
  * 会话页「会话」tab 的全部内容：消息列表、浮动操作栏、输入坞、统计行，
  * 以及只由这三者触发的 sheet / dialog。
  *
- * 从 `ServingScreen`（拆分前 832 行）机械搬出，**逻辑零改动**。
- * 边界判据：搬进来的东西不读顶部上下文区（连接卡 / 会话头 / 停止服务）的任何状态。
- * 因此 `FilesQuickSheet` 留在 `ServingScreen` —— 它的触发按钮在会话头里，
- * 搬过来就得把 `showFilesQuickSheet` 提回上层，那是行为改动而不是搬移。
+ * 输入区的加号统一承载添加附件与发送已有文件。
  *
  * `actionTarget` 提在 `ServingScreen`：两级 `BackHandler` 要读它，
  * 且切 tab 时要清它（否则浮动工具栏会浮在文件列表上、指向一条看不见的消息）。
@@ -102,6 +100,8 @@ fun ServingChatTab(
     onActionTargetChange: (Long?) -> Unit,
     snackbarHostState: SnackbarHostState,
     scope: CoroutineScope,
+    existingFiles: List<FileOverviewRow>,
+    onSendExistingFile: (FileOverviewRow) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val ctx = LocalContext.current
@@ -507,6 +507,8 @@ fun ServingChatTab(
 
     if (showAttachSheet) {
         AttachBottomSheet(
+            existingFiles = existingFiles,
+            onSendExistingFile = onSendExistingFile,
             onPickFile = { showAttachSheet = false; pickFile.launch("*/*") },
             onPickImage = { showAttachSheet = false; pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
             onDismiss = { showAttachSheet = false },

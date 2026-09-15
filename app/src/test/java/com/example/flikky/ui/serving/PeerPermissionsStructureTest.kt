@@ -64,10 +64,6 @@ class PeerPermissionsStructureTest {
         get() = stripComments(
             source("com/example/flikky/ui/serving/storage/StorageChannelLockFab.kt"),
         )
-    private val storageTabSrc
-        get() = stripComments(
-            source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"),
-        )
 
     @Test
     fun `the panel derives every row state from the shared helper`() {
@@ -143,29 +139,12 @@ class PeerPermissionsStructureTest {
     }
 
     @Test
-    fun `the destructive stop button stays outside the button group`() {
-        // 面板动作 2026-09-14 起在 **tab 栏那一行**，不在 header 调用里了
-        // （头部从三层压回两层，见另一条守卫）。所以 group 要在整个屏幕里找，
-        // 而不是在 ConversationHeader 的实参里找。
-        //
-        // 这一条守的意图没变：破坏性动作不许与「打开面板」编在同一组 ——
-        // group 视觉上在说「这些是一伙的」，把 errorContainer 色的停止服务
-        // 放进去等于邀请误触。
-        val headerCall = call(screen, "ConversationHeader")
-        val groupCall = call(screen, "CompactActionGroup")
-        assertFalse(
-            "the stop action must stay outside CompactActionGroup",
-            groupCall.contains("ic_power"),
-        )
-        val stopAt = headerCall.indexOf("ic_power")
-        assertTrue("sanity: no stop button found (ic_power)", stopAt > 0)
-        val stopButtonAt = headerCall.lastIndexOf("FilledTonalIconButton(", stopAt)
-        assertTrue("sanity: no FilledTonalIconButton owns ic_power", stopButtonAt >= 0)
-        val stopButton = call(headerCall.substring(stopButtonAt), "FilledTonalIconButton")
-        assertTrue(
-            "the stop button should retain its errorContainer colour",
-            stopButton.contains("errorContainer"),
-        )
+    fun `the stop action keeps its distinct error color`() {
+        val stopAt = header.indexOf("ic_power")
+        assertTrue("the header must expose the stop action", stopAt > 0)
+        val buttonAt = header.lastIndexOf("FilledTonalIconButton(", stopAt)
+        val button = call(header.substring(buttonAt), "FilledTonalIconButton")
+        assertTrue("stop must keep its error color", button.contains("errorContainer"))
     }
 
     @Test
@@ -181,46 +160,6 @@ class PeerPermissionsStructureTest {
         assertTrue(
             "the favourites beta flag is an app-side switch and stays in quick settings",
             quickSettings.contains("settings_favorites"),
-        )
-    }
-
-    @Test
-    fun `the lock fab sits next to the selection fab`() {
-        assertTrue(
-            "sanity: the selection fab should still be mounted",
-            storageTabSrc.contains("StorageSelectionFab("),
-        )
-        assertTrue(
-            "the lock fab must be mounted in the storage tab",
-            storageTabSrc.contains("StorageChannelLockFab("),
-        )
-        assertTrue(
-            "both fabs must be on the end side -- they are a neighbouring pair, not two corners",
-            storageTabSrc.contains("Alignment.BottomEnd"),
-        )
-        // 两个 FAB 是**紧邻的一对**（都在 BottomEnd，锁在选择 FAB 左侧），
-        // 不是分居屏幕两端 —— 后者是我读错参考图做出来的形态（装机反馈 Screenshot_5）。
-        assertTrue(
-            "the lock fab must sit next to the selection fab, both at the end side",
-            storageTabSrc.contains("end = lockEndPadding"),
-        )
-        // 让位宽度必须**从官方尺寸函数推导**，不许写死 dp。上一版我把选择 FAB
-        // 从 medium(80dp) 改成 large(96dp)，装机一眼看出不协调；换档时
-        // 让位宽度要自动跟着走，不能靠记住一个魔数。
-        assertTrue(
-            "the gap must derive from the official container size, not a hard-coded dp",
-            storageTabSrc.contains("ToggleFloatingActionButtonDefaults.containerSizeMedium()(0f)"),
-        )
-        // 位置随邻居在不在而变，且是动画（用户 2026-09-14 要求）：选择 FAB 只在
-        // 有选中项时出现，它不在时锁若还守着让位后的坐标，右边就空着 92dp。
-        assertTrue(
-            "the lock fab must animate its position when the selection fab appears or leaves",
-            storageTabSrc.contains("animateDpAsState"),
-        )
-        assertTrue(
-            "the position animation must use the spatial spec -- it is movement, not a fade",
-            Regex("""animateDpAsState\([\s\S]{0,400}?Motion\.spatial\(\)""")
-                .containsMatchIn(storageTabSrc),
         )
     }
 
@@ -242,45 +181,15 @@ class PeerPermissionsStructureTest {
     }
 
     @Test
-    fun `the header keeps its panel actions off the title row`() {
-        // 装机反馈两轮的合并结论：
-        //
-        // Screenshot_2 —— 四个按钮与加长的副标题抢同一行，「可见：文件、收藏」
-        // 被压成省略号。Row 里 trailing 不可压缩而文字带 weight(1f)，永远先压文字；
-        // ButtonGroup 的官方 overflow 也兜不住（它在那个 Row 里拿得到全部宽度）。
-        //
-        // Screenshot_4 —— 给动作单开一行之后头部变成三层 ≈168dp，「太厚」。
-        //
-        // 现在的形态：可见性是副标题旁的**可点 chip**（状态与入口合一，
-        // 所以盾形按钮取消），面板动作并进 **tab 栏那一行**右侧的空地。
-        // 两个问题同时消失，且没有任何一层多出来的高度。
+    fun `header actions and visibility use the live session state`() {
         val headerCall = call(screen, "ConversationHeader")
-        assertTrue(
-            "the visibility state must be a tappable chip in the header: " + headerCall,
-            headerCall.contains("statusChip = {") && headerCall.contains("PeerVisibilityChip("),
-        )
-        assertFalse(
-            "the panel actions must not sit in the header call -- that is what made it thick",
-            headerCall.contains("CompactActionGroup("),
-        )
-        // 它们必须落在 tab 栏那一行，而且 tab 栏必须显式让出宽度 ——
-        // SecondaryTabRow 默认铺满整宽，不给 weight 会把按钮挤出屏幕**且不报错**。
-        val tabRowAt = screen.indexOf("SecondaryTabRow(")
-        assertTrue("sanity: no SecondaryTabRow found", tabRowAt > 0)
-        val tabRowCall = call(screen.substring(tabRowAt), "SecondaryTabRow")
-        assertTrue(
-            "SecondaryTabRow must yield width with weight(1f), or the actions get pushed off-screen",
-            tabRowCall.contains("Modifier.weight(1f)"),
-        )
-        assertTrue(
-            "the panel actions must live on the tab row",
-            screen.indexOf("CompactActionGroup(") > tabRowAt,
-        )
-        // trailing 只剩停止服务。
-        assertTrue(
-            "the stop button must stay in the header trailing slot",
-            headerCall.contains("ic_power"),
-        )
+        assertTrue(headerCall.contains("onPermissionsClick = { showPeerPermissions = true }"))
+        assertTrue(headerCall.contains("onSettingsClick = { showQuickSettings = true }"))
+        assertTrue(headerCall.contains("onStopClick = { viewModel.stopService(); onStopped() }"))
+        assertTrue(headerCall.contains("subtitle = visibleText"))
+        assertFalse(headerCall.contains("conversation_connected"))
+        assertFalse(screen.contains("CompactActionGroup("))
+        assertFalse(screen.contains("showFilesQuickSheet"))
     }
 
     @Test

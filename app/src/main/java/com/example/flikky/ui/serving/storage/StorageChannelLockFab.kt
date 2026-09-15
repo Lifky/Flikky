@@ -15,7 +15,7 @@ import com.example.flikky.R
  * 对端通道，不是 App 的系统存储权限；后者不能由 App 在不杀进程的情况下主动撤销。
  *
  * 与右下的 [StorageSelectionFab] 各自独立：那个管选中项操作，这个管对端通道。
- * 两者视觉中心对齐（见 ServingStorageTab 的 padding 计算），大小刻意不同 ——
+ * 两者共享 StorageSelectionFab 的固定按钮槽中心，大小刻意不同 ——
  * 发送选中项是主操作，所以它更大。
  *
  * **用 56dp 标准 FAB，不用 SmallFloatingActionButton。** M3 Expressive 已经把

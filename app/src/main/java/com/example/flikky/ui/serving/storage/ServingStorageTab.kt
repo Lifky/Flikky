@@ -3,7 +3,6 @@ package com.example.flikky.ui.serving.storage
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -41,7 +40,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
-import androidx.compose.material3.ToggleFloatingActionButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,7 +67,6 @@ import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.ui.components.FileLeadingSpec
 import com.example.flikky.ui.components.FileLeadingVisual
-import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.SortMenuAction
 import com.example.flikky.ui.components.StoredVideo
@@ -111,36 +108,6 @@ import java.util.Locale
  * 勾选态不用 checkbox（裁决 B）：全项目 list 行没有一个 checkbox，
  * 多选态既有画法是「行底 primaryContainer + leading 容器翻浅色」。
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-/**
- * 通道锁 FAB 的边长。56dp 标准档 —— M3 Expressive 已废弃 40dp small，
- * 而 40dp 配本项目 16dp 的圆角会读成圆（见 StorageChannelLockFab 的 KDoc）。
- */
-private val LockFabSize = 56.dp
-
-/**
- * 选择 FAB 收起时的边长，**从官方尺寸函数取**而不是写死 80.dp。
- *
- * `containerSizeMedium()` 的签名是 `(Float) -> Dp`（尺寸随展开进度变），
- * 传 0f 拿收起态。这样换档或库升级时这里自动跟着走 —— 上一版我把选择 FAB
- * 从 medium 改成 large（80dp → 96dp），装机一眼看出不协调；那种事
- * 不该靠记住一个魔数来避免。
- */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-private val SelectionFabCollapsedSize =
-    ToggleFloatingActionButtonDefaults.containerSizeMedium()(0f)
-
-/**
- * 锁 FAB 要补的底部偏移：两者尺寸差的一半。
- *
- * 底边对齐时人眼看着一高一低 —— 对齐的是**视觉中心**而不是底边
- *（装机反馈 2026-09-14 Screenshot_1）。
- */
-private val LockFabCenterOffset = (SelectionFabCollapsedSize - LockFabSize) / 2
-
-/** 两个 FAB 之间的间隙。参考图里它们是紧邻的一对，不是分居两端。 */
-private val FabPairGap = Spacing.md
-
 @Composable
 fun ServingStorageTab(
     hasPermission: Boolean,
@@ -340,11 +307,7 @@ fun ServingStorageTab(
                     // 底部留出浮动操作条的高度，否则最后一行永远被它压住、选不到。
                     contentPadding = PaddingValues(
                         top = Spacing.sm,
-                        bottom = if (state.selected.isEmpty()) {
-                            Spacing.sectionGap
-                        } else {
-                            FlikkyFloatingToolbarLift
-                        },
+                        bottom = StorageSelectionFabSize + Spacing.xxxl,
                     ),
                 ) {
                     itemsIndexed(shown, key = { _, e -> e.relativePath }) { index, entry ->
@@ -404,55 +367,22 @@ fun ServingStorageTab(
                 }
             }
         }
-        // 通道锁**紧邻**选择 FAB 左侧（装机反馈 Screenshot_5 + 用户给的参考图）。
-        // 上一版分居屏幕两端，那是读错参考图。
-        //
-        // 两者都独立挂在 Box 上、各自 BottomEnd，锁靠 end padding 让出选择 FAB 的宽度。
-        // **刻意不用 Row 把它们装在一起**：选择 FAB 是 FloatingActionButtonMenu，
-        // 展开菜单时菜单项比按钮宽，Row 会因此变宽并把锁往左推 —— 一个开合动作
-        // 不该让旁边那个按钮跟着移动。分开挂则展开时锁纹丝不动。
-        //
-        // 位置随邻居在不在而变，并且**是动画**（用户 2026-09-14 要求）：
-        // 选择 FAB 只在有选中项时出现，它不在时锁若还守着让位后的坐标，
-        // 右边就空着 80+12dp —— 既不在角上也没有可对齐的邻居，看着像掉在半路。
-        // 邻居出现时锁让开它的宽度、并抬起半个尺寸差让圆心齐平；邻居消失则退回角上。
-        // 走 spatial 档：这是位移，不是淡入淡出。
-        val selectionFabVisible = summary.count > 0
-        val lockEndPadding by animateDpAsState(
-            targetValue = if (selectionFabVisible) {
-                Spacing.lg + SelectionFabCollapsedSize + FabPairGap
-            } else {
-                Spacing.lg
-            },
-            animationSpec = Motion.spatial(),
-            label = "LockFabEndPadding",
-        )
-        val lockBottomPadding by animateDpAsState(
-            // 没有邻居时不抬 —— 抬起是为了与那个更大的按钮对齐圆心，
-            // 邻居不在却仍抬着，就变成一个莫名悬空的按钮。
-            targetValue = Spacing.lg + if (selectionFabVisible) LockFabCenterOffset else 0.dp,
-            animationSpec = Motion.spatial(),
-            label = "LockFabBottomPadding",
-        )
-        StorageChannelLockFab(
-            peerEnabled = peerStorageEnabled,
-            onToggle = onSetPeerStorageEnabled,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = lockEndPadding, bottom = lockBottomPadding),
-        )
-        // 官方 MD3 FAB 菜单，右下角。**不是** floating toolbar：那个组件的 content
-        // 契约是「一串 IconButton」，塞进选中计数这类自由文本会把容器撑成一个
-        // 巨型椭圆（装机验收 Screenshot_4）。计数改放进菜单项文案，见 StorageSelectionFab。
+        // Two buttons share the menu's fixed button slot; only the lock's X changes.
         StorageSelectionFab(
             summary = summary,
             selected = state.selected,
             currentPath = state.path,
             onClear = onClearSelection,
             onSend = onSendSelection,
+            channelLock = { lockModifier ->
+                StorageChannelLockFab(
+                    peerEnabled = peerStorageEnabled,
+                    onToggle = onSetPeerStorageEnabled,
+                    modifier = lockModifier,
+                )
+            },
             modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(Spacing.lg),
+                .align(Alignment.BottomEnd),
         )
     }
     previewImage?.let { file ->

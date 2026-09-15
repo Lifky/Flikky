@@ -136,7 +136,7 @@ class ServingTabsStructureTest {
             2,
             Regex("""\bpeerStorageEnabled\b""").findAll(storageTab).count(),
         )
-        val lockCall = Regex("""StorageChannelLockFab\(([\s\S]*?)\n {8}\)""").find(storageTab)
+        val lockCall = Regex("""StorageChannelLockFab\(([\s\S]*?)\n\s+\)""").find(storageTab)
         assertTrue("no StorageChannelLockFab call found in ServingStorageTab", lockCall != null)
         assertTrue(
             "the peer gate must flow directly into the lock FAB: ${lockCall!!.value}",
@@ -300,7 +300,7 @@ class ServingTabsStructureTest {
         val tab = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
         val at = tab.indexOf("StorageSelectionFab(")
         assertTrue("no selection FAB in the storage tab", at > 0)
-        val call = tab.substring(at, minOf(at + 400, tab.length))
+        val call = tab.substring(at, minOf(at + 800, tab.length))
         assertTrue(
             "the FAB must align inside the content Box, not sit in the layout flow: $call",
             call.contains("Alignment.BottomEnd") || call.contains("Alignment.BottomCenter"),
@@ -336,7 +336,7 @@ class ServingTabsStructureTest {
         // 列表底部仍要留出高度，否则最后一行被 FAB 压住、选不到。
         assertTrue(
             "the list must reserve room for the floating affordance",
-            tab.contains("FlikkyFloatingToolbarLift"),
+            tab.contains("StorageSelectionFabSize + Spacing.xxxl"),
         )
     }
 

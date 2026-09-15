@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,18 +26,17 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,14 +63,13 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FilesQuickSheet(
+fun ExistingFilesContent(
     rows: List<FileOverviewRow>,
     onSend: (FileOverviewRow) -> Unit,
-    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-    var query by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf(FileCategory.ALL) }
+    var query by rememberSaveable { mutableStateOf("") }
+    var category by rememberSaveable { mutableStateOf(FileCategory.ALL) }
     var pressedId by remember { mutableLongStateOf(0L) }
     val visibleRows = remember(rows, query, category) {
         // 快发 Sheet 刻意不给排序入口：它是一个「挑刚才那个文件」的快捷面板，
@@ -87,124 +84,108 @@ fun FilesQuickSheet(
         }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp,
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = Spacing.lg),
     ) {
-        Column(
+        TextField(
+            value = query,
+            onValueChange = { query = it },
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(bottom = Spacing.lg),
-        ) {
-            Text(
-                text = stringResource(R.string.files_quick_title),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(
-                    horizontal = Spacing.screenEdge,
-                    vertical = Spacing.sm,
-                ),
-            )
-            TextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Spacing.screenEdge),
-                placeholder = { Text(stringResource(R.string.files_search_hint)) },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (query.isNotBlank()) {
-                        IconButton(onClick = { query = "" }) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = stringResource(
-                                    R.string.favorite_quick_clear_search
-                                ),
-                            )
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = SearchBarDefaults.inputFieldShape,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                ),
-            )
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
-                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-            ) {
-                items(FileCategory.entries, key = { it.name }) { item ->
-                    FilterChip(
-                        selected = category == item,
-                        onClick = { category = item },
-                        label = {
-                            Text(
-                                text = stringResource(item.labelResource()),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-                        },
-                        leadingIcon = if (category == item) {
-                            {
-                                Icon(
-                                    imageVector = Icons.Filled.Done,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(FilterChipDefaults.IconSize),
-                                )
-                            }
-                        } else {
-                            null
-                        },
-                        shape = MaterialTheme.shapes.small,
-                    )
-                }
-            }
-            if (visibleRows.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 160.dp)
-                        .padding(Spacing.screenEdge),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(
-                            if (query.isBlank() && category == FileCategory.ALL) {
-                                R.string.files_empty_title
-                            } else {
-                                R.string.files_quick_no_match
-                            },
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 420.dp),
-                    contentPadding = PaddingValues(vertical = Spacing.xs),
-                ) {
-                    items(visibleRows, key = { it.messageId }) { row ->
-                        FileQuickRow(
-                            row = row,
-                            sending = pressedId == row.messageId,
-                            onSend = {
-                                pressedId = row.messageId
-                                onSend(row)
-                            },
+                .padding(horizontal = Spacing.screenEdge),
+            placeholder = { Text(stringResource(R.string.files_search_hint)) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            trailingIcon = {
+                if (query.isNotBlank()) {
+                    IconButton(onClick = { query = "" }) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(
+                                R.string.favorite_quick_clear_search
+                            ),
                         )
                     }
+                }
+            },
+            singleLine = true,
+            shape = SearchBarDefaults.inputFieldShape,
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+            ),
+        )
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+        ) {
+            items(FileCategory.entries, key = { it.name }) { item ->
+                FilterChip(
+                    selected = category == item,
+                    onClick = { category = item },
+                    label = {
+                        Text(
+                            text = stringResource(item.labelResource()),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    },
+                    leadingIcon = if (category == item) {
+                        {
+                            Icon(
+                                imageVector = Icons.Filled.Done,
+                                contentDescription = null,
+                                modifier = Modifier.size(FilterChipDefaults.IconSize),
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                    shape = MaterialTheme.shapes.small,
+                )
+            }
+        }
+        if (visibleRows.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 160.dp)
+                    .padding(Spacing.screenEdge),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(
+                        if (query.isBlank() && category == FileCategory.ALL) {
+                            R.string.files_empty_title
+                        } else {
+                            R.string.files_quick_no_match
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(vertical = Spacing.xs),
+            ) {
+                items(visibleRows, key = { it.messageId }) { row ->
+                    FileQuickRow(
+                        row = row,
+                        sending = pressedId == row.messageId,
+                        onSend = {
+                            pressedId = row.messageId
+                            onSend(row)
+                        },
+                    )
                 }
             }
         }

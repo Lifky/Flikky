@@ -31,9 +31,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -56,7 +53,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntSize
@@ -71,8 +67,6 @@ import com.example.flikky.di.ServiceLocator
 import com.example.flikky.session.peerChannelState
 import com.example.flikky.session.visibleChannelLabels
 import com.example.flikky.ui.components.ConnectionInfoCard
-import com.example.flikky.ui.components.CompactActionGroup
-import com.example.flikky.ui.components.CompactActionGroupItem
 import com.example.flikky.ui.components.ConversationHeader
 import com.example.flikky.ui.components.AvatarKey
 import com.example.flikky.ui.components.NetworkStatusBanner
@@ -112,7 +106,6 @@ fun ServingScreen(
     val peerAvatarKey by viewModel.peerAvatarKey.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var actionTarget by remember { mutableStateOf<Long?>(null) }
-    var showFilesQuickSheet by remember { mutableStateOf(false) }
     var showPeerPermissions by remember { mutableStateOf(false) }
     var showQuickSettings by remember { mutableStateOf(false) }
     // 快捷设置里「钻进去」的五张复用 sheet，见下方托管处的注释。
@@ -243,49 +236,23 @@ fun ServingScreen(
                             ),
                         ),
                     )
-                    // chip 上已经有盾形图标，「可见：」这个前缀就成了冗余 ——
-                    // 图标说明了这是什么，标签只需说清是哪些。
                     val visibleText = if (visibleLabels.isEmpty()) {
                         stringResource(R.string.peer_permissions_visible_none)
                     } else {
-                        visibleLabels.joinToString(
-                            stringResource(R.string.peer_permissions_visible_sep),
+                        stringResource(
+                            R.string.peer_permissions_visible_summary,
+                            visibleLabels.joinToString(stringResource(R.string.peer_permissions_visible_sep)),
                         )
                     }
                     ConversationHeader(
                         peerAvatarId = peerAvatarId,
                         peerAvatarKey = peerAvatarKey,
                         peerName = "",
-                        // 副标题回到单纯的连接状态。「可见：…」挪进 chip ——
-                        // 那一半既是状态又是入口，拼在同一句文字里就点不了。
-                        subtitle = stringResource(R.string.conversation_connected),
+                        subtitle = visibleText,
                         onAvatarClick = { showPeerAvatarPicker = true },
-                        // 第一行只留停止服务。它是 errorContainer 色的破坏性动作，与三个
-                        // 「打开面板」不同类；分行之后这条隔离做得比同排更彻底。
-                        trailing = {
-                            FilledTonalIconButton(
-                                onClick = { viewModel.stopService(); onStopped() },
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                ),
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_power),
-                                    contentDescription = stringResource(R.string.serving_stop_service),
-                                )
-                            }
-                        },
-                        // 可见性做成**可点 chip**：状态与入口合成一个控件，
-                        // 所以顶栏少一个按钮（盾形那个已取消）。它在副标题这一行，
-                        // 不增加任何高度 —— 上一版给动作单独开一行，头部三层 ≈168dp，
-                        // 装机反馈「太厚」（Screenshot_4）。
-                        statusChip = {
-                            PeerVisibilityChip(
-                                visibleText = visibleText,
-                                onClick = { showPeerPermissions = true },
-                            )
-                        },
+                        onPermissionsClick = { showPeerPermissions = true },
+                        onSettingsClick = { showQuickSettings = true },
+                        onStopClick = { viewModel.stopService(); onStopped() },
                     )
                 } else {
                     Column(Modifier.padding(Spacing.sectionGap)) {
@@ -334,20 +301,7 @@ fun ServingScreen(
                     stringResource(R.string.serving_tab_chat),
                     stringResource(R.string.serving_tab_files),
                 )
-                // tab 栏与面板动作**共用一行**。
-                //
-                // 只有两个 tab，右侧本来就大片空着 —— 那片空地装得下这两个按钮，
-                // 于是上一版为它们单开的那一行（56dp）可以整个省掉：头部从三层
-                // ≈168dp 回到两层 ≈112dp（装机反馈 Screenshot_4「太厚」）。
-                //
-                // SecondaryTabRow 默认铺满整宽，所以必须显式给它 weight(1f) ——
-                // 不给的话它会把按钮挤出屏幕，而且**不会报错**，只是看不见。
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
                 SecondaryTabRow(
-                    modifier = Modifier.weight(1f),
                     selectedTabIndex = pagerState.currentPage,
                     indicator = {
                         TabRowDefaults.SecondaryIndicator(
@@ -366,26 +320,6 @@ fun ServingScreen(
                             text = { Text(label) },
                         )
                     }
-                }
-                // 两个，不是三个 —— 对端权限那个入口已经并进副标题旁边的 chip 里。
-                //
-                // 这一行右侧的留白是它们的，不必再与任何文字争宽度：tab 标签
-                // 有 weight(1f) 兜着，而 chip 在上面那一行。
-                CompactActionGroup(
-                    items = listOf(
-                        CompactActionGroupItem(
-                            label = stringResource(R.string.serving_files_quick),
-                            painter = painterResource(R.drawable.ic_folder_open),
-                            onClick = { showFilesQuickSheet = true },
-                        ),
-                        CompactActionGroupItem(
-                            label = stringResource(R.string.serving_quick_settings),
-                            painter = painterResource(R.drawable.ic_settings),
-                            onClick = { showQuickSettings = true },
-                        ),
-                    ),
-                    modifier = Modifier.padding(end = Spacing.screenEdge),
-                )
                 }
             }
             HorizontalPager(
@@ -407,6 +341,11 @@ fun ServingScreen(
                         onActionTargetChange = { actionTarget = it },
                         snackbarHostState = snackbarHostState,
                         scope = scope,
+                        existingFiles = allFiles,
+                        onSendExistingFile = { row ->
+                            viewModel.sendStoredFile(row)
+                            scope.launch { snackbarHostState.showSnackbar(fileSentMessage) }
+                        },
                         modifier = Modifier.fillMaxSize(),
                     )
                     else -> ServingStorageTab(
@@ -550,16 +489,6 @@ fun ServingScreen(
         )
     }
 
-    if (showFilesQuickSheet) {
-        FilesQuickSheet(
-            rows = allFiles,
-            onSend = { row ->
-                viewModel.sendStoredFile(row)
-                scope.launch { snackbarHostState.showSnackbar(fileSentMessage) }
-            },
-            onDismiss = { showFilesQuickSheet = false },
-        )
-    }
 }
 
 /**
