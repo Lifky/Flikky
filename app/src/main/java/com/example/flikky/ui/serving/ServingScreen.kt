@@ -2,8 +2,11 @@ package com.example.flikky.ui.serving
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.SecondaryTabRow
@@ -13,6 +16,7 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.flikky.ui.serving.album.ServingAlbumTab
 import com.example.flikky.ui.serving.storage.ServingStorageTab
 import android.app.Activity
 import android.view.WindowManager
@@ -63,11 +67,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
+import com.example.flikky.data.MediaStoreLibrary
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.session.peerChannelState
 import com.example.flikky.session.visibleChannelLabels
 import com.example.flikky.ui.components.ConnectionInfoCard
 import com.example.flikky.ui.components.ConversationHeader
+import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.AvatarKey
 import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.maxContentWidth
@@ -78,6 +84,7 @@ import com.example.flikky.ui.settings.LeadingColorSheet
 import com.example.flikky.ui.settings.LeadingShapeSheet
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
+import com.example.flikky.util.AlbumItemId
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
@@ -113,14 +120,14 @@ fun ServingScreen(
     // 头像选择器的 App / Browser tab，与设置页同一形状（0 = App，1 = Browser）。
     var avatarSheetTab by remember { mutableStateOf(0) }
     var showPeerAvatarPicker by remember { mutableStateOf(false) }
+    var albumPreview by remember { mutableStateOf<Uri?>(null) }
     val scope = rememberCoroutineScope()
     val backBlockedMessage = stringResource(R.string.serving_back_blocked)
     val fileSentMessage = stringResource(R.string.files_quick_sent)
 
     val allFiles by ServiceLocator.repository.observeAllFiles().collectAsState(initial = emptyList())
 
-    // ── v1.20.0 会话页两个 tab（会话 / 文件）
-    val pagerState = rememberPagerState(pageCount = { 2 })
+    val pagerState = rememberPagerState(pageCount = { 3 })
     // 切 tab 必须清掉消息操作目标。现有清理只挂在列表滚动上（ServingChatTab 里那条
     // LaunchedEffect(listState.isScrollInProgress)），pager 换页不触发它——
     // 于是浮动工具栏会继续浮在文件列表上方，指向一条看不见的消息。
@@ -144,6 +151,11 @@ fun ServingScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 hasStoragePermission = Environment.isExternalStorageManager()
+                if (pagerState.currentPage == 2) {
+                    viewModel.refreshAlbum()
+                } else {
+                    viewModel.refreshAlbumAccess()
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -153,6 +165,22 @@ fun ServingScreen(
     val storageSummary by viewModel.storageSelectionSummary.collectAsState()
     val storageSort by viewModel.storageSort.collectAsState()
     val storageQuery by viewModel.storageQuery.collectAsState()
+    val albumState by viewModel.albumState.collectAsState()
+    val albumPermissions = remember {
+        buildList {
+            add(android.Manifest.permission.READ_MEDIA_IMAGES)
+            add(android.Manifest.permission.READ_MEDIA_VIDEO)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                add(android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+            }
+        }.toTypedArray()
+    }
+    val albumPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) {
+        viewModel.refreshAlbum()
+    }
+    val requestAlbumPermission = { albumPermissionLauncher.launch(albumPermissions) }
     // 根目录没有上一级 —— LocalStorageBrowser.parentOf 返回 null 的那一格。
     // 写成常量 true 的后果是根目录按返回也被这一级吃掉，用户困在文件 tab 里出不去。
     val storageCanGoUp = storageState.path.isNotEmpty()
@@ -161,6 +189,9 @@ fun ServingScreen(
     // 首次拿到权限时目录还是空的，这里补一次读取。
     LaunchedEffect(hasStoragePermission) {
         if (hasStoragePermission) viewModel.refreshStorage()
+    }
+    LaunchedEffect(pagerState.currentPage) {
+        if (pagerState.currentPage == 2) viewModel.refreshAlbum()
     }
     // System-back dismisses the action target before exiting the screen.
     androidx.activity.compose.BackHandler(enabled = actionTarget != null) { actionTarget = null }
@@ -300,6 +331,7 @@ fun ServingScreen(
                 val tabLabels = listOf(
                     stringResource(R.string.serving_tab_chat),
                     stringResource(R.string.serving_tab_files),
+                    stringResource(R.string.serving_tab_album),
                 )
                 SecondaryTabRow(
                     selectedTabIndex = pagerState.currentPage,
@@ -348,7 +380,7 @@ fun ServingScreen(
                         },
                         modifier = Modifier.fillMaxSize(),
                     )
-                    else -> ServingStorageTab(
+                    1 -> ServingStorageTab(
                         hasPermission = hasStoragePermission,
                         onRequestPermission = { requestAllFilesAccess(ctx) },
                         state = storageState,
@@ -367,10 +399,31 @@ fun ServingScreen(
                         onSendSelection = { viewModel.sendStorageSelection() },
                         modifier = Modifier.fillMaxSize(),
                     )
+                    else -> ServingAlbumTab(
+                        access = albumState.access,
+                        items = albumState.items,
+                        visibleCount = albumState.visibleCount,
+                        selected = albumState.selected,
+                        peerAlbumEnabled = settings.albumBrowsingEnabled,
+                        onRequestPermission = requestAlbumPermission,
+                        onChangeScope = requestAlbumPermission,
+                        onSetPeerAlbumEnabled = viewModel::setAlbumBrowsingEnabled,
+                        onToggleSelection = viewModel::toggleAlbumSelection,
+                        onClearSelection = viewModel::clearAlbumSelection,
+                        onSendSelection = viewModel::sendAlbumSelection,
+                        onPreview = { item ->
+                            albumPreview = AlbumItemId.parse(item.id)?.let(MediaStoreLibrary::contentUri)
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
             }
         }
         }
+    }
+
+    albumPreview?.let { uri ->
+        ImagePreviewDialog(model = uri, onDismiss = { albumPreview = null })
     }
 
     if (showPeerPermissions) {

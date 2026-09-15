@@ -7,7 +7,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
 import android.os.IBinder
+import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
@@ -23,6 +26,7 @@ import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.InstalledAppScanner
+import com.example.flikky.data.MediaStoreLibrary
 import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.DarkMode
@@ -37,9 +41,11 @@ import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
 import com.example.flikky.session.Origin
 import com.example.flikky.session.PendingMessageDeletes
+import com.example.flikky.server.dto.AlbumItemDto
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -51,6 +57,9 @@ import com.example.flikky.util.LeadingShape
 import com.example.flikky.util.tap
 import com.example.flikky.util.AppEntry
 import com.example.flikky.util.MimeGuess
+import com.example.flikky.util.AlbumAccess
+import com.example.flikky.util.AlbumItemId
+import com.example.flikky.util.albumAccess
 import com.example.flikky.util.apkFileName
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -67,6 +76,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import java.io.File
+import java.io.IOException
 
 data class ServingUiState(
     val url: String = "",
@@ -78,6 +88,13 @@ data class ServingUiState(
     val messages: List<Message> = emptyList(),
     val networkStatus: NetworkStatus = NetworkStatus.Ok,
     val requirePin: Boolean = true,
+)
+
+data class AlbumUiState(
+    val access: AlbumAccess = AlbumAccess.None,
+    val items: List<AlbumItemDto> = emptyList(),
+    val visibleCount: Int = 0,
+    val selected: Set<String> = emptySet(),
 )
 
 class ServingViewModel(app: Application) : AndroidViewModel(app) {
@@ -104,6 +121,12 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     private var running: TransferService.Running? = null
     private var controller: TransferController? = null
+
+    private val _albumState = MutableStateFlow(
+        AlbumUiState(access = currentAlbumAccess()),
+    )
+    val albumState: StateFlow<AlbumUiState> = _albumState.asStateFlow()
+    private var albumJob: Job? = null
 
     private val conn = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -163,6 +186,112 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     fun offerFile(uri: Uri) {
         val resolver = getApplication<Application>().contentResolver
         viewModelScope.launch { controller?.offerFile(uri, resolver) }
+    }
+
+    /** Refreshes the permission state without enumerating MediaStore. */
+    fun refreshAlbumAccess() {
+        val access = currentAlbumAccess()
+        if (access == AlbumAccess.None) {
+            albumJob?.cancel()
+            _albumState.value = AlbumUiState(access = access)
+        } else {
+            _albumState.value = _albumState.value.copy(access = access)
+        }
+    }
+
+    /** Enumerates the currently granted MediaStore scope off the main thread. */
+    fun refreshAlbum() {
+        val access = currentAlbumAccess()
+        if (access == AlbumAccess.None) {
+            albumJob?.cancel()
+            _albumState.value = AlbumUiState(access = access)
+            return
+        }
+        _albumState.value = _albumState.value.copy(access = access)
+        albumJob?.cancel()
+        albumJob = viewModelScope.launch {
+            val accumulated = mutableListOf<AlbumItemDto>()
+            try {
+                ServiceLocator.mediaLibrary.listStream()
+                    .flowOn(Dispatchers.IO)
+                    .collect { batch ->
+                        accumulated += batch
+                        _albumState.value = _albumState.value.copy(
+                            items = accumulated.toList(),
+                            visibleCount = accumulated.size,
+                        )
+                    }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                return@launch
+            }
+            val visibleIds = accumulated.asSequence().map { it.id }.toSet()
+            _albumState.value = _albumState.value.copy(
+                selected = _albumState.value.selected.intersect(visibleIds),
+            )
+        }
+    }
+
+    fun toggleAlbumSelection(id: String) {
+        val current = _albumState.value
+        _albumState.value = current.copy(
+            selected = if (id in current.selected) current.selected - id else current.selected + id,
+        )
+    }
+
+    fun clearAlbumSelection() {
+        _albumState.value = _albumState.value.copy(selected = emptySet())
+    }
+
+    /** Sends selected MediaStore items through the controller's shared payload core. */
+    fun sendAlbumSelection() {
+        val ids = _albumState.value.selected
+        if (ids.isEmpty()) return
+        val resolver = getApplication<Application>().contentResolver
+        viewModelScope.launch {
+            var sent = 0
+            var skipped = 0
+            _albumState.value.items.filter { it.id in ids }.forEach { item ->
+                val parsed = AlbumItemId.parse(item.id)
+                if (parsed == null) {
+                    skipped++
+                    return@forEach
+                }
+                val uri = MediaStoreLibrary.contentUri(parsed)
+                val ok = controller?.offerStreamedFile(
+                    name = item.name,
+                    size = item.size,
+                    mime = item.mime,
+                    input = {
+                        resolver.openInputStream(uri) ?: throw IOException("cannot open $uri")
+                    },
+                ) == true
+                if (ok) sent++ else skipped++
+            }
+            clearAlbumSelection()
+            val app = getApplication<Application>()
+            _events.trySend(
+                when {
+                    sent == 0 -> app.getString(R.string.serving_storage_send_none)
+                    skipped > 0 -> app.getString(R.string.serving_storage_sent_skipped, sent, skipped)
+                    else -> app.getString(R.string.serving_storage_sent, sent)
+                },
+            )
+        }
+    }
+
+    private fun currentAlbumAccess(): AlbumAccess {
+        val app = getApplication<Application>()
+        fun granted(permission: String): Boolean =
+            app.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+        return albumAccess(
+            manageAllFiles = Environment.isExternalStorageManager(),
+            readImages = granted(android.Manifest.permission.READ_MEDIA_IMAGES),
+            readVideo = granted(android.Manifest.permission.READ_MEDIA_VIDEO),
+            userSelected = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+                granted(android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED),
+        )
     }
 
     fun sendFavorite(favorite: FavoriteEntity) {
@@ -617,6 +746,10 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setStorageBrowsingEnabled(enabled: Boolean) {
         viewModelScope.launch { ServiceLocator.settingsRepository.setStorageBrowsingEnabled(enabled) }
+    }
+
+    fun setAlbumBrowsingEnabled(enabled: Boolean) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setAlbumBrowsingEnabled(enabled) }
     }
 
     fun setPeerAvatarKey(key: String) {

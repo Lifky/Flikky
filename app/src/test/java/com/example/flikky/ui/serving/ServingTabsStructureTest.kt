@@ -75,6 +75,7 @@ class ServingTabsStructureTest {
     private val servingScreen get() = stripComments(source("com/example/flikky/ui/serving/ServingScreen.kt"))
     private val chatTab get() = stripComments(source("com/example/flikky/ui/serving/ServingChatTab.kt"))
     private val storageTab get() = stripComments(source("com/example/flikky/ui/serving/storage/ServingStorageTab.kt"))
+    private val albumTab get() = stripComments(source("com/example/flikky/ui/serving/album/ServingAlbumTab.kt"))
     private val transferService get() = stripComments(source("com/example/flikky/service/TransferService.kt"))
 
     @Test
@@ -153,6 +154,35 @@ class ServingTabsStructureTest {
         assertTrue(
             "the lock FAB must write the same gate as the permissions panel: ${call.value}",
             call.value.contains("onSetPeerStorageEnabled = viewModel::setStorageBrowsingEnabled"),
+        )
+    }
+
+    @Test
+    fun `the app side album tab is not gated by the browser master switch`() {
+        assertTrue(
+            "ServingAlbumTab must receive the peer gate under its role-specific name",
+            albumTab.contains("peerAlbumEnabled: Boolean"),
+        )
+        assertEquals(
+            "peerAlbumEnabled may appear only in the parameter and channel-lock call",
+            2,
+            Regex("""\bpeerAlbumEnabled\b""").findAll(albumTab).count(),
+        )
+        val lockCall = Regex("""PeerChannelLockFab\(([\s\S]*?)\n\s+\)""").find(albumTab)
+        assertTrue("no PeerChannelLockFab call found in ServingAlbumTab", lockCall != null)
+        assertTrue(
+            "the peer gate must flow directly into the album lock FAB: ${lockCall!!.value}",
+            lockCall.value.contains("peerEnabled = peerAlbumEnabled"),
+        )
+        val call = Regex("""ServingAlbumTab\(([\s\S]*?)\n {12}\)""").find(servingScreen)
+        assertTrue("no ServingAlbumTab call site found in ServingScreen", call != null)
+        assertTrue(
+            "the album lock must read the persisted peer gate: ${call!!.value}",
+            call.value.contains("peerAlbumEnabled = settings.albumBrowsingEnabled"),
+        )
+        assertFalse(
+            "the peer gate must not wrap phone-side album content",
+            Regex("""if\s*\([^)]*albumBrowsingEnabled""").containsMatchIn(servingScreen),
         )
     }
 
@@ -361,8 +391,7 @@ class ServingTabsStructureTest {
     }
 
     @Test
-    fun `sending goes through the single shared offerStoredFile entry point`() {
-        // 收藏发送与文件总览快发都走 offerStoredFile。另开一条路径迟早在状态机或落盘路径上分叉。
+    fun `storage sending uses the stored file wrapper and reports its result`() {
         val vm = stripComments(source("com/example/flikky/ui/serving/ServingViewModel.kt"))
         val at = vm.indexOf("fun sendStorageSelection()")
         assertTrue("no sendStorageSelection", at > 0)
@@ -378,9 +407,23 @@ class ServingTabsStructureTest {
     }
 
     @Test
+    fun `stored and streamed send wrappers land on the shared payload core`() {
+        val controller = stripComments(source("com/example/flikky/service/TransferController.kt"))
+        val wrappers = controller.substring(controller.indexOf("suspend fun offerStoredFile"))
+            .substringBefore("private suspend fun offerFilePayload")
+
+        assertTrue(wrappers.contains("suspend fun offerStreamedFile"))
+        assertEquals(
+            "both public wrappers must delegate to offerFilePayload",
+            2,
+            Regex("""offerFilePayload\(""").findAll(wrappers).count(),
+        )
+    }
+
+    @Test
     fun `the tab row and pager only exist once a browser is connected`() {
-        // 装机验收 Screenshot_2：等待连接时页面上就摆着「会话 / 文件」两个 tab，
-        // 还能左右滑。未连接时文件 tab 里能做的事全都要连接才有意义（发送要 controller），
+        // 装机验收 Screenshot_2：等待连接时页面上就摆着业务 tab，还能左右滑。
+        // 未连接时其他 tab 里能做的事全都要连接才有意义（发送要 controller），
         // 摆在那里只是让用户滑过去看一眼空列表再滑回来。
         // 判据是**结果**（tab 栏被连接状态门控），不是某一种写法：
         // 第一版写死了 `if (ui.clientConnected)`，而实现用的是 AnimatedVisibility

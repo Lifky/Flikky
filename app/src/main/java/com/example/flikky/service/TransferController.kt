@@ -96,6 +96,19 @@ class TransferController(
         )
     }
 
+    /** Streams a file through the same payload core used by [offerStoredFile]. */
+    suspend fun offerStreamedFile(
+        name: String,
+        size: Long,
+        mime: String,
+        input: () -> InputStream,
+    ): Boolean = offerFilePayload(
+        name = name.ifBlank { "unnamed" },
+        size = size,
+        mime = mime.ifBlank { "application/octet-stream" },
+        input = input,
+    )
+
     private suspend fun offerFilePayload(
         name: String,
         size: Long,
