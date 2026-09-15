@@ -109,6 +109,10 @@
                     <span class="fk-rail-icon"><span class="material-symbols-outlined" data-icon="folder" aria-hidden="true"></span></span>
                     <span data-i18n="app.nav.files">文件</span>
                 </button>
+                <button class="fk-rail-item" data-dest="album" aria-current="false" hidden>
+                    <span class="fk-rail-icon"><span class="material-symbols-outlined" data-icon="photo_library" aria-hidden="true"></span></span>
+                    <span data-i18n="app.nav.album">相册</span>
+                </button>
                 <button class="fk-rail-item" data-dest="favorites" aria-current="page">
                     <span class="fk-rail-icon"><span class="material-symbols-outlined" data-icon="star" aria-hidden="true"></span></span>
                     <span data-i18n="app.nav.favorites">收藏</span>
@@ -178,6 +182,7 @@
 
         <section class="fk-pillar fk-pillar--panel" aria-label="功能面板">
             <div class="fk-view" id="view-files" hidden></div>
+            <section class="fk-view" id="view-album" hidden></section>
             <div class="fk-view" id="view-favorites">
                 <header class="fk-panel-head">
                     <h1 class="fk-panel-title" data-i18n="app.nav.favorites">收藏</h1>
@@ -244,6 +249,10 @@
             <span class="fk-navbar-icon"><span class="material-symbols-outlined" data-icon="folder" aria-hidden="true"></span></span>
             <span data-i18n="app.nav.files">文件</span>
         </button>
+        <button class="fk-navbar-item" data-dest="album" aria-current="false" hidden>
+            <span class="fk-navbar-icon"><span class="material-symbols-outlined" data-icon="photo_library" aria-hidden="true"></span></span>
+            <span data-i18n="app.nav.album">相册</span>
+        </button>
         <button class="fk-navbar-item" data-dest="favorites" aria-current="false">
             <span class="fk-navbar-icon"><span class="material-symbols-outlined" data-icon="star" aria-hidden="true"></span></span>
             <span data-i18n="app.nav.favorites">收藏</span>
@@ -296,5 +305,6 @@
     <script src="/static/panel-settings.js"></script>
     <script src="/static/panel-favorites.js"></script>
     <script src="/static/panel-files.js"></script>
+    <script src="/static/panel-album.js"></script>
 </body>
 </html>

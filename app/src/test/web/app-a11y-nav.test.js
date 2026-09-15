@@ -60,6 +60,7 @@ test('every icon factory hides its output, not just the static markup', () => {
     'panel-favorites.js': 'icon',
     'panel-settings.js': 'icon',
     'panel-files.js': 'icon',
+    'panel-album.js': 'icon',
   };
   for (const [file, fn] of Object.entries(factories)) {
     const src = stripJsComments(read(file));

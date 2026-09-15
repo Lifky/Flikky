@@ -13,13 +13,13 @@ const mediaQuery = shell.match(/@media \(max-width:\s*839px\)\s*\{[\s\S]*?\n\}/g
 assert.ok(mediaQuery && mediaQuery.length >= 1, 'shell.css must carry the <840px branch');
 const mobile = mediaQuery.join('\n');
 
-test('the bottom navbar offers exactly three destinations, chat included', () => {
+test('the bottom navbar offers exactly five destinations, chat included', () => {
   // 窄屏是单栏，会话必须有自己的入口 —— 与桌面档相反（那里会话栏常驻，给入口是伪入口）。
   const nav = html.match(/<nav class="fk-navbar"[\s\S]*?<\/nav>/);
   assert.ok(nav, 'app.html has no .fk-navbar');
   const dests = [...nav[0].matchAll(/data-dest="([a-z]+)"/g)].map((m) => m[1]);
-  // v1.20.0 加入「文件」，排在会话之后、收藏之前。
-  assert.deepEqual(dests, ['chat', 'files', 'favorites', 'settings']);
+  // v1.21.0 加入「相册」，与 rail 一样排在文件之后、收藏之前。
+  assert.deepEqual(dests, ['chat', 'files', 'album', 'favorites', 'settings']);
 });
 
 test('the files destination stays hidden until the switch turns it on', () => {

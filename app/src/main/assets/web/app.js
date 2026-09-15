@@ -546,6 +546,9 @@
         if (Object.prototype.hasOwnProperty.call(data, 'storageBrowsingEnabled')) {
             applyStorageBrowsing(!!data.storageBrowsingEnabled);
         }
+        if (Object.prototype.hasOwnProperty.call(data, 'albumBrowsingEnabled')) {
+            applyAlbumBrowsing(!!data.albumBrowsingEnabled);
+        }
         if (Object.prototype.hasOwnProperty.call(data, 'showHiddenFiles')) {
             // 列举规则变了：目录缓存里那些列表是按旧规则列出来的，不失效的话
             // 手机上翻了开关这边毫无变化 —— 用户会以为开关坏了。
@@ -2105,6 +2108,21 @@
         if (window.flikkyPanels && window.flikkyPanels.files
             && typeof window.flikkyPanels.files.setEnabled === 'function') {
             window.flikkyPanels.files.setEnabled(enabled);
+        }
+    }
+
+    // 对端开关驱动相册目的地的显隐。关掉时若用户正停在相册面板，换一个视图但
+    // 不动 mobileDest：peer-info 异步到达不应把窄屏用户从会话页甩进功能面板。
+    function applyAlbumBrowsing(enabled) {
+        document.body.dataset.albumBrowsing = enabled ? '1' : '0';
+        document.querySelectorAll('[data-dest="album"]').forEach((btn) => { btn.hidden = !enabled; });
+        const view = document.getElementById('view-album');
+        if (!enabled && view && !view.hidden) {
+            selectDest(firstAvailableDest(), { navigate: false });
+        }
+        if (window.flikkyPanels && window.flikkyPanels.album
+            && typeof window.flikkyPanels.album.setEnabled === 'function') {
+            window.flikkyPanels.album.setEnabled(enabled);
         }
     }
 

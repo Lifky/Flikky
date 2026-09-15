@@ -20,13 +20,13 @@ test('the shell carries a files destination in both rail and navbar', () => {
   assert.deepEqual(html.match(/<script(?![^>]*\bsrc=)[^>]*>/g) || [], []);
 });
 
-test('all four navbar items keep a visible label (deliberate MD3 deviation)', () => {
+test('all five navbar items keep a visible label (deliberate MD3 deviation)', () => {
   // 2026-08-29 用户裁决：官方 LABEL_VISIBILITY_AUTO 在 4 项及以上只显示选中项 label，
-  // 这里刻意四项全显示——「文件」是全新目的地，可发现性优先于拥挤。
+  // 这里刻意五项全显示——新目的地的可发现性优先于拥挤。
   // 这条断言把「有意偏离」钉成契约：将来有人按官方默认把 label 藏掉会立刻转红。
   const navbar = html.match(/<nav class="fk-navbar"[\s\S]*?<\/nav>/)[0];
   const labels = [...navbar.matchAll(/data-i18n="app\.nav\.[a-z]+"/g)];
-  assert.equal(labels.length, 4, 'each navbar item must ship its own label span');
+  assert.equal(labels.length, 5, 'each navbar item must ship its own label span');
 });
 
 test('the files destination is driven by the storage browsing switch', () => {
