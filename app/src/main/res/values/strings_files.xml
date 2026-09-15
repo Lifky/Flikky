@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="files_action_install">安装</string>
+    <string name="install_needs_permission">需要先允许 Flikky 安装应用，正在打开系统设置</string>
+    <string name="install_no_handler">这台设备上没有可用的安装程序</string>
     <string name="files_title">文件</string>
     <string name="files_entry">文件总览</string>
     <string name="files_entry_summary">查看并管理所有会话文件</string>

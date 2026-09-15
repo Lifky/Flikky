@@ -12,6 +12,7 @@
          系统会一并授予写入能力，Flikky 只读取（spec §3.3 的如实告知）。 -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:name=".FlikkyApp"

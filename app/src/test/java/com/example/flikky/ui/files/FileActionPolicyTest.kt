@@ -1,5 +1,6 @@
 package com.example.flikky.ui.files
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -86,5 +87,15 @@ class FileActionPolicyTest {
         assertEquals("*/*", FileActionPolicy.batchShareMime(listOf("image/png", null)))
         assertEquals("*/*", FileActionPolicy.batchShareMime(listOf("image/png", "")))
         assertEquals("*/*", FileActionPolicy.batchShareMime(emptyList()))
+    }
+    @Test fun `apk rows offer install as their first action`() { val m=FileActionPolicy.rowMenu("application/vnd.android.package-archive",true,false); assertEquals(RowAction.INSTALL,m.first().action); assertTrue(m.first().enabled) }
+    @Test fun `non apk rows never offer install`() { listOf("image/jpeg","video/mp4","application/pdf","application/zip",null).forEach { assertTrue(FileActionPolicy.rowMenu(it,true,false).none { e -> e.action==RowAction.INSTALL }) } }
+    @Test fun `apk rows do not offer save to gallery`() { assertTrue(FileActionPolicy.rowMenu("application/vnd.android.package-archive",true,true).none { it.action==RowAction.GALLERY }) }
+    @Test fun `install stays available while the session is still running`() { assertTrue(FileActionPolicy.rowMenu("application/vnd.android.package-archive",false,false).single { it.action==RowAction.INSTALL }.enabled) }
+    @Test fun `install checks unknown source permission before launching`() {
+        val f=File("src/main/java/com/example/flikky/ui/components/FileIntents.kt").takeIf{it.isFile}?:File("app/src/main/java/com/example/flikky/ui/components/FileIntents.kt")
+        val block=f.readText().substringAfter("fun installApk").substringBefore("fun saveToGallery")
+        assertTrue(block.contains("canRequestPackageInstalls"))
+        val bad="fun installApk() { startActivity(intent) }"; assertFalse(bad.contains("canRequestPackageInstalls"))
     }
 }

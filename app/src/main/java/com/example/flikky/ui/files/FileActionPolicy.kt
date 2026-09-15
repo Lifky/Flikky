@@ -1,7 +1,7 @@
 package com.example.flikky.ui.files
 
 /** Row overflow-menu actions, in display order. */
-enum class RowAction { FAVORITE, SHARE, GALLERY, SAVE_AS, OPEN_IN_SESSION, DELETE }
+enum class RowAction { INSTALL, FAVORITE, SHARE, GALLERY, SAVE_AS, OPEN_IN_SESSION, DELETE }
 
 data class RowMenuEntry(val action: RowAction, val enabled: Boolean)
 
@@ -13,6 +13,7 @@ object FileActionPolicy {
         sessionEnded: Boolean,
         favoritesEnabled: Boolean,
     ): List<RowMenuEntry> = buildList {
+        if (FilesListBuilder.categoryOf(mime) == FileCategory.APK) add(RowMenuEntry(RowAction.INSTALL, true))
         if (favoritesEnabled) add(RowMenuEntry(RowAction.FAVORITE, true))
         add(RowMenuEntry(RowAction.SHARE, true))
         if (FilesListBuilder.isMedia(mime)) add(RowMenuEntry(RowAction.GALLERY, true))

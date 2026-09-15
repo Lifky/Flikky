@@ -91,6 +91,7 @@ import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.util.formatBytes
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.openStoredFile
+import com.example.flikky.ui.components.installApk
 import com.example.flikky.ui.components.saveToGallery
 import com.example.flikky.ui.components.sessionFile
 import com.example.flikky.ui.components.StoredShareItem
@@ -237,6 +238,7 @@ fun FilesScreen(
 
     fun runRowAction(row: FileOverviewRow, action: RowAction) {
         when (action) {
+            RowAction.INSTALL -> installApk(context, sessionFile(row.sessionId, row.fileId), row.fileName ?: "app.apk")
             RowAction.FAVORITE -> favoriteTargets = listOf(row)
             RowAction.SHARE -> shareStoredFile(
                 context,
@@ -863,6 +865,7 @@ private fun FileOverviewItem(
     val menuLabel: @Composable (RowAction) -> String = { action ->
         stringResource(
             when (action) {
+                RowAction.INSTALL -> R.string.files_action_install
                 RowAction.FAVORITE -> R.string.files_action_favorite
                 RowAction.SHARE -> R.string.files_action_share
                 RowAction.GALLERY -> R.string.files_action_gallery
@@ -874,6 +877,7 @@ private fun FileOverviewItem(
     }
     val menuIcon: (RowAction) -> Int = { action ->
         when (action) {
+            RowAction.INSTALL -> R.drawable.ic_apk_install
             RowAction.FAVORITE -> R.drawable.ic_star_border
             RowAction.SHARE -> R.drawable.ic_share
             RowAction.GALLERY -> R.drawable.ic_file_download

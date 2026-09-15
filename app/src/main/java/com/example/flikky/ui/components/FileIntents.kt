@@ -6,10 +6,13 @@ import android.content.Context
 import android.content.Intent
 import android.os.Environment
 import android.provider.MediaStore
+import android.provider.Settings
+import android.net.Uri
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.example.flikky.R
 import com.example.flikky.di.ServiceLocator
+import com.example.flikky.util.MimeGuess
 import java.io.File
 
 fun sessionFile(sessionId: Long, fileId: String): File =
@@ -68,6 +71,38 @@ fun openResolvedFile(
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(context, R.string.file_no_handler, Toast.LENGTH_SHORT).show()
         false
+    }
+}
+
+fun installApk(
+    context: Context,
+    file: File,
+    displayName: String,
+    onMissing: () -> Unit = {},
+): Boolean {
+    if (!file.exists()) {
+        Toast.makeText(context, R.string.file_missing, Toast.LENGTH_SHORT).show()
+        onMissing()
+        return false
+    }
+    if (!context.packageManager.canRequestPackageInstalls()) {
+        Toast.makeText(context, R.string.install_needs_permission, Toast.LENGTH_LONG).show()
+        return try {
+            context.startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            false
+        } catch (_: ActivityNotFoundException) { false }
+    }
+    val uri = try {
+        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file, displayName)
+    } catch (_: IllegalArgumentException) {
+        Toast.makeText(context, R.string.file_provider_unavailable, Toast.LENGTH_SHORT).show(); return false
+    }
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, MimeGuess.APK_MIME)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    return try { context.startActivity(intent); true } catch (_: ActivityNotFoundException) {
+        Toast.makeText(context, R.string.install_no_handler, Toast.LENGTH_SHORT).show(); false
     }
 }
 
