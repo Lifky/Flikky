@@ -438,17 +438,17 @@ fun ServingChatTab(
             }
 
             // Floating action toolbar: one bottom-center bar for the selected
-            // message. lastActions keeps content during the exit animation so
-            // the bar doesn't go blank while fading out.
+            // message. Retain the target through exit, not a new list of
+            // callbacks on every composition (which keeps invalidating state).
             if (settings.messageActionStyle ==
                 com.example.flikky.data.settings.MessageActionStyle.FLOATING) {
                 val target = ui.messages.firstOrNull { it.id == actionTarget }
-                var lastActions by remember { mutableStateOf<List<MessageAction>>(emptyList()) }
-                if (target != null) lastActions = buildActionsFor(target)
+                var lastTarget by remember { mutableStateOf<Message?>(null) }
+                LaunchedEffect(target) { if (target != null) lastTarget = target }
                 // bottom 间距由 overlay 内部的阴影内衬承担，这里不再叠加。
                 MessageFloatingToolbarOverlay(
                     visible = target != null,
-                    actions = lastActions,
+                    actions = (target ?: lastTarget)?.let(::buildActionsFor).orEmpty(),
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }

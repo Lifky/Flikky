@@ -72,6 +72,7 @@ import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.flikkyItemAnimation
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.openStoredFile
+import com.example.flikky.ui.components.installApk
 import com.example.flikky.ui.components.saveToGallery
 import com.example.flikky.ui.components.sessionFile
 import com.example.flikky.ui.components.setPlainText
@@ -161,6 +162,7 @@ fun HistoryScreen(
     val unfavoriteLabel = stringResource(R.string.history_unfavorite)
     val copyLabel = stringResource(R.string.history_copy)
     val openLabel = stringResource(R.string.history_open)
+    val installLabel = stringResource(R.string.files_action_install)
     val previewLabel = stringResource(R.string.files_action_preview)
     val galleryLabel = stringResource(R.string.files_action_gallery)
     val deleteLabel = stringResource(R.string.history_delete)
@@ -200,6 +202,7 @@ fun HistoryScreen(
     val exportPainter = painterResource(R.drawable.ic_upload)
     val starPainter = painterResource(R.drawable.ic_star)
     val starBorderPainter = painterResource(R.drawable.ic_star_border)
+    val installPainter = painterResource(R.drawable.ic_apk_install)
     val favoriteGroups by if (settings.favoriteBetaEnabled) {
         ServiceLocator.favoritesRepository.observeGroups().collectAsState(initial = emptyList())
     } else {
@@ -227,6 +230,20 @@ fun HistoryScreen(
     // Single source of truth for a message's available actions (History has no
     // recall): 复制（text）/ 打开（completed file）/ 删除. Each onClick clears the target.
     fun buildActionsFor(msg: Message): List<MessageAction> = buildList {
+        if (msg is Message.File && msg.status == Message.File.Status.COMPLETED &&
+            FilesListBuilder.categoryOf(msg.mime) == FileCategory.APK
+        ) {
+            add(MessageAction(
+                icon = installPainter,
+                label = installLabel,
+                onClick = {
+                    actionTarget = null
+                    installApk(ctx, sessionFile(sessionId, msg.fileId), msg.name) {
+                        scope.launch { ServiceLocator.repository.markFileDeleted(msg.id) }
+                    }
+                },
+            ))
+        }
         if (settings.favoriteBetaEnabled &&
             (msg is Message.Text || (msg is Message.File && msg.status == Message.File.Status.COMPLETED))
         ) {
@@ -497,17 +514,18 @@ fun HistoryScreen(
         }
 
         // Floating action toolbar: one bottom-center bar for the selected message.
-        // lastActions keeps content during the exit animation so it doesn't blank.
+        // Keep the message during exit, not freshly allocated action callbacks:
+        // writing a new action list into observed state on every composition loops forever.
         val floating = settings.messageActionStyle ==
             com.example.flikky.data.settings.MessageActionStyle.FLOATING
         if (floating) {
             val target = messages.firstOrNull { it.id == actionTarget }
-            var lastActions by remember { mutableStateOf<List<MessageAction>>(emptyList()) }
-            if (target != null) lastActions = buildActionsFor(target)
+            var lastTarget by remember { mutableStateOf<Message?>(null) }
+            LaunchedEffect(target) { if (target != null) lastTarget = target }
             // bottom 间距由 overlay 内部的阴影内衬承担，这里不再叠加。
             MessageFloatingToolbarOverlay(
                 visible = target != null,
-                actions = lastActions,
+                actions = (target ?: lastTarget)?.let(::buildActionsFor).orEmpty(),
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
