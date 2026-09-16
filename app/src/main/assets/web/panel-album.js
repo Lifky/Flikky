@@ -532,10 +532,13 @@
         bar.className = 'fk-album-views';
 
         if (openBucket !== null) {
-            const back = document.createElement('button');
+            const back = document.createElement('mdui-button');
             back.type = 'button';
             back.className = 'fk-album-view';
-            back.appendChild(icon('arrow_back'));
+            back.setAttribute('variant', 'text');
+            const backIcon = icon('arrow_back');
+            backIcon.setAttribute('slot', 'icon');
+            back.appendChild(backIcon);
             const label = document.createElement('span');
             label.textContent = openBucket || t('app.album.unknownBucket');
             back.appendChild(label);
@@ -548,9 +551,11 @@
         // 于是它里面若再放图标也不会出现「字形进了 DOM 文本」那类问题
         // （web-selection.test.js 的守卫盯着这条）。
         const make = (key, active, onClick) => {
-            const button = document.createElement('button');
+            const button = document.createElement('mdui-button');
             button.type = 'button';
             button.className = 'fk-album-view';
+            button.setAttribute('variant', active ? 'tonal' : 'outlined');
+            button.setAttribute('aria-pressed', String(active));
             if (active) button.dataset.active = '1';
             const label = document.createElement('span');
             label.textContent = t(key);

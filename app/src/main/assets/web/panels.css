@@ -844,25 +844,6 @@ button.fk-crumb:hover {
   gap: var(--flikky-space-sm);
   padding: var(--flikky-space-xs) 0 var(--flikky-space-sm);
 }
-.fk-album-view {
-  min-height: var(--flikky-size-touch);
-  display: inline-flex;
-  align-items: center;
-  gap: var(--flikky-space-xs);
-  padding: 0 var(--flikky-space-lg);
-  border: 1px solid rgb(var(--mdui-color-outline-variant));
-  border-radius: var(--flikky-shape-full);
-  background: none;
-  color: rgb(var(--mdui-color-on-surface-variant));
-  font: var(--flikky-type-label-large) var(--flikky-font-family);
-  letter-spacing: var(--flikky-type-label-large-tracking);
-  cursor: pointer;
-}
-.fk-album-view[data-active="1"] {
-  border-color: transparent;
-  background: rgb(var(--mdui-color-secondary-container));
-  color: rgb(var(--mdui-color-on-secondary-container));
-}
 /* 相册簿卡片也按固定宽度换行，与时间线的格子同一条规则。 */
 .fk-album-buckets {
   display: flex;
