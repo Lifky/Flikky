@@ -21,11 +21,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -77,10 +72,7 @@ fun ServingAlbumTab(
         AlbumAccess.Partial, AlbumAccess.Full -> Unit
     }
 
-    var selecting by remember { mutableStateOf(selected.isNotEmpty()) }
-    LaunchedEffect(selected.isEmpty()) {
-        if (selected.isEmpty()) selecting = false
-    }
+    val selecting = selected.isNotEmpty()
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
@@ -121,7 +113,6 @@ fun ServingAlbumTab(
                     onToggleSelection = onToggleSelection,
                     onPreview = onPreview,
                     onStartSelecting = { id ->
-                        selecting = true
                         if (id !in selected) onToggleSelection(id)
                     },
                     modifier = Modifier.weight(1f),

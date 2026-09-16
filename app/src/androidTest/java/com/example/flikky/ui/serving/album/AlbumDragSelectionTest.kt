@@ -84,6 +84,48 @@ class AlbumDragSelectionTest {
         assertTrue("a normal swipe must move the grid", remaining == null || remaining < before)
     }
 
+    @Test fun draggingBackShrinksOnlyThisGestureAndCanCrossTheAnchor() {
+        selected.value = setOf("img:0", "img:4", "img:20")
+        show()
+        val start = point(2)
+        val end = point(5)
+        val back = point(3)
+        val otherSide = point(1)
+        rule.mainClock.autoAdvance = false
+        rule.onNodeWithTag("album").performTouchInput {
+            down(start)
+            advanceEventTime(700)
+            moveTo(end, 160)
+        }
+        rule.mainClock.advanceTimeBy(32)
+        rule.runOnIdle { assertEquals(setOf("img:0", "img:2", "img:3", "img:4", "img:5", "img:20"), selected.value) }
+        rule.onNodeWithTag("album").performTouchInput { moveTo(back, 160) }
+        rule.mainClock.advanceTimeBy(32)
+        rule.runOnIdle { assertEquals(setOf("img:0", "img:2", "img:3", "img:4", "img:20"), selected.value) }
+        rule.onNodeWithTag("album").performTouchInput { moveTo(otherSide, 160) }
+        rule.mainClock.advanceTimeBy(32)
+        rule.runOnIdle { assertEquals(setOf("img:0", "img:1", "img:2", "img:4", "img:20"), selected.value) }
+        rule.onNodeWithTag("album").performTouchInput { moveTo(start, 160); up() }
+        rule.mainClock.advanceTimeBy(32)
+        rule.runOnIdle { assertEquals(setOf("img:0", "img:2", "img:4", "img:20"), selected.value) }
+    }
+
+    @Test fun aNewDragPreservesTheSelectionCommittedByThePreviousDrag() {
+        selected.value = emptySet()
+        show()
+        val first = point(1)
+        val third = point(3)
+        val fifth = point(5)
+        rule.onNodeWithTag("album").performTouchInput {
+            down(first); advanceEventTime(700); moveTo(third, 160); up()
+        }
+        rule.runOnIdle { assertEquals(setOf("img:1", "img:2", "img:3"), selected.value) }
+        rule.onNodeWithTag("album").performTouchInput {
+            down(third); advanceEventTime(700); moveTo(fifth, 160); moveTo(first, 160); up()
+        }
+        rule.runOnIdle { assertEquals(setOf("img:1", "img:2", "img:3"), selected.value) }
+    }
+
     @Test fun longPressWithoutMovingSelectsOnceAndTapStillToggles() {
         selected.value = emptySet()
         show()

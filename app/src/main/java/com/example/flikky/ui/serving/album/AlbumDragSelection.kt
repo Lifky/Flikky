@@ -29,18 +29,19 @@ internal fun Modifier.albumDragSelection(
     gridState: LazyGridState,
     orderedIds: List<String>,
     selected: Set<String>,
-    onSelect: (String) -> Unit,
+    onToggleSelection: (String) -> Unit,
 ): Modifier {
     val indices = remember(orderedIds) { orderedIds.withIndex().associate { it.value to it.index } }
     val latestSelected by rememberUpdatedState(selected)
-    val latestOnSelect by rememberUpdatedState(onSelect)
+    val latestOnToggle by rememberUpdatedState(onToggleSelection)
     val haptics = LocalHapticFeedback.current
     val edge = with(LocalDensity.current) { 56.dp.toPx() }
     val maxSpeed = with(LocalDensity.current) { 900.dp.toPx() }
     var position by remember(orderedIds) { mutableStateOf<Offset?>(null) }
-    val visited = remember(orderedIds) { mutableSetOf<String>() }
+    val initialSelection = remember(orderedIds) { mutableSetOf<String>() }
     // Selection updates must not restart pointerInput and cancel the held finger.
     val lastIndex = remember(orderedIds) { intArrayOf(-1) }
+    val anchorIndex = remember(orderedIds) { intArrayOf(-1) }
 
     fun itemAt(point: Offset): Int? = gridState.layoutInfo.visibleItemsInfo
         .firstOrNull { item ->
@@ -50,10 +51,16 @@ internal fun Modifier.albumDragSelection(
         }?.key?.let { indices[it] }
 
     fun selectThrough(index: Int) {
-        val previous = lastIndex[0].takeIf { it >= 0 } ?: index
-        for (i in minOf(previous, index)..maxOf(previous, index)) {
+        val anchor = anchorIndex[0]
+        val previous = lastIndex[0]
+        val before = if (previous < 0) IntRange.EMPTY else minOf(anchor, previous)..maxOf(anchor, previous)
+        val after = minOf(anchor, index)..maxOf(anchor, index)
+        // Only the moving endpoint's interval can change. Never toggle an item
+        // selected before this gesture, even when reversing past the anchor.
+        val from = previous.takeIf { it >= 0 } ?: anchor
+        for (i in minOf(from, index)..maxOf(from, index)) {
             val id = orderedIds[i]
-            if (visited.add(id) && id !in latestSelected) latestOnSelect(id)
+            if ((i in before) != (i in after) && id !in initialSelection) latestOnToggle(id)
         }
         lastIndex[0] = index
     }
@@ -84,7 +91,9 @@ internal fun Modifier.albumDragSelection(
             val down = awaitFirstDown(requireUnconsumed = false)
             val start = itemAt(down.position) ?: return@awaitEachGesture
             val held = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
-            visited.clear()
+            initialSelection.clear()
+            initialSelection.addAll(latestSelected)
+            anchorIndex[0] = start
             lastIndex[0] = -1
             position = held.position
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -107,8 +116,9 @@ internal fun Modifier.albumDragSelection(
                 }
             } finally {
                 position = null
-                visited.clear()
+                initialSelection.clear()
                 lastIndex[0] = -1
+                anchorIndex[0] = -1
             }
         }
     }

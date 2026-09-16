@@ -66,7 +66,7 @@ fun AlbumGrid(
     LazyVerticalGrid(
         columns = GridCells.Fixed(ALBUM_COLUMNS),
         state = gridState,
-        modifier = modifier.albumDragSelection(gridState, orderedIds, selected, onStartSelecting),
+        modifier = modifier.albumDragSelection(gridState, orderedIds, selected, onToggleSelection),
         contentPadding = PaddingValues(
             start = Spacing.screenEdge,
             end = Spacing.screenEdge,
