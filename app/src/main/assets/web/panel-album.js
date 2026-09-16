@@ -21,6 +21,8 @@
     let root = null;
     let bodyEl = null;
     let rowsHost = null;
+    let renderedFirst = -1;
+    let renderedTo = -1;
     let items = [];
     let logicalRows = [];
     let reportedTotal = 0;
@@ -41,6 +43,8 @@
         byVisibleImages(bodyEl).forEach((img) => img.removeAttribute('src'));
         bodyEl.textContent = '';
         rowsHost = null;
+        renderedFirst = -1;
+        renderedTo = -1;
     }
 
     function byVisibleImages(host) {
@@ -220,12 +224,14 @@
 
     function syncVirtual() {
         if (!rowsHost || !bodyEl) return;
-        byVisibleImages(rowsHost).forEach((img) => img.removeAttribute('src'));
-        rowsHost.textContent = '';
         const viewport = bodyEl.clientHeight || VIRTUAL_ROW_PITCH * 6;
         const first = Math.max(0, Math.floor((bodyEl.scrollTop || 0) / VIRTUAL_ROW_PITCH) - VIRTUAL_OVERSCAN);
         const visible = Math.ceil(viewport / VIRTUAL_ROW_PITCH) + VIRTUAL_OVERSCAN * 2;
         const to = Math.min(logicalRows.length, first + visible);
+        if (first === renderedFirst && to === renderedTo) return;
+
+        byVisibleImages(rowsHost).forEach((img) => img.removeAttribute('src'));
+        rowsHost.textContent = '';
 
         const top = spacer(first);
         if (top) rowsHost.appendChild(top);
@@ -234,6 +240,8 @@
         }
         const bottom = spacer(logicalRows.length - to);
         if (bottom) rowsHost.appendChild(bottom);
+        renderedFirst = first;
+        renderedTo = to;
     }
 
     function appendFooter() {

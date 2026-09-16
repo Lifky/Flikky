@@ -143,6 +143,14 @@ test('row height comes from CSS, never measured in JS', () => {
   assert.match(rule[0], /gap:\s*var\(--flikky-listgroup-gap\)/);
 });
 
+test('virtual rows opt out of browser scroll anchoring', () => {
+  const css = fs.readFileSync(path.join(WEB, 'panels.css'), 'utf8');
+  const rule = css.match(/\.fk-album-rows\s*\{[^}]*\}/);
+  assert.ok(rule, 'no .fk-album-rows CSS rule');
+  assert.match(rule[0], /overflow-anchor:\s*none\s*;/,
+    'virtual row replacement can cancel mouse-wheel scrolling through browser anchoring');
+});
+
 test('date headers participate in the virtual row count', async () => {
   const items = [
     item('img:future', localAt(2027, 1, 1)),
@@ -227,6 +235,19 @@ test('thumbnails are requested per visible row only', async () => {
   body.dispatch('scroll');
   await tick(8);
   assert.equal(first.getAttribute('src'), null, 'a thumbnail kept loading after its row left the window');
+});
+
+test('a small wheel scroll keeps the current virtual window mounted', async () => {
+  const items = Array.from({ length: 1000 }, (_, i) => item('img:' + i, FIXED_NOW - i));
+  const c = await opened(items);
+  const body = byClass(c.view, 'fk-panel-body')[0];
+  const firstTile = byClass(c.view, 'fk-album-tile')[0];
+
+  body.scrollTop = 120;
+  await tick(8);
+
+  assert.equal(byClass(c.view, 'fk-album-tile')[0] === firstTile, true,
+    'scrolling inside the current virtual window replaced the browser scroll anchor');
 });
 
 test('tapping a thumbnail opens the shared lightbox', async () => {

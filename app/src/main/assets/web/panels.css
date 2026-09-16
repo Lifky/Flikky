@@ -641,6 +641,7 @@ button.fk-crumb:hover {
   display: flex;
   flex-direction: column;
   gap: var(--flikky-listgroup-gap);
+  overflow-anchor: none;
 }
 .fk-album-vspace {
   height: calc(var(--flikky-album-spacer-rows, 0) * var(--flikky-album-virtual-pitch));
