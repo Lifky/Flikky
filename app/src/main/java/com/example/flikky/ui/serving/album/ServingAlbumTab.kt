@@ -77,7 +77,7 @@ fun ServingAlbumTab(
         AlbumAccess.Partial, AlbumAccess.Full -> Unit
     }
 
-    var selecting by remember { mutableStateOf(false) }
+    var selecting by remember { mutableStateOf(selected.isNotEmpty()) }
     LaunchedEffect(selected.isEmpty()) {
         if (selected.isEmpty()) selecting = false
     }
@@ -122,7 +122,7 @@ fun ServingAlbumTab(
                     onPreview = onPreview,
                     onStartSelecting = { id ->
                         selecting = true
-                        onToggleSelection(id)
+                        if (id !in selected) onToggleSelection(id)
                     },
                     modifier = Modifier.weight(1f),
                 )

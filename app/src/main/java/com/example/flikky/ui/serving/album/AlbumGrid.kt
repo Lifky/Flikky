@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +26,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.style.TextOverflow
 import coil3.compose.AsyncImage
 import com.example.flikky.R
@@ -34,7 +38,6 @@ import com.example.flikky.ui.theme.Spacing
 import com.example.flikky.util.AlbumDateLabel
 import com.example.flikky.util.AlbumItemId
 import com.example.flikky.util.AlbumTimeline
-import java.time.ZoneId
 
 /** Fixed column count avoids duplicating layout measurement in the grid. */
 private const val ALBUM_COLUMNS = 3
@@ -58,9 +61,12 @@ fun AlbumGrid(
     val sections = remember(items, todayKey, yesterdayKey) {
         AlbumTimeline.group(items, { it.dateKey }, { it.takenAtMs }, todayKey, yesterdayKey)
     }
+    val gridState = rememberLazyGridState()
+    val orderedIds = remember(sections) { sections.flatMap { section -> section.items.map { it.id } } }
     LazyVerticalGrid(
         columns = GridCells.Fixed(ALBUM_COLUMNS),
-        modifier = modifier,
+        state = gridState,
+        modifier = modifier.albumDragSelection(gridState, orderedIds, selected, onStartSelecting),
         contentPadding = PaddingValues(
             start = Spacing.screenEdge,
             end = Spacing.screenEdge,
@@ -118,7 +124,11 @@ private fun AlbumCell(
             .aspectRatio(1f)
             .clip(RoundedCornerShape(Spacing.xs))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .combinedClickable(onClick = onTap, onLongClick = onLongClick),
+            .combinedClickable(onClick = onTap)
+            .semantics {
+                this.selected = checked
+                onLongClick { onLongClick(); true }
+            },
     ) {
         AsyncImage(
             model = contentUriOf(item.id),
