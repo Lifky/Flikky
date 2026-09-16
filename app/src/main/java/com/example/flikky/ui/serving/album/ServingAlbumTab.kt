@@ -42,6 +42,8 @@ fun ServingAlbumTab(
     items: List<AlbumItemDto>,
     visibleCount: Int,
     selected: Set<String>,
+    todayKey: String,
+    yesterdayKey: String,
     peerAlbumEnabled: Boolean,
     onRequestPermission: () -> Unit,
     onChangeScope: () -> Unit,
@@ -83,6 +85,8 @@ fun ServingAlbumTab(
                     items = items,
                     selected = selected,
                     selecting = selecting,
+                    todayKey = todayKey,
+                    yesterdayKey = yesterdayKey,
                     onToggleSelection = onToggleSelection,
                     onPreview = onPreview,
                     onStartSelecting = { id ->

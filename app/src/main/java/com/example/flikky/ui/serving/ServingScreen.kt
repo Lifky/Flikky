@@ -409,6 +409,8 @@ fun ServingScreen(
                         items = albumState.items,
                         visibleCount = albumState.visibleCount,
                         selected = albumState.selected,
+                        todayKey = albumState.todayKey,
+                        yesterdayKey = albumState.yesterdayKey,
                         peerAlbumEnabled = settings.albumBrowsingEnabled,
                         onRequestPermission = requestAlbumPermission,
                         onChangeScope = requestAlbumPermission,

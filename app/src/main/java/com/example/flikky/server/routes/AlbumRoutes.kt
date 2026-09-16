@@ -1,5 +1,6 @@
 package com.example.flikky.server.routes
 
+import com.example.flikky.server.dto.AlbumBucketDto
 import com.example.flikky.server.dto.AlbumErrorDto
 import com.example.flikky.server.dto.AlbumItemDto
 import com.example.flikky.server.dto.AlbumStreamHeadDto
@@ -36,10 +37,26 @@ sealed interface AlbumResult<out T> {
 data class AlbumFileHandle(val fileName: String, val mime: String, val size: Long, val open: () -> InputStream)
 
 interface MediaLibrary {
-    fun count(): Int
-    fun listStream(): Flow<List<AlbumItemDto>>
+    /** [bucket] 为 null 表示整个相册；非 null 时只数该相册簿。 */
+    fun count(bucket: String? = null): Int
+
+    /** [bucket] 语义同 [count]。 */
+    fun listStream(bucket: String? = null): Flow<List<AlbumItemDto>>
+
     fun open(id: AlbumItemId): AlbumResult<AlbumFileHandle>
     fun thumbnail(id: AlbumItemId, maxPx: Int): AlbumResult<ByteArray>
+
+    /** 相册簿视图的数据：名称、张数、封面项 id。按张数倒序。 */
+    fun buckets(): List<AlbumBucketDto>
+
+    /**
+     * 手机本地的今天 / 昨天日期键。
+     *
+     * 下发给浏览器，让它能渲染「今天 / 昨天」而**不必知道手机时区** ——
+     * 这是 D65 那条「日期只算一次」的另一半。
+     */
+    fun todayKey(): String
+    fun yesterdayKey(): String
 }
 
 fun Route.albumRoutes(
@@ -67,17 +84,30 @@ fun Route.albumRoutes(
     get("/api/album/list") {
         if (!call.passesGate()) return@get
         val lib = library() ?: run { call.respond(HttpStatusCode.ServiceUnavailable); return@get }
+        // 空串与缺省都表示「整个相册」：浏览器退出相册簿时传空串最自然，
+        // 而把空串当成「名字是空的那个相册簿」会让它看到 0 项。
+        val bucket = call.request.queryParameters["bucket"]?.takeIf { it.isNotEmpty() }
         if (call.request.queryParameters["stream"] != "1") {
-            call.respond(withContext(Dispatchers.IO) { buildList { lib.listStream().collect { addAll(it) } } })
+            call.respond(withContext(Dispatchers.IO) { buildList { lib.listStream(bucket).collect { addAll(it) } } })
             return@get
         }
-        val total = withContext(Dispatchers.IO) { lib.count() }
+        val total = withContext(Dispatchers.IO) { lib.count(bucket) }
+        // 今天/昨天的键随首行一起下发，浏览器因此不需要知道手机时区（D65）。
+        val head = withContext(Dispatchers.IO) {
+            AlbumStreamHeadDto(total = total, todayKey = lib.todayKey(), yesterdayKey = lib.yesterdayKey())
+        }
         call.respondOutputStream(NDJSON_ALBUM, HttpStatusCode.OK) {
             fun line(value: String) { write(value.toByteArray()); write(LF_ALBUM); flush() }
-            line(WireJson.encodeToString(AlbumStreamHeadDto.serializer(), AlbumStreamHeadDto(total)))
-            lib.listStream().collect { batch -> batch.forEach { line(WireJson.encodeToString(AlbumItemDto.serializer(), it)) } }
+            line(WireJson.encodeToString(AlbumStreamHeadDto.serializer(), head))
+            lib.listStream(bucket).collect { batch -> batch.forEach { line(WireJson.encodeToString(AlbumItemDto.serializer(), it)) } }
             line(DONE_LINE_ALBUM)
         }
+    }
+
+    get("/api/album/buckets") {
+        if (!call.passesGate()) return@get
+        val lib = library() ?: run { call.respond(HttpStatusCode.ServiceUnavailable); return@get }
+        call.respond(withContext(Dispatchers.IO) { lib.buckets() })
     }
 
     get("/api/album/file") {

@@ -1,6 +1,7 @@
 package com.example.flikky.server.routes
 
 import com.example.flikky.server.PinAuth
+import com.example.flikky.server.dto.AlbumBucketDto
 import com.example.flikky.server.dto.AlbumItemDto
 import com.example.flikky.server.dto.WireJson
 import com.example.flikky.util.AlbumAccess
@@ -30,17 +31,42 @@ import org.junit.Test
 
 class AlbumRoutesTest {
     private val empty = object : MediaLibrary {
-        override fun count()=0
-        override fun listStream()=flowOf(emptyList<AlbumItemDto>())
-        override fun open(id:AlbumItemId)=AlbumResult.NotFound
-        override fun thumbnail(id:AlbumItemId,maxPx:Int)=AlbumResult.NotFound
+        override fun count(bucket: String?) = 0
+        override fun listStream(bucket: String?) = flowOf(emptyList<AlbumItemDto>())
+        override fun open(id: AlbumItemId) = AlbumResult.NotFound
+        override fun thumbnail(id: AlbumItemId, maxPx: Int) = AlbumResult.NotFound
+        override fun buckets() = emptyList<AlbumBucketDto>()
+        override fun todayKey() = "2026-09-16"
+        override fun yesterdayKey() = "2026-09-15"
     }
     private val two = object : MediaLibrary {
-        override fun count()=2
-        override fun listStream()=flowOf(listOf(
-            AlbumItemDto("img:1","a.jpg","image/jpeg",1,0,0), AlbumItemDto("vid:2","b.mp4","video/mp4",2,3,4)))
-        override fun open(id:AlbumItemId)=AlbumResult.Ok(AlbumFileHandle("a","image/jpeg",1){ByteArrayInputStream(byteArrayOf(1))})
-        override fun thumbnail(id:AlbumItemId,maxPx:Int)=AlbumResult.Ok(byteArrayOf(1))
+        override fun count(bucket: String?) = 2
+        override fun listStream(bucket: String?) = flowOf(
+            listOf(
+                AlbumItemDto("img:1", "a.jpg", "image/jpeg", 1, 0, 0, dateKey = "2026-09-16"),
+                AlbumItemDto("vid:2", "b.mp4", "video/mp4", 2, 3, 4, dateKey = "2026-09-15"),
+            ),
+        )
+        override fun open(id: AlbumItemId) =
+            AlbumResult.Ok(AlbumFileHandle("a", "image/jpeg", 1) { ByteArrayInputStream(byteArrayOf(1)) })
+        override fun thumbnail(id: AlbumItemId, maxPx: Int) = AlbumResult.Ok(byteArrayOf(1))
+        override fun buckets() = emptyList<AlbumBucketDto>()
+        override fun todayKey() = "2026-09-16"
+        override fun yesterdayKey() = "2026-09-15"
+    }
+
+    /** 记录 list 收到的 bucket 参数，用来验证筛选真的传到了 library。 */
+    private class BucketRecordingLibrary(private val base: MediaLibrary) : MediaLibrary by base {
+        var lastBucket: String? = "<never called>"
+        override fun count(bucket: String?): Int {
+            lastBucket = bucket
+            return 0
+        }
+        override fun listStream(bucket: String?) = flowOf(emptyList<AlbumItemDto>())
+        override fun buckets() = listOf(
+            AlbumBucketDto(name = "Camera", count = 12, coverId = "img:9"),
+            AlbumBucketDto(name = "Screenshots", count = 3, coverId = "img:4"),
+        )
     }
     private fun singleFileLibrary(payload: ByteArray, mime: String = "image/jpeg") =
         object : MediaLibrary by empty {
@@ -153,5 +179,76 @@ class AlbumRoutesTest {
 
     @Test fun `a malformed thumbnail id gets 400`()=run {
         assertEquals(HttpStatusCode.BadRequest,it.get("/api/album/thumb?id=content://sms/1").status)
+    }
+
+    // ── D65：日期只算一次，由服务端下发 ──────────────────────────────────
+
+    @Test
+    fun `the stream head carries the phone's today and yesterday keys`() {
+        // 装机验收（Screenshot_12 / 13）暴露过双端分组不一致：两端各自从 takenAtMs
+        // 算日期，而两台设备时区不同。修法是服务端算好下发 —— 浏览器因此不需要
+        // 知道手机时区。这两个键没下发，浏览器就只能自己算，那道缝就又回来了。
+        run(lib = two) { client ->
+            val head = client.get("/api/album/list?stream=1").bodyAsText().trim().lines().first()
+
+            assertTrue("首行缺 todayKey：$head", head.contains("\"todayKey\":\"2026-09-16\""))
+            assertTrue("首行缺 yesterdayKey：$head", head.contains("\"yesterdayKey\":\"2026-09-15\""))
+        }
+    }
+
+    @Test
+    fun `every item carries the date key the phone computed`() {
+        run(lib = two) { client ->
+            val line = client.get("/api/album/list?stream=1").bodyAsText()
+                .lines().single { row -> row.contains("\"id\":\"img:1\"") }
+
+            assertTrue("条目缺 dateKey：$line", line.contains("\"dateKey\":\"2026-09-16\""))
+        }
+    }
+
+    // ── 相册簿视图 ────────────────────────────────────────────────────────
+
+    @Test
+    fun `a bucket parameter reaches the library`() {
+        val library = BucketRecordingLibrary(empty)
+
+        run(lib = library) { client -> client.get("/api/album/list?stream=1&bucket=Camera") }
+
+        assertEquals("Camera", library.lastBucket)
+    }
+
+    @Test
+    fun `an empty bucket parameter means the whole album, not a nameless bucket`() {
+        // 浏览器退出相册簿时传空串最自然。把空串当成「名字是空的那个相册簿」
+        // 会让用户看到 0 项，而他刚才明明点的是「返回全部」。
+        val library = BucketRecordingLibrary(empty)
+
+        run(lib = library) { client -> client.get("/api/album/list?stream=1&bucket=") }
+
+        assertEquals(null, library.lastBucket)
+    }
+
+    @Test
+    fun `the buckets endpoint lists albums with covers and counts`() {
+        run(lib = BucketRecordingLibrary(empty)) { client ->
+            val body = client.get("/api/album/buckets").bodyAsText()
+
+            assertTrue(body.contains("Camera"))
+            assertTrue(body.contains("\"count\":12"))
+            assertTrue(body.contains("\"coverId\":\"img:9\""))
+        }
+    }
+
+    @Test
+    fun `the buckets endpoint sits behind the same gate`() {
+        run(enabled = { false }, lib = BucketRecordingLibrary(empty)) {
+            assertEquals(HttpStatusCode.NotFound, it.get("/api/album/buckets").status)
+        }
+        run(access = AlbumAccess.None, lib = BucketRecordingLibrary(empty)) {
+            assertEquals(HttpStatusCode.Forbidden, it.get("/api/album/buckets").status)
+        }
+        run(enabled = { false }, access = AlbumAccess.None, authorised = false, lib = BucketRecordingLibrary(empty)) {
+            assertEquals(HttpStatusCode.Unauthorized, it.get("/api/album/buckets").status)
+        }
     }
 }

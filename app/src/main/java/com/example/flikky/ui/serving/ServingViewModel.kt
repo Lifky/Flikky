@@ -95,6 +95,14 @@ data class AlbumUiState(
     val items: List<AlbumItemDto> = emptyList(),
     val visibleCount: Int = 0,
     val selected: Set<String> = emptySet(),
+    /**
+     * 手机本地的今天 / 昨天键，取自 `MediaLibrary` —— 与下发给浏览器的是同一对值。
+     *
+     * App 端其实自己也算得出来（它就在手机上），但走同一个来源是刻意的：
+     * D65 的要求是「日期只算一次」，让 App 端另算一次就又开了一道会分叉的缝。
+     */
+    val todayKey: String = "",
+    val yesterdayKey: String = "",
 )
 
 class ServingViewModel(app: Application) : AndroidViewModel(app) {
@@ -211,8 +219,15 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         albumJob?.cancel()
         albumJob = viewModelScope.launch {
             val accumulated = mutableListOf<AlbumItemDto>()
+            // 日期键先取一次：分组头要用它，而它与浏览器端拿到的是同一个来源（D65）。
+            val library = ServiceLocator.mediaLibrary
+            val keys = withContext(Dispatchers.IO) { library.todayKey() to library.yesterdayKey() }
+            _albumState.value = _albumState.value.copy(
+                todayKey = keys.first,
+                yesterdayKey = keys.second,
+            )
             try {
-                ServiceLocator.mediaLibrary.listStream()
+                library.listStream()
                     .flowOn(Dispatchers.IO)
                     .collect { batch ->
                         accumulated += batch

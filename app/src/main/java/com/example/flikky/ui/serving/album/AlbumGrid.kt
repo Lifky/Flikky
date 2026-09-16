@@ -45,14 +45,18 @@ fun AlbumGrid(
     items: List<AlbumItemDto>,
     selected: Set<String>,
     selecting: Boolean,
+    /** 手机本地的今天 / 昨天键。与浏览器端拿到的是同一对值（D65）。 */
+    todayKey: String,
+    yesterdayKey: String,
     onToggleSelection: (String) -> Unit,
     onPreview: (AlbumItemDto) -> Unit,
     onStartSelecting: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val zone = remember { ZoneId.systemDefault() }
-    val sections = remember(items) {
-        AlbumTimeline.group(items, { it.takenAtMs }, System.currentTimeMillis(), zone)
+    // 分组按 DTO 下发的 dateKey，**不在这里算日期**：装机验收（Screenshot_12/13）
+    // 暴露过两端各自算日期导致分组不一致，裁决见 D65 与 AlbumDateKey 的 KDoc。
+    val sections = remember(items, todayKey, yesterdayKey) {
+        AlbumTimeline.group(items, { it.dateKey }, { it.takenAtMs }, todayKey, yesterdayKey)
     }
     LazyVerticalGrid(
         columns = GridCells.Fixed(ALBUM_COLUMNS),
