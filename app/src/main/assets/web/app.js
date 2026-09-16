@@ -15,6 +15,13 @@
     const countEl = document.getElementById('count');
     const rateEl = document.getElementById('rate');
     const i18n = window.flikkyI18n;
+    function setWebConnectionActive(active) {
+        window.flikkyConnectionActive = !!active;
+        if (i18n.setConnected) i18n.setConnected(active);
+        const album = window.flikkyPanels && window.flikkyPanels.album;
+        if (album && album.setConnected) album.setConnected(active);
+    }
+    setWebConnectionActive(false);
     const t = (key, values) => i18n.t(key, values);
     const countText = (key, count) => i18n.count(key, count);
     let lastStatus = null;
@@ -1373,6 +1380,8 @@
         // 服务端主动停止 — 抢在 ws.onclose 之前标记，让重连流程跳过这个 WS。
         if (ev.type === 'server_stopped') {
             serverStopped = true;
+            setWebConnectionActive(false);
+            stopHeartbeat();
             setConnectionWatermarkState('disconnected');
             showConnectionDialog('terminated', 'app.service_stopped');
             setSendEnabled(false);
@@ -1456,6 +1465,7 @@
             }
         } else if (ev.type === 'settings_changed') {
             applyPeerAppearance(ev.payload || {}, t('app.phone'));
+            if (i18n.refresh) i18n.refresh();
         }
     }
 
@@ -1591,6 +1601,7 @@
      */
     function enterDisconnected() {
         wsConnected = false;
+        setWebConnectionActive(false);
         setConnectionWatermarkState('disconnected');
         setSendEnabled(false);
         setConn('app.disconnected');
@@ -1660,6 +1671,7 @@
         currentWs = ws;
         ws.onopen = () => {
             wsConnected = true;
+            setWebConnectionActive(true);
             serverStopped = false;
             setConnectionWatermarkState('connected');
             setConn('app.connected');
@@ -1688,6 +1700,7 @@
             if (currentWs !== ws) return;
             currentWs = null;
             wsConnected = false;
+            setWebConnectionActive(false);
             setConnectionWatermarkState('disconnected');
             setConn('app.disconnected');
             setSendEnabled(false);

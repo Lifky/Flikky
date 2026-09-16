@@ -18,10 +18,12 @@ function loadI18n(querySelectorAll = () => []) {
         document: {
             documentElement,
             querySelectorAll,
+            addEventListener() {},
         },
         fetch: async () => ({ ok: false }),
-        setInterval() { return 1; },
-        clearInterval() {},
+        setTimeout() { return 1; },
+        clearTimeout() {},
+        AbortController,
     };
     context.window = context;
     vm.runInNewContext(source, context);

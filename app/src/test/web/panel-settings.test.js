@@ -265,11 +265,11 @@ test('new app.settings.* i18n keys exist in both dictionaries', () => {
     function loadI18n() {
         const documentElement = { lang: '', setAttribute(name, value) { if (name === 'lang') this.lang = value; } };
         const context = {
-            document: { documentElement, querySelectorAll: () => [] },
+            document: { documentElement, querySelectorAll: () => [], addEventListener() {} },
             fetch: async () => ({ ok: false }),
-            // i18n.js schedules refresh() via setInterval at load; the sandbox
-            // never runs an event loop for it, so a no-op stub is enough.
-            setInterval: () => 0,
+            setTimeout: () => 0,
+            clearTimeout() {},
+            AbortController,
         };
         context.window = context;
         vm.createContext(context);

@@ -478,15 +478,54 @@
         return () => listeners.delete(listener);
     }
 
-    async function refresh() {
-        try {
-            const response = await fetch('/api/web-theme', { cache: 'no-store' });
-            if (!response.ok) return;
-            const appearance = await response.json();
-            setLanguage(appearance.languageTag);
-        } catch (_) {
-            // Keep the last known language while the phone server is temporarily unavailable.
-        }
+    let connected = true; // The PIN page has no WebSocket; app/export take ownership on load.
+    let refreshTimer = null;
+    let activeRequest = null;
+
+    function pause() {
+        if (refreshTimer !== null) clearTimeout(refreshTimer);
+        refreshTimer = null;
+        if (activeRequest) activeRequest.controller.abort();
+        activeRequest = null;
+    }
+
+    function refresh() {
+        if (!connected || document.hidden) return Promise.resolve();
+        if (activeRequest) return activeRequest.promise;
+        if (refreshTimer !== null) clearTimeout(refreshTimer);
+        refreshTimer = null;
+        const request = { controller: new AbortController(), promise: null };
+        activeRequest = request;
+        request.promise = (async () => {
+            let succeeded = false;
+            try {
+                const response = await fetch('/api/web-theme', {
+                    cache: 'no-store', signal: request.controller.signal,
+                });
+                if (!response.ok) return;
+                const appearance = await response.json();
+                if (activeRequest !== request) return;
+                setLanguage(appearance.languageTag);
+                succeeded = true;
+                return appearance;
+            } catch (_) {
+                // An unreachable phone must not leave an endless background retry loop.
+            } finally {
+                if (activeRequest === request) {
+                    activeRequest = null;
+                    if (succeeded && connected && !document.hidden) {
+                        refreshTimer = setTimeout(refresh, 30000);
+                    }
+                }
+            }
+        })();
+        return request.promise;
+    }
+
+    function setConnected(value) {
+        connected = !!value;
+        if (connected) refresh();
+        else pause();
     }
 
     window.flikkyI18n = {
@@ -495,10 +534,14 @@
         setLanguage,
         onChange,
         refresh,
+        setConnected,
         get language() { return currentLanguage; },
     };
 
     setLanguage('zh-CN');
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) pause();
+        else refresh();
+    });
     refresh();
-    setInterval(refresh, 1000);
 })();

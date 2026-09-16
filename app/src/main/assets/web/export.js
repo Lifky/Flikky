@@ -6,6 +6,7 @@
     const hintEl = document.getElementById('export-hint');
     const bannerEl = document.getElementById('export-banner');
     const i18n = window.flikkyI18n;
+    if (i18n.setConnected) i18n.setConnected(false);
     const t = (key, values) => i18n.t(key, values);
     const countText = (key, count) => i18n.count(key, count);
     let latestInfo = null;
@@ -251,6 +252,10 @@
         // 这两种状态由 loadInfo 的初次调用负责处理，探测层退出即可。
         if (r.status === 401 || r.status === 409) {
             stopHealthProbe();
+            exportServerStopped = true;
+            stopExportWsPing();
+            if (i18n.setConnected) i18n.setConnected(false);
+            if (exportWs) { try { exportWs.close(); } catch (_) {} exportWs = null; }
             return;
         }
         if (!r.ok) {
@@ -302,6 +307,7 @@
         // WS onclose 会触发「连接已断开 + 重连循环」—— 那是正常的服务结束不是网络断。
         stopHealthProbe();
         stopExportWsPing();
+        if (i18n.setConnected) i18n.setConnected(false);
         if (exportWs) { try { exportWs.close(); } catch (_) {} exportWs = null; }
     });
 
@@ -331,6 +337,7 @@
     }
 
     function markExportDisconnected() {
+        if (i18n.setConnected) i18n.setConnected(false);
         if (healthDisconnected) return;
         healthDisconnected = true;
         healthFailCount = 99;
@@ -357,11 +364,14 @@
     }
 
     function openExportWs() {
+        if (exportServerStopped || downloadStarted) return;
         if (exportWs && (exportWs.readyState === 0 || exportWs.readyState === 1)) return;
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${proto}//${location.host}/ws`);
         exportWs = ws;
         ws.onopen = () => {
+            if (exportWs !== ws || exportServerStopped || downloadStarted) return;
+            if (i18n.setConnected) i18n.setConnected(true);
             // 启动 ping 定时器
             exportWsPingTimer = setInterval(() => {
                 if (ws.readyState !== 1) return;
@@ -388,6 +398,7 @@
                 const msg = JSON.parse(e.data);
                 if (msg && msg.type === 'server_stopped') {
                     exportServerStopped = true;
+                    if (i18n.setConnected) i18n.setConnected(false);
                     stopExportWsPing();
                     stopHealthProbe();
                     exportWs = null;
@@ -412,6 +423,8 @@
 
     window.addEventListener('beforeunload', () => {
         stopHealthProbe();
+        stopExportWsPing();
+        if (i18n.setConnected) i18n.setConnected(false);
         if (exportWs) try { exportWs.close(); } catch (_) {}
     });
 
