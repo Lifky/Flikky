@@ -41,6 +41,7 @@ import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
 import com.example.flikky.session.Origin
 import com.example.flikky.session.PendingMessageDeletes
+import com.example.flikky.server.dto.AlbumBucketDto
 import com.example.flikky.server.dto.AlbumItemDto
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.Dispatchers
@@ -103,6 +104,15 @@ data class AlbumUiState(
      */
     val todayKey: String = "",
     val yesterdayKey: String = "",
+    /**
+     * 相册簿列表。**null 表示当前在时间线视图**，非 null（含空表）表示在相册簿视图。
+     *
+     * 用 null 而不是额外一个布尔：两个字段能拼出「在相册簿视图但列表是 null」
+     * 这种说不通的状态，而这一个字段说不出那句话。
+     */
+    val buckets: List<AlbumBucketDto>? = null,
+    /** 已进入的相册簿名；null 表示没进任何簿。空串是合法簿名（未知相册）。 */
+    val openBucket: String? = null,
 )
 
 class ServingViewModel(app: Application) : AndroidViewModel(app) {
@@ -208,6 +218,37 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Enumerates the currently granted MediaStore scope off the main thread. */
+    /** 切换时间线 / 相册簿视图。进相册簿时拉一次簿列表。 */
+    fun selectAlbumBucketView(showBuckets: Boolean) {
+        if (!showBuckets) {
+            _albumState.value = _albumState.value.copy(buckets = null, openBucket = null)
+            refreshAlbum()
+            return
+        }
+        // 进相册簿视图先给一个空列表：它同时是「在相册簿视图」的标记，
+        // 于是加载期间 UI 显示的是相册簿视图的空态，而不是上一次的时间线。
+        _albumState.value = _albumState.value.copy(buckets = emptyList(), openBucket = null)
+        albumJob?.cancel()
+        albumJob = viewModelScope.launch {
+            val loaded = withContext(Dispatchers.IO) {
+                runCatching { ServiceLocator.mediaLibrary.buckets() }.getOrDefault(emptyList())
+            }
+            _albumState.value = _albumState.value.copy(buckets = loaded)
+        }
+    }
+
+    /** 进一个相册簿：切回时间线的渲染，但只列该簿的项。 */
+    fun openAlbumBucket(name: String) {
+        _albumState.value = _albumState.value.copy(openBucket = name, selected = emptySet())
+        refreshAlbum()
+    }
+
+    /** 从相册簿内部返回簿列表。 */
+    fun leaveAlbumBucket() {
+        _albumState.value = _albumState.value.copy(openBucket = null, selected = emptySet())
+        selectAlbumBucketView(true)
+    }
+
     fun refreshAlbum() {
         val access = currentAlbumAccess()
         if (access == AlbumAccess.None) {
@@ -217,6 +258,8 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         }
         _albumState.value = _albumState.value.copy(access = access)
         albumJob?.cancel()
+        // 进了某个相册簿就只列该簿；空串是合法簿名（未知相册），所以判 null 而不是判空。
+        val bucket = _albumState.value.openBucket
         albumJob = viewModelScope.launch {
             val accumulated = mutableListOf<AlbumItemDto>()
             // 日期键先取一次：分组头要用它，而它与浏览器端拿到的是同一个来源（D65）。
@@ -227,7 +270,7 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
                 yesterdayKey = keys.second,
             )
             try {
-                library.listStream()
+                library.listStream(bucket)
                     .flowOn(Dispatchers.IO)
                     .collect { batch ->
                         accumulated += batch

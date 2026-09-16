@@ -836,3 +836,71 @@ button.fk-crumb:hover {
   letter-spacing: var(--flikky-type-body-medium-tracking);
   color: rgb(var(--mdui-color-on-surface-variant));
 }
+
+/* 相册的两种视图：时间线与相册簿。切换行在两种视图里都在，进了某个簿之后
+ * 换成返回入口 —— 两个入口同时在会让「我现在在哪」变得不明确。 */
+.fk-album-views {
+  display: flex;
+  gap: var(--flikky-space-sm);
+  padding: var(--flikky-space-xs) 0 var(--flikky-space-sm);
+}
+.fk-album-view {
+  min-height: var(--flikky-size-touch);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--flikky-space-xs);
+  padding: 0 var(--flikky-space-lg);
+  border: 1px solid rgb(var(--mdui-color-outline-variant));
+  border-radius: var(--flikky-shape-full);
+  background: none;
+  color: rgb(var(--mdui-color-on-surface-variant));
+  font: var(--flikky-type-label-large) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-label-large-tracking);
+  cursor: pointer;
+}
+.fk-album-view[data-active="1"] {
+  border-color: transparent;
+  background: rgb(var(--mdui-color-secondary-container));
+  color: rgb(var(--mdui-color-on-secondary-container));
+}
+/* 相册簿卡片也按固定宽度换行，与时间线的格子同一条规则。 */
+.fk-album-buckets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--flikky-space-md);
+}
+.fk-album-bucket {
+  width: 168px;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  padding: 0 0 var(--flikky-space-md);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--flikky-shape-md);
+  background: rgb(var(--mdui-color-surface-container-high));
+  color: rgb(var(--mdui-color-on-surface));
+  cursor: pointer;
+  text-align: start;
+}
+.fk-album-bucket > img {
+  width: 168px;
+  height: 168px;
+  display: block;
+  object-fit: cover;
+  background: rgb(var(--mdui-color-surface-container-highest));
+}
+.fk-album-bucket-name {
+  padding: var(--flikky-space-sm) var(--flikky-space-md) 0;
+  overflow: hidden;
+  font: var(--flikky-type-title-small) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-title-small-tracking);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fk-album-bucket-count {
+  padding: 0 var(--flikky-space-md);
+  color: rgb(var(--mdui-color-on-surface-variant));
+  font: var(--flikky-type-body-small) var(--flikky-font-family);
+  letter-spacing: var(--flikky-type-body-small-tracking);
+}

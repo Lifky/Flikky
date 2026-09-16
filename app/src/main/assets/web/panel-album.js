@@ -69,6 +69,16 @@
     let todayKey = '';
     let yesterdayKey = '';
 
+    /**
+     * 相册簿列表。**null 表示在时间线视图**，非 null（含空表）表示在相册簿视图。
+     *
+     * 用 null 而不是另加一个布尔：两个字段能拼出「在相册簿视图但没有列表」
+     * 这种说不通的状态，而这一个字段说不出那句话（App 端 AlbumUiState 同构）。
+     */
+    let buckets = null;
+    /** 已进入的相册簿名；null 表示没进任何簿。空串是合法簿名（未知相册）。 */
+    let openBucket = null;
+
     /** 当前挂载的行：逻辑行号 → DOM 元素。虚拟化靠它做差集，不重建。 */
     const mounted = new Map();
 
@@ -511,17 +521,169 @@
         bodyEl.appendChild(retry);
     }
 
+    // ── 相册簿视图 ────────────────────────────────────────────────────────
+
+    /**
+     * 视图切换行。进了某个簿之后换成返回入口 —— 两个入口同时在会让
+     * 「我现在在哪」变得不明确，而这是个只有两层的导航，不值得面包屑。
+     */
+    function buildViewSwitch() {
+        const bar = document.createElement('div');
+        bar.className = 'fk-album-views';
+
+        if (openBucket !== null) {
+            const back = document.createElement('button');
+            back.type = 'button';
+            back.className = 'fk-album-view';
+            back.appendChild(icon('arrow_back'));
+            const label = document.createElement('span');
+            label.textContent = openBucket || t('app.album.unknownBucket');
+            back.appendChild(label);
+            back.addEventListener('click', () => leaveBucket());
+            bar.appendChild(back);
+            return bar;
+        }
+
+        // 文案放进独立的 <span>，与全站动态图标同一条约定：按钮自身不持有文本节点，
+        // 于是它里面若再放图标也不会出现「字形进了 DOM 文本」那类问题
+        // （web-selection.test.js 的守卫盯着这条）。
+        const make = (key, active, onClick) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'fk-album-view';
+            if (active) button.dataset.active = '1';
+            const label = document.createElement('span');
+            label.textContent = t(key);
+            button.appendChild(label);
+            button.addEventListener('click', onClick);
+            return button;
+        };
+        bar.appendChild(make('app.album.viewTimeline', buckets === null, () => selectView(false)));
+        bar.appendChild(make('app.album.viewBuckets', buckets !== null, () => selectView(true)));
+        return bar;
+    }
+
+    function renderBuckets() {
+        clearBody();
+        bodyEl.appendChild(buildViewSwitch());
+        if (!buckets.length) {
+            const notice = document.createElement('div');
+            notice.className = 'fk-empty';
+            notice.appendChild(icon('photo_library'));
+            const text = document.createElement('p');
+            text.textContent = t(loading ? 'app.album.loading' : 'app.album.empty');
+            notice.appendChild(text);
+            bodyEl.appendChild(notice);
+            return;
+        }
+        const grid = document.createElement('div');
+        grid.className = 'fk-album-buckets';
+        buckets.forEach((bucket) => {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'fk-album-bucket';
+            card.addEventListener('click', () => openBucketView(bucket.name));
+
+            const cover = document.createElement('img');
+            cover.alt = '';
+            cover.loading = 'lazy';
+            cover.draggable = false;
+            cover.addEventListener('dragstart', (event) => event.preventDefault());
+            if (bucket.coverId && !failedThumbs.has(bucket.coverId)) {
+                cover.src = thumbUrl(bucket.coverId);
+                cover.addEventListener('error', () => {
+                    failedThumbs.add(bucket.coverId);
+                    cover.removeAttribute('src');
+                });
+            }
+            card.appendChild(cover);
+
+            const name = document.createElement('span');
+            name.className = 'fk-album-bucket-name';
+            name.textContent = bucket.name || t('app.album.unknownBucket');
+            card.appendChild(name);
+
+            const count = document.createElement('span');
+            count.className = 'fk-album-bucket-count';
+            count.textContent = t('app.album.bucketCount', { count: bucket.count });
+            card.appendChild(count);
+
+            grid.appendChild(card);
+        });
+        bodyEl.appendChild(grid);
+    }
+
+    function selectView(showBuckets) {
+        if (!showBuckets) {
+            buckets = null;
+            openBucket = null;
+            load();
+            return;
+        }
+        // 先给空表：它同时是「在相册簿视图」的标记，于是加载期间显示的是
+        // 相册簿视图的空态，而不是上一次的时间线。
+        buckets = [];
+        openBucket = null;
+        loadBuckets();
+    }
+
+    function openBucketView(name) {
+        openBucket = name;
+        load();
+    }
+
+    function leaveBucket() {
+        openBucket = null;
+        selectView(true);
+    }
+
+    async function loadBuckets() {
+        if (!enabled) return;
+        const seq = ++requestSeq;
+        loading = true;
+        selected.clear();
+        render();
+        try {
+            const response = await fetch('/api/album/buckets', { credentials: 'same-origin' });
+            if (seq !== requestSeq) return;
+            if (!response.ok) {
+                loading = false;
+                notifyError('app.album.loadFailed');
+                render();
+                return;
+            }
+            const value = await response.json();
+            if (seq !== requestSeq) return;
+            buckets = Array.isArray(value) ? value : [];
+            loading = false;
+            render();
+        } catch (e) {
+            if (seq !== requestSeq) return;
+            loading = false;
+            notifyError('app.album.loadFailed');
+            render();
+        }
+    }
+
     function render() {
         if (!bodyEl) return;
+        if (buckets !== null && openBucket === null) {
+            renderBuckets();
+            syncToolbar();
+            return;
+        }
         if (!items.length) {
             renderNotice(loading ? 'progress_activity' : 'photo_library',
                 loading ? 'app.album.loading' : 'app.album.empty');
+            // 空态也要留着切换行，否则进了一个空相册簿就没有返回的路。
+            if (openBucket !== null) bodyEl.insertBefore(buildViewSwitch(), bodyEl.children[0]);
             if (retryVisible) appendRetry();
             syncToolbar();
             return;
         }
         const keepScroll = bodyEl.scrollTop || 0;
         clearBody();
+        bodyEl.appendChild(buildViewSwitch());
         columns = columnsFor(bodyEl.clientWidth);
         rowsHost = document.createElement('div');
         rowsHost.className = 'fk-album-rows';
@@ -565,7 +727,9 @@
         render();
 
         try {
-            const response = await fetch('/api/album/list?stream=1', { credentials: 'same-origin' });
+            // 进了相册簿就只拉该簿；空串是合法簿名，所以判 null 而不是判空。
+            const query = openBucket === null ? '' : '&bucket=' + encodeURIComponent(openBucket);
+            const response = await fetch('/api/album/list?stream=1' + query, { credentials: 'same-origin' });
             if (seq !== requestSeq) return;
             if (!response.ok) {
                 loading = false;

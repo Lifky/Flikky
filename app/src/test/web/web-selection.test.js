@@ -53,8 +53,11 @@ test('icon glyphs are generated content, not DOM text', () => {
     for (const v of new Set(named)) {
       iconVars += 1;
       const esc = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      // `(?<![\w$.])` 是词首边界：没有它，一个叫 `el` 的图标变量会让同文件里的
+      // `bodyEl.textContent = ''`（清空面板，与图标无关）也算违规 ——
+      // 2026-09-16 相册面板改动时实测到这次误判。判据的范围要恰好等于它要守的东西。
       assert.equal(
-        new RegExp(`${esc}\\.textContent\\s*=`).test(src), false,
+        new RegExp(`(?<![\\w$.])${esc}\\.textContent\\s*=`).test(src), false,
         `${js}: ${v}.textContent is assigned — that puts the glyph back into DOM text`,
       );
       assert.match(

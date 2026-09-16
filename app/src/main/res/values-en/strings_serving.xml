@@ -79,6 +79,11 @@
     <string name="album_scope_partial">%1$d photos and videos available</string>
     <string name="album_scope_change">Change</string>
     <string name="album_empty">No photos yet</string>
+    <string name="album_view_timeline">Timeline</string>
+    <string name="album_view_buckets">Albums</string>
+    <string name="album_bucket_unknown">Unknown album</string>
+    <string name="album_bucket_count">%1$d items</string>
+    <string name="album_bucket_back">Back to all albums</string>
     <string name="album_lock_peer_on">Peer can browse the album · tap to close</string>
     <string name="album_lock_peer_off">Peer cannot browse the album · tap to open</string>
     <string name="album_send_n">Send %1$d items · %2$s</string>

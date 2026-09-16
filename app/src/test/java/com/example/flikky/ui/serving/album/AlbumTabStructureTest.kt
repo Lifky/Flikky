@@ -37,8 +37,20 @@ class AlbumTabStructureTest {
 
     @Test
     fun `partial access still shows the grid`() {
-        val partialBlock = tab.substring(tab.indexOf("AlbumAccess.Partial")).take(900)
-        assertTrue("partial access does not render the grid", partialBlock.contains("AlbumGrid("))
+        // 原判据是「`AlbumAccess.Partial` 之后 900 字符内出现 AlbumGrid(」，而 2026-09-16
+        // 加入视图切换与相册簿分支后那个窗口装不下了 —— 意图（Partial 是可用状态，
+        // 要继续显示已授权的那部分，而不是像 None 一样只给一张授权卡）没有变，
+        // 所以改成直接验那个意图：Partial 不走 return，且它与 Full 落在同一条分支上。
+        val accessBranch = tab.substring(tab.indexOf("when (access)")).take(400)
+        assertTrue(
+            "Partial 必须与 Full 同走「继续渲染内容」这条分支：\n$accessBranch",
+            Regex("""AlbumAccess\.Partial,\s*AlbumAccess\.Full\s*->""").containsMatchIn(accessBranch),
+        )
+        assertTrue(
+            "只有 None 才允许提前 return 成授权卡",
+            Regex("""AlbumAccess\.None\s*->\s*\{[^}]*AlbumPermissionCard""").containsMatchIn(accessBranch),
+        )
+        assertTrue("相册 tab 不再渲染时间线了", tab.contains("AlbumGrid("))
     }
 
     @Test

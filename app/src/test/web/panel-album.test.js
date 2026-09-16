@@ -385,6 +385,48 @@ test('picking a thumbnail selects it without opening the lightbox', async () => 
   assert.equal(byClass(c.view, 'fk-album-tile')[1].getAttribute('data-selected'), '1');
 });
 
+test('the two views are both reachable, and a bucket has a way back', async () => {
+  // 2026-09-16 裁决：时间线回答「最近拍的」，相册簿回答「微信存的那张在哪」。
+  const c = load({
+    body: albumNdjson([item('img:1', FIXED_NOW)]),
+    fetch: (url, _init, n) => {
+      if (String(url).includes('/api/album/buckets')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve([
+            { name: 'Camera', count: 12, coverId: 'img:9' },
+            { name: '', count: 2, coverId: 'img:4' },
+          ]),
+        });
+      }
+      return Promise.resolve(response(albumNdjson([item('img:1', FIXED_NOW)])));
+    },
+  });
+  const body = byClass(c.view, 'fk-panel-body')[0];
+  body.clientHeight = 600;
+  c.api.setEnabled(true);
+  await tick();
+
+  const views = byClass(c.view, 'fk-album-view');
+  assert.equal(views.length, 2, 'the timeline needs a switch to the album view');
+
+  views[1].dispatch('click');
+  await tick();
+  const cards = byClass(c.view, 'fk-album-bucket');
+  assert.equal(cards.length, 2, 'the album view must list buckets');
+  // 空簿名是合法的（未知相册），不能因此少一张卡。
+  assert.equal(byClass(c.view, 'fk-album-bucket-name')[1].textContent, 'app.album.unknownBucket');
+
+  cards[0].dispatch('click');
+  await tick();
+  const requested = c.fetched.map((f) => String(f.url));
+  assert.ok(requested.some((url) => url.includes('bucket=Camera')),
+    'opening a bucket must ask the server for just that bucket: ' + requested.join(' | '));
+  const back = byClass(c.view, 'fk-album-view');
+  assert.equal(back.length, 1, 'inside a bucket there is one action: going back');
+});
+
 test('the selection toolbar reuses the shared classes and counts what is picked', async () => {
   const c = await opened([item('img:1', FIXED_NOW)]);
   const toolbar = byClass(c.view.parentNode || c.view, 'fk-toolbar')[0]

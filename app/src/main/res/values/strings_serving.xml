@@ -81,6 +81,11 @@
     <string name="album_scope_partial">可访问 %1$d 张照片和视频</string>
     <string name="album_scope_change">更改范围</string>
     <string name="album_empty">这里还没有照片</string>
+    <string name="album_view_timeline">时间</string>
+    <string name="album_view_buckets">相册簿</string>
+    <string name="album_bucket_unknown">未知相册</string>
+    <string name="album_bucket_count">%1$d 项</string>
+    <string name="album_bucket_back">返回全部相册</string>
     <string name="album_lock_peer_on">对端可访问相册 · 点击关闭</string>
     <string name="album_lock_peer_off">对端无法访问相册 · 点击开启</string>
     <string name="album_send_n">发送 %1$d 项 · %2$s</string>
