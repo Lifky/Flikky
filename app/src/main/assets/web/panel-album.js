@@ -47,6 +47,8 @@
     const LF = String.fromCharCode(10);
 
     let enabled = false;
+    let connected = window.flikkyConnectionActive !== false;
+    let listController = null;
     let requestSeq = 0;
     let root = null;
     let bodyEl = null;
@@ -93,6 +95,48 @@
      * 不再发请求。刷新面板会清空它，用户仍有重试的路。
      */
     const failedThumbs = new Set();
+    const thumbnailCache = window.createAlbumThumbnailCache();
+    const imageBindings = new Map();
+    let thumbnailObserver = null;
+
+    function releaseThumbnail(image) {
+        const binding = imageBindings.get(image);
+        if (thumbnailObserver) thumbnailObserver.unobserve(image);
+        image.removeAttribute('src');
+        if (binding && binding.url) URL.revokeObjectURL(binding.url);
+        imageBindings.delete(image);
+    }
+
+    function bindThumbnail(image, id, onError, observe) {
+        const binding = { url: null };
+        imageBindings.set(image, binding);
+        const current = () => imageBindings.get(image) === binding && enabled && connected;
+        const fail = () => {
+            if (!current()) return;
+            failedThumbs.add(id);
+            releaseThumbnail(image);
+            onError();
+        };
+        binding.start = () => {
+            if (!current()) return;
+            thumbnailCache.get(id, current).then((blob) => {
+                if (!blob || !current()) return;
+                binding.url = URL.createObjectURL(blob);
+                image.src = binding.url;
+            }).catch(fail);
+        };
+        image.addEventListener('error', fail);
+        if (observe && thumbnailObserver) thumbnailObserver.observe(image);
+        else binding.start();
+    }
+
+    function refreshAlbum() {
+        imageBindings.forEach((_binding, image) => releaseThumbnail(image));
+        thumbnailCache.clear();
+        failedThumbs.clear();
+        if (buckets !== null && openBucket === null) loadBuckets();
+        else load();
+    }
 
     function icon(name) {
         const el = document.createElement('span');
@@ -111,7 +155,7 @@
 
     function clearBody() {
         if (!bodyEl) return;
-        byVisibleImages(bodyEl).forEach((img) => img.removeAttribute('src'));
+        byVisibleImages(bodyEl).forEach(releaseThumbnail);
         bodyEl.textContent = '';
         resetVirtualState();
     }
@@ -135,6 +179,8 @@
     }
 
     function buildShell(container) {
+        clearBody();
+        if (thumbnailObserver) thumbnailObserver.disconnect();
         container.textContent = '';
 
         const header = document.createElement('header');
@@ -149,7 +195,7 @@
         refresh.className = 'fk-icon-btn';
         refresh.setAttribute('aria-label', t('app.album.refresh'));
         refresh.appendChild(icon('refresh'));
-        refresh.addEventListener('click', () => load());
+        refresh.addEventListener('click', refreshAlbum);
         header.appendChild(refresh);
 
         const collapse = document.createElement('button');
@@ -164,6 +210,16 @@
         bodyEl.className = 'fk-panel-body flikky-scroll';
         bodyEl.addEventListener('scroll', syncVirtual);
         container.appendChild(bodyEl);
+        if (typeof IntersectionObserver === 'function') {
+            thumbnailObserver = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (!entry.isIntersecting) return;
+                    thumbnailObserver.unobserve(entry.target);
+                    const binding = imageBindings.get(entry.target);
+                    if (binding) binding.start();
+                });
+            }, { root: bodyEl, rootMargin: '500px' });
+        }
 
         buildToolbar(container);
         observeWidth();
@@ -309,10 +365,6 @@
         return `${minutes}:${seconds}`;
     }
 
-    function thumbUrl(id) {
-        return '/api/album/thumb?id=' + encodeURIComponent(id);
-    }
-
     function fileUrl(id, inline) {
         return '/api/album/file?id=' + encodeURIComponent(id) + (inline ? '&inline=1' : '');
     }
@@ -337,21 +389,19 @@
         open.draggable = false;
         open.addEventListener('dragstart', (event) => event.preventDefault());
 
+        let image = null;
         if (failedThumbs.has(item.id)) {
             // 失败过就不再请求：占位一个图标，避免同一个 404 被窗口反复重发。
             open.appendChild(icon('broken_image'));
         } else {
-            const image = document.createElement('img');
+            image = document.createElement('img');
             image.alt = '';
             image.loading = 'lazy';
             image.draggable = false;
             image.addEventListener('dragstart', (event) => event.preventDefault());
-            image.addEventListener('error', () => {
-                failedThumbs.add(item.id);
-                image.removeAttribute('src');
+            bindThumbnail(image, item.id, () => {
                 if (image.parentNode === open) open.replaceChild(icon('broken_image'), image);
             });
-            image.src = thumbUrl(item.id);
             open.appendChild(image);
         }
 
@@ -374,7 +424,7 @@
             if (!window.flikky || typeof window.flikky.openLightbox !== 'function') return;
             window.flikky.openLightbox({
                 kind: isVideo(item) ? 'video' : 'image',
-                thumbnailUrl: failedThumbs.has(item.id) ? null : thumbUrl(item.id),
+                thumbnailUrl: image ? image.getAttribute('src') : null,
                 fullUrl: fileUrl(item.id, true),
             });
         });
@@ -444,7 +494,7 @@
         Array.from(mounted.keys()).forEach((index) => {
             if (index >= first && index < to) return;
             const element = mounted.get(index);
-            byVisibleImages(element).forEach((img) => img.removeAttribute('src'));
+            byVisibleImages(element).forEach(releaseThumbnail);
             if (element.parentNode === rowsHost) rowsHost.removeChild(element);
             mounted.delete(index);
         });
@@ -517,7 +567,7 @@
         retry.type = 'button';
         retry.className = 'fk-album-retry';
         retry.textContent = t('app.album.retry');
-        retry.addEventListener('click', () => load());
+        retry.addEventListener('click', refreshAlbum);
         bodyEl.appendChild(retry);
     }
 
@@ -595,11 +645,7 @@
             cover.draggable = false;
             cover.addEventListener('dragstart', (event) => event.preventDefault());
             if (bucket.coverId && !failedThumbs.has(bucket.coverId)) {
-                cover.src = thumbUrl(bucket.coverId);
-                cover.addEventListener('error', () => {
-                    failedThumbs.add(bucket.coverId);
-                    cover.removeAttribute('src');
-                });
+                bindThumbnail(cover, bucket.coverId, () => {}, true);
             }
             card.appendChild(cover);
 
@@ -643,13 +689,15 @@
     }
 
     async function loadBuckets() {
-        if (!enabled) return;
+        if (!enabled || !connected) return;
+        if (listController) listController.abort();
+        listController = new AbortController();
         const seq = ++requestSeq;
         loading = true;
         selected.clear();
         render();
         try {
-            const response = await fetch('/api/album/buckets', { credentials: 'same-origin' });
+            const response = await fetch('/api/album/buckets', { credentials: 'same-origin', signal: listController.signal });
             if (seq !== requestSeq) return;
             if (!response.ok) {
                 loading = false;
@@ -716,7 +764,9 @@
     }
 
     async function load() {
-        if (!enabled) return;
+        if (!enabled || !connected) return;
+        if (listController) listController.abort();
+        listController = new AbortController();
         const seq = ++requestSeq;
         items = [];
         logicalRows = [];
@@ -726,15 +776,15 @@
         loading = true;
         retryVisible = false;
         selected.clear();
-        // 刷新是用户唯一的重试入口，所以清掉失败记录，让 404 过的项再试一次。
-        failedThumbs.clear();
         if (bodyEl) bodyEl.scrollTop = 0;
         render();
 
         try {
             // 进了相册簿就只拉该簿；空串是合法簿名，所以判 null 而不是判空。
             const query = openBucket === null ? '' : '&bucket=' + encodeURIComponent(openBucket);
-            const response = await fetch('/api/album/list?stream=1' + query, { credentials: 'same-origin' });
+            const response = await fetch('/api/album/list?stream=1' + query, {
+                credentials: 'same-origin', signal: listController.signal,
+            });
             if (seq !== requestSeq) return;
             if (!response.ok) {
                 loading = false;
@@ -804,24 +854,40 @@
         }
     }
 
+    function clearAlbum() {
+        requestSeq += 1;
+        if (listController) listController.abort();
+        listController = null;
+        imageBindings.forEach((_binding, image) => releaseThumbnail(image));
+        thumbnailCache.clear();
+        failedThumbs.clear();
+        buckets = null;
+        openBucket = null;
+        items = [];
+        logicalRows = [];
+        rowOffsets = [0];
+        reportedTotal = 0;
+        complete = false;
+        loading = false;
+        retryVisible = false;
+        selected.clear();
+        render();
+    }
+
     function setEnabled(next) {
         const on = !!next;
         if (on === enabled) return;
         enabled = on;
-        if (!enabled) {
-            requestSeq += 1;
-            items = [];
-            logicalRows = [];
-            rowOffsets = [0];
-            reportedTotal = 0;
-            complete = false;
-            loading = false;
-            retryVisible = false;
-            selected.clear();
-            render();
-            return;
-        }
-        load();
+        if (!enabled) clearAlbum();
+        else load();
+    }
+
+    function setConnected(next) {
+        const on = !!next;
+        if (on === connected) return;
+        connected = on;
+        if (!connected) clearAlbum();
+        else if (enabled) load();
     }
 
     function mount(container) {
@@ -843,6 +909,7 @@
     window.flikkyPanels.album = {
         mount: mount,
         setEnabled: setEnabled,
+        setConnected: setConnected,
         render: render,
     };
     mount(document.getElementById('view-album'));

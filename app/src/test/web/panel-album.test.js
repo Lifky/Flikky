@@ -80,6 +80,9 @@ function load(options) {
   const doc = createDocument();
   const view = doc.register('view-album');
   const fetched = [];
+  const thumbFetched = [];
+  const urls = new Set();
+  let nextUrl = 0;
   const errors = [];
   const lightboxes = [];
   const ctx = {
@@ -101,9 +104,19 @@ function load(options) {
       },
     },
     Date: FixedDate,
+    AbortController,
+    URL: {
+      createObjectURL: () => { const url = 'blob:thumb-' + (++nextUrl); urls.add(url); return url; },
+      revokeObjectURL: (url) => urls.delete(url),
+    },
     TextDecoder,
     requestAnimationFrame: (fn) => { fn(0); return 1; },
     fetch: (url, init) => {
+      if (String(url).startsWith('/api/album/thumb?')) {
+        thumbFetched.push({ url, init });
+        return opts.thumbFetch ? opts.thumbFetch(url, init)
+          : Promise.resolve({ ok: true, blob: async () => new Blob(['jpeg']) });
+      }
       fetched.push({ url, init });
       if (opts.fetch) return opts.fetch(url, init, fetched.length);
       return Promise.resolve(response(opts.body || albumNdjson([])));
@@ -113,12 +126,14 @@ function load(options) {
   ctx.window.document = doc;
   ctx.globalThis = ctx;
   vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(WEB, 'album-thumbnails.js'), 'utf8'), ctx);
   if (rawSource) vm.runInContext(rawSource, ctx);
   return {
     doc,
     view,
     api: ctx.window.flikkyPanels.album,
     fetched,
+    thumbFetched, urls,
     errors,
     lightboxes,
   };
@@ -299,7 +314,7 @@ test('thumbnails are requested per visible row only', async () => {
   await tick();
   const images = findAll(c.view, (el) => el.tagName === 'IMG');
   assert.ok(images.length > 0 && images.length < 100, 'thumbnail count is ' + images.length);
-  assert.ok(images.every((img) => String(img.src).startsWith('/api/album/thumb?id=')));
+  assert.ok(images.every((img) => String(img.src).startsWith('blob:')));
   const first = images[0];
   body.scrollTop = 12000;
   body.dispatch('scroll');
@@ -320,6 +335,57 @@ test('a small wheel scroll keeps the current virtual window mounted', async () =
     'scrolling inside the current virtual window replaced the browser scroll anchor');
 });
 
+test('scrolling away and back reuses downloaded thumbnails while releasing offscreen URLs', async () => {
+  const c = await opened(Array.from({ length: 300 }, (_, i) => item('img:' + i, FIXED_NOW - i)));
+  const body = byClass(c.view, 'fk-panel-body')[0];
+  const first = findAll(c.view, (el) => el.tagName === 'IMG')[0];
+  const originalUrl = first.src;
+  assert.ok(c.thumbFetched.length > 0);
+  body.scrollTop = 10000;
+  body.dispatch('scroll');
+  await tick();
+  assert.equal(c.urls.has(originalUrl), false);
+  const downloads = c.thumbFetched.length;
+  body.scrollTop = 0;
+  body.dispatch('scroll');
+  await tick();
+  assert.equal(c.thumbFetched.length, downloads, 'returning to the top downloaded the same bytes again');
+  assert.ok(findAll(c.view, (el) => el.tagName === 'IMG').every((img) => c.urls.has(img.src)));
+});
+
+test('disconnect and permission disable clear thumbnail bytes and stop late downloads', async () => {
+  for (const method of ['setConnected', 'setEnabled']) {
+    let resolve;
+    const c = await opened([item('img:1', FIXED_NOW)], {
+      thumbFetch: () => new Promise((r) => { resolve = r; }),
+    });
+    const request = c.thumbFetched[0];
+    c.api[method](false);
+    assert.equal(request.init.signal.aborted, true);
+    resolve({ ok: true, blob: async () => new Blob(['old']) });
+    await tick();
+    assert.equal(c.urls.size, 0);
+    assert.equal(byClass(c.view, 'fk-album-tile').length, 0);
+    c.api[method](true);
+    await tick();
+    assert.equal(c.thumbFetched.length, 2, 'reconnected session used old cached bytes');
+    resolve({ ok: true, blob: async () => new Blob(['new']) });
+    await tick();
+    assert.equal(c.urls.size, 1);
+    c.api[method](false);
+    assert.equal(c.urls.size, 0, 'loaded thumbnail URL survived revocation');
+  }
+});
+
+test('explicit refresh retries thumbnails and replaces stale cached content', async () => {
+  const c = await opened([item('img:1', FIXED_NOW)]);
+  const oldUrl = findAll(c.view, (el) => el.tagName === 'IMG')[0].src;
+  byClass(c.view, 'fk-icon-btn')[0].dispatch('click');
+  await tick();
+  assert.equal(c.thumbFetched.length, 2);
+  assert.equal(c.urls.has(oldUrl), false);
+});
+
 test('tapping a thumbnail opens the shared lightbox', async () => {
   const c = await opened([item('img:7', FIXED_NOW, { name: 'holiday.jpg' })]);
   // 格子现在是 tile > open：选择角标要一个自己的按钮，所以打开动作下移了一层。
@@ -328,7 +394,7 @@ test('tapping a thumbnail opens the shared lightbox', async () => {
   open.dispatch('click');
   assert.equal(c.lightboxes.length, 1);
   assert.equal(c.lightboxes[0].kind, 'image');
-  assert.equal(c.lightboxes[0].thumbnailUrl, '/api/album/thumb?id=img%3A7');
+  assert.equal(c.lightboxes[0].thumbnailUrl, findAll(c.view, (el) => el.tagName === 'IMG')[0].src);
   assert.equal(c.lightboxes[0].fullUrl, '/api/album/file?id=img%3A7&inline=1');
 });
 
