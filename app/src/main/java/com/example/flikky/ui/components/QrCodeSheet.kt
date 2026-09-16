@@ -1,12 +1,14 @@
 package com.example.flikky.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -19,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -32,6 +36,9 @@ import kotlin.math.floor
 fun QrCodeSheet(url: String, onDismiss: () -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val matrix = remember(url) { QrMatrix.encode(url) }
+    // Keep dark modules on a light surface for cameras, including AMOLED themes.
+    val surface = MaterialTheme.colorScheme.surface
+    val codeBackground = if (surface.luminance() >= 0.8f) surface else Color.White
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -51,13 +58,21 @@ fun QrCodeSheet(url: String, onDismiss: () -> Unit) {
                 textAlign = TextAlign.Center,
             )
             if (matrix != null) {
-                Canvas(Modifier.widthIn(max = 320.dp).fillMaxWidth().aspectRatio(1f)) {
+                Canvas(
+                    Modifier.widthIn(max = 320.dp).fillMaxWidth().aspectRatio(1f)
+                        .testTag("qr-code")
+                        .background(codeBackground, RoundedCornerShape(28.dp))
+                        // Place the complete four-module quiet zone inside the
+                        // rounded card; corners never cut into that clear square.
+                        .padding(Spacing.md),
+                ) {
                     val modules = matrix.size + QrMatrix.QUIET_ZONE * 2
                     val cell = floor(minOf(size.width, size.height) / modules)
                     val drawn = cell * modules
-                    val originX = (size.width - drawn) / 2f
-                    val originY = (size.height - drawn) / 2f
-                    drawRect(Color.White, Offset(originX, originY), Size(drawn, drawn))
+                    // Integer origins matter as much as integer cell sizes:
+                    // half pixels introduce antialiased seams between modules.
+                    val originX = floor((size.width - drawn) / 2f)
+                    val originY = floor((size.height - drawn) / 2f)
                     for (y in 0 until matrix.size) for (x in 0 until matrix.size) {
                         if (matrix.isDark(x, y)) drawRect(
                             Color.Black,
