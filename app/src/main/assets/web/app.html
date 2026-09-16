@@ -113,7 +113,7 @@
                     <span class="fk-rail-icon"><span class="material-symbols-outlined" data-icon="photo_library" aria-hidden="true"></span></span>
                     <span data-i18n="app.nav.album">相册</span>
                 </button>
-                <button class="fk-rail-item" data-dest="favorites" aria-current="page">
+                <button class="fk-rail-item" data-dest="favorites" aria-current="false" hidden>
                     <span class="fk-rail-icon"><span class="material-symbols-outlined" data-icon="star" aria-hidden="true"></span></span>
                     <span data-i18n="app.nav.favorites">收藏</span>
                 </button>
@@ -183,7 +183,7 @@
         <section class="fk-pillar fk-pillar--panel" aria-label="功能面板">
             <div class="fk-view" id="view-files" hidden></div>
             <section class="fk-view" id="view-album" hidden></section>
-            <div class="fk-view" id="view-favorites">
+            <div class="fk-view" id="view-favorites" hidden>
                 <header class="fk-panel-head">
                     <h1 class="fk-panel-title" data-i18n="app.nav.favorites">收藏</h1>
                     <!-- 排序：触发按钮与菜单是**兄弟**，不套 mdui-dropdown。
@@ -236,7 +236,7 @@
                     </button>
                 </div>
             </div>
-            <div class="fk-view" id="view-settings" hidden></div>
+            <div class="fk-view" id="view-settings"></div>
         </section>
     </div>
 
@@ -253,7 +253,7 @@
             <span class="fk-navbar-icon"><span class="material-symbols-outlined" data-icon="photo_library" aria-hidden="true"></span></span>
             <span data-i18n="app.nav.album">相册</span>
         </button>
-        <button class="fk-navbar-item" data-dest="favorites" aria-current="false">
+        <button class="fk-navbar-item" data-dest="favorites" aria-current="false" hidden>
             <span class="fk-navbar-icon"><span class="material-symbols-outlined" data-icon="star" aria-hidden="true"></span></span>
             <span data-i18n="app.nav.favorites">收藏</span>
         </button>

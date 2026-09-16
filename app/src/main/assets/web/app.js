@@ -536,9 +536,12 @@
         }
         if (Object.prototype.hasOwnProperty.call(data, 'favoriteEnabled')) {
             document.body.dataset.favoriteEnabled = data.favoriteEnabled ? '1' : '0';
+            document.querySelectorAll('[data-dest="favorites"]').forEach((btn) => {
+                btn.hidden = !data.favoriteEnabled;
+            });
             // navigate:false —— 这是兜底，不是导航。窄屏上把 mobileDest 一起改
             // 会在 peer-info 到达的瞬间把用户从会话页甩进设置页。
-            if (!data.favoriteEnabled && shell && shell.dataset.panel !== 'hidden'
+            if (!data.favoriteEnabled && shell
                 && !document.getElementById('view-favorites').hidden) {
                 selectDest(firstAvailableDest(), { navigate: false });
             }
@@ -2071,7 +2074,11 @@
             setMobileDest('chat');
             return;
         }
-        setPanel(true);
+        const entry = Array.prototype.slice.call(document.querySelectorAll('.fk-rail-item'))
+            .find((btn) => btn.dataset.dest === dest);
+        if (!entry || entry.hidden) dest = firstAvailableDest();
+        // Feature updates replace invalid content without reopening a collapsed panel.
+        if (!options || options.navigate !== false) setPanel(true);
         document.querySelectorAll('.fk-view').forEach((view) => {
             view.hidden = view.id !== `view-${dest}`;
         });
