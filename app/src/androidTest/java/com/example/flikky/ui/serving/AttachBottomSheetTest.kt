@@ -8,6 +8,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextClearance
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.flikky.R
@@ -22,6 +27,37 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AttachBottomSheetTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test fun appsReloadOnTabEntryAndReturnFromSettings() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val owner = object : LifecycleOwner {
+            override val lifecycle = LifecycleRegistry.createUnsafe(this)
+        }
+        owner.lifecycle.currentState = Lifecycle.State.RESUMED
+        var scans = 0
+        compose.setContent {
+            CompositionLocalProvider(LocalLifecycleOwner provides owner) {
+                FlikkyTheme(settings = FlikkySettings()) {
+                    AttachBottomSheet(
+                        existingFiles = emptyList(), installedApps = emptyList(), appsLoading = false,
+                        onSendExistingFile = {}, onSendApp = {}, onRefreshApps = { scans++ },
+                        onPickFile = {}, onPickImage = {}, onDismiss = {},
+                    )
+                }
+            }
+        }
+        compose.runOnIdle { assertEquals(0, scans) }
+        compose.onNodeWithText(context.getString(R.string.apps_title)).performClick()
+        compose.runOnIdle { assertEquals(1, scans) }
+        captureServingUi("attach-apps-permission")
+        compose.runOnIdle { owner.lifecycle.currentState = Lifecycle.State.CREATED }
+        compose.runOnIdle { owner.lifecycle.currentState = Lifecycle.State.RESUMED }
+        compose.runOnIdle { assertEquals(2, scans) }
+        compose.onNodeWithText(context.getString(R.string.attach_title)).performClick()
+        compose.runOnIdle { owner.lifecycle.currentState = Lifecycle.State.CREATED }
+        compose.runOnIdle { owner.lifecycle.currentState = Lifecycle.State.RESUMED }
+        compose.runOnIdle { assertEquals(2, scans) }
+    }
 
     @Test
     fun attachmentTabsKeepPickersSearchStateAndSendExistingFiles() {
@@ -42,6 +78,7 @@ class AttachBottomSheetTest {
                     appsLoading = false,
                     onSendExistingFile = { sent += it.messageId },
                     onSendApp = {},
+                    onRefreshApps = {},
                     onPickFile = { filePicks++ },
                     onPickImage = { imagePicks++ },
                     onDismiss = {},

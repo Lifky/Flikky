@@ -469,7 +469,7 @@ fun ServingChatTab(
                 enabled = ui.clientConnected,
             )
             IconButton(
-                onClick = { viewModel.ensureInstalledAppsLoaded(); showAttachSheet = true },
+                onClick = { showAttachSheet = true },
                 enabled = ui.clientConnected,
             ) {
                 Icon(Icons.Default.Add, contentDescription = stringResource(R.string.serving_add))
@@ -528,6 +528,7 @@ fun ServingChatTab(
         AttachBottomSheet(
             installedApps = installedApps,
             appsLoading = appsLoading,
+            onRefreshApps = viewModel::refreshInstalledApps,
             onSendApp = { app -> showAttachSheet = false; viewModel.sendInstalledApp(app) },
             existingFiles = existingFiles,
             onSendExistingFile = onSendExistingFile,

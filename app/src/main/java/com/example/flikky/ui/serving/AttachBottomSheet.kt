@@ -15,6 +15,8 @@ import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -23,6 +25,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.flikky.R
 import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.ui.components.OptionCard
@@ -40,6 +45,7 @@ fun AttachBottomSheet(
     appsLoading: Boolean,
     onSendExistingFile: (FileOverviewRow) -> Unit,
     onSendApp: (AppEntry) -> Unit,
+    onRefreshApps: () -> Unit,
     onPickFile: () -> Unit,
     onPickImage: () -> Unit,
     onDismiss: () -> Unit,
@@ -47,6 +53,8 @@ fun AttachBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     val tabState = rememberSaveableStateHolder()
+    // Observe the host Activity outside the dialog's own lifecycle owner.
+    if (selectedTab == 1) RefreshAppsOnResume(onRefreshApps)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -66,7 +74,9 @@ fun AttachBottomSheet(
             Box(Modifier.weight(1f).padding(top = Spacing.lg)) {
                 tabState.SaveableStateProvider(selectedTab) {
                     when (selectedTab) {
-                    1 -> AppPickerContent(installedApps, appsLoading, onSendApp)
+                    1 -> {
+                        AppPickerContent(installedApps, appsLoading, onSendApp)
+                    }
                     2 -> ExistingFilesContent(rows = existingFiles, onSend = onSendExistingFile)
                     else -> {
                         Column(
@@ -99,5 +109,20 @@ fun AttachBottomSheet(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun RefreshAppsOnResume(onRefresh: () -> Unit) {
+    val owner = LocalLifecycleOwner.current
+    val refresh by rememberUpdatedState(onRefresh)
+    DisposableEffect(owner) {
+        // Registering on an already resumed owner also delivers ON_RESUME,
+        // so entering this tab and returning from permission settings both scan.
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh()
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
     }
 }

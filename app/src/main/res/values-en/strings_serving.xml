@@ -4,6 +4,10 @@
     <string name="apps_search_hint">Search apps</string>
     <string name="apps_include_system">Include system apps</string>
     <string name="apps_empty">No matching apps</string>
+    <string name="apps_access_title">Missing an app?</string>
+    <string name="apps_access_body">If your system restricts the app list, allow access to installed apps in Flikky’s permission settings. The list refreshes when you return.</string>
+    <string name="apps_access_settings">Open settings</string>
+    <string name="apps_access_settings_unavailable">Open Flikky’s app permissions in system settings</string>
     <string name="apps_loading">Reading installed apps…</string>
     <string name="apps_split_badge">Split</string>
     <string name="apps_split_warning_title">This app ships as split APKs</string>

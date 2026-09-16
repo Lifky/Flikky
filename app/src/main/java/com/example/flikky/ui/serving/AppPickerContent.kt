@@ -16,6 +16,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,10 +53,14 @@ import com.example.flikky.util.formatBytes
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppPickerContent(apps: List<AppEntry>, loading: Boolean, onSend: (AppEntry) -> Unit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     var query by rememberSaveable { mutableStateOf("") }
     var includeSystem by rememberSaveable { mutableStateOf(false) }
     var splitTarget by remember { mutableStateOf<AppEntry?>(null) }
     val shown = remember(apps, includeSystem, query) { AppListPolicy.shape(apps, includeSystem, query) }
+    // This is a recovery hint, not a permission verdict: OEMs can silently filter
+    // PackageManager's results, while stock Android has no runtime grant here.
+    val showAccessHelp = !loading && (shown.isEmpty() || apps.none { !it.isSystem && it.packageName != context.packageName })
     Column(modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = Spacing.screenEdge),
@@ -76,6 +83,21 @@ fun AppPickerContent(apps: List<AppEntry>, loading: Boolean, onSend: (AppEntry) 
                 ),
             )
             FilterChip(includeSystem, { includeSystem = !includeSystem }, { Text(stringResource(R.string.apps_include_system)) })
+        }
+        if (showAccessHelp) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            ) {
+                Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                    Text(stringResource(R.string.apps_access_title), style = MaterialTheme.typography.titleSmall)
+                    Text(stringResource(R.string.apps_access_body), style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = { openAppListSettings(context) }, modifier = Modifier.align(Alignment.End)) {
+                        Text(stringResource(R.string.apps_access_settings))
+                    }
+                }
+            }
         }
         when {
             loading -> Column(Modifier.fillMaxWidth().padding(Spacing.sectionGap), horizontalAlignment = Alignment.CenterHorizontally) {

@@ -700,8 +700,8 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     private val _appsLoading = MutableStateFlow(false)
     val appsLoading: StateFlow<Boolean> = _appsLoading.asStateFlow()
 
-    fun ensureInstalledAppsLoaded() {
-        if (_appsLoading.value || _installedApps.value.isNotEmpty()) return
+    fun refreshInstalledApps() {
+        if (_appsLoading.value) return
         _appsLoading.value = true
         viewModelScope.launch {
             _installedApps.value = runCatching {

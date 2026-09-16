@@ -4,6 +4,10 @@
     <string name="apps_search_hint">搜索应用</string>
     <string name="apps_include_system">含系统应用</string>
     <string name="apps_empty">没有匹配的应用</string>
+    <string name="apps_access_title">未找到应用？</string>
+    <string name="apps_access_body">如系统限制应用列表，请在 Flikky 的权限设置中允许“获取应用列表”。返回后会自动刷新。</string>
+    <string name="apps_access_settings">前往设置</string>
+    <string name="apps_access_settings_unavailable">请在系统设置中打开 Flikky 的应用权限</string>
     <string name="apps_loading">正在读取已安装应用…</string>
     <string name="apps_split_badge">拆包</string>
     <string name="apps_split_warning_title">这是拆包应用</string>
