@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.MediaStore
 import android.util.Size
+import android.util.Log
 import com.example.flikky.server.dto.AlbumBucketDto
 import com.example.flikky.server.dto.AlbumItemDto
 import com.example.flikky.server.routes.AlbumFileHandle
@@ -79,7 +80,8 @@ class MediaStoreLibrary(
     override fun open(id: AlbumItemId): AlbumResult<AlbumFileHandle> {
         val uri = contentUri(id)
         val row = queryOne(id) ?: return AlbumResult.NotFound
-        val probe = runCatching { resolver.openInputStream(uri) }.getOrNull()
+        val probe = runCatching { resolver.openInputStream(uri) }
+            .onFailure { logFailure("original", id, it) }.getOrNull()
             ?: return AlbumResult.NotFound
         probe.close()
         return AlbumResult.Ok(
@@ -97,7 +99,7 @@ class MediaStoreLibrary(
     override fun thumbnail(id: AlbumItemId, maxPx: Int): AlbumResult<ByteArray> {
         val bitmap = runCatching {
             resolver.loadThumbnail(contentUri(id), Size(maxPx, maxPx), null)
-        }.getOrNull() ?: return AlbumResult.NotFound
+        }.onFailure { logFailure("thumbnail", id, it) }.getOrNull() ?: return AlbumResult.NotFound
         val output = ByteArrayOutputStream()
         val compressed = runCatching {
             bitmap.compress(Bitmap.CompressFormat.JPEG, 85, output)
@@ -119,7 +121,7 @@ class MediaStoreLibrary(
             .let { rows -> if (bucket == null) rows else rows.filter { it.bucketName == bucket } }
             .sortedByDescending { it.takenAtMs }
 
-    private fun queryKind(kind: AlbumMediaKind): List<AlbumItemDto> {
+    private fun queryKind(kind: AlbumMediaKind, mediaStoreId: Long? = null): List<AlbumItemDto> {
         // 一次列举内固定时区：中途变化会让同一批项的键不自洽。
         val currentZone = zone()
         val collection = when (kind) {
@@ -138,7 +140,12 @@ class MediaStoreLibrary(
         }.toTypedArray()
 
         val items = mutableListOf<AlbumItemDto>()
-        runCatching { resolver.query(collection, columns, null, null, null) }
+        // Provider defaults differ (and include our own pending writes on some devices).
+        // These are not browsable photos. Count, timeline and buckets share this predicate.
+        val selection = "${MediaStore.MediaColumns.IS_PENDING} = 0 AND " +
+            "${MediaStore.MediaColumns.IS_TRASHED} = 0 AND ${MediaStore.MediaColumns.SIZE} > 0"
+        val queryUri = mediaStoreId?.let { ContentUris.withAppendedId(collection, it) } ?: collection
+        runCatching { resolver.query(queryUri, columns, selection, null, null) }
             .getOrNull()
             ?.use { cursor ->
                 val idIndex = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
@@ -178,10 +185,14 @@ class MediaStoreLibrary(
         return items
     }
 
-    /** Deliberately simple for v1.21: this scans one media kind and can be indexed later. */
     private fun queryOne(id: AlbumItemId): Row? {
-        val dto = queryKind(id.kind).firstOrNull { it.id == id.format() } ?: return null
+        val dto = queryKind(id.kind, id.mediaStoreId).firstOrNull() ?: return null
         return Row(name = dto.name, mime = dto.mime, size = dto.size)
+    }
+
+    // Keep provider error categories for diagnosis without logging private names or paths.
+    private fun logFailure(operation: String, id: AlbumItemId, error: Throwable) {
+        Log.w("FlikkyMedia", "$operation ${id.format()}: ${error.javaClass.simpleName}")
     }
 
     internal companion object {
