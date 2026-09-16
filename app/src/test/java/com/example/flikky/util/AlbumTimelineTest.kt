@@ -122,6 +122,30 @@ class AlbumTimelineTest {
     }
 
     @Test
+    fun `future dated items join today instead of forming extra today groups`() {
+        // 浏览器端的守卫先抓到这个：两个不同的未来键各自成组，而标签都是「今天」，
+        // 于是用户看到好几个「今天」分区。分组键必须先把未来折叠到今天。
+        val sections = group(
+            Item("2027-01-01", 9_999L),
+            Item("2026-12-01", 9_998L),
+            Item("2026-09-15", 500L),
+        )
+
+        assertEquals(1, sections.size)
+        assertEquals(AlbumDateLabel.Today, sections.single().label)
+        assertEquals(3, sections.single().items.size)
+    }
+
+    @Test
+    fun `bucketKeyFor leaves ordinary and missing keys alone`() {
+        // 只折叠未来。空键不折叠 —— 否则一批坏键会被当成今天混进真正的今天里。
+        assertEquals("2026-09-10", AlbumTimeline.bucketKeyFor("2026-09-10", todayKey))
+        assertEquals(todayKey, AlbumTimeline.bucketKeyFor(todayKey, todayKey))
+        assertEquals(todayKey, AlbumTimeline.bucketKeyFor("2030-01-01", todayKey))
+        assertEquals("", AlbumTimeline.bucketKeyFor("", todayKey))
+    }
+
+    @Test
     fun `an unparseable key degrades to today instead of breaking the grouping`() {
         // 键经网络到达，坏值不该让整段分组消失或显示 1970 年。
         val sections = group(Item("", 10L), Item("not-a-key", 5L))

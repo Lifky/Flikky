@@ -144,6 +144,21 @@ class FakeElement {
     child.parentNode = null;
     return child;
   }
+  /**
+   * 原地换掉一个子节点。
+   *
+   * panel-album.js 用它把加载失败的缩略图换成占位图标 —— 移除再追加会把节点
+   * 挪到末尾，格子里的图就跑到角标后面去了。
+   */
+  replaceChild(next, old) {
+    const at = this.children.indexOf(old);
+    if (at < 0) return old;
+    if (next.parentNode) next.parentNode.removeChild(next);
+    next.parentNode = this;
+    this.children.splice(at, 1, next);
+    old.parentNode = null;
+    return old;
+  }
   remove() { if (this.parentNode) this.parentNode.removeChild(this); }
 
   /**

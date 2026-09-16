@@ -47,9 +47,22 @@ object AlbumTimeline {
         if (items.isEmpty()) return emptyList()
         return items
             .sortedByDescending(sortKey)
-            .groupBy(dateKeyOf)
+            .groupBy { bucketKeyFor(dateKeyOf(it), todayKey) }
             .map { (key, rows) -> AlbumSection(labelFor(key, todayKey, yesterdayKey), rows) }
     }
+
+    /**
+     * 分组用的键：**超过今天的一律折叠到今天**。
+     *
+     * 相机时间设错的照片会落在未来。不折叠的话每个未来日期各自成一组，
+     * 而它们的标签都是「今天」—— 用户会看到好几个「今天」分组
+     * （`AlbumTimelineTest` 有一条断言盯着）。折叠后它们与今天的照片并在一起。
+     *
+     * 键为空（服务端没给）时不折叠，交给 [labelFor] 回落，
+     * 否则一批坏键会被当成今天而混进真正的今天里。
+     */
+    fun bucketKeyFor(key: String, todayKey: String): String =
+        if (todayKey.isNotEmpty() && key.isNotEmpty() && key > todayKey) todayKey else key
 
     /**
      * 键 → 标签档位。
