@@ -78,7 +78,7 @@
     <string name="serving_tab_files">Files</string>
     <string name="serving_tab_album">Album</string>
     <string name="album_permission_title">Let Flikky see your photos</string>
-    <string name="album_permission_body">Once allowed, you can pick photos and videos here to send, and optionally open them to the computer. Flikky reads only images and videos — no other files.</string>
+    <string name="album_permission_body">Once allowed, you can pick photos and videos here to send, and optionally make them available in the browser. Flikky reads only images and videos — no other files.</string>
     <string name="album_permission_action">Allow photo access</string>
     <string name="album_scope_partial">%1$d photos and videos available</string>
     <string name="album_scope_change">Change</string>

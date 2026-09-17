@@ -152,7 +152,7 @@ fun QuickSettingsSheet(
                 SettingItem(
                     title = stringResource(R.string.settings_language),
                     leadingIcon = painterResource(R.drawable.ic_language),
-                    subtitle = appLanguage.localizedLabel(),
+                    trailingValue = appLanguage.localizedLabel(),
                     onClick = { showLanguageDialog = true },
                 )
             }
@@ -161,7 +161,7 @@ fun QuickSettingsSheet(
             run {
                 val total = 5
                 SettingSection(title = stringResource(R.string.settings_section_theme_color)) {
-                    val themeSubtitle = when (settings.themeMode) {
+                    val themeValue = when (settings.themeMode) {
                         ThemeMode.DYNAMIC -> stringResource(R.string.settings_theme_follow_wallpaper)
                         ThemeMode.PRESET -> settings.presetTheme.localizedLabel()
                         ThemeMode.CUSTOM -> formatThemeSeed(settings.customThemeSeedArgb)
@@ -169,7 +169,7 @@ fun QuickSettingsSheet(
                     SettingItem(
                         title = stringResource(R.string.settings_theme),
                         leadingIcon = painterResource(R.drawable.ic_palette),
-                        subtitle = themeSubtitle,
+                        trailingValue = themeValue,
                         onClick = onOpenThemePicker,
                         index = 0, total = total,
                     )
@@ -204,7 +204,7 @@ fun QuickSettingsSheet(
                     SettingItem(
                         title = stringResource(R.string.settings_dark_mode),
                         leadingIcon = painterResource(R.drawable.ic_dark_mode),
-                        subtitle = settings.darkMode.localizedLabel(),
+                        trailingValue = settings.darkMode.localizedLabel(),
                         onClick = { showDarkModeDialog = true },
                         index = 3, total = total,
                     )
@@ -227,7 +227,7 @@ fun QuickSettingsSheet(
                     SettingItem(
                         title = stringResource(R.string.settings_device_name),
                         leadingIcon = painterResource(R.drawable.ic_smartphone),
-                        subtitle = settings.deviceName.ifBlank { defaultDeviceName },
+                        trailingValue = settings.deviceName.ifBlank { defaultDeviceName },
                         onClick = { showDeviceNameDialog = true },
                         index = 0, total = total,
                     )
@@ -286,14 +286,14 @@ fun QuickSettingsSheet(
                     SettingItem(
                         title = stringResource(R.string.settings_avatar_display),
                         leadingIcon = painterResource(R.drawable.ic_face),
-                        subtitle = settings.avatarGrouping.localizedLabel(),
+                        trailingValue = settings.avatarGrouping.localizedLabel(),
                         onClick = { showAvatarGroupingDialog = true },
                         index = 1, total = total,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_session_background),
                         leadingIcon = painterResource(R.drawable.ic_image),
-                        subtitle = settings.background.localizedLabel(),
+                        trailingValue = settings.background.localizedLabel(),
                         onClick = onOpenBackgroundPicker,
                         index = 2, total = total,
                     )
@@ -319,7 +319,7 @@ fun QuickSettingsSheet(
                     SettingItem(
                         title = stringResource(R.string.settings_message_action_style),
                         leadingIcon = painterResource(R.drawable.ic_touch_app),
-                        subtitle = settings.messageActionStyle.localizedLabel(),
+                        trailingValue = settings.messageActionStyle.localizedLabel(),
                         onClick = { showActionStyleDialog = true },
                         index = 0, total = total,
                     )

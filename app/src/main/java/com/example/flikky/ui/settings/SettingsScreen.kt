@@ -361,7 +361,7 @@ fun SettingsScreen(
                     SettingItem(
                         title = stringResource(R.string.settings_language),
                         leadingIcon = painterResource(R.drawable.ic_language),
-                        subtitle = appLanguage.localizedLabel(),
+                        trailingValue = appLanguage.localizedLabel(),
                         onClick = { showLanguageDialog = true },
                     )
                 }
@@ -371,7 +371,7 @@ fun SettingsScreen(
             item {
                 val sectionItems = 6
                 SettingSection(title = stringResource(R.string.settings_section_theme_color)) {
-                    val themeSubtitle = when (s.themeMode) {
+                    val themeValue = when (s.themeMode) {
                         ThemeMode.DYNAMIC -> stringResource(R.string.settings_theme_follow_wallpaper)
                         ThemeMode.PRESET -> s.presetTheme.localizedLabel()
                         ThemeMode.CUSTOM -> formatThemeSeed(s.customThemeSeedArgb)
@@ -379,7 +379,7 @@ fun SettingsScreen(
                     SettingItem(
                         title = stringResource(R.string.settings_theme),
                         leadingIcon = painterResource(R.drawable.ic_palette),
-                        subtitle = themeSubtitle,
+                        trailingValue = themeValue,
                         onClick = { activeSheet = ActiveSheet.Theme },
                         index = 0, total = sectionItems,
                     )
@@ -411,11 +411,11 @@ fun SettingsScreen(
                         onClick = { activeSheet = ActiveSheet.LeadingColor },
                         index = 2, total = sectionItems,
                     )
-                    val darkSubtitle = s.darkMode.localizedLabel()
+                    val darkValue = s.darkMode.localizedLabel()
                     SettingItem(
                         title = stringResource(R.string.settings_dark_mode),
                         leadingIcon = painterResource(R.drawable.ic_dark_mode),
-                        subtitle = darkSubtitle,
+                        trailingValue = darkValue,
                         onClick = { showDarkModeDialog = true },
                         index = 3, total = sectionItems,
                     )
@@ -431,11 +431,11 @@ fun SettingsScreen(
                         },
                         index = 4, total = sectionItems,
                     )
-                    val animSpeedSubtitle = s.animationSpeed.localizedLabel()
+                    val animSpeedValue = s.animationSpeed.localizedLabel()
                     SettingItem(
                         title = stringResource(R.string.settings_animation_speed),
                         leadingIcon = painterResource(R.drawable.ic_animation),
-                        subtitle = animSpeedSubtitle,
+                        trailingValue = animSpeedValue,
                         onClick = { showAnimSpeedDialog = true },
                         index = 5, total = sectionItems,
                     )
@@ -449,7 +449,7 @@ fun SettingsScreen(
                     SettingItem(
                         title = stringResource(R.string.settings_device_name),
                         leadingIcon = painterResource(R.drawable.ic_smartphone),
-                        subtitle = s.deviceName.ifBlank { defaultDeviceName },
+                        trailingValue = s.deviceName.ifBlank { defaultDeviceName },
                         onClick = { showDeviceNameDialog = true },
                         index = 0, total = sectionItems,
                     )
@@ -502,19 +502,19 @@ fun SettingsScreen(
                         },
                         index = 0, total = sectionItems,
                     )
-                    val groupingSubtitle = s.avatarGrouping.localizedLabel()
+                    val groupingValue = s.avatarGrouping.localizedLabel()
                     SettingItem(
                         title = stringResource(R.string.settings_avatar_display),
                         leadingIcon = painterResource(R.drawable.ic_face),
-                        subtitle = groupingSubtitle,
+                        trailingValue = groupingValue,
                         onClick = { showAvatarGroupingDialog = true },
                         index = 1, total = sectionItems,
                     )
-                    val bgSubtitle = s.background.localizedLabel()
+                    val bgValue = s.background.localizedLabel()
                     SettingItem(
                         title = stringResource(R.string.settings_session_background),
                         leadingIcon = painterResource(R.drawable.ic_image),
-                        subtitle = bgSubtitle,
+                        trailingValue = bgValue,
                         onClick = { activeSheet = ActiveSheet.Background },
                         index = 2, total = sectionItems,
                     )
@@ -564,11 +564,11 @@ fun SettingsScreen(
                         },
                         index = 0, total = sectionItems,
                     )
-                    val styleSubtitle = s.messageActionStyle.localizedLabel()
+                    val styleValue = s.messageActionStyle.localizedLabel()
                     SettingItem(
                         title = stringResource(R.string.settings_message_action_style),
                         leadingIcon = painterResource(R.drawable.ic_touch_app),
-                        subtitle = styleSubtitle,
+                        trailingValue = styleValue,
                         onClick = { showActionStyleDialog = true },
                         index = 1, total = sectionItems,
                     )

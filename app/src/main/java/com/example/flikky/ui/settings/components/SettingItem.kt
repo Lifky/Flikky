@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -24,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.ui.theme.Spacing
 
@@ -40,6 +44,7 @@ import com.example.flikky.ui.theme.Spacing
  * @param subtitle Optional secondary label, rendered as supporting text.
  * @param leadingIcon Optional 24dp leading icon.
  * @param trailing Optional trailing widget (e.g. Switch, Avatar, value Text).
+ * @param trailingValue Current setting value, aligned to the end without squeezing the title away.
  * @param content Optional full-width composable (e.g. a Slider) rendered below the label block.
  * @param onClick When non-null the whole row triggers it; null rows are inert (no-op click).
  * @param index Position of this item within its section (for the segmented corner shapes).
@@ -58,10 +63,11 @@ fun SettingItem(
     onClick: (() -> Unit)? = null,
     index: Int = 0,
     total: Int = 1,
+    trailingValue: String? = null,
 ) {
     var showInfo by remember { mutableStateOf(false) }
     val trailingGroup: (@Composable () -> Unit)? =
-        if (infoText != null || trailing != null) {
+        if (infoText != null || trailing != null || trailingValue != null) {
             {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (infoText != null) {
@@ -74,6 +80,17 @@ fun SettingItem(
                         }
                     }
                     trailing?.invoke()
+                    if (trailingValue != null) {
+                        Text(
+                            text = trailingValue,
+                            modifier = Modifier.widthIn(max = 144.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.End,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
             }
         } else {

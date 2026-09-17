@@ -80,7 +80,7 @@
     <string name="serving_tab_files">文件</string>
     <string name="serving_tab_album">相册</string>
     <string name="album_permission_title">让 Flikky 看到你的照片</string>
-    <string name="album_permission_body">授权后你可以在这里挑照片和视频发给对方，也可以开放给电脑端浏览。Flikky 只读取图片与视频，看不到其它文件。</string>
+    <string name="album_permission_body">授权后你可以在这里挑照片和视频发给对方，也可以开放给浏览器端浏览。Flikky 只读取图片与视频，看不到其它文件。</string>
     <string name="album_permission_action">授权访问照片</string>
     <string name="album_scope_partial">可访问 %1$d 张照片和视频</string>
     <string name="album_scope_change">更改范围</string>
