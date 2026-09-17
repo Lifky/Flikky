@@ -23,6 +23,17 @@ class PinAuth(
     @Synchronized
     fun currentPin(): String? = pin
 
+    /** Cookies cannot cross IP hosts. Issue a fresh one-time PIN when the bound host changes. */
+    @Synchronized
+    fun renewPin(newPin: String) {
+        pin = newPin
+        issuedToken = null
+        wrongTotal = 0
+        wrongInWindow = 0
+        lockUntilMs = 0L
+        terminated = false
+    }
+
     @Synchronized
     fun tryConsume(attempt: String): Result {
         if (terminated) return Result.Terminated

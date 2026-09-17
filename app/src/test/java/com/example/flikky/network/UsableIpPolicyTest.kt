@@ -35,4 +35,10 @@ class UsableIpPolicyTest {
         assertFalse(UsableIpPolicy.isUsable("0.0.0.0"))
         assertFalse(UsableIpPolicy.isUsable("127.0.0.1"))
     }
+
+    @Test
+    fun onlyWellFormedPrivateIpv4CanBeBound() {
+        listOf("8.8.8.8", "100.64.0.1", "172.32.0.1", "192.168.1.999", "10.1.2", "::1", "garbage")
+            .forEach { assertFalse(it, UsableIpPolicy.isUsable(it)) }
+    }
 }

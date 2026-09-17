@@ -15,6 +15,23 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionStateExportModeTest {
 
+    @Test
+    fun `host switch updates export pin without replacing snapshot or progress`() {
+        val state = newState()
+        val snapshot = sampleSnapshot()
+        state.armExport(sampleSession(), snapshot)
+        state.updateExportPin("234567")
+        val armed = state.exportMode.value as ExportMode.Armed
+        assertEquals("234567", armed.session.pin)
+        assertSame(snapshot, armed.snapshot)
+        state.updateExportProgress(10, 100)
+        state.updateExportPin("345678")
+        val sending = state.exportMode.value as ExportMode.Sending
+        assertEquals("345678", sending.session.pin)
+        assertEquals(10L, sending.bytesSent)
+        assertEquals(100L, sending.totalBytes)
+    }
+
     private fun newState(now: Long = 0L) = SessionState(nowMs = { now })
 
     private fun sampleSession(

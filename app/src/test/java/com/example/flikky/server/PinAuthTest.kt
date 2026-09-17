@@ -26,6 +26,17 @@ class PinAuthTest {
     }
 
     @Test
+    fun `new host gets a fresh single-use pin and invalidates the old cookie`() {
+        auth.tryConsume("123456")
+        auth.renewPin("654321")
+        assertEquals("654321", auth.currentPin())
+        assertFalse(auth.validateToken("TOKEN"))
+        assertTrue(auth.tryConsume("123456") is PinAuth.Result.Wrong)
+        assertTrue(auth.tryConsume("654321") is PinAuth.Result.Ok)
+        assertTrue(auth.tryConsume("654321") is PinAuth.Result.PinAlreadyUsed)
+    }
+
+    @Test
     fun `wrong pin increments counter, locks after 3`() {
         assertTrue(auth.tryConsume("000000") is PinAuth.Result.Wrong)
         assertTrue(auth.tryConsume("111111") is PinAuth.Result.Wrong)

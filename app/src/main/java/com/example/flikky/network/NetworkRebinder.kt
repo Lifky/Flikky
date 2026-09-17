@@ -52,7 +52,7 @@ class NetworkRebinder {
     /** Feed one link event; returns the action the service should take. */
     fun onLink(info: LinkInfo): RebindIntent {
         val prev = currentIp
-        val next = info.ipv4
+        val next = info.ipv4?.takeIf(UsableIpPolicy::isUsable)
         return when {
             next == null && prev == null -> RebindIntent.StayPut
             next == null && prev != null -> {
@@ -77,6 +77,11 @@ class NetworkRebinder {
 
     /** Current known IP, or null if we believe there is no IPv4. For tests/diagnostics. */
     fun snapshot(): String? = currentIp
+
+    /** A failed attempt is not a successful binding; allow a later retry of this IP. */
+    fun bindFailed(ip: String) {
+        if (currentIp == ip) currentIp = null
+    }
 
     /**
      * Seed the rebinder with the IP Ktor was actually bound to. Call this

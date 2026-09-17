@@ -13,20 +13,22 @@ class NetworkInfo(private val context: Context) {
     /**
      * 开服要绑的地址。
      *
-     * 先走已连接 Wi-Fi（原有唯一路径，**逐字节未改**），取不到再回落到热点扫描。
-     * 顺序是刻意的：修热点场景不该有机会弄坏主场景。
+     * 先取普通 Wi-Fi 的私有 IPv4，取不到再回落到热点扫描。启动与重绑共用此来源。
      */
     fun currentWifiIpv4(): String? = connectedWifiIpv4() ?: hotspotIpv4()
 
-    /** 原有实现原样搬进来，一行未动。 */
     private fun connectedWifiIpv4(): String? {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val networks = cm.allNetworks
         for (net in networks) {
             val caps = cm.getNetworkCapabilities(net) ?: continue
             if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) continue
+            if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) ||
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) continue
             val linkProps = cm.getLinkProperties(net) ?: continue
-            val addr: LinkAddress? = linkProps.linkAddresses.firstOrNull { it.address is Inet4Address }
+            val addr: LinkAddress? = linkProps.linkAddresses.firstOrNull {
+                it.address is Inet4Address && UsableIpPolicy.isUsable(it.address.hostAddress)
+            }
             if (addr != null) return (addr.address as Inet4Address).hostAddress
         }
         return null

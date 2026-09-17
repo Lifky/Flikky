@@ -228,4 +228,14 @@ class SessionState(private val nowMs: () -> Long) {
     fun clearExport() {
         _exportMode.value = ExportMode.Idle
     }
+
+    fun updateExportPin(pin: String) {
+        _exportMode.update { mode ->
+            when (mode) {
+                is ExportMode.Armed -> mode.copy(session = mode.session.copy(pin = pin))
+                is ExportMode.Sending -> mode.copy(session = mode.session.copy(pin = pin))
+                else -> mode
+            }
+        }
+    }
 }

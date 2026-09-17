@@ -83,11 +83,31 @@ class TransferServiceLanguageTest {
                         }
                     }
                 }
-                // Reconnect must retain authentication and serve the current language snapshot.
+                // Exercise the service's actual Ktor replacement while retaining the same host.
+                // The test reaches the private lifecycle path without adding a production control API.
+                val binder = binding.await()
+                val serviceField = binder.javaClass.declaredFields.single { it.type == TransferService::class.java }
+                serviceField.isAccessible = true
+                val service = serviceField.get(binder) as TransferService
+                val rebind = TransferService::class.java.getDeclaredMethod("rebindTo", String::class.java)
+                rebind.isAccessible = true
+                rebind.invoke(service, running.ip)
+                assertEquals(running.port, binder.running.value?.port)
+                assertEquals(running.sessionId, binder.running.value?.sessionId)
+                // Reconnect must retain authentication, serve the latest snapshot, and push via the new hub.
                 client.webSocket("ws://$base/ws", request = { headers.append(HttpHeaders.Cookie, cookie) }) {
                     withTimeout(5_000) { incoming.receive() }
                     val info = client.get("http://$base/api/peer-info") { headers.append(HttpHeaders.Cookie, cookie) }
                     assertEquals("en", Json.parseToJsonElement(info.bodyAsText()).jsonObject["languageTag"]?.jsonPrimitive?.content)
+                    instrumentation.runOnMainSync { AppLanguageManager.set(context, AppLanguage.SIMPLIFIED_CHINESE) }
+                    withTimeout(5_000) {
+                        while (true) {
+                            val frame = incoming.receive() as? Frame.Text ?: continue
+                            val event = Json.parseToJsonElement(frame.readText()).jsonObject
+                            if (event["type"]?.jsonPrimitive?.content != "settings_changed") continue
+                            if (event["payload"]?.jsonObject?.get("languageTag")?.jsonPrimitive?.content == "zh-CN") break
+                        }
+                    }
                 }
             } finally {
                 context.startService(Intent(context, TransferService::class.java).setAction(TransferService.ACTION_STOP))

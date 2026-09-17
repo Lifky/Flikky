@@ -134,6 +134,7 @@ class KtorServer(
     fun start(): Int {
         var lastError: Throwable? = null
         for (port in startPort..endPort) {
+            var candidate: EmbeddedServer<*, *>? = null
             try {
                 val server = embeddedServer(CIO, host = host, port = port) {
                     install(ContentNegotiation) {
@@ -183,11 +184,13 @@ class KtorServer(
                         }
                     }
                 }
+                candidate = server
                 server.start(wait = false)
                 engine = server
                 boundPort = port
                 return port
             } catch (t: Throwable) {
+                runCatching { candidate?.stop(0, 0) }
                 lastError = t
             }
         }

@@ -139,6 +139,7 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     private var running: TransferService.Running? = null
     private var controller: TransferController? = null
+    private var serviceBindingJob: Job? = null
 
     private val _albumState = MutableStateFlow(
         AlbumUiState(access = currentAlbumAccess()),
@@ -149,8 +150,9 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     private val conn = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             val b = binder as TransferService.Binding
-            controller = b.controller
-            b.running.onEach { r ->
+            serviceBindingJob?.cancel()
+            serviceBindingJob = b.running.onEach { r ->
+                controller = if (r != null) b.controller else null
                 running = r
                 _ui.value = _ui.value.copy(
                     url = r?.let { "http://${it.ip}:${it.port}" } ?: "",
@@ -159,7 +161,13 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }.launchIn(viewModelScope)
         }
-        override fun onServiceDisconnected(name: ComponentName?) { controller = null }
+        override fun onServiceDisconnected(name: ComponentName?) {
+            serviceBindingJob?.cancel()
+            serviceBindingJob = null
+            controller = null
+            running = null
+            _ui.value = _ui.value.copy(url = "", pin = "")
+        }
     }
 
     init {

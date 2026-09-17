@@ -8,6 +8,23 @@ import org.junit.Test
 class NetworkRebinderTest {
 
     @Test
+    fun `unusable replacement is lost and never triggers a bind`() {
+        val rebinder = NetworkRebinder()
+        rebinder.prime("192.168.1.5")
+        assertEquals(RebindIntent.Lost, rebinder.onLink(LinkInfo("169.254.2.3")))
+        assertEquals(RebindIntent.StayPut, rebinder.onLink(LinkInfo("8.8.8.8")))
+    }
+
+    @Test
+    fun `failed bind can retry the same address`() {
+        val rebinder = NetworkRebinder()
+        rebinder.prime("192.168.1.5")
+        assertTrue(rebinder.onLink(LinkInfo("192.168.2.5")) is RebindIntent.Rebind)
+        rebinder.bindFailed("192.168.2.5")
+        assertEquals(RebindIntent.Rebind("192.168.2.5"), rebinder.onLink(LinkInfo("192.168.2.5")))
+    }
+
+    @Test
     fun `initial event with no ipv4 is StayPut`() {
         val r = NetworkRebinder()
         val intent = r.onLink(LinkInfo(ipv4 = null))

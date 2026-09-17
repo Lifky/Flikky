@@ -64,7 +64,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
-import java.net.Inet4Address
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -88,16 +87,17 @@ class TransferService : Service() {
     private val _running = MutableStateFlow<Running?>(null)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private var ktor: KtorServer? = null
+    @Volatile private var ktor: KtorServer? = null
     private var pinAuth: PinAuth? = null
     private var controller: TransferController? = null
     private var currentSessionId: Long = -1L
-    private var currentMode: ServiceMode? = null
+    @Volatile private var currentMode: ServiceMode? = null
     private var currentRequirePin: Boolean = true
     private var statusBroadcastJob: Job? = null
 
     private val rebinder = NetworkRebinder()
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var networkWatchJob: Job? = null
     private var currentHostIp: String? = null
 
     /** 当前系统是否处于深色模式（用于 DarkMode.SYSTEM 解析后推给浏览器端做双端深浅对齐）。 */
@@ -146,6 +146,7 @@ class TransferService : Service() {
 
     override fun onBind(intent: Intent?): IBinder = binding
 
+    @Synchronized
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.action ?: return START_NOT_STICKY
         // 兜底：Context.startForegroundService 调出后系统硬性要求 5 秒内调 startForeground，
@@ -179,7 +180,8 @@ class TransferService : Service() {
             // No-op: keep the running export foreground notification.
             return
         }
-        if (ktor != null) return
+        // A temporarily unavailable listener still belongs to the current session.
+        if (currentMode == ServiceMode.Transfer || ktor != null) return
         startTransfer()
     }
 
@@ -261,10 +263,16 @@ class TransferService : Service() {
         )
         pinAuth = auth
 
-        val server = buildTransferKtor(ip, auth)
-        val port = server.start()
-        ktor = server
         currentMode = ServiceMode.Transfer
+        val server = buildTransferKtor(ip, auth)
+        val port = runCatching { server.start() }.getOrElse {
+            Log.e(TAG, "startTransfer failed to bind", it)
+            stopActiveServer()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        }
+        ktor = server
         currentHostIp = ip
         rebinder.prime(ip)
         ServiceLocator.session.updateBoundPort(port)
@@ -346,6 +354,7 @@ class TransferService : Service() {
         currentRequirePin = armed.session.requirePin
 
         val ip = ServiceLocator.networkInfo.currentWifiIpv4()
+            ?.takeIf(UsableIpPolicy::isUsable)
             ?: run {
                 Log.e(TAG, "ACTION_EXPORT aborted: no Wi-Fi IPv4")
                 ServiceLocator.session.clearExport()
@@ -365,10 +374,16 @@ class TransferService : Service() {
         )
         pinAuth = auth
 
-        val server = buildExportKtor(ip, auth)
-        val port = server.start()
-        ktor = server
         currentMode = ServiceMode.Export
+        val server = buildExportKtor(ip, auth)
+        val port = runCatching { server.start() }.getOrElse {
+            Log.e(TAG, "export failed to bind", it)
+            stopActiveServer()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return
+        }
+        ktor = server
         currentHostIp = ip
         rebinder.prime(ip)
         ServiceLocator.session.updateBoundPort(port)
@@ -404,7 +419,9 @@ class TransferService : Service() {
         stopSelf()
     }
 
+    @Synchronized
     private fun stopActiveServer() {
+        unregisterNetworkCallback()
         val mode = currentMode
         // Before tearing down Ktor, tell live WS clients this is a deliberate
         // stop so they DON'T enter the reconnect loop — user's next service
@@ -465,6 +482,7 @@ class TransferService : Service() {
      */
     private fun buildTransferKtor(host: String, auth: PinAuth): KtorServer = KtorServer(
         host = host,
+        startPort = ServiceLocator.session.snapshot.value.boundPort.takeIf { it > 0 } ?: 8080,
         pinAuth = auth,
         session = ServiceLocator.session,
         stats = ServiceLocator.stats,
@@ -563,6 +581,7 @@ class TransferService : Service() {
      */
     private fun buildExportKtor(host: String, auth: PinAuth): KtorServer = KtorServer(
         host = host,
+        startPort = ServiceLocator.session.snapshot.value.boundPort.takeIf { it > 0 } ?: 8080,
         pinAuth = auth,
         session = ServiceLocator.session,
         stats = ServiceLocator.stats,
@@ -590,11 +609,20 @@ class TransferService : Service() {
      * learn about IP changes (laptop hotspot → router, router → laptop hotspot,
      * etc). Idempotent — second call during the same Service lifetime no-ops.
      *
-     * Note: on locked / Doze devices the callback may be delayed by several
-     * seconds. v1.2 accepts that — the banner will still eventually surface
-     * "已失联" once the OS re-dispatches. No heartbeat fallback in v1.2.
+     * Callbacks and a low-frequency hotspot/failure check both resample the
+     * current network source; delayed events never supply a stale address.
      */
     private fun registerNetworkCallbackIfNeeded() {
+        // Hotspot interfaces are not ConnectivityManager Wi-Fi networks. Also retry
+        // failed binds when the address stays unchanged and no callback is emitted.
+        if (networkWatchJob == null) {
+            networkWatchJob = scope.launch {
+                while (isActive) {
+                    delay(2000)
+                    refreshNetworkBinding()
+                }
+            }
+        }
         if (networkCallback != null) return
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             ?: run {
@@ -606,15 +634,13 @@ class TransferService : Service() {
             .build()
         val cb = object : ConnectivityManager.NetworkCallback() {
             override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
-                val ipv4 = linkProperties.linkAddresses
-                    .mapNotNull { it.address as? Inet4Address }
-                    .firstOrNull { !it.isLoopbackAddress && !it.isAnyLocalAddress }
-                    ?.hostAddress
-                handleLinkEvent(LinkInfo(ipv4 = ipv4))
+                scope.launch { refreshNetworkBinding() }
             }
 
             override fun onLost(network: Network) {
-                handleLinkEvent(LinkInfo(ipv4 = null))
+                // An old Wi-Fi's onLost can arrive after the new network is usable.
+                // Resample the current source instead of declaring every loss global.
+                scope.launch { refreshNetworkBinding() }
             }
         }
         runCatching {
@@ -627,6 +653,8 @@ class TransferService : Service() {
     }
 
     private fun unregisterNetworkCallback() {
+        networkWatchJob?.cancel()
+        networkWatchJob = null
         val cb = networkCallback ?: return
         networkCallback = null
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
@@ -638,6 +666,12 @@ class TransferService : Service() {
      * take the resulting action. Keeps the Android-specific callback body
      * thin so the interesting state transitions are testable in T25.
      */
+    @Synchronized
+    private fun refreshNetworkBinding() {
+        if (currentMode == null) return // Discard queued callbacks after deliberate stop.
+        handleLinkEvent(LinkInfo(ServiceLocator.networkInfo.currentWifiIpv4()))
+    }
+
     private fun handleLinkEvent(info: LinkInfo) {
         when (val intent = rebinder.onLink(info)) {
             is RebindIntent.StayPut -> Unit
@@ -658,11 +692,15 @@ class TransferService : Service() {
      * sessionId, exportMode snapshot) survives the swap — only the socket
      * re-opens on the new interface.
      */
+    @Synchronized
     private fun rebindTo(newIp: String) {
         val mode = currentMode ?: return
         val auth = pinAuth ?: return
+        if (!UsableIpPolicy.isUsable(newIp)) return
         ServiceLocator.session.updateNetworkStatus(NetworkStatus.Switching)
-        runCatching { ktor?.stop() }
+        val previous = ktor
+        ktor = null
+        runCatching { previous?.stop() }
         val replacement = when (mode) {
             ServiceMode.Transfer -> buildTransferKtor(newIp, auth)
             ServiceMode.Export -> buildExportKtor(newIp, auth)
@@ -672,9 +710,14 @@ class TransferService : Service() {
             Log.e(TAG, "rebind to $newIp failed — no available port")
             ServiceLocator.session.updateNetworkStatus(NetworkStatus.Lost)
             ktor = null
+            rebinder.bindFailed(newIp)
             return
         }
+        // Rotate only after a successful host change: a failed attempt must not
+        // invalidate the cookie needed if the original Wi-Fi returns.
+        if (currentHostIp != newIp) auth.renewPin(IdGen.newPin())
         ktor = replacement
+        rebinder.prime(newIp)
         currentHostIp = newIp
         ServiceLocator.session.updateBoundPort(port)
         // Transfer-mode ServingViewModel keys its UI off _running (ip/port);
@@ -682,8 +725,10 @@ class TransferService : Service() {
         if (mode == ServiceMode.Transfer) {
             val prev = _running.value
             if (prev != null) {
-                _running.value = prev.copy(ip = newIp, port = port)
+                _running.value = prev.copy(ip = newIp, port = port, pin = auth.currentPin() ?: prev.pin)
             }
+        } else {
+            auth.currentPin()?.let { ServiceLocator.session.updateExportPin(it) }
         }
         // 通知栏 URL 也要随 rebind 刷新；不刷的话用户看到的还是旧 IP。
         val notif = when (mode) {
@@ -711,6 +756,7 @@ class TransferService : Service() {
         )
     }
 
+    @Synchronized
     override fun onDestroy() {
         unregisterNetworkCallback()
         if (ktor != null || currentMode != null) {
