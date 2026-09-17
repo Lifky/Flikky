@@ -96,6 +96,7 @@ import com.example.flikky.export.ExportFileName
 import com.example.flikky.export.ExportScope
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.EmptyStateContent
+import com.example.flikky.ui.components.FlikkyLogo
 import com.example.flikky.ui.components.FlikkyFloatingToolbar
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
@@ -911,12 +912,13 @@ private fun SelectingFloatingToolbar(
 }
 
 @Composable
-private fun HomeEmptyState(modifier: Modifier = Modifier) {
+internal fun HomeEmptyState(modifier: Modifier = Modifier) {
     EmptyStateContent(
         title = stringResource(R.string.app_name),
         subtitle = stringResource(R.string.home_tagline),
         description = stringResource(R.string.home_empty),
         modifier = modifier,
+        illustration = { FlikkyLogo() },
     )
 }
 

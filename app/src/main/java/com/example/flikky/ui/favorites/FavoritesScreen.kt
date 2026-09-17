@@ -877,11 +877,19 @@ fun FavoritesScreen(
 }
 
 @Composable
-private fun EmptyFavorites(text: String, modifier: Modifier = Modifier) {
+internal fun EmptyFavorites(text: String, modifier: Modifier = Modifier) {
     EmptyStateContent(
         title = stringResource(R.string.favorites_title),
         description = text,
         modifier = modifier,
+        illustration = {
+            Icon(
+                painter = painterResource(R.drawable.ic_star_border),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxSize(),
+            )
+        },
     )
 }
 
