@@ -71,3 +71,20 @@ test('an unreachable phone stops polling instead of retrying forever', async () 
   await tick();
   assert.equal(c.timers.size, 0);
 });
+
+test('pushed language is immediate and a pending poll cannot revert it', async () => {
+  let resolve;
+  const c = load(() => new Promise(done => { resolve = done; }));
+  c.api.applyServerLanguage('en');
+  assert.equal(c.api.language, 'en');
+  assert.equal(c.calls[0].options.signal.aborted, true);
+  resolve({ ok: true, json: async () => ({ languageTag: 'zh-CN' }) });
+  await tick();
+  assert.equal(c.api.language, 'en');
+  assert.equal(c.calls.length, 1, 'a push does not need another HTTP request');
+  assert.equal(c.timers.size, 1);
+  c.api.setConnected(false);
+  c.api.applyServerLanguage('zh-CN');
+  assert.equal(c.api.language, 'en', 'late events cannot revive a disconnected page');
+  assert.equal(c.timers.size, 0);
+});

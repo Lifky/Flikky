@@ -500,7 +500,11 @@
         return phoneAvatarKey;
     }
 
+    let peerAppearanceRevision = 0;
     function applyPeerAppearance(data, fallbackName) {
+        if (i18n.applyServerLanguage && typeof data.languageTag === 'string') {
+            i18n.applyServerLanguage(data.languageTag);
+        }
         const name = (data.deviceName && typeof data.deviceName === 'string') ? data.deviceName : fallbackName;
         const prevRecall = recallEnabled;
         const prevAllowPeerRecall = allowPeerRecall;
@@ -578,10 +582,12 @@
 
     // Fetch peer info and apply.
     async function fetchPeerInfo() {
+        const revision = peerAppearanceRevision;
         try {
             const r = await fetch('/api/peer-info');
             if (!r.ok) return;
             const data = await r.json();
+            if (revision !== peerAppearanceRevision) return;
             applyPeerAppearance(data, t('app.phone'));
         } catch (_) {
             // Fail silently — do not block transfers.
@@ -1464,8 +1470,9 @@
                 updatePickerSelection();
             }
         } else if (ev.type === 'settings_changed') {
+            peerAppearanceRevision++;
             applyPeerAppearance(ev.payload || {}, t('app.phone'));
-            if (i18n.refresh) i18n.refresh();
+            if (!ev.payload?.languageTag && i18n.refresh) i18n.refresh();
         }
     }
 

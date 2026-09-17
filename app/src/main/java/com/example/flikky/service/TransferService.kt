@@ -3,6 +3,7 @@ package com.example.flikky.service
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
 import android.net.LinkProperties
@@ -126,8 +127,21 @@ class TransferService : Service() {
                 systemDark = systemDark,
                 defaultDeviceName = getString(R.string.settings_default_device_name),
                 leadingColors = leadingColors,
-            )
+            ).copy(languageTag = AppLanguageManager.effectiveLanguageTag(this@TransferService))
         }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // LocaleManager and system dark mode do not emit a DataStore update.
+        scope.launch { broadcastCurrentSettings() }
+    }
+
+    private suspend fun broadcastCurrentSettings() {
+        if (currentMode != ServiceMode.Transfer) return
+        val payload = WireJson.encodeToString(PeerInfoDto.serializer(), currentPeerInfo(latestSettings))
+        // Resolve the current hub at send time: this job can outlive a Wi-Fi rebind.
+        ktor?.wsHub?.broadcast("settings_changed", payload)
     }
 
     override fun onBind(intent: Intent?): IBinder = binding
@@ -235,13 +249,7 @@ class TransferService : Service() {
                             )
                         }
                     }
-                    if (currentMode == ServiceMode.Transfer) {
-                        val payload = WireJson.encodeToString(
-                            PeerInfoDto.serializer(),
-                            currentPeerInfo(it),
-                        )
-                        ktor?.wsHub?.broadcast("settings_changed", payload)
-                    }
+                    broadcastCurrentSettings()
                 }
             }
         }

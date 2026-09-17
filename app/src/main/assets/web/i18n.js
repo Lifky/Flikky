@@ -528,6 +528,14 @@
         else pause();
     }
 
+    function applyServerLanguage(languageTag) {
+        if (!connected || typeof languageTag !== 'string') return;
+        // A poll started before this push must not restore the previous locale.
+        pause();
+        setLanguage(languageTag);
+        if (!document.hidden) refreshTimer = setTimeout(refresh, 30000);
+    }
+
     window.flikkyI18n = {
         t,
         count,
@@ -535,6 +543,7 @@
         onChange,
         refresh,
         setConnected,
+        applyServerLanguage,
         get language() { return currentLanguage; },
     };
 

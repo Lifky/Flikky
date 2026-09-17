@@ -192,6 +192,8 @@ data class PeerInfoDto(
      */
     val showHiddenFiles: Boolean = false,
     val leadingVisual: LeadingVisualDto = LeadingVisualDto(),
+    /** Current effective App locale, including system-language fallback. */
+    val languageTag: String = "zh-CN",
 )
 
 @Serializable

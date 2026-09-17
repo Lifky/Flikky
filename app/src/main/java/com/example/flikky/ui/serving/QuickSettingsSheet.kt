@@ -62,8 +62,8 @@ enum class QuickPicker { Theme, LeadingShape, LeadingColor, Avatar, Background }
  * 用户进不了设置页，所以这里集中会话中的外观与行为设置。对端能看什么、能做什么属于
  * 安全边界，统一放在顶栏的对端权限面板，避免和外观偏好混在同一组里。
  *
- * 语言是唯一不走 PeerInfoDto 的收录项：它经 `/api/web-theme` 的 languageTag 同步，
- * 而 i18n.js 每秒轮询一次该端点（`setInterval(refresh, 1000)`），所以浏览器实时跟随。
+ * 语言经 LocaleManager 修改，Service 的配置变化回调用 settings_changed 实时推送
+ * PeerInfoDto.languageTag；重连读取最新快照，/api/web-theme 只做登录页同步和低频兜底。
  * 一度担心 `LocaleManager.applicationLocales` 会重建 Activity 把当前页面拆掉 ——
  * 不会：MainActivity 声明了 `configChanges` 含 `locale`（守卫见 MainActivityManifestTest）。
  *
