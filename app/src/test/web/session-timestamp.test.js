@@ -12,7 +12,7 @@ const end = appJs.indexOf('// Wrap a bubble div');
 assert.ok(start >= 0 && end > start, 'session timestamp helpers not found in app.js');
 const slice = appJs.slice(start, end);
 
-const loadHistoryStart = appJs.indexOf('    async function loadHistory()');
+const loadHistoryStart = appJs.indexOf('    function reconcileHistorySnapshot(');
 const loadHistoryEnd = appJs.indexOf('\n    let currentConnKey', loadHistoryStart);
 assert.ok(
     loadHistoryStart >= 0 && loadHistoryEnd > loadHistoryStart,
@@ -26,6 +26,7 @@ function createElement() {
         className: '',
         textContent: '',
         appendChild(child) { this.children.push(child); },
+        querySelectorAll() { return []; },
     };
 }
 
@@ -80,6 +81,9 @@ test('reloading rendered history keeps the divider anchor for the next message',
     vm.runInContext(
         `${slice}
         const seen = new Set();
+        const recalledMessageIds = new Set();
+        const currentWs = {};
+        const serverStopped = false;
         function renderText(msg) { maybeInsertTimeDivider(msg.timestamp); }
         function renderFile(msg) { maybeInsertTimeDivider(msg.timestamp); return null; }
         function renderTransferringBubble(msg) { maybeInsertTimeDivider(msg.timestamp); }

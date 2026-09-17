@@ -390,6 +390,7 @@
             }
         };
         ws.onmessage = (e) => {
+            if (exportWs !== ws || exportServerStopped || downloadStarted) return;
             exportWsPendingPing = false;
             if (exportWsPingTimeout) { clearTimeout(exportWsPingTimeout); exportWsPingTimeout = null; }
             // server_stopped = 用户在手机端取消导出 / zip 传完后 server stopSelf。

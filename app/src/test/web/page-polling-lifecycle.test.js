@@ -11,6 +11,7 @@ test('phone stop event immediately stops app language polling and album requests
   const changes = [];
   const source = read('app');
   const context = {
+    peerAppearanceRevision: 0,
     i18n: { setConnected: (value) => changes.push(['language', value]) },
     window: { flikkyPanels: { album: { setConnected: (value) => changes.push(['album', value]) } } },
     stopHeartbeat() {}, setConnectionWatermarkState() {}, showConnectionDialog() {}, setSendEnabled() {},

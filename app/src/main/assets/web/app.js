@@ -15,7 +15,9 @@
     const countEl = document.getElementById('count');
     const rateEl = document.getElementById('rate');
     const i18n = window.flikkyI18n;
+    let peerAppearanceRevision = 0;
     function setWebConnectionActive(active) {
+        if (!active) peerAppearanceRevision++;
         window.flikkyConnectionActive = !!active;
         if (i18n.setConnected) i18n.setConnected(active);
         const album = window.flikkyPanels && window.flikkyPanels.album;
@@ -500,7 +502,6 @@
         return phoneAvatarKey;
     }
 
-    let peerAppearanceRevision = 0;
     function applyPeerAppearance(data, fallbackName) {
         if (i18n.applyServerLanguage && typeof data.languageTag === 'string') {
             i18n.applyServerLanguage(data.languageTag);
@@ -722,6 +723,7 @@
     // / close-on-esc), so no manual backdrop or keydown listeners are needed.
 
     const seen = new Set();
+    const recalledMessageIds = new Set();
 
     // 浏览器自己的 client id 一直随生命周期。所有出站请求带上 X-Client-Id，
     // 服务端 broadcast 的 file_added / text_added payload 会回传 senderId，
@@ -1030,6 +1032,7 @@
         }
         appendBubbleRow(div, mine ? 'BROWSER' : 'PHONE');
         attachBubbleGestureHandlers(div);
+        if (!completed) markBubbleFailedNoRetry(div, 'app.transfer_failed');
         return div;
     }
 
@@ -1194,6 +1197,7 @@
     // leave no ghost spacers. Falls back to removing the node itself if it is
     // a direct list child (future-proofing).
     function removeMessageNode(messageId) {
+        recalledMessageIds.add(String(messageId));
         const node = list.querySelector(`[data-message-id="${messageId}"]`);
         if (!node) return;
         const row = node.closest('.bubble-row');
@@ -1476,11 +1480,35 @@
         }
     }
 
+    function reconcileHistorySnapshot(data, knownIds) {
+        const messages = Array.isArray(data.ordered) && data.ordered.length ? data.ordered : [
+            ...(data.texts || []).map(m => ({ ...m, kind: 'text' })),
+            ...(data.files || []).map(m => ({ ...m, kind: 'file' })),
+        ];
+        const present = new Set(messages.map(m => String(m.id)));
+        // Only remove nodes already present when the request began. A newer live
+        // delivery can legitimately be absent from this HTTP snapshot.
+        knownIds.forEach(id => { if (!present.has(id)) removeMessageNode(id); });
+        messages.forEach(m => {
+            if (m.kind !== 'file' || recalledMessageIds.has(String(m.id))) return;
+            const bubble = list.querySelector(`[data-message-id="${m.id}"]`);
+            if (!bubble || !bubble.classList.contains('transferring')) return;
+            if (m.status === 'COMPLETED') markBubbleCompleted(bubble, m);
+            else if (m.status === 'FAILED' || m.status === 'DELETED') {
+                markBubbleFailedNoRetry(bubble, 'app.transfer_failed');
+            }
+        });
+    }
+
     async function loadHistory() {
+        const connection = currentWs;
+        const knownIds = Array.from(list.querySelectorAll('[data-message-id]'), node => String(node.dataset.messageId));
         lastBubbleOrigin = null;
         const r = await fetch('/api/messages');
         if (!r.ok) return;
         const data = await r.json();
+        if (connection !== currentWs || serverStopped) return;
+        reconcileHistorySnapshot(data, knownIds);
         // 服务端 v1.2 起新增 `ordered`（按 timestamp 升序的混合列表）。优先用它，
         // 否则回退到 texts+files 各自顺序——但回退路径会丢失跨 kind 的时间顺序，
         // 仅做兼容。两条回放分支全程同步（无 await），finally 确保提前 return 或抛出
@@ -1489,6 +1517,7 @@
         try {
             if (Array.isArray(data.ordered) && data.ordered.length) {
                 for (const m of data.ordered) {
+                    if (recalledMessageIds.has(String(m.id))) continue;
                     if (m.kind === 'text') {
                         const key = `text_added:${m.id}`;
                         if (seen.has(key)) continue;
@@ -1509,13 +1538,15 @@
                 refreshSaveAllFab();
                 return;
             }
-            for (const t of data.texts) {
+            for (const t of data.texts || []) {
+                if (recalledMessageIds.has(String(t.id))) continue;
                 const key = `text_added:${t.id}`;
                 if (seen.has(key)) continue;
                 seen.add(key);
                 renderText(t, t.origin === 'BROWSER');
             }
-            for (const f of data.files) {
+            for (const f of data.files || []) {
+                if (recalledMessageIds.has(String(f.id))) continue;
                 const key = `file_added:${f.id}`;
                 if (seen.has(key)) continue;
                 seen.add(key);
@@ -1569,7 +1600,7 @@
     let serverStopped = false;
     let activeUploads = [];
     // 重连尝试上限。万一 server_stopped event 由于 race 没及时到达浏览器，
-    // 这一层兜底确保不会进入无限重连。9 秒内连不上 → 判定服务已不可达。
+    // 这一层兜底确保不会无限重连；每次握手也有 5 秒上限。
     let reconnectAttempts = 0;
     const MAX_RECONNECT_ATTEMPTS = 6;
 
@@ -1671,12 +1702,18 @@
     }
 
     function openWs() {
+        if (serverStopped) return;
         if (currentWs && (currentWs.readyState === 0 || currentWs.readyState === 1)) return;
         if (reconnectTimer != null) { clearTimeout(reconnectTimer); reconnectTimer = null; }
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${proto}//${location.host}/ws`);
         currentWs = ws;
+        const connectTimer = setTimeout(() => {
+            if (currentWs === ws && ws.readyState === 0) enterDisconnected();
+        }, 5000);
         ws.onopen = () => {
+            clearTimeout(connectTimer);
+            if (currentWs !== ws || serverStopped) return;
             wsConnected = true;
             setWebConnectionActive(true);
             serverStopped = false;
@@ -1702,6 +1739,7 @@
             hadConnected = true;
         };
         ws.onclose = () => {
+            clearTimeout(connectTimer);
             // enterDisconnected 把 currentWs 设为 null → 旧 WS 到这里 noop。
             // 只有「新 WS 连接失败」或「server 正常 close」才走到下面。
             if (currentWs !== ws) return;
@@ -1733,6 +1771,7 @@
             // 不在 onerror 里做重试 — 让 onclose 兜底，避免双重 timer。
         };
         ws.onmessage = (e) => {
+            if (currentWs !== ws || serverStopped) return;
             lastFrameAt = Date.now();
             try { onWsEvent(JSON.parse(e.data)); } catch (_) {}
         };
@@ -2310,5 +2349,5 @@
     // 初始禁用，等 WS 连上后启用。
     refreshSaveAllFab();
     setSendEnabled(false);
-    loadHistory().then(openWs);
+    openWs(); // History is loaded on every successful connection, including the first.
 })();

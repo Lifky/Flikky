@@ -235,7 +235,7 @@ function loadAppForTest() {
   const appPath = path.join(__dirname, '..', 'app', 'src', 'main', 'assets', 'web', 'app.js');
   const source = fs.readFileSync(appPath, 'utf8');
   const patched = source.replace(
-    /(\s*)setSendEnabled\(false\);\s*loadHistory\(\)\.then\(openWs\);\s*\}\)\(\);/,
+    /(\s*)setSendEnabled\(false\);\s*openWs\(\);[^\n]*\s*\}\)\(\);/,
     "$1setSendEnabled(false);\n$1window.__flikkyWebTest = { renderText, removeMessageNode, onWsEvent, buildMessageActions, list, body: document.body, root: document.documentElement, peerAvatar: document.getElementById('peer-avatar') };\n})();",
   );
 
