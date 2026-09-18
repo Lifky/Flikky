@@ -715,7 +715,7 @@ fun SettingsScreen(
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_thumbnail_cache),
-                        leadingIcon = painterResource(R.drawable.ic_image),
+                        leadingIcon = painterResource(R.drawable.ic_home_storage_gear),
                         subtitle = if (cacheUsageBytes == null) {
                             stringResource(R.string.settings_thumbnail_cache_calculating)
                         } else {
