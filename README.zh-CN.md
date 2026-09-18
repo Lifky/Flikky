@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/flikky_logo.png" width="128" alt="Flikky 图标">
+  <img src="./docs/flikky_logo_slow.svg" width="128" alt="Flikky 图标">
 </p>
 
 <h1 align="center">Flikky</h1>
@@ -27,11 +27,30 @@ Flikky 面向可信局域网使用，并把配对、会话状态、历史记录�
 
 ## 截图
 
-![概览](./docs/screenshot/zh-CN/flikky_screenshot_overview_zh-CN.png)
+![概览](./docs/screenshot/flikky_screenshot_overview.png)
 
-![手机端](./docs/screenshot/zh-CN/screenshot_phone_zh-CN.png)
+### App
 
-![浏览器端](./docs/screenshot/zh-CN/screenshot_browser_zh-CN.png)
+![手机端](./docs/screenshot/flikky_screenshot_phone.png)
+
+### 浏览器
+
+![浏览器端](./docs/screenshot/flikky_screenshot_browser.png)
+
+### 移动浏览器
+
+![移动浏览器端](./docs/screenshot/flikky_screenshot_mobile_browser.png)
+
+<details>
+<summary>v1.19.0 以前 ● 展开</summary>
+
+![概览](./docs/screenshot/before/zh-CN/flikky_screenshot_overview_zh-CN.png)
+
+![手机端](./docs/screenshot/before/zh-CN/screenshot_phone_zh-CN.png)
+
+![浏览器端](./docs/screenshot/before/zh-CN/screenshot_browser_zh-CN.png)
+
+</details>
 
 ## 使用 Flikky
 

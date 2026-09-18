@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/flikky_logo.png" width="128" alt="Flikky logo">
+  <img src="./docs/flikky_logo_slow.svg" width="128" alt="Flikky logo">
 </p>
 
 <h1 align="center">Flikky</h1>
@@ -27,11 +27,30 @@ Use the stable tag for a reproducible build. Use `main` when evaluating the late
 
 ## Screenshots
 
-![Flikky overview](./docs/screenshot/en-US/flikky_screenshot_overview_en-US.png)
+![Flikky overview](./docs/screenshot/flikky_screenshot_overview.png)
 
-![Android app](./docs/screenshot/en-US/screenshot_phone_en-US.png)
+### App
 
-![Browser client](./docs/screenshot/en-US/screenshot_browser_en-US.png)
+![Android app](./docs/screenshot/flikky_screenshot_phone.png)
+
+### Browser
+
+![Browser client](./docs/screenshot/flikky_screenshot_browser.png)
+
+### Mobile browser
+
+![Mobile browser](./docs/screenshot/flikky_screenshot_mobile_browser.png)
+
+<details>
+<summary>Before v1.19.0 ● Expand</summary>
+
+![Flikky overview](./docs/screenshot/before/en-US/flikky_screenshot_overview_en-US.png)
+
+![Android app](./docs/screenshot/before/en-US/screenshot_phone_en-US.png)
+
+![Browser client](./docs/screenshot/before/en-US/screenshot_browser_en-US.png)
+
+</details>
 
 ## Use Flikky
 
