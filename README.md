@@ -20,8 +20,8 @@ Flikky is designed for trusted local networks and keeps the operational complexi
 
 | Channel | Revision | State |
 | --- | --- | --- |
-| Stable source | [`v1.20.0`](https://github.com/Lifky/Flikky/tree/v1.20.0) · 2026-09-13 | The phone's own storage is browsable from both ends behind a default-off switch, every file surface gained sorting and in-folder search, thumbnails and preview reached the storage and favorites lists, and the leading container's shape and colours are customizable. |
-| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.20.0...main) | No unreleased changes beyond the stable tag. |
+| Stable source | [`v1.21.0`](https://github.com/Lifky/Flikky/tree/v1.21.0) · 2026-09-19 | The phone's album is browsable from both ends as a timeline or by album folder, installed apps can be extracted and sent as APKs and installed on the other end, the connection card offers a QR code for the address, and one peer permissions panel states exactly which channels the browser may see. |
+| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.21.0...main) | No unreleased changes beyond the stable tag. |
 
 Use the stable tag for a reproducible build. Use `main` when evaluating the latest unreleased work. Per-release changes are documented in the [changelog](./docs/CHANGELOG.md); version history is available from the repository's [tags](https://github.com/Lifky/Flikky/tags).
 
@@ -70,6 +70,10 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 - **Recall and cleanup:** messages can be recalled during an active session, optionally including the other end's messages; local history items and sessions can be deleted with confirmation or undo where appropriate. Deleting a file frees its on-disk copy while History keeps an inert record.
 - **Files overview:** browse files from all sessions in one place with direction/category filters, search, sorting, and multi-select actions (favorite, save, share, jump to message, delete).
 - **Browse the phone's storage:** with the default-off switch on, the phone's own storage is browsable from the session screen's files tab and from the browser's files panel — breadcrumb navigation, in-folder search, sorting, thumbnails and preview for images and video, a batch download in the browser, and a multi-directory selection sent into the session from the phone. Flikky only ever reads.
+- **Browse the phone's album:** a timeline grouped by capture date or a grid of album folders, on both ends. Long-press and drag to select a range on the phone, pick tiles and batch-download in the browser. The capture date is computed once on the phone, so both ends always group a photo into the same day. Uses Android's narrow media permissions, including Android 14+ "selected photos only", rather than All files access.
+- **Send an installed app:** search installed apps, and Flikky extracts the chosen app's base APK and sends it into the session as `AppName_Version.apk`. APK rows offer an install action that hands the file to the system installer. Apps with split APKs are sent as base.apk only, with an explicit warning.
+- **Peer permissions in one place:** a panel in the session header states each channel as unavailable, off, or on, so a switch that is on but shows nothing is never a silent dead end. The header permanently shows which channels are open, and the files and album tabs each carry a lock that closes their channel without leaving the screen. Closing a channel also cuts a transfer already in flight.
+- **Reach the address without typing:** a QR code button on the connection card opens a sheet with the code. It encodes only the URL — the single-use PIN stays on the phone screen.
 - **Favorites:** keep independent text or file snapshots in collections, add local items without a session, search them, and send them back into an active transfer.
 - **Portable archives:** export sessions, favorites, settings, or all data to a ZIP archive; save it on Android or serve it to a browser, then import it later. When imported sessions already exist locally, choose to skip or overwrite them.
 - **Adaptive appearance:** Material 3 Expressive themes, custom theme color, dark mode, contrast, motion speed, avatars (including a browser-side avatar), bubble shape, grouping, the leading container's shape and per-type colours, and selected appearance settings stay aligned across phone and browser.
@@ -162,6 +166,17 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 - [x] Customizable leading container shape (25 official Material 3 Expressive shapes)
 - [x] Customizable leading container colours (one theme colour / harmonized / fixed per type)
 - [x] Archives as their own file category
+- [x] Peer permissions panel with three states per channel (unavailable / off / on)
+- [x] Channel lock in the files and album tabs
+- [x] Closing a peer channel cuts a transfer already in flight
+- [x] Album tab in the session screen: timeline by capture date, long-press and drag to select a range
+- [x] Album panel in the browser: reflowing thumbnails, per-tile selection, batch download
+- [x] Browse by album folder on both ends
+- [x] Narrow media permissions, including Android 14+ "selected photos only"
+- [x] Apps tab in the add sheet: extract and send an installed app's base APK
+- [x] Install an APK from the files overview, the chat bubble and history
+- [x] APK packages as their own file category
+- [x] QR code for the connection address (URL only)
 - [ ] More... iterating...
 
 ## Security Model and Limits
@@ -175,6 +190,11 @@ Flikky reduces exposure, but it does not turn an untrusted LAN into a secure tra
 - Notifications show the connection URL but never expose the PIN or token on the lock screen.
 - Browsing the phone's storage from the browser is gated by an explicit switch that is **off on a fresh install**. While it is off the browser shows no files destination and every storage endpoint answers `404`.
 - To list files the app declares `MANAGE_EXTERNAL_STORAGE` (All files access). **Android provides no read-only variant of this permission**, so granting it also grants write access. Flikky only reads: it never writes, modifies or deletes anything in shared storage. `Android/data` and `Android/obb` stay inaccessible because the system locks them regardless.
+- Browsing the phone's album is gated by its own explicit switch, **off on a fresh install**, and uses Android's narrow media permissions (`READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO`) rather than All files access. Android 14+ "selected photos only" is supported, and the app states how many items it can see under a partial grant.
+- The browser never sees a raw content URI. It addresses album items by an opaque `img:<id>` / `vid:<id>` token, and the server rebuilds the URI from the two fixed MediaStore collections — so a peer cannot steer the app into reading an arbitrary content provider with the app's own permissions.
+- **Closing a peer channel stops a transfer already in flight.** Storage and album streams re-read the gate before every 64 KB block, rather than checking it once when the request arrives.
+- Sending an installed app reads only that app's own APK path, which Android exposes to any app holding `QUERY_ALL_PACKAGES`. Installing an APK hands the file to the system installer; Flikky never installs anything itself and requests no silent-install capability.
+- **The QR code encodes only the connection URL.** The single-use PIN is never placed in it — a scannable credential is a new way to lose one.
 - Thumbnails of shared-storage files are cached inside the app's own private storage, never in shared storage. The cache has a user-chosen ceiling (0 disables caching entirely), can be cleared from Settings, and is wiped by "Delete all data".
 - SAF is not an option here: on Android 11+ `ACTION_OPEN_DOCUMENT_TREE` refuses to grant the internal-storage root and the Download directory, so it cannot express "browse all shared storage".
 - The only network request outside the LAN is the optional update check, which fetches `https://api.github.com/repos/Lifky/Flikky/releases/latest` over HTTPS. It runs only when triggered manually or when auto-check is explicitly enabled (off by default), and sends no device identifier, account, or telemetry data.
