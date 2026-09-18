@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="apps_title">Apps</string>
-    <string name="apps_search_hint">Search apps</string>
+    <string name="apps_search_hint">Search</string>
     <string name="apps_include_system">Include system apps</string>
     <string name="apps_empty">No matching apps</string>
     <string name="apps_access_title">Missing an app?</string>

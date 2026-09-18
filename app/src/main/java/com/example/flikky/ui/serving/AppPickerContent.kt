@@ -69,7 +69,13 @@ fun AppPickerContent(apps: List<AppEntry>, loading: Boolean, onSend: (AppEntry) 
         ) {
             TextField(
                 query, { query = it }, Modifier.weight(1f),
-                placeholder = { Text(stringResource(R.string.apps_search_hint)) },
+                placeholder = {
+                    Text(
+                        stringResource(R.string.apps_search_hint),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
                 leadingIcon = { Icon(Icons.Default.Search, null) },
                 trailingIcon = { if (query.isNotBlank()) IconButton({ query = "" }) { Icon(Icons.Default.Close, stringResource(R.string.favorite_quick_clear_search)) } },
                 singleLine = true,
