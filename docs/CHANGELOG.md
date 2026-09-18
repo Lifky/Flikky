@@ -4,6 +4,60 @@
 
 This file records user-facing changes for each Flikky release, loosely following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow `x.y.z`: x for major architectural changes, y for new features, z for bug fixes. Dates are tag creation dates.
 
+## [v1.21.0](https://github.com/Lifky/Flikky/releases/tag/v1.21.0) · 2026-09-19
+
+Three new channels and one permission model. The phone's album becomes browsable from both ends, installed apps can be extracted and sent as APKs, the connection card offers a QR code, and a single panel now states exactly what the other end is allowed to see.
+
+### Added
+
+#### What the other end can see
+- A **peer permissions panel** in the session header, holding every "what may the browser see" switch in one place. Each channel reads as one of three states: unavailable (the phone lacks the permission), off, or on — so "the switch is on but nothing shows up" is no longer a silent dead end
+- The header now **permanently states which channels are open**, next to the connected device's name
+- A **channel lock where the content is**: the files and album tabs each carry a lock button in the bottom-left corner that closes that channel to the peer without leaving the screen
+- **Favorites split into two independent axes**: whether the feature exists in the app, and whether the browser may see it. Turning the feature off no longer silently implies the peer had access
+
+#### The phone's album
+- An **album tab in the session screen**: a single timeline grouped by capture date, three columns, tap to preview and long-press to enter multi-select. **Drag after the long press to select a range**, dragging back undoes what that gesture added, and the edge of the screen auto-scrolls while you hold
+- An **album panel in the browser**: the same timeline, with fixed-size thumbnails that reflow as the panel is resized, a per-tile selection affordance (a mouse has no long press), and a multi-select download that reuses the files panel's toolbar
+- **Browse by album folder as well as by date** on both ends: a switch between the timeline and a grid of album covers built from MediaStore's bucket names, with each bucket's own timeline one tap in. A timeline answers "what did I just shoot"; a bucket answers "where is the one WeChat saved"
+- The album uses **Android's narrow media permissions** rather than All files access, and supports Android 14+ "selected photos only" — the app states how many items it can see and offers a way back to the system picker to widen the scope
+
+#### Sending an installed app
+- An **apps tab in the add sheet**: search installed apps, pick one, and Flikky extracts its base APK and sends it into the session. The sent file is named `AppName_Version.apk`
+- Apps with **split APKs are sent as base.apk only, with an explicit warning** — the pieces cannot be reassembled into a working install from one file
+- **APK rows offer an install action** — in the files overview, in the chat bubble once a transfer completes, and in history — handing the file to the system installer
+- **APK packages are their own file category** in the files overview, with the official `apk_document` symbol
+- The app list shows **user-installed apps by default, with a toggle to include system apps**, and offers a route into the system permission screen when the list comes back empty
+
+#### Reaching the address without typing
+- A **QR code button on the connection card**, next to "copy address", opening a bottom sheet with the code. It encodes **only the URL** — the single-use PIN stays on the phone screen for the user to enter, because a scannable credential is a new way to lose one
+
+### Changed
+- The two peer gates moved out of quick settings into the permissions panel; quick settings keeps only what changes the app's own appearance
+- "Send an existing file" is now the second tab of the add sheet rather than a separate action on the tab row, so everything that puts content into a session starts from one button
+- The session header's three panel actions moved to their own row. Sharing a row with the device name meant the name was always the part that got truncated
+- The lock and selection FABs across the files and album tabs now share one geometry, declared once — the two tabs cannot drift apart
+- **Language changes reach the browser immediately.** The browser used to poll once a second for a setting that changes a few times a year; it now follows the app's own configuration callback, and polls only as a fallback when a connection is idle
+- Album thumbnails are fetched once and reused across virtual rows, with a concurrency ceiling, request de-duplication, and an in-page cache that is cleared on disconnect
+- The app's home and favorites empty states now share one illustration anchor, so the two pages line up
+- **The server's address check tightened from a blacklist to an allowlist.** It previously excluded a few known-bad prefixes and accepted everything else, which would have let a public IPv4 through; it now accepts only RFC1918 private ranges and rejects VPN and cellular transports outright
+
+### Fixed
+
+- **Closing a peer channel now stops a transfer already in flight.** The gate was checked once per request, so a 2 GB download would run to completion after the user closed access — and closing it is usually motivated by exactly that file not reaching the peer. Both the storage and album streams now re-read the gate before every 64 KB block
+- **The phone and the browser disagreed about which day a photo was taken.** Both ends derived the date from the timestamp using their own device's timezone, so when the phone and the computer sat in different zones, photos taken near midnight fell into different groups on each end — different group counts, different labels, the same library looking like two libraries. The capture date is now computed once on the phone and sent with each item
+- Photos dated in the future by a mis-set camera clock formed several separate groups all labelled "Today"
+- Browser album thumbnails scaled with the panel width and always sat three to a row; they are now a fixed size that reflows
+- Scrolling the browser album was jerky and the mouse wheel often did nothing: the virtual window rebuilt itself on every scroll event, which also re-requested thumbnails already on screen and fought the browser's scroll anchoring. The window now only adds and removes the rows that changed
+- A thumbnail that failed to load was retried on every re-render — one missing item produced hundreds of requests. Failures are now remembered until an explicit refresh
+- Dragging a thumbnail in the browser album triggered the chat's "drop to send" overlay, offering to send the phone's own photo back to the phone
+- The album listed records that are not browsable photos: files still being written, items in the trash, and zero-byte rows
+- **A Wi-Fi change could leave the service bound but unreachable.** Binding failures are no longer remembered as successes, the same address can be retried, hotspot changes are picked up without a system callback, and a stale callback can no longer revive a stopped service
+- After moving to a new IP the app now issues a fresh single-use PIN and invalidates the old cookie, because a cookie cannot cross hosts. Same-IP rebinds keep the existing login
+- The browser could act on events from a socket it had already replaced, and a reconnect only appended new history — file completions, failures and recalls that happened while disconnected are now reconciled
+- The browser's language poller kept running after the app disconnected
+- Opening the floating action bar in History or the session screen could loop redrawing itself
+
 ## [v1.20.0](https://github.com/Lifky/Flikky/releases/tag/v1.20.0) · 2026-09-13
 
 The largest release so far, built in three stages: the phone's own storage becomes browsable from both ends, every file surface gains sorting and search, thumbnails and preview reach the storage and favorites lists, and the leading visual is customizable throughout.
