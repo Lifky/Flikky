@@ -5,6 +5,11 @@
 .claude/
 .codex/
 .agents/
+# CodeGraph index + per-tool MCP configs (local agent tooling)
+.codegraph/
+.mcp.json
+.vscode/
+opencode.jsonc
 CLAUDE.md
 AGENTS.md
 .DS_Store
