@@ -167,21 +167,12 @@ fun ServingScreen(
     val storageSort by viewModel.storageSort.collectAsState()
     val storageQuery by viewModel.storageQuery.collectAsState()
     val albumState by viewModel.albumState.collectAsState()
-    val albumPermissions = remember {
-        buildList {
-            add(android.Manifest.permission.READ_MEDIA_IMAGES)
-            add(android.Manifest.permission.READ_MEDIA_VIDEO)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                add(android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
-            }
-        }.toTypedArray()
-    }
     val albumPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) {
         viewModel.refreshAlbum()
     }
-    val requestAlbumPermission = { albumPermissionLauncher.launch(albumPermissions) }
+    val requestAlbumPermission = { albumPermissionLauncher.launch(albumPermissionRequest) }
     // 根目录没有上一级 —— LocalStorageBrowser.parentOf 返回 null 的那一格。
     // 写成常量 true 的后果是根目录按返回也被这一级吃掉，用户困在文件 tab 里出不去。
     val storageCanGoUp = storageState.path.isNotEmpty()
@@ -256,30 +247,11 @@ fun ServingScreen(
                 label = "ConnHeader",
             ) { connected ->
                 if (connected) {
-                    val visibleLabels = visibleChannelLabels(
-                        listOf(
-                            stringResource(R.string.peer_permissions_files) to peerChannelState(
-                                available = hasStoragePermission,
-                                peerEnabled = settings.storageBrowsingEnabled,
-                            ),
-                            stringResource(R.string.peer_permissions_album) to peerChannelState(
-                                available = albumState.access != AlbumAccess.None,
-                                peerEnabled = settings.albumBrowsingEnabled,
-                            ),
-                            stringResource(R.string.peer_permissions_favorites) to peerChannelState(
-                                available = settings.favoriteBetaEnabled,
-                                peerEnabled = settings.favoriteBrowsingEnabled,
-                            ),
-                        ),
+                    val visibleText = peerVisibleSummary(
+                        settings = settings,
+                        hasStoragePermission = hasStoragePermission,
+                        albumAccess = albumState.access,
                     )
-                    val visibleText = if (visibleLabels.isEmpty()) {
-                        stringResource(R.string.peer_permissions_visible_none)
-                    } else {
-                        stringResource(
-                            R.string.peer_permissions_visible_summary,
-                            visibleLabels.joinToString(stringResource(R.string.peer_permissions_visible_sep)),
-                        )
-                    }
                     ConversationHeader(
                         peerAvatarId = peerAvatarId,
                         peerAvatarKey = peerAvatarKey,
@@ -557,19 +529,4 @@ fun ServingScreen(
         )
     }
 
-}
-
-/**
- * 跳「所有文件访问」的系统授权页。必须带 `package:` data，否则打开的是全局应用列表、
- * 用户得自己在几十个应用里翻到 Flikky。系统页没有结果回调，返回后靠 ON_RESUME 重查。
- */
-private fun requestAllFilesAccess(ctx: android.content.Context) {
-    val intent = Intent(
-        Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-        Uri.parse("package:" + ctx.packageName),
-    )
-    runCatching { ctx.startActivity(intent) }.onFailure {
-        // 极少数 ROM 不实现按包名的那个 action，退回全局列表总比什么都不发生好。
-        runCatching { ctx.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
-    }
 }

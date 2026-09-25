@@ -7,10 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
 import android.os.IBinder
-import android.content.pm.PackageManager
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
@@ -60,7 +57,7 @@ import com.example.flikky.util.AppEntry
 import com.example.flikky.util.MimeGuess
 import com.example.flikky.util.AlbumAccess
 import com.example.flikky.util.AlbumItemId
-import com.example.flikky.util.albumAccess
+import com.example.flikky.data.currentAlbumAccess
 import com.example.flikky.util.apkFileName
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
@@ -347,18 +344,8 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun currentAlbumAccess(): AlbumAccess {
-        val app = getApplication<Application>()
-        fun granted(permission: String): Boolean =
-            app.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
-        return albumAccess(
-            manageAllFiles = Environment.isExternalStorageManager(),
-            readImages = granted(android.Manifest.permission.READ_MEDIA_IMAGES),
-            readVideo = granted(android.Manifest.permission.READ_MEDIA_VIDEO),
-            userSelected = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
-                granted(android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED),
-        )
-    }
+    private fun currentAlbumAccess(): AlbumAccess =
+        getApplication<Application>().currentAlbumAccess()
 
     fun sendFavorite(favorite: FavoriteEntity) {
         when (favorite.kind) {

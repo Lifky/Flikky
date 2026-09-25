@@ -131,9 +131,10 @@ class TransferServiceThemeMappingTest {
         // 默认必须是关：浏览器据此决定不渲染「文件」目的地。开着才是危险的默认。
         assertFalse(off.storageBrowsingEnabled)
 
+        // 开着且有权限才声明；没权限时的那一格见 PeerInfoChannelGatingTest（D76）。
         val on = with(TransferService.Companion) {
             FlikkySettings(storageBrowsingEnabled = true)
-                .toPeerInfoDto(systemDark = false, defaultDeviceName = "Phone")
+                .toPeerInfoDto(systemDark = false, defaultDeviceName = "Phone", storageAvailable = true)
         }
         assertTrue(on.storageBrowsingEnabled)
     }

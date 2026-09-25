@@ -81,7 +81,17 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.flikky.R
+import com.example.flikky.data.currentAlbumAccess
+import com.example.flikky.data.hasAllFilesAccess
+import com.example.flikky.ui.serving.PeerPermissionsSheet
+import com.example.flikky.ui.serving.albumPermissionRequest
+import com.example.flikky.ui.serving.peerVisibleSummary
+import com.example.flikky.ui.serving.requestAllFilesAccess
 import com.example.flikky.data.settings.AppLanguage
 import com.example.flikky.data.settings.AppLanguageManager
 import com.example.flikky.data.settings.DEVICE_NAME_MAX
@@ -185,6 +195,28 @@ fun SettingsScreen(
     var importExportExpanded by rememberSaveable { mutableStateOf(false) }
     var exportDestinationScope by rememberSaveable { mutableStateOf<ExportScope?>(null) }
     var pendingLocalExportScope by rememberSaveable { mutableStateOf<ExportScope?>(null) }
+
+    // 对端权限面板与会话内是同一个 sheet，所以也要同样现取系统前置条件：
+    // 「所有文件访问」系统页没有回调，只能在回到前台时重查；相册授权有回调，结果回来也重查。
+    var showPeerPermissions by rememberSaveable { mutableStateOf(false) }
+    var hasStoragePermission by remember { mutableStateOf(hasAllFilesAccess()) }
+    var albumAccess by remember { mutableStateOf(context.currentAlbumAccess()) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasStoragePermission = hasAllFilesAccess()
+                albumAccess = context.currentAlbumAccess()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val albumPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) {
+        albumAccess = context.currentAlbumAccess()
+    }
 
     fun importResultMessage(result: ArchiveViewModel.ImportResult): String = buildList {
         if (result.importedSessions > 0) {
@@ -640,25 +672,27 @@ fun SettingsScreen(
                         },
                         index = 6, total = sectionItems,
                     )
+                    // 对端能看什么/能做什么统一进同一个面板（与会话顶栏同一个 sheet、同一图标）。
+                    // 这里曾是一个裸的「浏览手机存储」开关：没授权也能打开（D76 那个状态），
+                    // 相册、收藏在设置页则根本没有入口。
                     SettingItem(
-                        title = stringResource(R.string.settings_storage_browsing),
-                        leadingIcon = painterResource(R.drawable.ic_folder),
-                        infoText = stringResource(R.string.settings_storage_browsing_summary),
-                        trailing = {
-                            Switch(
-                                checked = s.storageBrowsingEnabled,
-                                onCheckedChange = viewModel::setStorageBrowsingEnabled,
-                            )
-                        },
+                        title = stringResource(R.string.peer_permissions_entry),
+                        leadingIcon = painterResource(R.drawable.ic_shield_toggle),
+                        subtitle = peerVisibleSummary(
+                            settings = s,
+                            hasStoragePermission = hasStoragePermission,
+                            albumAccess = albumAccess,
+                        ),
+                        onClick = { showPeerPermissions = true },
                         index = 7, total = sectionItems,
                     )
-                    // 「显示隐藏文件」紧跟在存储浏览下面：它只在浏览存储时才起作用。
+                    // 「显示隐藏文件」紧跟在对端权限下面：它决定两端浏览存储时列不列隐藏项。
                     // 两端共用这一个值，副标题的计数也走它——三者用不同判据就是
                     // 2026-09-03「副标题 5 项、进去只有 4 行」的成因。
                     SettingItem(
                         title = stringResource(R.string.settings_show_hidden),
                         // Folder Eye：这一行说的是「看不看得见隐藏项」，
-                        // 普通 folder 与上面那行「浏览手机存储」撞图（用户点名换的）。
+                        // 普通 folder 曾与原「浏览手机存储」那行撞图（用户点名换的）。
                         leadingIcon = painterResource(R.drawable.ic_folder_eye),
                         infoText = stringResource(R.string.settings_show_hidden_summary),
                         trailing = {
@@ -1327,6 +1361,23 @@ fun SettingsScreen(
                 launchExport(exportScope)
             },
             onDismiss = { exportDestinationScope = null },
+        )
+    }
+
+    if (showPeerPermissions) {
+        PeerPermissionsSheet(
+            settings = s,
+            hasStoragePermission = hasStoragePermission,
+            albumAccess = albumAccess,
+            onSetStorageBrowsing = viewModel::setStorageBrowsingEnabled,
+            onSetAlbumBrowsing = viewModel::setAlbumBrowsingEnabled,
+            onSetFavoriteBrowsing = viewModel::setFavoriteBrowsingEnabled,
+            onSetAllowPeerRecall = viewModel::setAllowPeerRecall,
+            onRequestStoragePermission = { requestAllFilesAccess(context) },
+            onRequestAlbumPermission = { albumPermissionLauncher.launch(albumPermissionRequest) },
+            // 「去设置」指向的收藏/撤回功能开关就在本页「会话行为」里，关掉面板即可见。
+            onOpenSettings = { showPeerPermissions = false },
+            onDismiss = { showPeerPermissions = false },
         )
     }
 }

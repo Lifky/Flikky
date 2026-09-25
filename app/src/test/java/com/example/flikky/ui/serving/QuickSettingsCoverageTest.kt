@@ -75,6 +75,7 @@ class QuickSettingsCoverageTest {
         "allowPeerRecall" to "对端权限面板负责对端能做什么",
         "storageBrowsingEnabled" to "对端权限面板负责对端能看什么",
         "albumBrowsingEnabled" to "对端权限面板负责对端能看什么",
+        "favoriteBrowsingEnabled" to "对端权限面板负责对端能看什么",
     )
 
     @Test

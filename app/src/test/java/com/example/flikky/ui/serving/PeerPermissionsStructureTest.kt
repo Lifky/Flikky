@@ -116,8 +116,12 @@ class PeerPermissionsStructureTest {
     @Test
     fun `the header subtitle says what the peer can see`() {
         assertTrue(
-            "ServingScreen must compute the visible-channel labels for the header",
-            screen.contains("visibleChannelLabels("),
+            "ServingScreen must take the header subtitle from the shared summary",
+            screen.contains("peerVisibleSummary("),
+        )
+        assertTrue(
+            "the shared summary must derive from the visible-channel labels",
+            sheet.contains("visibleChannelLabels("),
         )
         assertTrue(
             "ConversationHeader must accept a subtitle instead of hard-coding connected",
@@ -134,7 +138,7 @@ class PeerPermissionsStructureTest {
     fun `nothing shared is stated, not left blank`() {
         assertTrue(
             "missing the explicit nothing-shared copy -- a blank subtitle is ambiguous",
-            screen.contains("peer_permissions_visible_none"),
+            sheet.contains("peer_permissions_visible_none"),
         )
     }
 
@@ -248,7 +252,59 @@ class PeerPermissionsStructureTest {
 
     @Test
     fun `the header subtitle can list three channels`() {
-        assertTrue(screen.contains("R.string.peer_permissions_album"))
-        assertTrue(screen.contains("visibleChannelLabels("))
+        val at = sheet.indexOf("fun peerVisibleSummary(")
+        assertTrue("sanity: no shared peerVisibleSummary found", at >= 0)
+        val summary = sheet.substring(at).take(1600)
+        for (channel in listOf("files", "album", "favorites")) {
+            assertTrue(
+                "the shared summary must list the $channel channel",
+                summary.contains("R.string.peer_permissions_$channel)"),
+            )
+        }
+    }
+
+    private val mainActivity
+        get() = stripComments(source("com/example/flikky/MainActivity.kt"))
+    private val settingsScreen
+        get() = stripComments(source("com/example/flikky/ui/settings/SettingsScreen.kt"))
+
+    @Test
+    fun `peer gates are revoked whenever the app comes back to the foreground`() {
+        // D76：系统权限可能在 App 不在前台时被撤销。只在某个页面里检查，
+        // 用户停在别的页面回来时，一个「开着但没权限」的通道就躲过去了。
+        val at = mainActivity.indexOf("override fun onResume(")
+        assertTrue("MainActivity must override onResume to run the D76 guard", at >= 0)
+        val body = mainActivity.substring(at).take(600)
+        assertTrue(
+            "onResume must revoke peer gates whose prerequisite is gone: " + body,
+            body.contains("revokeUnavailablePeerGates("),
+        )
+    }
+
+    @Test
+    fun `peer gates are revoked whenever a peer gate value changes`() {
+        // D76：导入备份发生在前台、不经过 onResume。只挂 onResume 的话，
+        // 导入一份开着文件/相册的备份后，通道会以「开」的状态藏在不可用态后面。
+        val at = mainActivity.indexOf("revokeUnavailablePeerGates(", mainActivity.indexOf("setContent"))
+        assertTrue("MainActivity must also run the guard from composition", at >= 0)
+        val effectAt = mainActivity.lastIndexOf("LaunchedEffect(", at)
+        val effect = mainActivity.substring(effectAt, at)
+        for (key in listOf("storageBrowsingEnabled", "albumBrowsingEnabled", "favoriteBrowsingEnabled")) {
+            assertTrue("the guard effect must re-run when $key changes: " + effect, effect.contains(key))
+        }
+    }
+
+    @Test
+    fun `the settings page reaches peer gates only through the shared panel`() {
+        // 设置页曾经只有「浏览手机存储」一个裸开关：没授权也能打开（正是 D76 那个状态），
+        // 相册、收藏在这里根本没有入口。现在统一走同一个面板，三态与会话内零差异。
+        assertFalse(
+            "the bare storage-browsing switch must be gone from the settings page",
+            settingsScreen.contains("settings_storage_browsing"),
+        )
+        assertTrue(
+            "the settings page must open the same PeerPermissionsSheet as the session",
+            settingsScreen.contains("PeerPermissionsSheet("),
+        )
     }
 }

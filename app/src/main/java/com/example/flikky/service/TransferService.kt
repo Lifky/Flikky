@@ -42,6 +42,8 @@ import com.example.flikky.server.dto.StatusDto
 import com.example.flikky.server.dto.WireJson
 import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
+import com.example.flikky.session.PeerChannelState
+import com.example.flikky.session.peerChannelState
 import com.example.flikky.ui.theme.resolveFlikkyTheme
 import com.example.flikky.ui.theme.resolveLeadingColors
 import com.example.flikky.ui.theme.toWireColors
@@ -49,7 +51,8 @@ import com.example.flikky.util.BrowserAvatarHelloDecision
 import com.example.flikky.util.BrowserAvatarHelloPolicy
 import com.example.flikky.util.IdGen
 import com.example.flikky.util.AlbumAccess
-import com.example.flikky.util.albumAccess
+import com.example.flikky.data.currentAlbumAccess
+import com.example.flikky.data.hasAllFilesAccess
 import com.example.flikky.util.formatThemeSeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -127,6 +130,8 @@ class TransferService : Service() {
                 systemDark = systemDark,
                 defaultDeviceName = getString(R.string.settings_default_device_name),
                 leadingColors = leadingColors,
+                storageAvailable = hasAllFilesAccess(),
+                albumAvailable = currentAlbumAccess() != AlbumAccess.None,
             ).copy(languageTag = AppLanguageManager.effectiveLanguageTag(this@TransferService))
         }
     }
@@ -552,10 +557,10 @@ class TransferService : Service() {
         favoriteEnabled = { latestSettings.favoriteBetaEnabled && latestSettings.favoriteBrowsingEnabled },
         favoriteThumbFileProvider = { id -> ServiceLocator.favoriteFileStore.thumbnailFile(id) },
         // 存储浏览：主开关只门控对端（App 端自己的文件 tab 不受它约束）。
-        // Environment 只出现在这里与 ServiceLocator —— server 包不认识它。
+        // 权限判据取 data/PeerPrerequisites（与 App 端、peer-info 同一份）—— server 包不认识 Environment。
         storageBrowserProvider = { ServiceLocator.storageBrowser },
         storageBrowsingEnabled = { latestSettings.storageBrowsingEnabled },
-        hasStoragePermission = { android.os.Environment.isExternalStorageManager() },
+        hasStoragePermission = { hasAllFilesAccess() },
         storageThumbFileProvider = { key -> ServiceLocator.fileStore.storageThumbFile(key) },
         storageThumbnailCacheMaxBytes = { latestSettings.thumbnailCacheLimitMb * 1024L * 1024L },
         albumBrowsingEnabled = { latestSettings.albumBrowsingEnabled },
@@ -563,17 +568,6 @@ class TransferService : Service() {
         mediaLibraryProvider = { ServiceLocator.mediaLibrary },
         albumThumbFileProvider = { key -> ServiceLocator.fileStore.storageThumbFile(key) },
     )
-
-    private fun currentAlbumAccess(): AlbumAccess = albumAccess(
-        manageAllFiles = android.os.Environment.isExternalStorageManager(),
-        readImages = hasPermission(android.Manifest.permission.READ_MEDIA_IMAGES),
-        readVideo = hasPermission(android.Manifest.permission.READ_MEDIA_VIDEO),
-        userSelected = Build.VERSION.SDK_INT >= 34 &&
-            hasPermission(android.Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED),
-    )
-
-    private fun hasPermission(name: String): Boolean =
-        checkSelfPermission(name) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
     /**
      * Builds an Export-mode KtorServer. Mirrors buildTransferKtor so the
@@ -825,6 +819,10 @@ class TransferService : Service() {
             systemDark: Boolean,
             defaultDeviceName: String,
             leadingColors: Map<String, List<String>> = emptyMap(),
+            // 系统前置条件由调用方现取（本函数纯映射、可单测）。默认 false = fail-closed：
+            // 漏传时浏览器看不到入口，而不是看到一个等授权的空壳（D76）。
+            storageAvailable: Boolean = false,
+            albumAvailable: Boolean = false,
         ): PeerInfoDto {
             val (mode, value) = when (val bg = background) {
                 is BackgroundSetting.Default -> "DEFAULT" to null
@@ -864,9 +862,14 @@ class TransferService : Service() {
                 appVersion = BuildConfig.VERSION_NAME,
                 recallEnabled = recallBetaEnabled,
                 allowPeerRecall = allowPeerRecall,
-                favoriteEnabled = favoriteBetaEnabled,
-                storageBrowsingEnabled = storageBrowsingEnabled,
-                albumBrowsingEnabled = albumBrowsingEnabled,
+                // 三个「对端能看到」通道只在两轴都开（On）时声明：浏览器据此渲染入口。
+                // 只看对端开关，未授权时会出现空壳入口、授权那一刻内容自己冒出来（D76）。
+                favoriteEnabled = peerChannelState(favoriteBetaEnabled, favoriteBrowsingEnabled) ==
+                    PeerChannelState.On,
+                storageBrowsingEnabled = peerChannelState(storageAvailable, storageBrowsingEnabled) ==
+                    PeerChannelState.On,
+                albumBrowsingEnabled = peerChannelState(albumAvailable, albumBrowsingEnabled) ==
+                    PeerChannelState.On,
                 leadingVisual = LeadingVisualDto(
                     shape = leadingShape.id,
                     colorMode = leadingColorMode.name,

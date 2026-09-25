@@ -112,6 +112,12 @@ class SettingsViewModel @JvmOverloads constructor(
     fun setStorageBrowsingEnabled(value: Boolean) =
         viewModelScope.launch { repository.setStorageBrowsingEnabled(value) }
 
+    fun setAlbumBrowsingEnabled(value: Boolean) =
+        viewModelScope.launch { repository.setAlbumBrowsingEnabled(value) }
+
+    fun setFavoriteBrowsingEnabled(value: Boolean) =
+        viewModelScope.launch { repository.setFavoriteBrowsingEnabled(value) }
+
     fun setShowHiddenFiles(value: Boolean) =
         viewModelScope.launch { repository.setShowHiddenFiles(value) }
 

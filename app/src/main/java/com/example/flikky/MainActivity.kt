@@ -51,7 +51,9 @@ import com.example.flikky.network.UpdateChecker
 import com.example.flikky.network.UpdateInfo
 import com.example.flikky.util.UpdateCheckPolicy
 import com.example.flikky.util.UpdateVersion
+import com.example.flikky.data.revokeUnavailablePeerGates
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,6 +66,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by ServiceLocator.settingsRepository.settings
                 .collectAsState(initial = FlikkySettings())
+            // D76 fail-closed 的第二个触发点：对端开关值一变就复查。导入备份在前台完成、
+            // 不经过 onResume —— 只靠 onResume 的话，导入的「开」会躲在不可用态后面。
+            LaunchedEffect(
+                settings.storageBrowsingEnabled,
+                settings.albumBrowsingEnabled,
+                settings.favoriteBrowsingEnabled,
+            ) {
+                ServiceLocator.settingsRepository.revokeUnavailablePeerGates(applicationContext)
+            }
             FlikkyTheme(settings) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -289,6 +300,15 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // D76 fail-closed：系统权限可能在 App 不在前台时被撤销。放在 Activity 而不是某个页面，
+        // 用户停在哪一页回来都会复查；权限弹窗关闭也会走到这里。
+        ServiceLocator.appScope.launch {
+            ServiceLocator.settingsRepository.revokeUnavailablePeerGates(applicationContext)
         }
     }
 }

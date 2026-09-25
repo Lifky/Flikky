@@ -158,7 +158,19 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     }
     suspend fun setRecallBeta(v: Boolean) = ds.edit { it[Keys.recallBeta] = v }
     suspend fun setAllowPeerRecall(v: Boolean) = ds.edit { it[Keys.allowPeerRecall] = v }
-    suspend fun setFavoriteBeta(v: Boolean) = ds.edit { it[Keys.favoriteBeta] = v }
+    /**
+     * 关掉收藏功能时**同一次写入**把对端收藏开关也关掉（D76 fail-closed）：否则它会
+     * 以「开」的状态藏在不可用态后面，下次打开收藏功能那一刻对端就直接看到了。
+     * 打开收藏功能不连带打开对端开关 —— 对端可见必须是用户显式的动作。
+     *
+     * 迁移值要**按改之前的 beta 先落成真值**：新键缺席时读侧回落旧 beta，
+     * 若只写 beta=true，全新安装打开收藏功能就会经由那条回落顺带对端可见。
+     */
+    suspend fun setFavoriteBeta(v: Boolean) = ds.edit {
+        val browsing = resolveFavoriteBrowsing(it[Keys.favoriteBrowsing], it[Keys.favoriteBeta])
+        it[Keys.favoriteBeta] = v
+        it[Keys.favoriteBrowsing] = v && browsing
+    }
     suspend fun setFavoriteBrowsingEnabled(v: Boolean) = ds.edit { it[Keys.favoriteBrowsing] = v }
     suspend fun setRequirePin(v: Boolean) = ds.edit { it[Keys.requirePin] = v }
     suspend fun setHistoryRetainLimit(v: Int) = ds.edit { it[Keys.retainLimit] = v.coerceAtLeast(-1) }
@@ -176,6 +188,29 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
 
     suspend fun setStorageBrowsingEnabled(v: Boolean) = ds.edit { it[Keys.storageBrowsingEnabled] = v }
     suspend fun setAlbumBrowsingEnabled(v: Boolean) = ds.edit { it[Keys.albumBrowsingEnabled] = v }
+
+    /**
+     * D76 fail-closed：前置条件缺失的对端通道一律关掉，前置条件恢复时**不**自动重开。
+     *
+     * 只「藏起开关、保留开启」的后果：导入一份开着文件/相册的备份到未授权的新装 App，
+     * 对端权限面板只剩「去授权」、用户关不掉；一授权，浏览器立刻看到内容，事后才能关。
+     * 撤销系统权限后再授权、关掉收藏功能后再打开，都是同一形状。
+     *
+     * 系统权限态由调用方传入（本类不认识 Android 权限）；收藏的前置条件是本库自己的键。
+     * 只在当前为开时才写，避免每次调用都让 [settings] 多发一次。
+     */
+    suspend fun revokeUnavailablePeerGates(storageAvailable: Boolean, albumAvailable: Boolean) =
+        ds.edit { p ->
+            if (!storageAvailable && p[Keys.storageBrowsingEnabled] == true) {
+                p[Keys.storageBrowsingEnabled] = false
+            }
+            if (!albumAvailable && p[Keys.albumBrowsingEnabled] == true) {
+                p[Keys.albumBrowsingEnabled] = false
+            }
+            if (p[Keys.favoriteBeta] != true && p[Keys.favoriteBrowsing] == true) {
+                p[Keys.favoriteBrowsing] = false
+            }
+        }
 
     suspend fun setShowHiddenFiles(v: Boolean) = ds.edit { it[Keys.showHiddenFiles] = v }
     suspend fun setLeadingShape(v: LeadingShape) = ds.edit { it[Keys.leadingShape] = v.id }
