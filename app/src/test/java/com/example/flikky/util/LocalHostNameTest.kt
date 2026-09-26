@@ -78,4 +78,20 @@ class LocalHostNameTest {
         assertNull(LocalHostName.parsePort("08080"))
         assertNull(LocalHostName.parsePort(""))
     }
+
+    @Test fun `ports browsers refuse to open are not valid`() {
+        // Chrome/Firefox 对这些端口直接报 ERR_UNSAFE_PORT：手机上看着正常，电脑却打不开。
+        listOf(1719, 1720, 1723, 2049, 3659, 4045, 4190, 5060, 5061, 6000, 6566, 6665, 6669, 6679, 6697, 10080).forEach {
+            assertFalse("$it", LocalHostName.isValidPort(it))
+            assertNull("$it", LocalHostName.parsePort(it.toString()))
+        }
+        assertTrue(LocalHostName.isValidPort(8080))
+        assertTrue(LocalHostName.isValidPort(6001))
+    }
+
+    @Test fun `a browser-blocked port is still in range, so the settings page can explain why`() {
+        assertEquals(6000, LocalHostName.parsePortInRange("6000"))
+        assertNull(LocalHostName.parsePortInRange("80"))
+        assertNull(LocalHostName.parsePortInRange("06000"))
+    }
 }

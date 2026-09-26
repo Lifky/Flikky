@@ -32,4 +32,10 @@ class AddressDraftTest {
         assertTrue(AddressDraft(true, "", "8080").numberError)
         assertTrue(AddressDraft(true, "37", "").portError)
     }
+
+    @Test fun `a port browsers refuse gets its own error`() {
+        val d = AddressDraft(enabled = true, numberText = "37", portText = "6000")
+        assertTrue(d.portError); assertTrue(d.portBlockedByBrowsers); assertFalse(d.canSave)
+        assertFalse(AddressDraft(true, "37", "80").portBlockedByBrowsers)
+    }
 }

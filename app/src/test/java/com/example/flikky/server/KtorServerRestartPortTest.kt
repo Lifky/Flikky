@@ -86,4 +86,14 @@ class KtorServerRestartPortTest {
         }
         assertEquals("uncaught: $uncaught", emptyList<Throwable>(), uncaught.toList())
     }
+
+    @Test fun `the scan skips ports browsers refuse to open`() {
+        // 6665–6669 都在浏览器受限端口表里：绑上了电脑也打不开，扫描得直接跳过。
+        val s = server(6665)
+        try {
+            assertEquals(6670, s.start())
+        } finally {
+            s.stop()
+        }
+    }
 }

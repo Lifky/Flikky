@@ -110,10 +110,6 @@ class ExportingViewModel @JvmOverloads constructor(
         sessionState.clearExport()
     }
 
-    /** 连接卡片上的「改用 N」：把本次会话实际用到的编号写回设置。 */
-    fun adoptHostNumber(number: Int) {
-        viewModelScope.launch { ServiceLocator.settingsRepository.setHostNumber(number) }
-    }
 
     private fun ExportMode.toUiState(snapshot: SessionState.Snapshot): ExportingUiState {
         val ip = networkInfo.currentWifiIpv4() ?: "?"

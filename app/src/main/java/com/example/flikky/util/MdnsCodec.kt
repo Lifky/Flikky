@@ -31,6 +31,7 @@ object MdnsCodec {
     private const val MAX_QUESTIONS = 32
     private const val MAX_RECORDS = 64
     private const val MAX_NAME_LENGTH = 255
+    private const val MAX_POINTER_JUMPS = 16 // spec §4.7
 
     private class Malformed : Exception() {
         override fun fillInStackTrace(): Throwable = this // 丢包是常态，不要栈
@@ -50,13 +51,14 @@ object MdnsCodec {
         fun ipv4(): Ipv4 { need(4); val ip = Ipv4.fromBytes(d, off); off += 4; return ip }
 
         /**
-         * 读名字，跟随压缩指针。指针只许**指向前文**（严格更早的位置）——
-         * 这一条同时排除了自指与环，不再需要单独的跳转计数。
+         * 读名字，跟随压缩指针。指针只许**指向前文**（严格更早的位置）——这一条排除了自指与环；
+         * 跳转次数另有上限 [MAX_POINTER_JUMPS]：只往前也能串出几千跳的长链，每个名字都走一遍就是放大的 CPU 消耗。
          */
         fun name(): String {
             val sb = StringBuilder()
             var pos = off
             var resumeAt = -1
+            var jumps = 0
             var limit = pos // 下一个指针必须指向 < limit 的位置
             while (true) {
                 if (pos >= len) throw Malformed()
@@ -66,7 +68,7 @@ object MdnsCodec {
                     l and 0xC0 == 0xC0 -> {
                         if (pos + 1 >= len) throw Malformed()
                         val target = (l and 0x3F shl 8) or (d[pos + 1].toInt() and 0xFF)
-                        if (target >= limit) throw Malformed()
+                        if (target >= limit || ++jumps > MAX_POINTER_JUMPS) throw Malformed()
                         if (resumeAt < 0) resumeAt = pos + 2
                         limit = target
                         pos = target
@@ -144,7 +146,8 @@ object MdnsCodec {
     fun encodeProbe(name: String, ip: Ipv4): ByteArray = Writer().apply {
         u16(0); u16(0)
         u16(1); u16(0); u16(1); u16(0)
-        name(name); u16(TYPE_ANY); u16(0x8000 or CLASS_IN) // QU
+        // QM：我们只有组播收包 socket，QU 招来的单播应答收不到（spec §4.3 修订）。
+        name(name); u16(TYPE_ANY); u16(CLASS_IN)
         aRecord(name, ip, ttl = 120, cacheFlush = false)   // authority：提议的记录
     }.bytes()
 

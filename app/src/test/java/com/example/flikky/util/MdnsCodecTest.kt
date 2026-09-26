@@ -64,10 +64,11 @@ class MdnsCodecTest {
         assertEquals(10L, m.answers.single().ttl)
     }
 
-    @Test fun `a probe asks QU ANY and proposes our record in authority`() {
+    @Test fun `a probe asks QM ANY and proposes our record in authority`() {
+        // QM 而非 QU：我们只有组播收包 socket，发给 IP:5353 的单播应答收不到（spec §4.3 修订）。
         val m = MdnsCodec.decode(MdnsCodec.encodeProbe("flikky37.local", ip))!!
         assertFalse(m.isResponse)
-        assertEquals(listOf(MdnsQuestion("flikky37.local", MdnsCodec.TYPE_ANY, 1, true)), m.questions)
+        assertEquals(listOf(MdnsQuestion("flikky37.local", MdnsCodec.TYPE_ANY, 1, false)), m.questions)
         assertEquals(ip, m.authorities.single().ipv4)
     }
 
@@ -127,5 +128,32 @@ class MdnsCodecTest {
             MdnsCodec.decode(b, random.nextInt(0, b.size + 1))
         }
         assertNotNull(MdnsCodec.decode(seed))
+    }
+
+    /** [n] 个问题：第 0 个是真名字，第 k 个的名字是指向第 k-1 个名字的指针 —— 读第 k 个要跳 k 次。 */
+    private fun pointerChain(n: Int): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        fun u16(v: Int) { out.write(v shr 8 and 0xFF); out.write(v and 0xFF) }
+        u16(0); u16(0); u16(n); u16(0); u16(0); u16(0)
+        var prev = out.size()
+        out.write(1); out.write('a'.code); out.write(5); out.write("local".toByteArray()); out.write(0)
+        u16(MdnsCodec.TYPE_A); u16(MdnsCodec.CLASS_IN)
+        repeat(n - 1) {
+            val here = out.size()
+            u16(0xC000 or prev); u16(MdnsCodec.TYPE_A); u16(MdnsCodec.CLASS_IN)
+            prev = here
+        }
+        return out.toByteArray()
+    }
+
+    @Test fun `a name reached in 16 pointer jumps still decodes`() {
+        val m = MdnsCodec.decode(pointerChain(17))
+        assertEquals(17, m!!.questions.size)
+        assertEquals("a.local", m.questions.last().name)
+    }
+
+    @Test fun `a name that needs more than 16 pointer jumps drops the packet`() {
+        // spec §4.7：跳转上限 16。只靠「指针只许往前」挡得住环，挡不住一条几千跳的长链。
+        assertNull(MdnsCodec.decode(pointerChain(18)))
     }
 }

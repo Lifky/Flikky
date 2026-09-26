@@ -25,6 +25,7 @@ import com.example.flikky.session.Message
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
 import com.example.flikky.util.AlbumAccess
+import com.example.flikky.util.LocalHostName
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCallPipeline
@@ -134,8 +135,11 @@ class KtorServer(
     fun start(): Int {
         var lastError: Throwable? = null
         for (port in startPort..endPort) {
-            if (!isPortFree(port)) {
-                lastError = java.net.BindException("port $port in use")
+            // 浏览器拒绝打开的端口：绑上了电脑也打不开，直接跳过。
+            if (port in LocalHostName.BROWSER_BLOCKED_PORTS) continue
+            // 保留预探测的真实异常：rebind 时 IP 还没就绪（EADDRNOTAVAIL）不该被记成「端口被占用」。
+            probePort(port)?.let {
+                lastError = it
                 continue
             }
             var candidate: EmbeddedServer<*, *>? = null
@@ -288,12 +292,14 @@ class KtorServer(
      * 用 ServerSocketChannel 的平台默认选项，与 Ktor 绑定时一致：Linux 上 TIME_WAIT
      * 的端口两边都认为可绑，不会因为探测更严而把刚停的端口误判成「被占用」。
      * 守卫：KtorServerRestartPortTest / KtorServerRestartPortInstrumentedTest。
+     *
+     * 返回 null = 可绑；否则是绑定失败的原因。
      */
-    private fun isPortFree(port: Int): Boolean = runCatching {
+    private fun probePort(port: Int): Throwable? = runCatching {
         java.nio.channels.ServerSocketChannel.open().use {
             it.bind(java.net.InetSocketAddress(host, port))
         }
-    }.isSuccess
+    }.exceptionOrNull()
 
     fun stop() {
         engine?.stop(1_000, 3_000)

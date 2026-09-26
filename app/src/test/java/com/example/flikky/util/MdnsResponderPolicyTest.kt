@@ -127,4 +127,25 @@ class MdnsResponderPolicyTest {
         val probe = MdnsIncoming(MdnsCodec.decode(MdnsCodec.encodeProbe(name, smaller))!!, smaller, 5353)
         assertFalse(isNameConflict(probe, name, own))
     }
+
+    private fun probe() = MdnsMessage(
+        0, false,
+        listOf(MdnsQuestion(name, MdnsCodec.TYPE_ANY, MdnsCodec.CLASS_IN, false)),
+        emptyList(),
+        listOf(MdnsARecord(name, peer, 120, false)),
+    )
+
+    @Test fun `every probe for our name is answered by multicast, even inside the rate-limit window`() {
+        // RFC 6762 §6 的唯一例外：对方靠这些应答发现冲突，3 次探测不能塌成 1 次（spec §4.7 修订）。
+        repeat(3) {
+            assertTrue("probe $it", respond(probe()).any { it is MdnsSend.Multicast })
+            now += 250
+        }
+    }
+
+    @Test fun `plain queries inside the window are still not multicast again`() {
+        assertTrue(respond(q()).any { it is MdnsSend.Multicast })
+        now += 250
+        assertFalse(respond(q()).any { it is MdnsSend.Multicast })
+    }
 }

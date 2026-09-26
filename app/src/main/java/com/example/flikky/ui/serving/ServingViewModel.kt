@@ -358,10 +358,6 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     private fun currentAlbumAccess(): AlbumAccess =
         getApplication<Application>().currentAlbumAccess()
 
-    /** 连接卡片上的「改用 N」：把本次会话实际用到的编号写回设置。 */
-    fun adoptHostNumber(number: Int) {
-        viewModelScope.launch { ServiceLocator.settingsRepository.setHostNumber(number) }
-    }
 
     fun sendFavorite(favorite: FavoriteEntity) {
         when (favorite.kind) {

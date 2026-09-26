@@ -131,4 +131,14 @@ class SessionStateTest {
         // Both have same timestamp; m2 should follow m1 (lo = hi after both mid hits).
         assertEquals(listOf(1L, 2L), state.snapshot.value.messages.map { it.id })
     }
+
+    @Test
+    fun `adopting the number the session actually uses clears the rename notice`() {
+        val state = SessionState(nowMs = { 0L })
+        state.updateLocalName(LocalNameStatus.Renamed(wanted = 37, actual = 38))
+        state.adoptLocalName(39)
+        assertEquals(LocalNameStatus.Renamed(37, 38), state.snapshot.value.localName)
+        state.adoptLocalName(38)
+        assertEquals(LocalNameStatus.Owned(38), state.snapshot.value.localName)
+    }
 }

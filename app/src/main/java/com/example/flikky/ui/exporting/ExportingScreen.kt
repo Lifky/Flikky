@@ -40,6 +40,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.session.ConnectionAddresses
+import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.ConnectionInfoCard
 import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.maxContentWidth
@@ -85,7 +86,7 @@ fun ExportingScreen(
                 ExportingUiState.Phase.Armed -> PhaseContainer {
                     ArmedContent(
                         address = ui.address,
-                        onAdoptNumber = viewModel::adoptHostNumber,
+                        onAdoptNumber = ServiceLocator::adoptHostNumber,
                         pin = ui.pin,
                         requirePin = ui.requirePin,
                         onCancel = {

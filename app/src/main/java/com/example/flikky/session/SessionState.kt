@@ -98,6 +98,21 @@ class SessionState(private val nowMs: () -> Long) {
         _snapshot.update { it.copy(requestedPort = port) }
     }
 
+    /**
+     * 「改用 N」：设置已写成本次实际用的编号 → 提示立刻收起，不必等重启。
+     * 只在当前确实是 `Renamed(_, number)` 时改，别的状态原样不动。
+     */
+    fun adoptLocalName(number: Int) {
+        _snapshot.update {
+            val current = it.localName
+            if (current is LocalNameStatus.Renamed && current.actual == number) {
+                it.copy(localName = LocalNameStatus.Owned(number))
+            } else {
+                it
+            }
+        }
+    }
+
     fun updateLocalName(status: LocalNameStatus) {
         _snapshot.update { it.copy(localName = status) }
     }

@@ -32,6 +32,8 @@ data class AddressDraft(val enabled: Boolean, val numberText: String, val portTe
     /** 名称关闭时编号不参与保存，也就不报错。 */
     val numberError: Boolean get() = enabled && number == null
     val portError: Boolean get() = port == null
+    /** 在范围内、但浏览器拒绝打开（`ERR_UNSAFE_PORT`）：单独提示，别让用户以为是范围写错了。 */
+    val portBlockedByBrowsers: Boolean get() = port == null && LocalHostName.parsePortInRange(portText) != null
     val canSave: Boolean get() = !numberError && !portError
     fun preview(): String? {
         val n = number ?: return null
@@ -90,7 +92,14 @@ fun AccessAddressDialog(
                     label = { Text(stringResource(R.string.settings_port)) },
                     isError = draft.portError,
                     supportingText = if (draft.portError) {
-                        { Text(stringResource(R.string.settings_port_error)) }
+                        {
+                            Text(
+                                stringResource(
+                                    if (draft.portBlockedByBrowsers) R.string.settings_port_blocked
+                                    else R.string.settings_port_error,
+                                ),
+                            )
+                        }
                     } else {
                         null
                     },

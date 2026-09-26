@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 private val Context.settingsDataStore by preferencesDataStore(name = "flikky_settings")
 
@@ -85,6 +86,15 @@ object ServiceLocator {
     private val _recallNotifications = MutableSharedFlow<Unit>(extraBufferCapacity = 16)
     val recallNotifications: SharedFlow<Unit> = _recallNotifications.asSharedFlow()
     fun notifyRecall() { _recallNotifications.tryEmit(Unit) }
+
+    /**
+     * 连接卡片上的「改用 N」（传输、导出共用）：把本次会话实际用的编号写回设置，并立刻收起提示。
+     * 走 appScope：点完马上离开页面，写入也不能丢。
+     */
+    fun adoptHostNumber(number: Int) {
+        session.adoptLocalName(number)
+        appScope.launch { settingsRepository.setHostNumber(number) }
+    }
 
     /**
      * 「显示隐藏文件」的当前值，供 server 侧的 [SharedStorageBrowser] 同步读取。

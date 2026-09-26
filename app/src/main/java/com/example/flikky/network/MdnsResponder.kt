@@ -12,6 +12,7 @@ import com.example.flikky.util.MdnsProber
 import com.example.flikky.util.MdnsResponderPolicy
 import com.example.flikky.util.MdnsSend
 import com.example.flikky.util.ProbeResult
+import com.example.flikky.util.isNameConflict
 import java.net.DatagramPacket
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -47,9 +48,13 @@ class MdnsResponder(
     /**
      * IP 变了：名字已确认过就不再探测、直接在新网卡上宣告；
      * 还没确认（探测途中 rebind）就在新 IP 上重新探测。
+     *
+     * [wanted] 是设置里当前的编号：用户点过「改用 N」后它已经等于本次用的编号，
+     * rebind 不能再报一次 `Renamed`。
      */
-    fun updateIp(ip: String) {
+    fun updateIp(ip: String, wanted: Int = requestedNumber) {
         val previous = worker ?: return
+        requestedNumber = wanted
         val owned = previous.ownedNumber
         previous.shutdown()
         worker = if (owned != null) {
@@ -90,16 +95,14 @@ class MdnsResponder(
 
         init { isDaemon = true }
 
+        /**
+         * goodbye 由工作线程在退出时发（[run] 的 finally）：stop() 的调用方多在主线程，
+         * 主线程发 UDP 会抛 NetworkOnMainThreadException，被吞掉后 goodbye 就从没发出去过（2026-09-26 整分支审查）。
+         * 这里只关收包 socket 让阻塞的 receive 立刻返回；发包 socket 留给工作线程发完 goodbye 再关。
+         */
         fun shutdown() {
-            // 先发 goodbye、再置 running=false：反过来的话，工作线程可能先退出并在 finally 里关掉 sender。
-            val owned = ownedNumber
-            val ip = Ipv4.parse(ipText)
-            if (owned != null && ip != null) {
-                runCatching { send(MdnsSend.Multicast(policy.goodbye(LocalHostName.fqdn(owned), ip))) }
-            }
             running = false
             runCatching { receiver?.close() }
-            runCatching { sender?.close() }
             join(STOP_JOIN_MS)
             if (isAlive) Log.w(TAG, "responder thread did not exit within ${STOP_JOIN_MS}ms")
         }
@@ -109,7 +112,24 @@ class MdnsResponder(
             if (running) onStatus(status)
         }
 
+        /** 收包线程意外退出：先上报再停，否则卡片会一直写着「电脑可直接输入第二行」，却已没人应答。 */
+        private fun fail(message: String, e: Throwable) {
+            if (!running) return
+            Log.w(TAG, message, e)
+            report(LocalNameStatus.Unavailable)
+            running = false
+        }
+
         override fun run() {
+            // 任何未预料的异常都停在这里：在 Android 上，线程里漏出去的异常会杀掉整个 App（包括传输会话）。
+            try {
+                runSafely()
+            } catch (e: Throwable) {
+                fail("responder thread crashed", e)
+            }
+        }
+
+        private fun runSafely() {
             val ip = Ipv4.parse(ipText)
             val addr = runCatching { InetAddress.getByName(ipText) }.getOrNull()
             val iface = addr?.let { runCatching { NetworkInterface.getByInetAddress(it) }.getOrNull() }
@@ -146,6 +166,10 @@ class MdnsResponder(
                 serve(ip, prefix)
             } finally {
                 runCatching { receiver?.close() }
+                ownedNumber?.let { owned ->
+                    runCatching { send(MdnsSend.Multicast(policy.goodbye(LocalHostName.fqdn(owned), ip))) }
+                        .onFailure { Log.w(TAG, "goodbye failed", it) }
+                }
                 runCatching { sender?.close() }
             }
         }
@@ -185,8 +209,21 @@ class MdnsResponder(
             }
         }
 
+        private var lastQueryLogAt = 0L
+
         private fun answer(incoming: MdnsIncoming, name: String, ip: Ipv4, prefix: Int) {
-            policy.respond(incoming, name, ip, prefix).forEach { runCatching { send(it) } }
+            // spec §4.3：运行中的冲突本版不改名，只记日志（B52）。
+            if (isNameConflict(incoming, name, ip)) {
+                Log.w(TAG, "runtime conflict: ${incoming.srcIp} also claims $name")
+            }
+            val replies = policy.respond(incoming, name, ip, prefix)
+            // B53 要靠这行判断查询有没有到达；限频，别让一台爱刷查询的设备刷屏。
+            val now = System.currentTimeMillis()
+            if (replies.isNotEmpty() && now - lastQueryLogAt >= QUERY_LOG_INTERVAL_MS) {
+                lastQueryLogAt = now
+                Log.d(TAG, "answering $name for ${incoming.srcIp}:${incoming.srcPort}")
+            }
+            replies.forEach { runCatching { send(it) } }
         }
 
         private fun collect(windowMs: Long): List<MdnsIncoming> {
@@ -198,10 +235,12 @@ class MdnsResponder(
             return out
         }
 
+        private val receiveBuffer = ByteArray(MdnsCodec.MAX_PACKET)
+
         private fun receiveOne(): MdnsIncoming? {
             val socket = receiver ?: return null
-            val buf = ByteArray(MdnsCodec.MAX_PACKET)
-            val pkt = DatagramPacket(buf, buf.size)
+            // 缓冲复用：decode 把需要的字段都拷走了，不持有这块数组。
+            val pkt = DatagramPacket(receiveBuffer, receiveBuffer.size)
             return try {
                 socket.receive(pkt)
                 val src = Ipv4.parse(pkt.address.hostAddress ?: return null) ?: return null
@@ -209,8 +248,8 @@ class MdnsResponder(
             } catch (_: SocketTimeoutException) {
                 null
             } catch (e: Exception) {
-                if (running) Log.w(TAG, "receive failed", e)
-                running = false
+                // shutdown() 关 socket 引起的异常属于正常退出（running 已为 false，fail 不上报）。
+                fail("receive failed", e)
                 null
             }
         }
@@ -238,5 +277,6 @@ class MdnsResponder(
         private const val ANNOUNCEMENTS = 2
         private const val ANNOUNCE_INTERVAL_MS = 1000L
         private const val STOP_JOIN_MS = 1000L
+        private const val QUERY_LOG_INTERVAL_MS = 10_000L
     }
 }

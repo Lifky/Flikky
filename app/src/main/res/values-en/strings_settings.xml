@@ -87,6 +87,7 @@
     <string name="settings_host_number_error">Enter a whole number from 0 to 999, no leading zeros</string>
     <string name="settings_port">Port (1024–65535)</string>
     <string name="settings_port_error">Enter a whole number from 1024 to 65535</string>
+    <string name="settings_port_blocked">Browsers won\'t open this port, pick another</string>
     <string name="settings_access_address_applies_next">Changes apply the next time the service starts</string>
 
     <string name="settings_section_data">Data</string>

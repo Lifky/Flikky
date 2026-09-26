@@ -87,6 +87,7 @@
     <string name="settings_host_number_error">请输入 0–999 的整数，不带前导零</string>
     <string name="settings_port">端口（1024–65535）</string>
     <string name="settings_port_error">请输入 1024–65535 的整数</string>
+    <string name="settings_port_blocked">浏览器不允许打开这个端口，请换一个</string>
     <string name="settings_access_address_applies_next">修改在下次启动服务时生效</string>
 
     <string name="settings_section_data">数据</string>

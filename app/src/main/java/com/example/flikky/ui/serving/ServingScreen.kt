@@ -269,7 +269,7 @@ fun ServingScreen(
                                 address = address,
                                 pin = ui.pin,
                                 requirePin = ui.requirePin,
-                                onAdoptNumber = viewModel::adoptHostNumber,
+                                onAdoptNumber = ServiceLocator::adoptHostNumber,
                             )
                         }
                         Row(

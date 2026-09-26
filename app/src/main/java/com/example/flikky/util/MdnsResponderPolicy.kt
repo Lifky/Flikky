@@ -38,7 +38,10 @@ class MdnsResponderPolicy(private val nowMs: () -> Long) {
         val out = mutableListOf<MdnsSend>()
         val now = nowMs()
         val last = lastMulticastAt
-        if (last == null || now - last >= MULTICAST_INTERVAL_MS) {
+        // 探测（authority 段带我们的名字）是速率限制的唯一例外（RFC 6762 §6）：
+        // 对方靠这些应答发现冲突，只答第一次，3 次探测的冗余就塌成 1 次。
+        val isProbe = msg.authorities.any { it.name.equals(name, ignoreCase = true) }
+        if (isProbe || last == null || now - last >= MULTICAST_INTERVAL_MS) {
             out += MdnsSend.Multicast(announcement(name, ownIp))
             lastMulticastAt = now
         }

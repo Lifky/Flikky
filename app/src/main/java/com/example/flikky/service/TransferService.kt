@@ -106,9 +106,6 @@ class TransferService : Service() {
     private var networkWatchJob: Job? = null
     private var currentHostIp: String? = null
 
-    private fun startPortForBind(): Int =
-        ServiceLocator.session.snapshot.value.boundPort.takeIf { it > 0 } ?: latestSettings.customPort
-
     /**
      * 跨 rebind 存活，但**不持有任何 KtorServer 成员**（rebind 引用规范）：IP 只经参数传入。
      * 守卫：service/MdnsResponderRebindReferenceTest。
@@ -292,7 +289,8 @@ class TransferService : Service() {
         pinAuth = auth
 
         currentMode = ServiceMode.Transfer
-        val server = buildTransferKtor(ip, auth)
+        // 新会话从用户设定的端口起扫（spec §4.6）；只有 rebind 沿用已绑端口。
+        val server = buildTransferKtor(ip, auth, startPort = latestSettings.customPort)
         val port = runCatching { server.start() }.getOrElse {
             Log.e(TAG, "startTransfer failed to bind", it)
             stopActiveServer()
@@ -405,7 +403,8 @@ class TransferService : Service() {
         pinAuth = auth
 
         currentMode = ServiceMode.Export
-        val server = buildExportKtor(ip, auth)
+        // 导出不走 session.startNew()，snapshot 里可能还留着上次的 boundPort —— 别拿它起扫。
+        val server = buildExportKtor(ip, auth, startPort = latestSettings.customPort)
         val port = runCatching { server.start() }.getOrElse {
             Log.e(TAG, "export failed to bind", it)
             stopActiveServer()
@@ -513,11 +512,10 @@ class TransferService : Service() {
      * rebind path after the previous engine was torn down — both flows use the
      * same PinAuth/session wiring; only [host] changes on a rebind.
      */
-    private fun buildTransferKtor(host: String, auth: PinAuth): KtorServer = KtorServer(
+    private fun buildTransferKtor(host: String, auth: PinAuth, startPort: Int): KtorServer = KtorServer(
         host = host,
-        // rebind 优先沿用本会话已绑端口（D75）；新会话从用户设定的端口起扫（spec §4.6）。
-        startPort = startPortForBind(),
-        endPort = LocalHostName.portRange(startPortForBind()).last,
+        startPort = startPort,
+        endPort = LocalHostName.portRange(startPort).last,
         pinAuth = auth,
         session = ServiceLocator.session,
         stats = ServiceLocator.stats,
@@ -603,11 +601,10 @@ class TransferService : Service() {
      * Builds an Export-mode KtorServer. Mirrors buildTransferKtor so the
      * rebind path has a symmetric factory to call.
      */
-    private fun buildExportKtor(host: String, auth: PinAuth): KtorServer = KtorServer(
+    private fun buildExportKtor(host: String, auth: PinAuth, startPort: Int): KtorServer = KtorServer(
         host = host,
-        // rebind 优先沿用本会话已绑端口（D75）；新会话从用户设定的端口起扫（spec §4.6）。
-        startPort = startPortForBind(),
-        endPort = LocalHostName.portRange(startPortForBind()).last,
+        startPort = startPort,
+        endPort = LocalHostName.portRange(startPort).last,
         pinAuth = auth,
         session = ServiceLocator.session,
         stats = ServiceLocator.stats,
@@ -727,9 +724,11 @@ class TransferService : Service() {
         val previous = ktor
         ktor = null
         runCatching { previous?.stop() }
+        // rebind 优先沿用本会话已绑端口（D75）。
+        val startPort = ServiceLocator.session.snapshot.value.boundPort.takeIf { it > 0 } ?: latestSettings.customPort
         val replacement = when (mode) {
-            ServiceMode.Transfer -> buildTransferKtor(newIp, auth)
-            ServiceMode.Export -> buildExportKtor(newIp, auth)
+            ServiceMode.Transfer -> buildTransferKtor(newIp, auth, startPort)
+            ServiceMode.Export -> buildExportKtor(newIp, auth, startPort)
         }
         val port = runCatching { replacement.start() }.getOrNull()
         if (port == null) {
@@ -745,7 +744,11 @@ class TransferService : Service() {
         ktor = replacement
         rebinder.prime(newIp)
         currentHostIp = newIp
-        if (latestSettings.localNameEnabled) mdns.updateIp(newIp)
+        if (latestSettings.localNameEnabled) {
+            // 编号取设置的最新值：用户点过「改用 N」后，rebind 不能把 Renamed 提示再报回来。
+            val wanted = latestSettings.hostNumber
+            if (wanted != null) mdns.updateIp(newIp, wanted) else mdns.updateIp(newIp)
+        }
         ServiceLocator.session.updateBoundPort(port)
         // Transfer-mode ServingViewModel keys its UI off _running (ip/port);
         // refresh it so the screen shows the new URL too.
