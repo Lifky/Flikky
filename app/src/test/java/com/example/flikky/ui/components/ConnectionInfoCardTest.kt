@@ -5,9 +5,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ConnectionInfoCardTest {
-    @Test fun `copy and qr actions sit in the same row`() {
-        val card = code(); val row = blockStartingAt(card, "Row(")
-        assertTrue(row.contains("R.string.connection_copy_address")); assertTrue(row.contains("R.drawable.ic_qr_code_2"))
+    @Test fun `each address row carries its own copy action and the qr action stays outside`() {
+        // 2026-09-26 用户选定：两行地址行尾各一个复制图标，二维码单独一行。
+        val row = blockStartingAt(code(), "private fun AddressRow(")
+        assertTrue(row.contains("R.drawable.ic_content_copy")); assertTrue(!row.contains("R.drawable.ic_qr_code_2"))
     }
     @Test fun `the qr button is not parked at the end of the url line`() {
         val block = code().substringAfter("text = url").take(200)

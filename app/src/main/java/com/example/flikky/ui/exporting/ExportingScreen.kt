@@ -39,6 +39,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.flikky.session.ConnectionAddresses
 import com.example.flikky.ui.components.ConnectionInfoCard
 import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.maxContentWidth
@@ -83,7 +84,8 @@ fun ExportingScreen(
             when (phase) {
                 ExportingUiState.Phase.Armed -> PhaseContainer {
                     ArmedContent(
-                        url = ui.url,
+                        address = ui.address,
+                        onAdoptNumber = viewModel::adoptHostNumber,
                         pin = ui.pin,
                         requirePin = ui.requirePin,
                         onCancel = {
@@ -153,7 +155,8 @@ private fun topBarTitleFor(phase: ExportingUiState.Phase): String = when (phase)
 
 @Composable
 private fun ArmedContent(
-    url: String,
+    address: ConnectionAddresses?,
+    onAdoptNumber: (Int) -> Unit,
     pin: String,
     requirePin: Boolean,
     onCancel: () -> Unit,
@@ -163,7 +166,9 @@ private fun ArmedContent(
         verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        ConnectionInfoCard(url = url, pin = pin, requirePin = requirePin)
+        address?.let {
+            ConnectionInfoCard(address = it, pin = pin, requirePin = requirePin, onAdoptNumber = onAdoptNumber)
+        }
 
         Text(
             text = if (requirePin) {

@@ -17,6 +17,13 @@
     <string name="common_rename_session">Rename session</string>
     <string name="connection_open_in_browser">Open in browser</string>
     <string name="connection_copy_address">Copy address</string>
+    <string name="connection_local_hint">Computers can type the second line; phones should scan</string>
+    <string name="connection_local_probing">Checking the name…</string>
+    <string name="connection_local_renamed">%1$s is taken, using %2$s this time</string>
+    <string name="connection_local_adopt">Use %1$d</string>
+    <string name="connection_local_unavailable">Local name unavailable, use the address above</string>
+    <string name="connection_port_moved">%1$d is in use, using %2$d this time</string>
+    <string name="connection_copy_local_address">Copy local name address</string>
     <string name="connection_show_qr">Show QR code</string>
     <string name="connection_qr_title">Scan to open the address</string>
     <string name="connection_qr_hint">Scan with another device\'s camera to open this address directly</string>

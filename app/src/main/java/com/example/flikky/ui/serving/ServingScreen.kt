@@ -264,7 +264,14 @@ fun ServingScreen(
                     )
                 } else {
                     Column(Modifier.padding(Spacing.sectionGap)) {
-                        ConnectionInfoCard(url = ui.url, pin = ui.pin, requirePin = ui.requirePin)
+                        ui.address?.let { address ->
+                            ConnectionInfoCard(
+                                address = address,
+                                pin = ui.pin,
+                                requirePin = ui.requirePin,
+                                onAdoptNumber = viewModel::adoptHostNumber,
+                            )
+                        }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),

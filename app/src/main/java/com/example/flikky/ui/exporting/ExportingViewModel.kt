@@ -12,8 +12,10 @@ import com.example.flikky.export.MessageExport
 import com.example.flikky.export.ExportScope
 import com.example.flikky.network.NetworkInfo
 import com.example.flikky.service.TransferService
+import com.example.flikky.session.ConnectionAddresses
 import com.example.flikky.session.NetworkStatus
 import com.example.flikky.session.SessionState
+import com.example.flikky.session.connectionAddresses
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -41,6 +43,8 @@ data class ExportingUiState(
     val scope: ExportScope = ExportScope.SESSIONS,
     val favoriteCount: Int = 0,
     val settingsIncluded: Boolean = false,
+    /** 连接卡片的两行地址；端口未绑定时为 null。 */
+    val address: ConnectionAddresses? = null,
 ) {
     enum class Phase { Armed, Sending, Done, Gone }
 }
@@ -55,12 +59,12 @@ class ExportingViewModel @JvmOverloads constructor(
     val ui: StateFlow<ExportingUiState> = combine(
         sessionState.exportMode,
         sessionState.snapshot,
-    ) { mode, snap -> mode.toUiState(snap.boundPort).copy(networkStatus = snap.networkStatus) }
+    ) { mode, snap -> mode.toUiState(snap).copy(networkStatus = snap.networkStatus) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
             initialValue = sessionState.exportMode.value
-                .toUiState(sessionState.snapshot.value.boundPort)
+                .toUiState(sessionState.snapshot.value)
                 .copy(networkStatus = sessionState.snapshot.value.networkStatus),
         )
 
@@ -106,14 +110,26 @@ class ExportingViewModel @JvmOverloads constructor(
         sessionState.clearExport()
     }
 
-    private fun ExportMode.toUiState(boundPort: Int): ExportingUiState {
+    /** 连接卡片上的「改用 N」：把本次会话实际用到的编号写回设置。 */
+    fun adoptHostNumber(number: Int) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setHostNumber(number) }
+    }
+
+    private fun ExportMode.toUiState(snapshot: SessionState.Snapshot): ExportingUiState {
         val ip = networkInfo.currentWifiIpv4() ?: "?"
+        val boundPort = snapshot.boundPort
         val urlBase = if (boundPort > 0) "http://$ip:$boundPort" else "http://$ip"
+        val address = if (boundPort > 0) {
+            connectionAddresses(ip, boundPort, snapshot.requestedPort, snapshot.localName)
+        } else {
+            null
+        }
         return when (val mode = this) {
             is ExportMode.Idle -> ExportingUiState(phase = ExportingUiState.Phase.Gone)
             is ExportMode.Armed -> ExportingUiState(
                 phase = ExportingUiState.Phase.Armed,
                 url = urlBase,
+                address = address,
                 pin = mode.session.pin,
                 sessionCount = mode.snapshot.sessions.size,
                 totalBytes = aggregateBytes(mode.snapshot),
@@ -127,6 +143,7 @@ class ExportingViewModel @JvmOverloads constructor(
             is ExportMode.Sending -> ExportingUiState(
                 phase = ExportingUiState.Phase.Sending,
                 url = urlBase,
+                address = address,
                 pin = mode.session.pin,
                 sessionCount = mode.session.sessionIds.size,
                 totalBytes = mode.totalBytes,
@@ -140,6 +157,7 @@ class ExportingViewModel @JvmOverloads constructor(
             is ExportMode.Done -> ExportingUiState(
                 phase = ExportingUiState.Phase.Done,
                 url = urlBase,
+                address = address,
                 pin = mode.session.pin,
                 sessionCount = mode.session.sessionIds.size,
                 totalBytes = 0L,

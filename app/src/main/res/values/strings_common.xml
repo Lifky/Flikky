@@ -17,6 +17,13 @@
     <string name="common_rename_session">重命名会话</string>
     <string name="connection_open_in_browser">在浏览器中打开</string>
     <string name="connection_copy_address">复制地址</string>
+    <string name="connection_local_hint">电脑可直接输入第二行；手机请扫码</string>
+    <string name="connection_local_probing">正在确认名称…</string>
+    <string name="connection_local_renamed">%1$s 已被占用，本次使用 %2$s</string>
+    <string name="connection_local_adopt">改用 %1$d</string>
+    <string name="connection_local_unavailable">局域网名称不可用，请使用上面的地址</string>
+    <string name="connection_port_moved">%1$d 被占用，本次使用 %2$d</string>
+    <string name="connection_copy_local_address">复制局域网名称地址</string>
     <string name="connection_show_qr">显示二维码</string>
     <string name="connection_qr_title">扫码打开地址</string>
     <string name="connection_qr_hint">用另一台设备的相机扫描，即可直接打开这个地址</string>

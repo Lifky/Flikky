@@ -34,10 +34,13 @@ import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.service.TransferController
 import com.example.flikky.service.TransferService
+import com.example.flikky.session.ConnectionAddresses
 import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
+import com.example.flikky.session.connectionAddresses
 import com.example.flikky.session.Origin
 import com.example.flikky.session.PendingMessageDeletes
+import com.example.flikky.session.SessionState
 import com.example.flikky.server.dto.AlbumBucketDto
 import com.example.flikky.server.dto.AlbumItemDto
 import kotlinx.coroutines.flow.drop
@@ -86,6 +89,8 @@ data class ServingUiState(
     val messages: List<Message> = emptyList(),
     val networkStatus: NetworkStatus = NetworkStatus.Ok,
     val requirePin: Boolean = true,
+    /** 连接卡片的两行地址；服务未运行时为 null。 */
+    val address: ConnectionAddresses? = null,
 )
 
 data class AlbumUiState(
@@ -155,6 +160,8 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
                     url = r?.let { "http://${it.ip}:${it.port}" } ?: "",
                     pin = r?.pin ?: "",
                     requirePin = r?.requirePin ?: true,
+                    // 连上立刻出卡片，不等下一次 1Hz tick。
+                    address = r?.let { addressOf(it, ServiceLocator.session.snapshot.value) },
                 )
             }.launchIn(viewModelScope)
         }
@@ -163,7 +170,7 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
             serviceBindingJob = null
             controller = null
             running = null
-            _ui.value = _ui.value.copy(url = "", pin = "")
+            _ui.value = _ui.value.copy(url = "", pin = "", address = null)
         }
     }
 
@@ -196,9 +203,13 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
                 messages = snap.messages,
                 networkStatus = snap.networkStatus,
                 requirePin = _ui.value.requirePin,
+                address = running?.let { addressOf(it, snap) },
             )
         }.onEach { _ui.value = it }.launchIn(viewModelScope)
     }
+
+    private fun addressOf(r: TransferService.Running, snap: SessionState.Snapshot): ConnectionAddresses =
+        connectionAddresses(r.ip, r.port, snap.requestedPort, snap.localName)
 
     private fun tick1Hz() = flow { while (true) { emit(Unit); delay(1000) } }
 
@@ -346,6 +357,11 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun currentAlbumAccess(): AlbumAccess =
         getApplication<Application>().currentAlbumAccess()
+
+    /** 连接卡片上的「改用 N」：把本次会话实际用到的编号写回设置。 */
+    fun adoptHostNumber(number: Int) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setHostNumber(number) }
+    }
 
     fun sendFavorite(favorite: FavoriteEntity) {
         when (favorite.kind) {
