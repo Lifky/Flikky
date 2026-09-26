@@ -10,6 +10,8 @@ import com.example.flikky.util.SortKey
 import com.example.flikky.util.SortSpec
 import com.example.flikky.util.LeadingColorMode
 import com.example.flikky.util.LeadingShape
+import com.example.flikky.util.LocalHostName
+import kotlin.random.Random
 import com.example.flikky.util.normalizeThemeSeedArgb
 
 class SettingsRepository(private val ds: DataStore<Preferences>) {
@@ -39,6 +41,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val allowBackDuringSession = booleanPreferencesKey("allow_back_during_session")
         val sessionTimestampEnabled = booleanPreferencesKey("session_timestamp_enabled")
         val keepScreenOnDuringSession = booleanPreferencesKey("keep_screen_on_during_session")
+        val hostNumber = intPreferencesKey("host_number")
+        val customPort = intPreferencesKey("custom_port")
+        val localNameEnabled = booleanPreferencesKey("local_name_enabled")
         val storageBrowsingEnabled = booleanPreferencesKey("storage_browsing_enabled")
         val albumBrowsingEnabled = booleanPreferencesKey("album_browsing_enabled")
         val showHiddenFiles = booleanPreferencesKey("show_hidden_files")
@@ -102,6 +107,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             allowBackDuringSession = p[Keys.allowBackDuringSession] ?: true,
             sessionTimestampEnabled = p[Keys.sessionTimestampEnabled] ?: false,
             keepScreenOnDuringSession = p[Keys.keepScreenOnDuringSession] ?: false,
+            hostNumber = p[Keys.hostNumber]?.takeIf(LocalHostName::isValidNumber),
+            customPort = p[Keys.customPort]?.takeIf(LocalHostName::isValidPort) ?: LocalHostName.DEFAULT_PORT,
+            localNameEnabled = p[Keys.localNameEnabled] ?: true,
             storageBrowsingEnabled = p[Keys.storageBrowsingEnabled] ?: false,
             albumBrowsingEnabled = p[Keys.albumBrowsingEnabled] ?: false,
             showHiddenFiles = p[Keys.showHiddenFiles] ?: false,
@@ -185,6 +193,28 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     suspend fun setAllowBackDuringSession(v: Boolean) = ds.edit { it[Keys.allowBackDuringSession] = v }
     suspend fun setSessionTimestampEnabled(v: Boolean) = ds.edit { it[Keys.sessionTimestampEnabled] = v }
     suspend fun setKeepScreenOnDuringSession(v: Boolean) = ds.edit { it[Keys.keepScreenOnDuringSession] = v }
+
+    /** 越界值直接忽略：UI 已校验，这里是最后一道闸，别让坏值进盘。 */
+    suspend fun setHostNumber(v: Int) {
+        if (LocalHostName.isValidNumber(v)) ds.edit { it[Keys.hostNumber] = v }
+    }
+    suspend fun setCustomPort(v: Int) {
+        if (LocalHostName.isValidPort(v)) ds.edit { it[Keys.customPort] = v }
+    }
+    suspend fun setLocalNameEnabled(v: Boolean) = ds.edit { it[Keys.localNameEnabled] = v }
+
+    /**
+     * 返回当前编号；尚未分配时随机 1–99 并**在同一次写入里**持久化。
+     * 放在 edit 里读写：服务启动与设置页可能同时首次调用，必须拿到同一个数。
+     */
+    suspend fun ensureHostNumber(random: Random = Random.Default): Int {
+        var result = 0
+        ds.edit { p ->
+            val existing = p[Keys.hostNumber]?.takeIf(LocalHostName::isValidNumber)
+            result = existing ?: LocalHostName.randomDefaultNumber(random).also { p[Keys.hostNumber] = it }
+        }
+        return result
+    }
 
     suspend fun setStorageBrowsingEnabled(v: Boolean) = ds.edit { it[Keys.storageBrowsingEnabled] = v }
     suspend fun setAlbumBrowsingEnabled(v: Boolean) = ds.edit { it[Keys.albumBrowsingEnabled] = v }
@@ -307,6 +337,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             allowBackDuringSession = s.allowBackDuringSession,
             sessionTimestampEnabled = s.sessionTimestampEnabled,
             keepScreenOnDuringSession = s.keepScreenOnDuringSession,
+            hostNumber = s.hostNumber,
+            customPort = s.customPort,
+            localNameEnabled = s.localNameEnabled,
             storageBrowsingEnabled = s.storageBrowsingEnabled,
             albumBrowsingEnabled = s.albumBrowsingEnabled,
             showHiddenFiles = s.showHiddenFiles,
@@ -358,6 +391,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         backup.allowBackDuringSession?.let { prefs[Keys.allowBackDuringSession] = it }
         backup.sessionTimestampEnabled?.let { prefs[Keys.sessionTimestampEnabled] = it }
         backup.keepScreenOnDuringSession?.let { prefs[Keys.keepScreenOnDuringSession] = it }
+        backup.hostNumber?.takeIf(LocalHostName::isValidNumber)?.let { prefs[Keys.hostNumber] = it }
+        backup.customPort?.takeIf(LocalHostName::isValidPort)?.let { prefs[Keys.customPort] = it }
+        backup.localNameEnabled?.let { prefs[Keys.localNameEnabled] = it }
         backup.storageBrowsingEnabled?.let { prefs[Keys.storageBrowsingEnabled] = it }
         backup.albumBrowsingEnabled?.let { prefs[Keys.albumBrowsingEnabled] = it }
         backup.showHiddenFiles?.let { prefs[Keys.showHiddenFiles] = it }

@@ -4,6 +4,7 @@ import com.example.flikky.util.SortKey
 import com.example.flikky.util.SortSpec
 import com.example.flikky.util.LeadingColorMode
 import com.example.flikky.util.LeadingShape
+import com.example.flikky.util.LocalHostName
 
 enum class ThemeMode { DYNAMIC, PRESET, CUSTOM }
 
@@ -105,6 +106,12 @@ data class FlikkySettings(
     val sessionTimestampEnabled: Boolean = false,
     /** 服务运行中停留在会话页时保持屏幕常亮。 */
     val keepScreenOnDuringSession: Boolean = false,
+    /** 局域网名称 `flikky{X}.local` 的 X。null = 尚未分配；首次由 `ensureHostNumber` 随机 1–99 并持久化。 */
+    val hostNumber: Int? = null,
+    /** 服务起始端口（被占用时往上找 20 个）。 */
+    val customPort: Int = LocalHostName.DEFAULT_PORT,
+    /** 是否用 mDNS 广播局域网名称。关闭时连接卡片不显示第二行。 */
+    val localNameEnabled: Boolean = true,
     /**
      * 允许已认证的浏览器浏览本机共享存储。默认关闭。
      *
