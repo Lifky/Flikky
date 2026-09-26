@@ -28,6 +28,7 @@ import com.example.flikky.di.ServiceLocator
 import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.network.LinkInfo
+import com.example.flikky.network.MdnsResponder
 import com.example.flikky.network.NetworkRebinder
 import com.example.flikky.network.UsableIpPolicy
 import com.example.flikky.network.RebindIntent
@@ -40,6 +41,7 @@ import com.example.flikky.server.dto.LeadingVisualDto
 import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.StatusDto
 import com.example.flikky.server.dto.WireJson
+import com.example.flikky.session.LocalNameStatus
 import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
 import com.example.flikky.session.PeerChannelState
@@ -106,6 +108,23 @@ class TransferService : Service() {
 
     private fun startPortForBind(): Int =
         ServiceLocator.session.snapshot.value.boundPort.takeIf { it > 0 } ?: latestSettings.customPort
+
+    /**
+     * 跨 rebind 存活，但**不持有任何 KtorServer 成员**（rebind 引用规范）：IP 只经参数传入。
+     * 守卫：service/MdnsResponderRebindReferenceTest。
+     */
+    private val mdns by lazy {
+        MdnsResponder(this) { status -> ServiceLocator.session.updateLocalName(status) }
+    }
+
+    private fun startLocalName(ip: String) {
+        if (!latestSettings.localNameEnabled) {
+            ServiceLocator.session.updateLocalName(LocalNameStatus.Disabled)
+            return
+        }
+        val number = runBlocking { ServiceLocator.settingsRepository.ensureHostNumber() }
+        mdns.start(ip, number)
+    }
 
     /** 当前系统是否处于深色模式（用于 DarkMode.SYSTEM 解析后推给浏览器端做双端深浅对齐）。 */
     private fun isSystemDark(): Boolean =
@@ -286,6 +305,7 @@ class TransferService : Service() {
         rebinder.prime(ip)
         ServiceLocator.session.updateBoundPort(port)
         ServiceLocator.session.updateRequestedPort(latestSettings.customPort)
+        startLocalName(ip)
         registerNetworkCallbackIfNeeded()
 
         controller = TransferController(
@@ -398,6 +418,7 @@ class TransferService : Service() {
         rebinder.prime(ip)
         ServiceLocator.session.updateBoundPort(port)
         ServiceLocator.session.updateRequestedPort(latestSettings.customPort)
+        startLocalName(ip)
         registerNetworkCallbackIfNeeded()
         // _running is the transfer-mode signal consumed by ServingViewModel.
         // Export mode has its own UI (ExportingScreen) that reads SessionState.exportMode
@@ -432,6 +453,7 @@ class TransferService : Service() {
 
     @Synchronized
     private fun stopActiveServer() {
+        mdns.stop()
         unregisterNetworkCallback()
         val mode = currentMode
         // Before tearing down Ktor, tell live WS clients this is a deliberate
@@ -723,6 +745,7 @@ class TransferService : Service() {
         ktor = replacement
         rebinder.prime(newIp)
         currentHostIp = newIp
+        if (latestSettings.localNameEnabled) mdns.updateIp(newIp)
         ServiceLocator.session.updateBoundPort(port)
         // Transfer-mode ServingViewModel keys its UI off _running (ip/port);
         // refresh it so the screen shows the new URL too.
