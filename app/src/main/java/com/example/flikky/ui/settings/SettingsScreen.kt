@@ -689,7 +689,8 @@ fun SettingsScreen(
                     SettingItem(
                         title = stringResource(R.string.peer_permissions_entry),
                         leadingIcon = painterResource(R.drawable.ic_shield_toggle),
-                        subtitle = peerVisibleSummary(
+                        // 值放行尾，与「消息操作样式 → 常驻按钮」同形（用户 2026-09-27）。
+                        trailingValue = peerVisibleSummary(
                             settings = s,
                             hasStoragePermission = hasStoragePermission,
                             albumAccess = albumAccess,

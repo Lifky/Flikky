@@ -295,6 +295,14 @@ class PeerPermissionsStructureTest {
     }
 
     @Test
+    fun `the settings peer row shows what is visible as its trailing value`() {
+        // 2026-09-27 用户：与「消息操作样式 → 常驻按钮」同形，值放在行尾而不是标题下面。
+        val screen = settingsScreen
+        assertTrue(screen.contains("trailingValue = peerVisibleSummary("))
+        assertFalse(screen.contains("subtitle = peerVisibleSummary("))
+    }
+
+    @Test
     fun `the settings page reaches peer gates only through the shared panel`() {
         // 设置页曾经只有「浏览手机存储」一个裸开关：没授权也能打开（正是 D76 那个状态），
         // 相册、收藏在这里根本没有入口。现在统一走同一个面板，三态与会话内零差异。

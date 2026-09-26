@@ -82,7 +82,7 @@
     <string name="settings_access_address">Access address</string>
     <string name="settings_access_address_ip_only">IP address only · port %1$d</string>
     <string name="settings_local_name">Local name</string>
-    <string name="settings_local_name_summary">Lets computers open Flikky by a memorable name; phones should scan</string>
+    <string name="settings_local_name_summary">Open by a memorable name</string>
     <string name="settings_host_number">Number (0–999)</string>
     <string name="settings_host_number_error">Enter a whole number from 0 to 999, no leading zeros</string>
     <string name="settings_port">Port (1024–65535)</string>
