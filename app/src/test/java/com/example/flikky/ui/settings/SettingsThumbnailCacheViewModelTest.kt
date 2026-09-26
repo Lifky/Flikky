@@ -6,6 +6,7 @@ import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.data.settings.SettingsRepository
 import com.example.flikky.network.UpdateChecker
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -72,6 +73,9 @@ class SettingsThumbnailCacheViewModelTest {
     private fun createViewModel(fileStore: SessionFileStore): SettingsViewModel {
         val settingsRepository = mockk<SettingsRepository>()
         every { settingsRepository.settings } returns MutableStateFlow(FlikkySettings())
+        // init { } now also calls ensureHostNumber() (access-address feature); this test
+        // only cares about the thumbnail-cache flow, so stub it to a fixed, harmless value.
+        coEvery { settingsRepository.ensureHostNumber() } returns 0
         return SettingsViewModel(
             app = mockk<Application>(relaxed = true),
             repository = settingsRepository,

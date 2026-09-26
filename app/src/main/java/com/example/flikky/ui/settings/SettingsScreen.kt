@@ -121,6 +121,7 @@ import com.example.flikky.ui.settings.sheets.BackgroundPickerSheet
 import com.example.flikky.ui.settings.sheets.ThemePickerSheet
 import com.example.flikky.util.formatThemeSeed
 import com.example.flikky.util.formatBytes
+import com.example.flikky.util.LocalHostName
 import com.example.flikky.ui.theme.Sizes
 import com.example.flikky.ui.theme.Motion
 import com.example.flikky.ui.theme.Spacing
@@ -180,6 +181,7 @@ fun SettingsScreen(
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showDarkModeDialog by remember { mutableStateOf(false) }
     var showDeviceNameDialog by remember { mutableStateOf(false) }
+    var showAccessAddressDialog by remember { mutableStateOf(false) }
     var showHistoryLimitDialog by remember { mutableStateOf(false) }
     var showThumbnailCacheDialog by remember { mutableStateOf(false) }
     var showActionStyleDialog by remember { mutableStateOf(false) }
@@ -582,7 +584,7 @@ fun SettingsScreen(
                 // 用固定的上界安全，因为 `segmentedShapes` 只区分
                 // 首行（index 0）/ 末行（index == count - 1）/ 中间行：
                 // 收起后可见的 index 有断档（3..7 缺失）也不影响任何一行的圆角。
-                val sectionItems = 9
+                val sectionItems = 10
                 SettingSection(title = stringResource(R.string.settings_section_session_behavior)) {
                     SettingItem(
                         title = stringResource(R.string.settings_require_pin),
@@ -672,6 +674,15 @@ fun SettingsScreen(
                         },
                         index = 6, total = sectionItems,
                     )
+                    SettingItem(
+                        title = stringResource(R.string.settings_access_address),
+                        leadingIcon = painterResource(R.drawable.ic_lan),
+                        subtitle = s.hostNumber?.takeIf { s.localNameEnabled }
+                            ?.let { LocalHostName.url(LocalHostName.fqdn(it), s.customPort) }
+                            ?: stringResource(R.string.settings_access_address_ip_only, s.customPort),
+                        onClick = { showAccessAddressDialog = true },
+                        index = 7, total = sectionItems,
+                    )
                     // 对端能看什么/能做什么统一进同一个面板（与会话顶栏同一个 sheet、同一图标）。
                     // 这里曾是一个裸的「浏览手机存储」开关：没授权也能打开（D76 那个状态），
                     // 相册、收藏在设置页则根本没有入口。
@@ -684,7 +695,7 @@ fun SettingsScreen(
                             albumAccess = albumAccess,
                         ),
                         onClick = { showPeerPermissions = true },
-                        index = 7, total = sectionItems,
+                        index = 8, total = sectionItems,
                     )
                     // 「显示隐藏文件」紧跟在对端权限下面：它决定两端浏览存储时列不列隐藏项。
                     // 两端共用这一个值，副标题的计数也走它——三者用不同判据就是
@@ -1135,6 +1146,19 @@ fun SettingsScreen(
                     Text(stringResource(R.string.common_cancel))
                 }
             },
+        )
+    }
+
+    // ─── Access address dialog ─────────────────────────────────────────────────
+    if (showAccessAddressDialog) {
+        AccessAddressDialog(
+            initial = AddressDraft(
+                enabled = s.localNameEnabled,
+                numberText = s.hostNumber?.toString().orEmpty(),
+                portText = s.customPort.toString(),
+            ),
+            onConfirm = { viewModel.saveAccessAddress(it); showAccessAddressDialog = false },
+            onDismiss = { showAccessAddressDialog = false },
         )
     }
 

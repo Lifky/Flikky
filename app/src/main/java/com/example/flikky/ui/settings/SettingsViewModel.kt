@@ -64,6 +64,13 @@ class SettingsViewModel @JvmOverloads constructor(
 
     init {
         refreshThumbnailCacheUsage()
+        viewModelScope.launch { repository.ensureHostNumber() }
+    }
+
+    fun saveAccessAddress(draft: AddressDraft) = viewModelScope.launch {
+        repository.setLocalNameEnabled(draft.enabled)
+        draft.number?.let { repository.setHostNumber(it) }
+        draft.port?.let { repository.setCustomPort(it) }
     }
 
     fun setThemeMode(value: ThemeMode) = viewModelScope.launch { repository.setThemeMode(value) }

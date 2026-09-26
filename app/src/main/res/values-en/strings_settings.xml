@@ -79,6 +79,15 @@
     <string name="settings_allow_back">Allow leaving an active session</string>
     <string name="settings_allow_back_summary">Back is blocked by default to protect the session. Turn this on to view history while a session runs; Settings remains locked.</string>
     <string name="settings_keep_screen_on">Keep screen on during session</string>
+    <string name="settings_access_address">Access address</string>
+    <string name="settings_access_address_ip_only">IP address only · port %1$d</string>
+    <string name="settings_local_name">Local name</string>
+    <string name="settings_local_name_summary">Lets computers open Flikky by a memorable name; phones should scan</string>
+    <string name="settings_host_number">Number (0–999)</string>
+    <string name="settings_host_number_error">Enter a whole number from 0 to 999, no leading zeros</string>
+    <string name="settings_port">Port (1024–65535)</string>
+    <string name="settings_port_error">Enter a whole number from 1024 to 65535</string>
+    <string name="settings_access_address_applies_next">Changes apply the next time the service starts</string>
 
     <string name="settings_section_data">Data</string>
     <string name="settings_history_limit">Saved session limit</string>
