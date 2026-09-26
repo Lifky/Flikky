@@ -68,12 +68,12 @@ class SettingExpandableGapTest {
     }
 
     @Test
-    fun `both expandable rows go through the shared group`() {
-        // 两处：撤回 beta 的「允许对端撤回」、以及「导入与导出」那四行。
+    fun `the expandable rows go through the shared group`() {
+        // 「导入与导出」那四行。撤回下面的「允许撤回对端消息」2026-09-27 起只在对端权限面板里。
         val uses = Regex("""SettingExpandableGroup\(""").findAll(screen).count()
         assertTrue(
-            "期望两处可展开区都走共用组件，实际找到 $uses 处",
-            uses >= 2,
+            "期望可展开区走共用组件，实际找到 $uses 处",
+            uses >= 1,
         )
     }
 

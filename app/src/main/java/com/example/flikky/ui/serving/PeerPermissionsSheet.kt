@@ -122,8 +122,10 @@ fun PeerPermissionsSheet(
                         available = settings.recallBetaEnabled,
                         peerEnabled = settings.allowPeerRecall,
                     ),
-                    title = stringResource(R.string.peer_permissions_recall),
-                    summary = stringResource(R.string.peer_permissions_recall_summary),
+                    // 与设置页原来那一行同一份文案：它写的是「双方都能撤回对方的消息」，
+                    // 不是「对端撤回自己的消息」（那是「消息撤回」本身，2026-09-27 用户指出）。
+                    title = stringResource(R.string.settings_allow_peer_recall),
+                    summary = stringResource(R.string.settings_allow_peer_recall_summary),
                     unavailableHint = stringResource(
                         R.string.peer_permissions_recall_need_feature,
                     ),

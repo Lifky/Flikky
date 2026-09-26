@@ -139,4 +139,48 @@ class PeerGateRevocationTest {
         assertTrue(s.albumBrowsingEnabled)
         assertTrue(s.favoriteBrowsingEnabled)
     }
+
+    // ── 撤回（2026-09-27 用户裁决）：「消息撤回」概念更大，关掉它时「允许撤回对端消息」也不应生效，
+    // 重新打开「消息撤回」时对端撤回保持关闭、需要手动再开。与收藏同一条 D76 规则。
+
+    @Test fun `turning recall off closes peer recall in the same write`() = runTest {
+        val repository = newRepository(this)
+        repository.setAllowPeerRecall(true)
+
+        repository.setRecallBeta(false)
+
+        assertFalse(repository.settings.first().allowPeerRecall)
+    }
+
+    @Test fun `turning recall back on does not reopen peer recall`() = runTest {
+        val repository = newRepository(this)
+        repository.setRecallBeta(false)
+
+        repository.setRecallBeta(true)
+
+        val s = repository.settings.first()
+        assertTrue(s.recallBetaEnabled)
+        assertFalse(s.allowPeerRecall)
+    }
+
+    @Test fun `recall off on disk closes peer recall even when its key was never written`() = runTest {
+        // 对端撤回的键缺席时读作默认的「开」：只看「键 == true」会放过这种老数据。
+        val repository = newRepository(this)
+        repository.importBackup(SettingsExport(recallEnabled = false))
+
+        repository.revokeUnavailablePeerGates(storageAvailable = true, albumAvailable = true)
+
+        assertFalse(repository.settings.first().allowPeerRecall)
+    }
+
+    @Test fun `a recall key that was never written counts as on`() = runTest {
+        // 全新安装：两个键都缺席、都读作默认的「开」—— 不能被误判成「撤回已关」。
+        val repository = newRepository(this)
+
+        repository.revokeUnavailablePeerGates(storageAvailable = true, albumAvailable = true)
+
+        val s = repository.settings.first()
+        assertTrue(s.recallBetaEnabled)
+        assertTrue(s.allowPeerRecall)
+    }
 }

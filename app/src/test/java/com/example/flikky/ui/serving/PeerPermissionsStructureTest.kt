@@ -303,6 +303,26 @@ class PeerPermissionsStructureTest {
     }
 
     @Test
+    fun `the peer recall row uses the same words as the setting it writes`() {
+        // 2026-09-27 用户：这一行写的是 allowPeerRecall（双方都能撤回对方的消息），
+        // 却标成「允许对端撤回消息 / 电脑端可以撤回它自己发出的消息」—— 后半句说的其实是「消息撤回」。
+        // 与设置页原来那一行共用同一份文案资源，两处不会再各写各的。
+        val doSection = sheet.substringAfter("R.string.peer_permissions_section_do")
+        assertTrue(doSection.contains("R.string.settings_allow_peer_recall)"))
+        assertTrue(doSection.contains("R.string.settings_allow_peer_recall_summary)"))
+        assertFalse(sheet.contains("R.string.peer_permissions_recall)"))
+        assertFalse(sheet.contains("R.string.peer_permissions_recall_summary)"))
+    }
+
+    @Test
+    fun `the settings page reaches peer recall only through the shared panel`() {
+        // 2026-09-27 用户：「消息撤回」下面展开的那一行与对端权限面板里的开关是同一个，去掉重复。
+        assertFalse(settingsScreen.contains("R.string.settings_allow_peer_recall)"))
+        assertFalse(settingsScreen.contains("viewModel.setAllowPeerRecall("))
+        assertTrue(settingsScreen.contains("onSetAllowPeerRecall = viewModel::setAllowPeerRecall"))
+    }
+
+    @Test
     fun `the settings page reaches peer gates only through the shared panel`() {
         // 设置页曾经只有「浏览手机存储」一个裸开关：没授权也能打开（正是 D76 那个状态），
         // 相册、收藏在这里根本没有入口。现在统一走同一个面板，三态与会话内零差异。

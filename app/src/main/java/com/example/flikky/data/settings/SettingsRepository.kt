@@ -164,7 +164,14 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         if (normalized.isEmpty()) prefs.remove(Keys.deviceName)
         else prefs[Keys.deviceName] = normalized
     }
-    suspend fun setRecallBeta(v: Boolean) = ds.edit { it[Keys.recallBeta] = v }
+    /**
+     * 关掉「消息撤回」时**同一次写入**把「允许撤回对端消息」也关掉（D76，2026-09-27 用户裁决）：
+     * 撤回是更大的概念，它关着时对端撤回不应生效；重新打开撤回时对端撤回保持关闭，要用户显式再开。
+     */
+    suspend fun setRecallBeta(v: Boolean) = ds.edit {
+        it[Keys.recallBeta] = v
+        if (!v) it[Keys.allowPeerRecall] = false
+    }
     suspend fun setAllowPeerRecall(v: Boolean) = ds.edit { it[Keys.allowPeerRecall] = v }
     /**
      * 关掉收藏功能时**同一次写入**把对端收藏开关也关掉（D76 fail-closed）：否则它会
@@ -226,7 +233,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
      * 对端权限面板只剩「去授权」、用户关不掉；一授权，浏览器立刻看到内容，事后才能关。
      * 撤销系统权限后再授权、关掉收藏功能后再打开，都是同一形状。
      *
-     * 系统权限态由调用方传入（本类不认识 Android 权限）；收藏的前置条件是本库自己的键。
+     * 系统权限态由调用方传入（本类不认识 Android 权限）；收藏、撤回的前置条件是本库自己的键。
      * 只在当前为开时才写，避免每次调用都让 [settings] 多发一次。
      */
     suspend fun revokeUnavailablePeerGates(storageAvailable: Boolean, albumAvailable: Boolean) =
@@ -239,6 +246,11 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             }
             if (p[Keys.favoriteBeta] != true && p[Keys.favoriteBrowsing] == true) {
                 p[Keys.favoriteBrowsing] = false
+            }
+            // 撤回的两个键缺席时都读作「开」：只有显式写过 false 才算撤回已关，
+            // 而对端撤回缺席就是开着 —— 只看「== true」会放过从没写过这个键的老数据。
+            if (p[Keys.recallBeta] == false && (p[Keys.allowPeerRecall] ?: true)) {
+                p[Keys.allowPeerRecall] = false
             }
         }
 

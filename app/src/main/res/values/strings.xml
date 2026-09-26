@@ -19,8 +19,6 @@
     <string name="peer_permissions_favorites">收藏</string>
     <string name="peer_permissions_favorites_summary">允许电脑端查看收藏</string>
     <string name="peer_permissions_favorites_need_feature">需要先开启收藏功能 · 去设置</string>
-    <string name="peer_permissions_recall">允许对端撤回消息</string>
-    <string name="peer_permissions_recall_summary">电脑端可以撤回它自己发出的消息</string>
     <string name="peer_permissions_recall_need_feature">需要先开启撤回功能 · 去设置</string>
     <string name="peer_permissions_visible_none">未开放任何内容</string>
     <string name="peer_permissions_visible_summary">可见：%1$s</string>

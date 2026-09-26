@@ -569,22 +569,10 @@ fun SettingsScreen(
 
             // ─── 会话行为 ───────────────────────────────────────────────────────
             item {
-                // +1 是「显示隐藏文件」那一行。这个数是分组圆角的依据（第一行与
-                // 最后一行外圆角更大），少算一个会让最后一行画成中间行的形状。
-                // 分段圆角的 index/total **不许随展开态变化**（2026-09-09 装机反馈）。
-                //
-                // `AnimatedVisibility` 收起动画要跑 ~200ms，期间那几行**仍在组合里**。
-                // 若这个值跟着 flag 瞬间翻转，那几行就带着越界的 index 继续显示一段：
-                // index 3 在 total=4 下被当成「末行」而突然变成下圆角，
-                // 位置正好在两个 listitem 的交界处 —— 就是用户看到的「白线卡一下」。
-                //
-                // 展开时不会有这个现象：flag 先变 true、total 先变大，
-                // 那几行是带着**正确**的 index 出现的。这正是缺陷只在收起时出现的原因。
-                //
-                // 用固定的上界安全，因为 `segmentedShapes` 只区分
-                // 首行（index 0）/ 末行（index == count - 1）/ 中间行：
-                // 收起后可见的 index 有断档（3..7 缺失）也不影响任何一行的圆角。
-                val sectionItems = 10
+                // 分组圆角的依据（首行与末行外圆角更大），少算一个会让最后一行画成中间行的形状。
+                // 本区已没有可展开的行（「允许撤回对端消息」2026-09-27 起只在对端权限面板里），
+                // total 就是行数；以后若再加可展开行，total 必须取固定上界，见 SegmentedIndexStabilityTest。
+                val sectionItems = 9
                 SettingSection(title = stringResource(R.string.settings_section_session_behavior)) {
                     SettingItem(
                         title = stringResource(R.string.settings_require_pin),
@@ -606,39 +594,18 @@ fun SettingsScreen(
                         onClick = { showActionStyleDialog = true },
                         index = 1, total = sectionItems,
                     )
-                    // 表头 + 展开区收成单一子项：AnimatedVisibility 直接坐在
-                    // SettingSection 的 spacedBy Column 里时，收起动画期间会是
-                    // 两倍间隔（2026-09-08 装机反馈）。详见 SettingExpandableGroup。
-                    SettingExpandableGroup(
-                        expanded = s.recallBetaEnabled,
-                        header = {
-                            SettingItem(
-                                title = stringResource(R.string.settings_recall),
-                                leadingIcon = painterResource(R.drawable.ic_undo),
-                                subtitle = stringResource(R.string.settings_recall_summary),
-                                trailing = {
-                                    Switch(
-                                        checked = s.recallBetaEnabled,
-                                        onCheckedChange = { viewModel.setRecallBeta(it) },
-                                    )
-                                },
-                                index = 2, total = sectionItems,
+                    SettingItem(
+                        title = stringResource(R.string.settings_recall),
+                        leadingIcon = painterResource(R.drawable.ic_undo),
+                        subtitle = stringResource(R.string.settings_recall_summary),
+                        trailing = {
+                            Switch(
+                                checked = s.recallBetaEnabled,
+                                onCheckedChange = { viewModel.setRecallBeta(it) },
                             )
                         },
-                    ) {
-                        SettingItem(
-                            title = stringResource(R.string.settings_allow_peer_recall),
-                            leadingIcon = painterResource(R.drawable.ic_redo),
-                            subtitle = stringResource(R.string.settings_allow_peer_recall_summary),
-                            trailing = {
-                                Switch(
-                                    checked = s.allowPeerRecall,
-                                    onCheckedChange = { viewModel.setAllowPeerRecall(it) },
-                                )
-                            },
-                            index = 3, total = sectionItems,
-                        )
-                    }
+                        index = 2, total = sectionItems,
+                    )
                     SettingItem(
                         title = stringResource(R.string.settings_favorites),
                         leadingIcon = painterResource(R.drawable.ic_star_border),
@@ -649,7 +616,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setFavoriteBeta(it) },
                             )
                         },
-                        index = 4, total = sectionItems,
+                        index = 3, total = sectionItems,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_allow_back),
@@ -661,7 +628,7 @@ fun SettingsScreen(
                                 onCheckedChange = { viewModel.setAllowBackDuringSession(it) },
                             )
                         },
-                        index = 5, total = sectionItems,
+                        index = 4, total = sectionItems,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_keep_screen_on),
@@ -672,7 +639,7 @@ fun SettingsScreen(
                                 onCheckedChange = viewModel::setKeepScreenOnDuringSession,
                             )
                         },
-                        index = 6, total = sectionItems,
+                        index = 5, total = sectionItems,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_access_address),
@@ -681,7 +648,7 @@ fun SettingsScreen(
                             ?.let { LocalHostName.url(LocalHostName.fqdn(it), s.customPort) }
                             ?: stringResource(R.string.settings_access_address_ip_only, s.customPort),
                         onClick = { showAccessAddressDialog = true },
-                        index = 7, total = sectionItems,
+                        index = 6, total = sectionItems,
                     )
                     // 对端能看什么/能做什么统一进同一个面板（与会话顶栏同一个 sheet、同一图标）。
                     // 这里曾是一个裸的「浏览手机存储」开关：没授权也能打开（D76 那个状态），
@@ -696,7 +663,7 @@ fun SettingsScreen(
                             albumAccess = albumAccess,
                         ),
                         onClick = { showPeerPermissions = true },
-                        index = 8, total = sectionItems,
+                        index = 7, total = sectionItems,
                     )
                     // 「显示隐藏文件」紧跟在对端权限下面：它决定两端浏览存储时列不列隐藏项。
                     // 两端共用这一个值，副标题的计数也走它——三者用不同判据就是

@@ -20,8 +20,6 @@
     <string name="peer_permissions_favorites">Favourites</string>
     <string name="peer_permissions_favorites_summary">Let the computer see your favourites</string>
     <string name="peer_permissions_favorites_need_feature">Turn on favourites first · Settings</string>
-    <string name="peer_permissions_recall">Let the peer recall messages</string>
-    <string name="peer_permissions_recall_summary">The computer can recall messages it sent</string>
     <string name="peer_permissions_recall_need_feature">Turn on recall first · Settings</string>
     <string name="peer_permissions_visible_none">Nothing shared</string>
     <string name="peer_permissions_visible_summary">Visible: %1$s</string>
