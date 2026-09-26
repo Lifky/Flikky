@@ -134,6 +134,10 @@ class KtorServer(
     fun start(): Int {
         var lastError: Throwable? = null
         for (port in startPort..endPort) {
+            if (!isPortFree(port)) {
+                lastError = java.net.BindException("port $port in use")
+                continue
+            }
             var candidate: EmbeddedServer<*, *>? = null
             try {
                 val server = embeddedServer(CIO, host = host, port = port) {
@@ -275,6 +279,21 @@ class KtorServer(
         // 感知断网（不再依赖 fetch 探测的 3 秒延迟）。WS 复用同一 cookie 鉴权。
         wsRoutes(authGate, session, wsHub, onClientHello)
     }
+
+    /**
+     * 先用裸 channel 探一下端口，被占用的端口根本不交给 Ktor。
+     *
+     * Ktor CIO 绑定失败时，除了 start() 同步抛出，还会在后台协程里把 BindException
+     * **再抛一次且无人接住**；在 Android 上未捕获异常会杀掉整个进程（2026-09-26 API 36 实测）。
+     * 用 ServerSocketChannel 的平台默认选项，与 Ktor 绑定时一致：Linux 上 TIME_WAIT
+     * 的端口两边都认为可绑，不会因为探测更严而把刚停的端口误判成「被占用」。
+     * 守卫：KtorServerRestartPortTest / KtorServerRestartPortInstrumentedTest。
+     */
+    private fun isPortFree(port: Int): Boolean = runCatching {
+        java.nio.channels.ServerSocketChannel.open().use {
+            it.bind(java.net.InetSocketAddress(host, port))
+        }
+    }.isSuccess
 
     fun stop() {
         engine?.stop(1_000, 3_000)

@@ -50,6 +50,7 @@ import com.example.flikky.ui.theme.toWireColors
 import com.example.flikky.util.BrowserAvatarHelloDecision
 import com.example.flikky.util.BrowserAvatarHelloPolicy
 import com.example.flikky.util.IdGen
+import com.example.flikky.util.LocalHostName
 import com.example.flikky.util.AlbumAccess
 import com.example.flikky.data.currentAlbumAccess
 import com.example.flikky.data.hasAllFilesAccess
@@ -102,6 +103,9 @@ class TransferService : Service() {
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private var networkWatchJob: Job? = null
     private var currentHostIp: String? = null
+
+    private fun startPortForBind(): Int =
+        ServiceLocator.session.snapshot.value.boundPort.takeIf { it > 0 } ?: latestSettings.customPort
 
     /** 当前系统是否处于深色模式（用于 DarkMode.SYSTEM 解析后推给浏览器端做双端深浅对齐）。 */
     private fun isSystemDark(): Boolean =
@@ -281,6 +285,7 @@ class TransferService : Service() {
         currentHostIp = ip
         rebinder.prime(ip)
         ServiceLocator.session.updateBoundPort(port)
+        ServiceLocator.session.updateRequestedPort(latestSettings.customPort)
         registerNetworkCallbackIfNeeded()
 
         controller = TransferController(
@@ -392,6 +397,7 @@ class TransferService : Service() {
         currentHostIp = ip
         rebinder.prime(ip)
         ServiceLocator.session.updateBoundPort(port)
+        ServiceLocator.session.updateRequestedPort(latestSettings.customPort)
         registerNetworkCallbackIfNeeded()
         // _running is the transfer-mode signal consumed by ServingViewModel.
         // Export mode has its own UI (ExportingScreen) that reads SessionState.exportMode
@@ -487,7 +493,9 @@ class TransferService : Service() {
      */
     private fun buildTransferKtor(host: String, auth: PinAuth): KtorServer = KtorServer(
         host = host,
-        startPort = ServiceLocator.session.snapshot.value.boundPort.takeIf { it > 0 } ?: 8080,
+        // rebind 优先沿用本会话已绑端口（D75）；新会话从用户设定的端口起扫（spec §4.6）。
+        startPort = startPortForBind(),
+        endPort = LocalHostName.portRange(startPortForBind()).last,
         pinAuth = auth,
         session = ServiceLocator.session,
         stats = ServiceLocator.stats,
@@ -575,7 +583,9 @@ class TransferService : Service() {
      */
     private fun buildExportKtor(host: String, auth: PinAuth): KtorServer = KtorServer(
         host = host,
-        startPort = ServiceLocator.session.snapshot.value.boundPort.takeIf { it > 0 } ?: 8080,
+        // rebind 优先沿用本会话已绑端口（D75）；新会话从用户设定的端口起扫（spec §4.6）。
+        startPort = startPortForBind(),
+        endPort = LocalHostName.portRange(startPortForBind()).last,
         pinAuth = auth,
         session = ServiceLocator.session,
         stats = ServiceLocator.stats,
