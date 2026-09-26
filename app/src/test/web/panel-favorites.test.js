@@ -362,6 +362,15 @@ test('the panel refetches when the phone toggles favorites mid-session', async (
   assert.equal(fetched.length, 2, 'a flag flip must trigger a refetch, not just a repaint');
 });
 
+test('a message favorited from the chat reloads the list', async () => {
+  // D78：浏览器在会话里收藏一条消息后，收藏面板要能看到它，而不是等用户手动刷新。
+  const { doc, fetched } = await mounted();
+  assert.equal(fetched.length, 1);
+  doc.body.dataset.favoritesRev = '1';
+  await flush();
+  assert.equal(fetched.length, 2, 'a new favorite must trigger a refetch');
+});
+
 test('new favorites i18n keys exist in both languages', () => {
   for (const key of [
     'app.favorites.search', 'app.favorites.allGroups', 'app.favorites.ungrouped',

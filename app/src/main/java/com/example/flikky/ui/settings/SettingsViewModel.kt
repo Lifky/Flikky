@@ -95,6 +95,8 @@ class SettingsViewModel @JvmOverloads constructor(
     fun setRecallBeta(value: Boolean) = viewModelScope.launch { repository.setRecallBeta(value) }
     fun setAllowPeerRecall(value: Boolean) =
         viewModelScope.launch { repository.setAllowPeerRecall(value) }
+    fun setAllowPeerFavorite(value: Boolean) =
+        viewModelScope.launch { repository.setAllowPeerFavorite(value) }
 
     fun setFavoriteBeta(value: Boolean) = viewModelScope.launch { repository.setFavoriteBeta(value) }
     fun setRequirePin(value: Boolean) = viewModelScope.launch { repository.setRequirePin(value) }

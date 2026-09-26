@@ -32,6 +32,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val allowPeerRecall = booleanPreferencesKey("allow_peer_recall")
         val favoriteBeta = booleanPreferencesKey("favorite_beta")
         val favoriteBrowsing = booleanPreferencesKey("favorite_browsing")
+        val allowPeerFavorite = booleanPreferencesKey("allow_peer_favorite")
         val requirePin = booleanPreferencesKey("require_pin")
         val retainLimit = intPreferencesKey("retain_limit")
         val thumbnailCacheLimitMb = intPreferencesKey("thumbnail_cache_limit_mb")
@@ -93,6 +94,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
                 p[Keys.favoriteBrowsing],
                 p[Keys.favoriteBeta],
             ),
+            allowPeerFavorite = p[Keys.allowPeerFavorite] ?: false,
             requirePin = p[Keys.requirePin] ?: true,
             historyRetainLimit = (p[Keys.retainLimit] ?: 20).coerceAtLeast(-1),
             thumbnailCacheLimitMb = normalizeThumbnailCacheLimitMb(p[Keys.thumbnailCacheLimitMb]),
@@ -174,8 +176,8 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     }
     suspend fun setAllowPeerRecall(v: Boolean) = ds.edit { it[Keys.allowPeerRecall] = v }
     /**
-     * 关掉收藏功能时**同一次写入**把对端收藏开关也关掉（D76 fail-closed）：否则它会
-     * 以「开」的状态藏在不可用态后面，下次打开收藏功能那一刻对端就直接看到了。
+     * 关掉收藏功能时**同一次写入**把两个对端收藏开关（能看、能收藏消息）也关掉（D76 fail-closed）：
+     * 否则它们会以「开」的状态藏在不可用态后面，下次打开收藏功能那一刻对端就直接生效了。
      * 打开收藏功能不连带打开对端开关 —— 对端可见必须是用户显式的动作。
      *
      * 迁移值要**按改之前的 beta 先落成真值**：新键缺席时读侧回落旧 beta，
@@ -185,8 +187,10 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val browsing = resolveFavoriteBrowsing(it[Keys.favoriteBrowsing], it[Keys.favoriteBeta])
         it[Keys.favoriteBeta] = v
         it[Keys.favoriteBrowsing] = v && browsing
+        if (!v) it[Keys.allowPeerFavorite] = false
     }
     suspend fun setFavoriteBrowsingEnabled(v: Boolean) = ds.edit { it[Keys.favoriteBrowsing] = v }
+    suspend fun setAllowPeerFavorite(v: Boolean) = ds.edit { it[Keys.allowPeerFavorite] = v }
     suspend fun setRequirePin(v: Boolean) = ds.edit { it[Keys.requirePin] = v }
     suspend fun setHistoryRetainLimit(v: Int) = ds.edit { it[Keys.retainLimit] = v.coerceAtLeast(-1) }
     suspend fun setThumbnailCacheLimitMb(v: Int) = ds.edit {
@@ -246,6 +250,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             }
             if (p[Keys.favoriteBeta] != true && p[Keys.favoriteBrowsing] == true) {
                 p[Keys.favoriteBrowsing] = false
+            }
+            if (p[Keys.favoriteBeta] != true && p[Keys.allowPeerFavorite] == true) {
+                p[Keys.allowPeerFavorite] = false
             }
             // 撤回的两个键缺席时都读作「开」：只有显式写过 false 才算撤回已关，
             // 而对端撤回缺席就是开着 —— 只看「== true」会放过从没写过这个键的老数据。
@@ -340,6 +347,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             allowPeerRecall = s.allowPeerRecall,
             favoriteEnabled = s.favoriteBetaEnabled,
             favoriteBrowsingEnabled = s.favoriteBrowsingEnabled,
+            allowPeerFavorite = s.allowPeerFavorite,
             requirePin = s.requirePin,
             historyRetainLimit = s.historyRetainLimit,
             thumbnailCacheLimitMb = s.thumbnailCacheLimitMb,
@@ -388,6 +396,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         backup.allowPeerRecall?.let { prefs[Keys.allowPeerRecall] = it }
         backup.favoriteEnabled?.let { prefs[Keys.favoriteBeta] = it }
         backup.favoriteBrowsingEnabled?.let { prefs[Keys.favoriteBrowsing] = it }
+        backup.allowPeerFavorite?.let { prefs[Keys.allowPeerFavorite] = it }
         backup.requirePin?.let { prefs[Keys.requirePin] = it }
         backup.historyRetainLimit?.let { prefs[Keys.retainLimit] = it.coerceAtLeast(-1) }
         backup.thumbnailCacheLimitMb?.let {

@@ -70,6 +70,8 @@ data class SettingsExport(
     val favoriteEnabled: Boolean? = null,
     /** v1.21.0 peer gate, separate from the app-side [favoriteEnabled] feature flag. */
     val favoriteBrowsingEnabled: Boolean? = null,
+    /** D78 peer gate: the browser may favorite session messages. */
+    val allowPeerFavorite: Boolean? = null,
     val requirePin: Boolean? = null,
     val historyRetainLimit: Int? = null,
     val thumbnailCacheLimitMb: Int? = null,

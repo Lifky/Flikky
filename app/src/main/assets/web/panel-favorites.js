@@ -584,7 +584,8 @@
     // app.js 反过来知道面板存在，而是观察它已经发布出来的属性，与 panel-settings.js
     // 观察 data-app-version/data-timestamps 是同一手法。变化时重新拉取——
     // 属性本身只是提示，真相仍然是服务端那次 GET 的状态码。
-    const PUBLISHED_ATTRS = ['data-favorite-enabled'];
+    // data-favorites-rev：浏览器在会话里收藏了一条消息（D78），列表多了一行。
+    const PUBLISHED_ATTRS = ['data-favorite-enabled', 'data-favorites-rev'];
 
     function observeFavoriteEnabled() {
         if (typeof MutationObserver !== 'function') return;

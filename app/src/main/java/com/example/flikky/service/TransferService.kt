@@ -18,6 +18,7 @@ import android.util.Log
 import com.example.flikky.BuildConfig
 import com.example.flikky.R
 import com.example.flikky.data.AndroidThumbnailGenerator
+import com.example.flikky.data.PeerFavoriteResult
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.AppLanguageManager
@@ -38,6 +39,7 @@ import com.example.flikky.server.ServiceMode
 import com.example.flikky.server.dto.PeerAvatarChangedDto
 import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.dto.LeadingVisualDto
+import com.example.flikky.server.dto.ServerFavoriteOutcome
 import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.StatusDto
 import com.example.flikky.server.dto.WireJson
@@ -543,6 +545,28 @@ class TransferService : Service() {
         },
         recallEnabled = { latestSettings.recallBetaEnabled },
         allowPeerRecall = { latestSettings.allowPeerRecall },
+        onFavoriteMessage = { msg ->
+            // D78：会话名与手机端在会话里收藏时同一份（「进行中会话」）。
+            try {
+                when (
+                    ServiceLocator.favoritesRepository.favoriteFromPeer(
+                        sid = currentSessionId,
+                        sessionName = getString(R.string.serving_active_session),
+                        msg = msg,
+                    )
+                ) {
+                    PeerFavoriteResult.Added -> ServerFavoriteOutcome.Added
+                    PeerFavoriteResult.AlreadyFavorited -> ServerFavoriteOutcome.AlreadyFavorited
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "peer favorite failed for message ${msg.id}", e)
+                ServerFavoriteOutcome.Failed
+            }
+        },
+        // 与 peer-info 的 allowPeerFavorite 同一判据：收藏功能与对端开关两轴都开。
+        peerFavoriteEnabled = { latestSettings.favoriteBetaEnabled && latestSettings.allowPeerFavorite },
         onClientHello = { avatarKey, explicit ->
             val stored = ServiceLocator.settingsRepository.browserAvatarKeyOrNull()
             when (val decision = BrowserAvatarHelloPolicy.decide(explicit, stored)) {
@@ -898,6 +922,8 @@ class TransferService : Service() {
                 appVersion = BuildConfig.VERSION_NAME,
                 recallEnabled = recallBetaEnabled,
                 allowPeerRecall = allowPeerRecall,
+                allowPeerFavorite = peerChannelState(favoriteBetaEnabled, allowPeerFavorite) ==
+                    PeerChannelState.On,
                 // 三个「对端能看到」通道只在两轴都开（On）时声明：浏览器据此渲染入口。
                 // 只看对端开关，未授权时会出现空壳入口、授权那一刻内容自己冒出来（D76）。
                 favoriteEnabled = peerChannelState(favoriteBetaEnabled, favoriteBrowsingEnabled) ==

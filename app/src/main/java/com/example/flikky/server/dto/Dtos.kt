@@ -95,6 +95,13 @@ data class RecallResponse(
  * 真删后没有 AlreadyRecalled 分支——重复请求的消息行已不存在，等价 NotFound。
  * 上层把 NotFound 当 idempotent 成功处理（节点已经被移除了）。
  */
+/** D78：浏览器收藏一条会话消息的结果（server-local，不依赖 data 层）。 */
+sealed class ServerFavoriteOutcome {
+    data object Added : ServerFavoriteOutcome()
+    data object AlreadyFavorited : ServerFavoriteOutcome()
+    data object Failed : ServerFavoriteOutcome()
+}
+
 sealed class ServerRecallOutcome {
     data class Success(val messageId: Long, val sessionId: Long) : ServerRecallOutcome()
     object NotFound : ServerRecallOutcome()
@@ -176,6 +183,8 @@ data class PeerInfoDto(
     val allowPeerRecall: Boolean = true,
     /** v1.19.0 fix wave: 收藏 tab 的 beta 开关状态；浏览器据此决定是否渲染收藏入口。 */
     val favoriteEnabled: Boolean = false,
+    /** D78：浏览器能否把会话消息收藏到手机（收藏功能与对端开关两轴都开）。 */
+    val allowPeerFavorite: Boolean = false,
     /**
      * v1.20.0: 是否允许浏览器浏览手机共享存储。浏览器据此决定渲不渲染「文件」目的地。
      * 默认 false 与 FlikkySettings 一致；DTO 不依赖 data 层，故此处内联默认值。

@@ -29,10 +29,10 @@ function fakeBubble({ kind, mime = '', mine = false, failed = false, uploading =
     };
 }
 
-function actionsOf(bubble, recallOn, allowPeerRecall = false) {
-    const context = { bubble, recallOn, allowPeerRecall };
+function actionsOf(bubble, recallOn, allowPeerRecall = false, favoriteOn = false) {
+    const context = { bubble, recallOn, allowPeerRecall, favoriteOn };
     vm.createContext(context);
-    vm.runInContext(`${slice}\nglobalThis.result = buildMessageActions(bubble, recallOn, allowPeerRecall).map(action => action.kind);`, context);
+    vm.runInContext(`${slice}\nglobalThis.result = buildMessageActions(bubble, recallOn, allowPeerRecall, favoriteOn).map(action => action.kind);`, context);
     return Array.from(context.result);
 }
 
@@ -64,6 +64,45 @@ test('in-progress and failed bubbles gate download/preview; own keeps recall', (
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', transferring: true, fileId: '9', mime: 'image/png', mine: true, messageId: '5' }), true), ['recall']);
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', failed: true, fileId: '9', mime: 'image/png' }), true), []);
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', failed: true, mine: true, messageId: '5' }), true), ['recall']);
+});
+
+// D78：手机允许对端收藏时，浏览器能把会话里的消息（两个方向都行）收藏到手机。
+test('peer favoriting adds favorite to text and completed files, before recall', () => {
+    assert.deepEqual(actionsOf(fakeBubble({ kind: 'text', messageId: '5' }), true, false, true), ['copy', 'favorite']);
+    assert.deepEqual(actionsOf(fakeBubble({ kind: 'text', mine: true, messageId: '5' }), true, false, true), ['copy', 'favorite', 'recall']);
+    assert.deepEqual(
+        actionsOf(fakeBubble({ kind: 'file', fileId: '9', mime: 'image/png', messageId: '5' }), true, true, true),
+        ['preview', 'download', 'favorite', 'recall'],
+    );
+    assert.deepEqual(actionsOf(fakeBubble({ kind: 'text', messageId: '5' }), true, false, false), ['copy']);
+});
+
+test('favorite needs a server-side id and a completed file', () => {
+    assert.deepEqual(actionsOf(fakeBubble({ kind: 'text' }), false, false, true), ['copy']);
+    assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', transferring: true, fileId: '9', messageId: '5' }), false, false, true), []);
+    assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', failed: true, fileId: '9', messageId: '5' }), false, false, true), []);
+});
+
+test('every action entry point passes the peer favorite flag', () => {
+    const calls = appJs.match(/buildMessageActions\(bubble, [^)]*\)/g) || [];
+    assert.ok(calls.length >= 3, `expected the bar, the gesture check and the menu, got ${calls.length}`);
+    for (const call of calls) assert.match(call, /allowPeerFavorite/, call);
+});
+
+test('peer favorite follows peer-info and posts to the favorite route', () => {
+    assert.match(appJs, /hasOwnProperty\.call\(data, 'allowPeerFavorite'\)/);
+    assert.match(appJs, /allowPeerFavorite !== prevAllowPeerFavorite/);
+    assert.match(appJs, /`\/api\/messages\/\$\{messageId\}\/favorite`/);
+    assert.match(appJs, /method: 'POST',\s*headers: \{ 'X-Client-Id': myClientId \}/);
+    // 通知收藏面板重新拉取：发布到 body 上，面板自己观察（app.js 不认识面板，D4 同一手法）。
+    assert.match(appJs, /document\.body\.dataset\.favoritesRev = /);
+    for (const key of [
+        'app.favorite', 'app.favorite_added', 'app.favorite_exists',
+        'app.favorite_not_enabled', 'app.favorite_failed', 'app.favorite_network_failed',
+    ]) {
+        const hits = i18nJs.split(`'${key}'`).length - 1;
+        assert.ok(hits >= 2, `${key} must exist in zh-CN and en`);
+    }
 });
 
 test('recall needs a server-side message id (pre-upload bubbles have none)', () => {

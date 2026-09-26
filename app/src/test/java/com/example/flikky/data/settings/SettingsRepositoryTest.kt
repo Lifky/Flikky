@@ -100,6 +100,18 @@ class SettingsRepositoryTest {
         assertEquals(200, target.settings.first().thumbnailCacheLimitMb)
     }
 
+    @Test fun peer_favorite_backup_roundtrips() = runTest {
+        val source = makeRepo(this)
+        source.setFavoriteBeta(true)
+        source.setAllowPeerFavorite(true)
+        val backup = source.exportBackup()
+        assertEquals(true, backup.allowPeerFavorite)
+
+        val target = makeRepo(this)
+        target.importBackup(backup)
+        assertTrue(target.settings.first().allowPeerFavorite)
+    }
+
     @Test fun leading_visual_settings_persist_and_emit() = runTest {
         val repo = makeRepo(this)
 

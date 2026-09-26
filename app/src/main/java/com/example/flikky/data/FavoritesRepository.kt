@@ -15,6 +15,8 @@ import java.io.InputStream
 import java.util.UUID
 import java.util.zip.ZipFile
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class FavoritesRepository(
     private val favoriteDao: FavoriteDao,
@@ -25,6 +27,9 @@ class FavoritesRepository(
     private val depotIdFactory: () -> String = { UUID.randomUUID().toString() },
     private val localSourceMessageIdFactory: () -> Long = { IdGen.newMessageId() },
 ) {
+    /** 浏览器收藏走的「先查后插」必须串行：双击或两个标签页同时点，否则两次都查到「没有」。 */
+    private val peerFavoriteLock = Mutex()
+
     data class FavoriteFileDetails(
         val file: File,
         val fileName: String,
@@ -96,6 +101,21 @@ class FavoritesRepository(
             )
         )
     }
+
+    /**
+     * D78：浏览器把当前会话里的一条消息收藏到手机。只能加不能删（删除留给手机本人），
+     * 同一条只收一次，统一进「未分组」—— 手机的分组名不发给浏览器。
+     * 文件源缺失时与 [favoriteFile] 一样抛出，由调用方报失败。
+     */
+    suspend fun favoriteFromPeer(sid: Long, sessionName: String?, msg: Message): PeerFavoriteResult =
+        peerFavoriteLock.withLock {
+            if (favoriteDao.findBySource(sid, msg.id) != null) return@withLock PeerFavoriteResult.AlreadyFavorited
+            when (msg) {
+                is Message.Text -> favoriteText(sid, sessionName, msg, groupId = null)
+                is Message.File -> favoriteFile(sid, sessionName, msg, groupId = null)
+            }
+            PeerFavoriteResult.Added
+        }
 
     suspend fun addLocalText(text: String, groupId: Long?): Long {
         val normalized = text.trim()
@@ -333,3 +353,5 @@ class FavoritesRepository(
         private const val LOCAL_ORIGIN = "PHONE"
     }
 }
+
+enum class PeerFavoriteResult { Added, AlreadyFavorited }

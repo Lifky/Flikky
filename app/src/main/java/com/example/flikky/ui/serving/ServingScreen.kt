@@ -429,6 +429,7 @@ fun ServingScreen(
             onSetAlbumBrowsing = viewModel::setAlbumBrowsingEnabled,
             onSetFavoriteBrowsing = viewModel::setFavoriteBrowsingEnabled,
             onSetAllowPeerRecall = viewModel::setAllowPeerRecall,
+            onSetAllowPeerFavorite = viewModel::setAllowPeerFavorite,
             onRequestStoragePermission = { requestAllFilesAccess(ctx) },
             onRequestAlbumPermission = requestAlbumPermission,
             onOpenSettings = {

@@ -2,6 +2,7 @@ package com.example.flikky.server
 
 import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSnapshot
+import com.example.flikky.server.dto.ServerFavoriteOutcome
 import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.FavoritesResponseDto
 import com.example.flikky.server.dto.PeerInfoDto
@@ -65,6 +66,9 @@ class KtorServer(
         { _, _ -> ServerRecallOutcome.NotFound },
     private val recallEnabled: () -> Boolean = { false },
     private val allowPeerRecall: () -> Boolean = { false },
+    /** D78：浏览器收藏会话消息。Export 模式保持默认（关闭），export.html 没有这个入口。 */
+    private val onFavoriteMessage: suspend (Message) -> ServerFavoriteOutcome = { ServerFavoriteOutcome.Failed },
+    private val peerFavoriteEnabled: () -> Boolean = { false },
     /**
      * client_hello adoption callback. Transfer mode injects the DataStore-backed policy;
      * export mode keeps the default session-only behavior.
@@ -220,6 +224,8 @@ class KtorServer(
             recallHandler = onRecallMessage,
             recallEnabled = recallEnabled,
             allowPeerRecall = allowPeerRecall,
+            favoriteHandler = onFavoriteMessage,
+            peerFavoriteEnabled = peerFavoriteEnabled,
         )
         fileRoutes(
             session = session,

@@ -43,6 +43,7 @@ class PeerGateRevocationTest {
         setStorageBrowsingEnabled(true)
         setAlbumBrowsingEnabled(true)
         setFavoriteBrowsingEnabled(true)
+        setAllowPeerFavorite(true)
     }
 
     @Test fun `missing storage permission closes the files gate`() = runTest {
@@ -138,6 +139,7 @@ class PeerGateRevocationTest {
         assertTrue(s.storageBrowsingEnabled)
         assertTrue(s.albumBrowsingEnabled)
         assertTrue(s.favoriteBrowsingEnabled)
+        assertTrue(s.allowPeerFavorite)
     }
 
     // ── 撤回（2026-09-27 用户裁决）：「消息撤回」概念更大，关掉它时「允许撤回对端消息」也不应生效，
@@ -182,5 +184,39 @@ class PeerGateRevocationTest {
         val s = repository.settings.first()
         assertTrue(s.recallBetaEnabled)
         assertTrue(s.allowPeerRecall)
+    }
+
+    // ── 对端收藏（D78）：「对端能做」里的第二个开关，前置条件是收藏功能本身，规则与对端撤回同形。
+
+    @Test fun `peer favoriting is off on a fresh install`() = runTest {
+        assertFalse(newRepository(this).settings.first().allowPeerFavorite)
+    }
+
+    @Test fun `turning the favourites feature off closes peer favoriting in the same write`() = runTest {
+        val repository = newRepository(this)
+        repository.openAllPeerGates()
+
+        repository.setFavoriteBeta(false)
+
+        assertFalse(repository.settings.first().allowPeerFavorite)
+    }
+
+    @Test fun `turning the favourites feature on does not enable peer favoriting`() = runTest {
+        val repository = newRepository(this)
+        repository.openAllPeerGates()
+        repository.setFavoriteBeta(false)
+
+        repository.setFavoriteBeta(true)
+
+        assertFalse(repository.settings.first().allowPeerFavorite)
+    }
+
+    @Test fun `favourites off on disk closes peer favoriting`() = runTest {
+        val repository = newRepository(this)
+        repository.importBackup(SettingsExport(favoriteEnabled = false, allowPeerFavorite = true))
+
+        repository.revokeUnavailablePeerGates(storageAvailable = true, albumAvailable = true)
+
+        assertFalse(repository.settings.first().allowPeerFavorite)
     }
 }

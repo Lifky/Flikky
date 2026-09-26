@@ -42,6 +42,7 @@ fun PeerPermissionsSheet(
     onSetAlbumBrowsing: (Boolean) -> Unit,
     onSetFavoriteBrowsing: (Boolean) -> Unit,
     onSetAllowPeerRecall: (Boolean) -> Unit,
+    onSetAllowPeerFavorite: (Boolean) -> Unit,
     onRequestStoragePermission: () -> Unit,
     onRequestAlbumPermission: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -132,7 +133,23 @@ fun PeerPermissionsSheet(
                     onResolve = onOpenSettings,
                     onToggle = onSetAllowPeerRecall,
                     index = 0,
-                    total = 1,
+                    total = 2,
+                )
+                // D78：思路同上 —— 收藏功能开着才能打开；关掉收藏功能时它一起关（D76）。
+                PeerChannelRow(
+                    state = peerChannelState(
+                        available = settings.favoriteBetaEnabled,
+                        peerEnabled = settings.allowPeerFavorite,
+                    ),
+                    title = stringResource(R.string.peer_permissions_favorite_messages),
+                    summary = stringResource(R.string.peer_permissions_favorite_messages_summary),
+                    unavailableHint = stringResource(
+                        R.string.peer_permissions_favorites_need_feature,
+                    ),
+                    onResolve = onOpenSettings,
+                    onToggle = onSetAllowPeerFavorite,
+                    index = 1,
+                    total = 2,
                 )
             }
         }

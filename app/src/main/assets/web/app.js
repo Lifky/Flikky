@@ -176,6 +176,10 @@
     let avatarGrouping = 'EACH';
     let recallEnabled = false;
     let allowPeerRecall = false;
+    // D78：手机允许对端把会话消息收藏到手机（peer-info 只在收藏功能也开着时声明为真）。
+    let allowPeerFavorite = false;
+    // 每收藏成功一次就 +1 并发布到 body 上，收藏面板观察它重新拉取（app.js 不认识面板，D4 同一手法）。
+    let favoritesRev = 0;
     // 消息操作样式（§12）：跟随 APP 设置，FLOATING=hover 浮条+右键，INLINE=常驻按钮行。
     let actionStyle = 'INLINE';
     function normalizeActionStyle(value) { return value === 'INLINE' ? 'INLINE' : 'FLOATING'; }
@@ -509,6 +513,7 @@
         const name = (data.deviceName && typeof data.deviceName === 'string') ? data.deviceName : fallbackName;
         const prevRecall = recallEnabled;
         const prevAllowPeerRecall = allowPeerRecall;
+        const prevAllowPeerFavorite = allowPeerFavorite;
         if (Object.prototype.hasOwnProperty.call(data, 'recallEnabled')) {
             recallEnabled = data.recallEnabled === true;
             if (!recallEnabled) closeRecallMenu();
@@ -516,10 +521,15 @@
         if (Object.prototype.hasOwnProperty.call(data, 'allowPeerRecall')) {
             allowPeerRecall = data.allowPeerRecall === true;
         }
+        if (Object.prototype.hasOwnProperty.call(data, 'allowPeerFavorite')) {
+            allowPeerFavorite = data.allowPeerFavorite === true;
+            if (!allowPeerFavorite) closeRecallMenu();
+        }
         const nextStyle = Object.prototype.hasOwnProperty.call(data, 'messageActionStyle')
             ? normalizeActionStyle(data.messageActionStyle)
             : actionStyle;
-        if (nextStyle !== actionStyle || recallEnabled !== prevRecall || allowPeerRecall !== prevAllowPeerRecall) {
+        if (nextStyle !== actionStyle || recallEnabled !== prevRecall || allowPeerRecall !== prevAllowPeerRecall
+            || allowPeerFavorite !== prevAllowPeerFavorite) {
             actionStyle = nextStyle;
             document.body.dataset.actionStyle = actionStyle;
             refreshAllMessageActions();
@@ -777,24 +787,28 @@
 
     // 操作集唯一事实源（§12.2，纯函数）：浮条/常驻行/右键菜单/长按菜单四个入口共用。
     // 只依赖 classList.contains 与 dataset，vm 测试用 stub 气泡即可跑。
-    function buildMessageActions(bubble, recallOn, allowPeerRecallOn = false) {
+    function buildMessageActions(bubble, recallOn, allowPeerRecallOn = false, allowPeerFavoriteOn = false) {
         const kind = bubble.dataset.kind;
         const mine = bubble.classList.contains('me');
         const failed = bubble.classList.contains('failed');
         const uploading = bubble.classList.contains('uploading');
         const transferring = bubble.classList.contains('transferring');
+        // 状态门槛：下载/预览/收藏仅 COMPLETED（IN_PROGRESS 下载路由返 409）。
+        const completed = kind === 'file' && !!bubble.dataset.fileId && !failed && !uploading && !transferring;
         const actions = [];
         if (kind === 'text') {
             actions.push({ kind: 'copy', icon: 'content_copy', labelKey: 'app.copy' });
         } else if (kind === 'file') {
-            // 状态门槛：下载/预览仅 COMPLETED（IN_PROGRESS 下载路由返 409）。
-            const completed = !!bubble.dataset.fileId && !failed && !uploading && !transferring;
             if (completed) {
                 if (mediaKind(bubble.dataset.mime)) {
                     actions.push({ kind: 'preview', icon: 'visibility', labelKey: 'app.preview' });
                 }
                 actions.push({ kind: 'download', icon: 'download', labelKey: 'app.download' });
             }
+        }
+        // D78：两个方向的消息都能收藏到手机；要有 server-side id，文件要已完成。
+        if (allowPeerFavoriteOn && bubble.dataset.messageId && (kind === 'text' || completed)) {
+            actions.push({ kind: 'favorite', icon: 'star', labelKey: 'app.favorite' });
         }
         // 撤回不受状态限制，但要有 server-side id（上传完成前没有）。
         if ((mine || allowPeerRecallOn) && recallOn && bubble.dataset.messageId) {
@@ -810,6 +824,7 @@
             return;
         }
         if (action.kind === 'download') { triggerDownload(bubble.dataset.fileId, bubble.dataset.name || ''); return; }
+        if (action.kind === 'favorite') { favoriteMessage(bubble.dataset.messageId); return; }
         if (action.kind === 'recall') { confirmRecallMessage(bubble.dataset.messageId); }
     }
 
@@ -913,7 +928,7 @@
         if (!row) return;
         const old = row.querySelector('.msg-actions');
         if (old) old.remove();
-        const actions = buildMessageActions(bubble, recallEnabled, allowPeerRecall);
+        const actions = buildMessageActions(bubble, recallEnabled, allowPeerRecall, allowPeerFavorite);
         if (!actions.length) return;
         const bar = document.createElement('div');
         bar.className = 'msg-actions';
@@ -1048,7 +1063,7 @@
         };
         bubble.addEventListener('contextmenu', (event) => {
             if (actionStyle === 'INLINE') return;
-            if (!buildMessageActions(bubble, recallEnabled, allowPeerRecall).length) return;
+            if (!buildMessageActions(bubble, recallEnabled, allowPeerRecall, allowPeerFavorite).length) return;
             cancel();
             event.preventDefault();
             showActionsMenu(bubble, event.clientX, event.clientY);
@@ -1091,7 +1106,7 @@
     // 外层仍是 fixed 定位手写容器（mdui-dropdown 不支持任意屏幕坐标），内部官方 mdui-menu。
     function showActionsMenu(bubble, x, y) {
         closeRecallMenu();
-        const actions = buildMessageActions(bubble, recallEnabled, allowPeerRecall);
+        const actions = buildMessageActions(bubble, recallEnabled, allowPeerRecall, allowPeerFavorite);
         if (!actions.length) return;
         const menu = document.createElement('div');
         menu.className = 'recall-menu';
@@ -1155,6 +1170,37 @@
         okBtn.addEventListener('click', onOk);
         cancelBtn.addEventListener('click', onCancel);
         dialog.open = true;
+    }
+
+    // D78：收藏到手机。只能加不能删；重复收藏服务端去重，回 exists。
+    async function favoriteMessage(messageId) {
+        if (!allowPeerFavorite || !messageId) return;
+        const notify = (kind, key) => {
+            if (window.flikky && window.flikky[kind]) window.flikky[kind](t(key));
+        };
+        try {
+            const r = await fetch(`/api/messages/${messageId}/favorite`, {
+                method: 'POST',
+                headers: { 'X-Client-Id': myClientId },
+            });
+            if (r.ok) {
+                let body = null;
+                try { body = await r.json(); } catch (_) {}
+                if (body && body.result === 'exists') {
+                    notify('showInfo', 'app.favorite_exists');
+                    return;
+                }
+                notify('showInfo', 'app.favorite_added');
+                favoritesRev += 1;
+                document.body.dataset.favoritesRev = String(favoritesRev);
+            } else if (r.status === 403) {
+                notify('showError', 'app.favorite_not_enabled');
+            } else {
+                notify('showError', 'app.favorite_failed');
+            }
+        } catch (_) {
+            notify('showError', 'app.favorite_network_failed');
+        }
     }
 
     async function doRecallMessage(messageId) {

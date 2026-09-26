@@ -94,6 +94,8 @@ data class FlikkySettings(
     val favoriteBetaEnabled: Boolean = false,
     /** Peer visibility gate, independent from the app-side favourites feature flag. */
     val favoriteBrowsingEnabled: Boolean = false,
+    /** D78: the browser may favorite session messages to this phone. Needs [favoriteBetaEnabled]. */
+    val allowPeerFavorite: Boolean = false,
     val requirePin: Boolean = true,
     val historyRetainLimit: Int = 20,   // 0=不保存, -1=无限制
     val thumbnailCacheLimitMb: Int = THUMBNAIL_CACHE_LIMIT_DEFAULT_MB,

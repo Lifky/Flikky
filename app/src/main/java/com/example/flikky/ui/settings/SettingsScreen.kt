@@ -1365,6 +1365,7 @@ fun SettingsScreen(
             onSetAlbumBrowsing = viewModel::setAlbumBrowsingEnabled,
             onSetFavoriteBrowsing = viewModel::setFavoriteBrowsingEnabled,
             onSetAllowPeerRecall = viewModel::setAllowPeerRecall,
+            onSetAllowPeerFavorite = viewModel::setAllowPeerFavorite,
             onRequestStoragePermission = { requestAllFilesAccess(context) },
             onRequestAlbumPermission = { albumPermissionLauncher.launch(albumPermissionRequest) },
             // 「去设置」指向的收藏/撤回功能开关就在本页「会话行为」里，关掉面板即可见。

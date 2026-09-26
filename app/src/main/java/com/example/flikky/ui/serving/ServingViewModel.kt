@@ -799,6 +799,10 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { ServiceLocator.settingsRepository.setAllowPeerRecall(enabled) }
     }
 
+    fun setAllowPeerFavorite(enabled: Boolean) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setAllowPeerFavorite(enabled) }
+    }
+
     fun setFavoriteBeta(enabled: Boolean) {
         viewModelScope.launch { ServiceLocator.settingsRepository.setFavoriteBeta(enabled) }
     }

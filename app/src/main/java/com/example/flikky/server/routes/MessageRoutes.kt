@@ -4,6 +4,7 @@ import com.example.flikky.server.dto.FileMessageDto
 import com.example.flikky.server.dto.MessagesResponse
 import com.example.flikky.server.dto.RecallResponse
 import com.example.flikky.server.dto.SendTextRequest
+import com.example.flikky.server.dto.ServerFavoriteOutcome
 import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.TextMessageDto
 import com.example.flikky.server.dto.WireJson
@@ -36,6 +37,13 @@ fun Route.messageRoutes(
     recallHandler: suspend (messageId: Long, callerSenderId: String) -> ServerRecallOutcome,
     recallEnabled: () -> Boolean = { false },
     allowPeerRecall: () -> Boolean = { false },
+    /**
+     * D78：浏览器把当前会话里的一条消息收藏到手机。与撤回同理，返回 server-local 的
+     * [ServerFavoriteOutcome]，data 层的结果由 TransferService 转过来。
+     */
+    favoriteHandler: suspend (Message) -> ServerFavoriteOutcome = { ServerFavoriteOutcome.Failed },
+    /** 收藏功能与「允许对端收藏消息」两轴都开才为真（调用方算好）。 */
+    peerFavoriteEnabled: () -> Boolean = { false },
 ) {
     fun requireAuth(call: ApplicationCall): Boolean {
         val token = call.request.cookies[AUTH_COOKIE]
@@ -138,6 +146,37 @@ fun Route.messageRoutes(
             }
             is ServerRecallOutcome.NotFound -> call.respond(HttpStatusCode.NotFound, mapOf("error" to "not_found"))
             is ServerRecallOutcome.Denied -> call.respond(HttpStatusCode.Forbidden, mapOf("error" to "denied"))
+        }
+    }
+
+    /**
+     * D78：只能加、不能删 —— 取消收藏会让对端删掉手机上的收藏与文件副本，留给手机本人。
+     * X-Client-Id 与撤回一样必填：自定义头让跨站请求必须先过 CORS 预检（纵深防御）。
+     */
+    post("/api/messages/{id}/favorite") {
+        if (!requireAuth(call)) { call.respond(HttpStatusCode.Unauthorized); return@post }
+        if (!peerFavoriteEnabled()) {
+            call.respond(HttpStatusCode.Forbidden, mapOf("error" to "favorite_disabled"))
+            return@post
+        }
+        val id = call.parameters["id"]?.toLongOrNull()
+            ?: run { call.respond(HttpStatusCode.BadRequest, mapOf("error" to "invalid_id")); return@post }
+        if (call.request.headers["X-Client-Id"] == null) {
+            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "missing_client_id"))
+            return@post
+        }
+        // 只认当前会话里的消息：id 不是授权凭据，查不到就是 404。
+        val target = session.snapshot.value.messages.firstOrNull { it.id == id }
+            ?: run { call.respond(HttpStatusCode.NotFound, mapOf("error" to "not_found")); return@post }
+        if (target is Message.File && target.status != Message.File.Status.COMPLETED) {
+            call.respond(HttpStatusCode.Conflict, mapOf("error" to "not_ready"))
+            return@post
+        }
+        when (favoriteHandler(target)) {
+            ServerFavoriteOutcome.Added -> call.respond(HttpStatusCode.OK, mapOf("result" to "added"))
+            ServerFavoriteOutcome.AlreadyFavorited -> call.respond(HttpStatusCode.OK, mapOf("result" to "exists"))
+            ServerFavoriteOutcome.Failed ->
+                call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "favorite_failed"))
         }
     }
 }

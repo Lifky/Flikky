@@ -75,4 +75,14 @@ class PeerInfoChannelGatingTest {
         assertFalse(dto.storageBrowsingEnabled)
         assertFalse(dto.albumBrowsingEnabled)
     }
+
+    @Test
+    fun `peer favoriting is declared only with the favourites feature on`() {
+        val on = allOn.copy(allowPeerFavorite = true)
+        assertTrue(on.dto(storageAvailable = true, albumAvailable = true).allowPeerFavorite)
+        assertFalse(
+            on.copy(favoriteBetaEnabled = false).dto(storageAvailable = true, albumAvailable = true).allowPeerFavorite,
+        )
+        assertFalse(allOn.dto(storageAvailable = true, albumAvailable = true).allowPeerFavorite)
+    }
 }

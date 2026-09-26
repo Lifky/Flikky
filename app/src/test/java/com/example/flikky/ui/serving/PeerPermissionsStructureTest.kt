@@ -315,6 +315,19 @@ class PeerPermissionsStructureTest {
     }
 
     @Test
+    fun `the do section lets the peer favorite messages once favourites are on`() {
+        // 2026-09-27 用户：思路同「消息撤回 → 允许撤回对端消息」—— 收藏功能开着才能打开。
+        val doSection = sheet.substringAfter("R.string.peer_permissions_section_do")
+        assertTrue(doSection.contains("available = settings.favoriteBetaEnabled"))
+        assertTrue(doSection.contains("peerEnabled = settings.allowPeerFavorite"))
+        assertTrue(doSection.contains("R.string.peer_permissions_favorite_messages)"))
+        assertTrue(doSection.contains("R.string.peer_permissions_favorites_need_feature"))
+        assertTrue(doSection.contains("onToggle = onSetAllowPeerFavorite"))
+        assertTrue(settingsScreen.contains("onSetAllowPeerFavorite = viewModel::setAllowPeerFavorite"))
+        assertTrue(screen.contains("onSetAllowPeerFavorite = viewModel::setAllowPeerFavorite"))
+    }
+
+    @Test
     fun `the settings page reaches peer recall only through the shared panel`() {
         // 2026-09-27 用户：「消息撤回」下面展开的那一行与对端权限面板里的开关是同一个，去掉重复。
         assertFalse(settingsScreen.contains("R.string.settings_allow_peer_recall)"))

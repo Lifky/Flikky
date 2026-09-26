@@ -7,6 +7,8 @@ import app.cash.turbine.test
 import com.example.flikky.data.db.FlikkyDatabase
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -512,5 +514,52 @@ class FavoritesRepositoryTest {
         } finally {
             targetDb.close()
         }
+    }
+
+    // ── D78：浏览器把会话消息收藏到手机。只能加、不能删；同一条只收一次。
+
+    @Test fun favoriteFromPeer_adds_once_and_reports_repeats() = runTest {
+        val msg = Message.Text(id = 5L, origin = Origin.PHONE, timestamp = 7L, content = "keep")
+
+        assertEquals(PeerFavoriteResult.Added, repo.favoriteFromPeer(sid = 1L, sessionName = "live", msg = msg))
+        assertEquals(PeerFavoriteResult.AlreadyFavorited, repo.favoriteFromPeer(sid = 1L, sessionName = "live", msg = msg))
+
+        val rows = repo.snapshot().first
+        assertEquals(1, rows.size)
+        assertNull("peer favorites land in Ungrouped", rows.single().groupId)
+        assertEquals("keep", rows.single().textContent)
+    }
+
+    @Test fun favoriteFromPeer_concurrent_requests_store_one_row() = runTest {
+        // 双击或两个标签页同时点：先查后插若不加锁，两次都会查到「没有」。
+        val msg = Message.Text(id = 6L, origin = Origin.BROWSER, timestamp = 7L, content = "twice")
+
+        val results = listOf(
+            async { repo.favoriteFromPeer(sid = 1L, sessionName = "live", msg = msg) },
+            async { repo.favoriteFromPeer(sid = 1L, sessionName = "live", msg = msg) },
+        ).awaitAll()
+
+        assertEquals(1, repo.snapshot().first.size)
+        assertEquals(setOf(PeerFavoriteResult.Added, PeerFavoriteResult.AlreadyFavorited), results.toSet())
+    }
+
+    @Test fun favoriteFromPeer_copies_a_file_into_the_depot() = runTest {
+        sessionFileStore.archiveFromStream(sessionId = 9L, fileId = "peer-file", source = "bytes".byteInputStream())
+        val msg = Message.File(
+            id = 90L,
+            origin = Origin.PHONE,
+            timestamp = 1L,
+            fileId = "peer-file",
+            name = "a.txt",
+            sizeBytes = 5L,
+            mime = "text/plain",
+            status = Message.File.Status.COMPLETED,
+        )
+
+        assertEquals(PeerFavoriteResult.Added, repo.favoriteFromPeer(sid = 9L, sessionName = "live", msg = msg))
+
+        val row = repo.snapshot().first.single()
+        assertEquals("a.txt", row.fileName)
+        assertEquals("bytes", favoriteFileStore.resolve(row.fileId!!).readText())
     }
 }

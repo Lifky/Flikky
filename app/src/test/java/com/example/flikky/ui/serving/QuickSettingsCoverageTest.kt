@@ -73,6 +73,7 @@ class QuickSettingsCoverageTest {
         "animationSpeed" to "用户裁决：意义不大，减少快捷设置项",
         // v1.21.0：对端门控统一放进顶栏权限面板，不能再和会话外观混在一个 sheet 里。
         "allowPeerRecall" to "对端权限面板负责对端能做什么",
+        "allowPeerFavorite" to "对端权限面板负责对端能做什么",
         "storageBrowsingEnabled" to "对端权限面板负责对端能看什么",
         "albumBrowsingEnabled" to "对端权限面板负责对端能看什么",
         "favoriteBrowsingEnabled" to "对端权限面板负责对端能看什么",
