@@ -13,7 +13,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -42,6 +41,7 @@ import com.example.flikky.R
 import com.example.flikky.session.ConnectionAddresses
 import com.example.flikky.session.LocalNameStatus
 import com.example.flikky.ui.theme.Spacing
+import com.example.flikky.util.LastNonNull
 import com.example.flikky.util.LocalHostName
 import com.example.flikky.util.fitFontSize
 import kotlinx.coroutines.launch
@@ -78,12 +78,13 @@ fun ConnectionInfoCard(
             // 第一行永远是 IP：最稳定，二维码编的也是它（D63、D77）。
             // 两行同一结构（地址 + 行尾复制）、**同一字号、绝不换行**（用户 2026-09-26）：
             // 按较长那行在可用宽度内能放下的最大字号一起缩，端口号不会被挤到下一行。
+            // 用 App 字体而非等宽：系统等宽字体不跟随 MiSans 与字重，小米上和周围文字不搭（用户 2026-09-27）。
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                 val measurer = rememberTextMeasurer()
                 val density = LocalDensity.current
-                val base = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Monospace)
+                val base = MaterialTheme.typography.titleLarge
                 val urls = listOfNotNull(address.primaryUrl, address.localUrl)
-                val availablePx = with(density) { (maxWidth - COPY_BUTTON_WIDTH).roundToPx() }
+                val availablePx = with(density) { (maxWidth - COPY_BUTTON_GAP - COPY_BUTTON_WIDTH).roundToPx() }
                 val (sizeSp, textWidthPx) = remember(urls, availablePx, base) {
                     fun widthAt(url: String, sp: Float) =
                         measurer.measure(url, base.copy(fontSize = sp.sp), maxLines = 1, softWrap = false).size.width
@@ -160,8 +161,24 @@ fun ConnectionInfoCard(
     if (showQr) QrCodeSheet(url = address.primaryUrl, onDismiss = { showQr = false })
 }
 
-/** 行尾 IconButton 的最小触摸宽度（M3：48dp）。算字号时要把它从可用宽度里扣掉。 */
+/** [ConnectionInfoCard] 的全部输入。 */
+data class ConnectionCardInputs(val address: ConnectionAddresses, val pin: String, val requirePin: Boolean)
+
+/**
+ * 卡片停在最后一帧：服务一停，地址与 PIN 就被清空，页面却还要播完返回动画；
+ * 卡片若跟着消失，下面的内容会塌成半截（2026-09-27 装机反馈）。地址未就绪前返回 null。
+ */
+@Composable
+fun rememberLastCardInputs(address: ConnectionAddresses?, pin: String, requirePin: Boolean): ConnectionCardInputs? {
+    val last = remember { LastNonNull<ConnectionCardInputs>() }
+    return last.update(address?.let { ConnectionCardInputs(it, pin, requirePin) })
+}
+
+/** 行尾复制按钮的最小触摸宽度（M3：48dp）。算字号时要把它从可用宽度里扣掉。 */
 private val COPY_BUTTON_WIDTH = 48.dp
+
+/** 地址与复制按钮之间的间距：tonal 圆底只比触摸区小 4dp，不加间距就贴着字。同样要从可用宽度里扣掉。 */
+private val COPY_BUTTON_GAP = Spacing.sm
 private const val MIN_ADDRESS_SP = 14f
 
 @Composable
@@ -186,7 +203,9 @@ private fun AddressRow(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.width(textWidth),
         )
-        IconButton(onClick = onCopy) {
+        Spacer(Modifier.width(COPY_BUTTON_GAP))
+        // 与二维码按钮同一个组件、同一套默认色（用户 2026-09-27）。
+        FilledTonalIconButton(onClick = onCopy) {
             Icon(
                 painter = painterResource(R.drawable.ic_content_copy),
                 contentDescription = copyDescription,
@@ -209,7 +228,14 @@ private fun HintText(text: String) {
 private fun LocalNameStatusLine(status: LocalNameStatus, onAdoptNumber: ((Int) -> Unit)?) {
     when (status) {
         is LocalNameStatus.Probing -> HintText(stringResource(R.string.connection_local_probing))
-        is LocalNameStatus.Owned -> HintText(stringResource(R.string.connection_local_hint))
+        // 「任意地址均可打开」对安卓手机不成立（解析不了 .local）：这一点放进 ⓘ，主文案保持简短（用户 2026-09-27）。
+        is LocalNameStatus.Owned -> Row(verticalAlignment = Alignment.CenterVertically) {
+            HintText(stringResource(R.string.connection_local_hint))
+            InfoIconButton(
+                title = stringResource(R.string.settings_access_address),
+                text = stringResource(R.string.connection_local_info),
+            )
+        }
         is LocalNameStatus.Renamed -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
             HintText(
                 stringResource(

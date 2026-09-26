@@ -10,6 +10,11 @@ class ConnectionInfoCardTest {
         val row = blockStartingAt(code(), "private fun AddressRow(")
         assertTrue(row.contains("R.drawable.ic_content_copy")); assertTrue(!row.contains("R.drawable.ic_qr_code_2"))
     }
+    @Test fun `copy buttons use the same tonal icon button as the qr action`() {
+        // 2026-09-27 用户：复制按钮与二维码按钮的背景色对齐。
+        val row = blockStartingAt(code(), "private fun AddressRow(")
+        assertTrue(row.contains("FilledTonalIconButton(onClick = onCopy)")); assertTrue(!row.contains(" IconButton("))
+    }
     @Test fun `the qr button is not parked at the end of the url line`() {
         val block = code().substringAfter("text = url").take(200)
         assertTrue(!block.contains("ic_qr_code_2"))

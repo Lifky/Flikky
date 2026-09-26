@@ -42,6 +42,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.session.ConnectionAddresses
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.ConnectionInfoCard
+import com.example.flikky.ui.components.rememberLastCardInputs
 import com.example.flikky.ui.components.NetworkStatusBanner
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.theme.Spacing
@@ -167,8 +168,8 @@ private fun ArmedContent(
         verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        address?.let {
-            ConnectionInfoCard(address = it, pin = pin, requirePin = requirePin, onAdoptNumber = onAdoptNumber)
+        rememberLastCardInputs(address, pin, requirePin)?.let {
+            ConnectionInfoCard(address = it.address, pin = it.pin, requirePin = it.requirePin, onAdoptNumber = onAdoptNumber)
         }
 
         Text(

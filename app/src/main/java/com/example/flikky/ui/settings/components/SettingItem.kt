@@ -7,28 +7,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.flikky.R
+import com.example.flikky.ui.components.InfoIconButton
 import com.example.flikky.ui.theme.Spacing
 
 /**
@@ -65,20 +56,11 @@ fun SettingItem(
     total: Int = 1,
     trailingValue: String? = null,
 ) {
-    var showInfo by remember { mutableStateOf(false) }
     val trailingGroup: (@Composable () -> Unit)? =
         if (infoText != null || trailing != null || trailingValue != null) {
             {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (infoText != null) {
-                        IconButton(onClick = { showInfo = true }) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_info),
-                                contentDescription = stringResource(R.string.settings_show_info),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+                    if (infoText != null) InfoIconButton(title = title, text = infoText)
                     trailing?.invoke()
                     if (trailingValue != null) {
                         Text(
@@ -165,17 +147,4 @@ fun SettingItem(
             }
         },
     )
-
-    if (showInfo && infoText != null) {
-        AlertDialog(
-            onDismissRequest = { showInfo = false },
-            title = { Text(title) },
-            text = { Text(infoText) },
-            confirmButton = {
-                TextButton(onClick = { showInfo = false }) {
-                    Text(stringResource(R.string.common_got_it))
-                }
-            },
-        )
-    }
 }

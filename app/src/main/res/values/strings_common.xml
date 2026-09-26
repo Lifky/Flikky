@@ -17,7 +17,8 @@
     <string name="common_rename_session">重命名会话</string>
     <string name="connection_open_in_browser">在浏览器中打开</string>
     <string name="connection_copy_address">复制地址</string>
-    <string name="connection_local_hint">电脑可直接输入第二行；手机请扫码</string>
+    <string name="connection_local_hint">以上任意地址均可打开</string>
+    <string name="connection_local_info">第二行是好记的局域网名称，电脑浏览器可直接输入。安卓手机识别不了这类名字，请扫码或输入第一行的 IP 地址。</string>
     <string name="connection_local_probing">正在确认名称…</string>
     <string name="connection_local_renamed">%1$s 已被占用，本次使用 %2$s</string>
     <string name="connection_local_adopt">改用 %1$d</string>

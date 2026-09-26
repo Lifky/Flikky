@@ -54,4 +54,45 @@ class ConnectionInfoCardStructureTest {
         val local = card.indexOf("address.localUrl")
         assertTrue(primary in 0 until local)
     }
+
+    @Test fun `the addresses use the app font, not monospace`() {
+        // 2026-09-27 用户：系统等宽字体不跟随 MiSans 与字重，小米上和周围文字不搭。PIN 不在此列。
+        val base = card.lines().single { it.contains("val base = ") }
+        assertFalse(base, base.contains("Monospace"))
+    }
+
+    @Test fun `the hint explains the android limitation through the shared info button`() {
+        // 「以上任意地址均可打开」对安卓手机不成立（解析不了 .local）：说明放进 info，与设置页同一实现。
+        assertTrue(card.contains("InfoIconButton("))
+        assertTrue(card.contains("R.string.connection_local_info"))
+        val settingItem = source("com/example/flikky/ui/settings/components/SettingItem.kt")
+        assertTrue("settings rows must use the same info button", settingItem.contains("InfoIconButton("))
+        assertFalse("settings rows must not keep a second info dialog", settingItem.contains("AlertDialog("))
+    }
+
+    @Test fun `the gap before the copy button is part of the width budget`() {
+        // tonal 圆底让 4dp 的触摸余量显得贴字：加间距，且字号预算必须扣掉它，否则长地址会被挤到换行。
+        assertTrue(card.contains("Spacer(Modifier.width(COPY_BUTTON_GAP))"))
+        assertTrue(card.contains("maxWidth - COPY_BUTTON_GAP - COPY_BUTTON_WIDTH"))
+    }
+
+    @Test fun `both screens keep the last card while the page is leaving`() {
+        // 2026-09-27 装机：停止服务后返回动画期间地址已清空，卡片消失、下面的内容塌成半截。
+        listOf("ui/serving/ServingScreen.kt", "ui/exporting/ExportingScreen.kt").forEach {
+            val screen = source("com/example/flikky/$it")
+            assertTrue("$it must render the remembered card", screen.contains("rememberLastCardInputs("))
+            assertFalse("$it must not drop the card when the address goes null", screen.contains("address?.let"))
+        }
+    }
+
+    private fun source(relative: String): String {
+        var dir: File? = File(System.getProperty("user.dir").orEmpty()).absoluteFile
+        while (dir != null) {
+            listOf("src/main/java", "app/src/main/java")
+                .map { File(dir, "$it/$relative") }
+                .firstOrNull { it.isFile }?.let { return it.readText() }
+            dir = dir.parentFile
+        }
+        error("missing $relative")
+    }
 }

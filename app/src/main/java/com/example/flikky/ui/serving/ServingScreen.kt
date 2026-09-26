@@ -72,6 +72,7 @@ import com.example.flikky.di.ServiceLocator
 import com.example.flikky.session.peerChannelState
 import com.example.flikky.session.visibleChannelLabels
 import com.example.flikky.ui.components.ConnectionInfoCard
+import com.example.flikky.ui.components.rememberLastCardInputs
 import com.example.flikky.ui.components.ConversationHeader
 import com.example.flikky.ui.components.ImagePreviewDialog
 import com.example.flikky.ui.components.AvatarKey
@@ -263,12 +264,14 @@ fun ServingScreen(
                         onStopClick = { viewModel.stopService(); onStopped() },
                     )
                 } else {
-                    Column(Modifier.padding(Spacing.sectionGap)) {
-                        ui.address?.let { address ->
+                    val card = rememberLastCardInputs(ui.address, ui.pin, ui.requirePin)
+                    // fillMaxWidth：卡片还没出现时，下面的等待行与停止按钮也保持居中。
+                    Column(Modifier.fillMaxWidth().padding(Spacing.sectionGap)) {
+                        card?.let {
                             ConnectionInfoCard(
-                                address = address,
-                                pin = ui.pin,
-                                requirePin = ui.requirePin,
+                                address = it.address,
+                                pin = it.pin,
+                                requirePin = it.requirePin,
                                 onAdoptNumber = ServiceLocator::adoptHostNumber,
                             )
                         }
