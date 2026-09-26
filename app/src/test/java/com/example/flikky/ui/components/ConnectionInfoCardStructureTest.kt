@@ -26,13 +26,27 @@ class ConnectionInfoCardStructureTest {
     @Test fun `both address lines share one font size and never wrap`() {
         // 用户 2026-09-26：大字号时端口号会被挤到下一行；两行要同样大小。
         // 两行都用同一个 addressStyle（按较长的那行算出来的共享字号），且单行不换行。
-        // 只数调用点，排除 `private fun AddressRow(` 声明本身。
-        val rows = Regex("(?<!fun )AddressRow\\(([\\s\\S]*?)\\n\\s*\\)").findAll(card).map { it.groupValues[1] }.toList()
-        assertTrue("expected two AddressRow calls, found ${rows.size}", rows.size == 2)
+        val rows = addressRowCalls()
         rows.forEach { assertTrue("row must use the shared style: $it", it.contains("style = addressStyle")) }
         assertTrue(card.contains("maxLines = 1"))
         assertTrue(card.contains("softWrap = false"))
         assertTrue("the shared size must come from fitFontSize", card.contains("fitFontSize("))
+    }
+
+    @Test fun `both copy icons line up because both rows share one text width`() {
+        // 2026-09-26 审查：两行各自居中时，长短不同的地址把行尾复制图标推到不同的横向位置。
+        // 两行文字占同一个宽度（较长那行的宽度），整组居中，图标才落在同一条竖线上。
+        addressRowCalls().forEach {
+            assertTrue("row must use the shared text width: $it", it.contains("textWidth = textWidth"))
+        }
+        assertTrue(card.contains("Modifier.width(textWidth)"))
+    }
+
+    /** 只数调用点，排除 `private fun AddressRow(` 声明本身。 */
+    private fun addressRowCalls(): List<String> {
+        val rows = Regex("(?<!fun )AddressRow\\(([\\s\\S]*?)\\n\\s*\\)").findAll(card).map { it.groupValues[1] }.toList()
+        assertTrue("expected two AddressRow calls, found ${rows.size}", rows.size == 2)
+        return rows
     }
 
     @Test fun `the ip address is rendered before the local name`() {

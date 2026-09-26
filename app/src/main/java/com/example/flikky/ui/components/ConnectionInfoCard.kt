@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalIconButton
@@ -34,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.flikky.R
@@ -82,15 +84,17 @@ fun ConnectionInfoCard(
                 val base = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Monospace)
                 val urls = listOfNotNull(address.primaryUrl, address.localUrl)
                 val availablePx = with(density) { (maxWidth - COPY_BUTTON_WIDTH).roundToPx() }
-                val sizeSp = remember(urls, availablePx, base) {
-                    fitFontSize(maxSp = base.fontSize.value, minSp = MIN_ADDRESS_SP, stepSp = 1f) { sp ->
-                        urls.all { url ->
-                            measurer.measure(url, base.copy(fontSize = sp.sp), maxLines = 1, softWrap = false)
-                                .size.width <= availablePx
-                        }
+                val (sizeSp, textWidthPx) = remember(urls, availablePx, base) {
+                    fun widthAt(url: String, sp: Float) =
+                        measurer.measure(url, base.copy(fontSize = sp.sp), maxLines = 1, softWrap = false).size.width
+                    val size = fitFontSize(maxSp = base.fontSize.value, minSp = MIN_ADDRESS_SP, stepSp = 1f) { sp ->
+                        urls.all { widthAt(it, sp) <= availablePx }
                     }
+                    size to urls.maxOf { widthAt(it, size) }.coerceAtMost(availablePx)
                 }
                 val addressStyle = base.copy(fontSize = sizeSp.sp)
+                // 两行文字占同一个宽度（较长那行的），整组居中：行尾复制图标落在同一条竖线上。
+                val textWidth = with(density) { textWidthPx.toDp() }
                 Column(
                     verticalArrangement = Arrangement.spacedBy(Spacing.md),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -99,6 +103,7 @@ fun ConnectionInfoCard(
                     AddressRow(
                         url = address.primaryUrl,
                         style = addressStyle,
+                        textWidth = textWidth,
                         copyDescription = stringResource(R.string.connection_copy_address),
                         onCopy = { scope.launch { clipboard.setPlainText(address.primaryUrl) } },
                     )
@@ -109,6 +114,7 @@ fun ConnectionInfoCard(
                         AddressRow(
                             url = localUrl,
                             style = addressStyle,
+                            textWidth = textWidth,
                             copyDescription = stringResource(R.string.connection_copy_local_address),
                             onCopy = { scope.launch { clipboard.setPlainText(localUrl) } },
                         )
@@ -159,20 +165,26 @@ private val COPY_BUTTON_WIDTH = 48.dp
 private const val MIN_ADDRESS_SP = 14f
 
 @Composable
-private fun AddressRow(url: String, style: TextStyle, copyDescription: String, onCopy: () -> Unit) {
+private fun AddressRow(
+    url: String,
+    style: TextStyle,
+    textWidth: Dp,
+    copyDescription: String,
+    onCopy: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 字号已由调用方按可用宽度算好；这里再加单行兜底，极端窄屏宁可省略也不换行。
+        // 字号与宽度已由调用方按可用宽度算好；这里再加单行兜底，极端窄屏宁可省略也不换行。
         Text(
             text = url,
             style = style,
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f, fill = false),
+            modifier = Modifier.width(textWidth),
         )
         IconButton(onClick = onCopy) {
             Icon(
