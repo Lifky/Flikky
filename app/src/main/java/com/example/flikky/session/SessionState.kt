@@ -56,6 +56,9 @@ class SessionState(private val nowMs: () -> Long) {
          * snapshot consumers stay unchanged.
          */
         val networkStatus: NetworkStatus = NetworkStatus.Ok,
+        /** 用户设定的起始端口；与 [boundPort] 不同时连接卡片提示。0 = 未知。 */
+        val requestedPort: Int = 0,
+        val localName: LocalNameStatus = LocalNameStatus.Disabled,
     )
 
     private val _snapshot = MutableStateFlow(
@@ -89,6 +92,14 @@ class SessionState(private val nowMs: () -> Long) {
      */
     fun updateBoundPort(port: Int) {
         _snapshot.update { it.copy(boundPort = port) }
+    }
+
+    fun updateRequestedPort(port: Int) {
+        _snapshot.update { it.copy(requestedPort = port) }
+    }
+
+    fun updateLocalName(status: LocalNameStatus) {
+        _snapshot.update { it.copy(localName = status) }
     }
 
     /**
