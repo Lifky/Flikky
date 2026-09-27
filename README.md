@@ -30,8 +30,8 @@ Favorites (code name: Ammo Box): You can turn **any message or local file** into
 
 | Channel | Revision | State |
 | --- | --- | --- |
-| Stable source | [`v1.21.0`](https://github.com/Lifky/Flikky/tree/v1.21.0) · 2026-09-19 | The phone's album is browsable from both ends as a timeline or by album folder, installed apps can be extracted and sent as APKs and installed on the other end, the connection card offers a QR code for the address, and one peer permissions panel states exactly which channels the browser may see. |
-| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.21.0...main) | No unreleased changes beyond the stable tag. |
+| Stable source | [`v1.22.0`](https://github.com/Lifky/Flikky/tree/v1.22.0) · 2026-09-28 | The phone gets a memorable `flikky{N}.local` address next to its IP, with a number and port you choose; the browser can favorite session messages to the phone and sees which ones it already keeps; and the server now answers only to its own host names and refuses cross-origin writes. |
+| `main` | [Unreleased changes](https://github.com/Lifky/Flikky/compare/v1.22.0...main) | No unreleased changes beyond the stable tag. |
 
 Use the stable tag for a reproducible build. Use `main` when evaluating the latest unreleased work. Per-release changes are documented in the [changelog](./docs/CHANGELOG.md); version history is available from the repository's [tags](https://github.com/Lifky/Flikky/tags).
 
@@ -66,8 +66,8 @@ Use the stable tag for a reproducible build. Use `main` when evaluating the late
 
 1. Install Flikky on a phone running Android 13 or newer.
 2. Connect the phone and the receiving device to the same Wi-Fi network.
-3. Start the transfer service in Flikky. The app shows a local URL and, by default, a one-time six-digit PIN. (Configurable in Settings.)
-4. Open the URL in the browser and enter the PIN when prompted (if one is required).
+3. Start the transfer service in Flikky. The app shows two local URLs — the IP address and a memorable `flikky{N}.local` name — and, by default, a one-time six-digit PIN. (Configurable in Settings.)
+4. Open either URL in a computer browser, or scan the QR code with another phone (Android cannot resolve `.local` names), and enter the PIN when prompted (if one is required).
 5. Send text or files in either direction. Progress, connection state, and failures update in real time.
 6. Stop the service when finished. The completed session remains available in History according to the configured retention policy.
 
@@ -84,6 +84,8 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 - **Send an installed app:** search installed apps, and Flikky extracts the chosen app's base APK and sends it into the session as `AppName_Version.apk`. APK rows offer an install action that hands the file to the system installer. Apps with split APKs are sent as base.apk only, with an explicit warning.
 - **Peer permissions in one place:** a panel in the session header states each channel as unavailable, off, or on, so a switch that is on but shows nothing is never a silent dead end. The header permanently shows which channels are open, and the files and album tabs each carry a lock that closes their channel without leaving the screen. Closing a channel also cuts a transfer already in flight.
 - **Reach the address without typing:** a QR code button on the connection card opens a sheet with the code. It encodes only the URL — the single-use PIN stays on the phone screen.
+- **A memorable address:** next to the IP, the connection card shows `http://flikky{N}.local:port`, which computer browsers open directly. Flikky answers for that name itself with a minimal mDNS responder that runs only while the service does and can be turned off. Choose the number (0–999) and the port in Settings → Access address; if the port is busy the service moves to the next free one and says so on the card, and ports browsers refuse to open are rejected up front.
+- **What the other end can do:** alongside what it can see, the peer permissions panel holds what the browser may do — recall the other side's messages, and favorite session messages to the phone. Favoriting is add-only, and the browser's star shows which messages the phone already keeps.
 - **Favorites:** keep independent text or file snapshots in collections, add local items without a session, search them, and send them back into an active transfer.
 - **Portable archives:** export sessions, favorites, settings, or all data to a ZIP archive; save it on Android or serve it to a browser, then import it later. When imported sessions already exist locally, choose to skip or overwrite them.
 - **Adaptive appearance:** Material 3 Expressive themes, custom theme color, dark mode, contrast, motion speed, avatars (including a browser-side avatar), bubble shape, grouping, the leading container's shape and per-type colours, and selected appearance settings stay aligned across phone and browser.
@@ -187,6 +189,9 @@ The network must allow device-to-device traffic. Guest Wi-Fi and access points w
 - [x] Install an APK from the files overview, the chat bubble and history
 - [x] APK packages as their own file category
 - [x] QR code for the connection address (URL only)
+- [x] Memorable local address (`flikky{N}.local`) through a minimal mDNS responder
+- [x] Choose the address number and port; automatic port fallback with a notice
+- [x] Let the browser favorite session messages to the phone, with the favorited state shown
 - [ ] More... iterating...
 
 ## Security Model and Limits
@@ -196,7 +201,10 @@ Flikky reduces exposure, but it does not turn an untrusted LAN into a secure tra
 - The server binds only to the concrete private IPv4 address of the active Wi-Fi network, or of the phone's own hotspot, never `0.0.0.0`, never a cellular or VPN interface, and does not depend on a cloud backend.
 - PIN authentication is enabled by default. A PIN is single-use; three wrong attempts lock the source IP for 30 seconds and five wrong attempts stop the service.
 - PIN authentication can be disabled in Settings. When disabled, anyone who can reach the phone on the same LAN can open the service.
-- Browser responses use a strict CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, HttpOnly/SameSite cookies, `textContent` rendering, and short-lived Blob download URLs.
+- Browser responses use a strict CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, HttpOnly/SameSite cookies, `textContent` rendering, and short-lived Blob download URLs.
+- **Only the phone's own host names are answered.** Every request's `Host` must be the bound IP and port or the `.local` name shown on the card; anything else — including a website whose domain has been rebound to the phone's IP — gets `403`. State-changing requests and the WebSocket handshake must also be same-origin (`Origin`, falling back to `Referer`).
+- The local-name responder is deliberately minimal: its receive socket binds `224.0.0.251:5353` and its send socket the bound private IPv4, never `0.0.0.0`; it joins the multicast group only on that interface, answers only address queries for its own name with the bound IPv4, sends unicast replies only to the same subnet, runs only with the service, and can be turned off in Settings.
+- The browser may favorite session messages to the phone only through its own switch, **off on a fresh install**, and can add favorites but never remove them. Turning the favorites feature off turns that switch off, and turning recall off turns peer recall off; neither comes back on by itself, including after importing a backup.
 - Notifications show the connection URL but never expose the PIN or token on the lock screen.
 - Browsing the phone's storage from the browser is gated by an explicit switch that is **off on a fresh install**. While it is off the browser shows no files destination and every storage endpoint answers `404`.
 - To list files the app declares `MANAGE_EXTERNAL_STORAGE` (All files access). **Android provides no read-only variant of this permission**, so granting it also grants write access. Flikky only reads: it never writes, modifies or deletes anything in shared storage. `Android/data` and `Android/obb` stay inaccessible because the system locks them regardless.
@@ -214,7 +222,8 @@ Known boundaries:
 - **Traffic is plaintext HTTP.** Another party able to inspect traffic on the LAN can read transferred content. Do not use Flikky for sensitive data on a hostile or shared network.
 - **Browser extensions are outside the trust boundary.** An extension with page access can read the DOM despite CSP. Use a clean browser profile or a private window with extensions disabled for sensitive transfers.
 - **Local data is not encrypted at rest.** Room data, stored files, favorites, and exported ZIP archives rely on Android device protection and the destination storage provider.
-- Changing to a Wi-Fi network with a different IP ends the current browser connection. Reopen the new URL shown by the app.
+- Changing to a Wi-Fi network with a different IP ends the current browser connection. Reopen the URL shown by the app — the `.local` address stays the same — and sign in again.
+- **Android cannot resolve `.local` names.** On a phone, scan the QR code or type the IP address.
 
 HTTPS and encrypted local archives remain future major-version work.
 

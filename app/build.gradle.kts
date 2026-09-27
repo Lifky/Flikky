@@ -25,8 +25,8 @@ android {
         minSdk = 33
         targetSdk = 36
         // versionCode 公式 major*10000+minor*100+patch，与 versionName 对应且单调递增。
-        versionCode = 12100
-        versionName = "1.21.0"
+        versionCode = 12200
+        versionName = "1.22.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

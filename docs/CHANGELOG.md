@@ -4,6 +4,40 @@
 
 This file records user-facing changes for each Flikky release, loosely following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow `x.y.z`: x for major architectural changes, y for new features, z for bug fixes. Dates are tag creation dates.
 
+## [v1.22.0](https://github.com/Lifky/Flikky/releases/tag/v1.22.0) · 2026-09-28
+
+A memorable address, and a peer that can do a little more. The phone now answers to `flikky{N}.local` next to its IP, with a number and port you choose; the browser can favorite session messages to the phone; and the server answers only to its own names and refuses cross-origin writes.
+
+### Added
+
+#### A memorable address
+- The connection card shows **two addresses**: the IP, and `http://flikky{N}.local:port`, which computer browsers open directly. Both rows share one font size, never wrap, and each has its own copy button; an info button beside the title explains which devices can use which
+- Flikky answers for its own name with a **minimal mDNS responder** that runs only while the service does. It probes before claiming the name, takes the next free number when another device already holds it (the card offers to keep the new number), and sends a goodbye when the service stops
+- **Settings → Access address**: turn the local name on or off, and choose its number (0–999) and the port (1024–65535). Ports browsers refuse to open, such as 6000 or 10080, are rejected with an explanation. A random number is assigned on first use
+- **A busy port no longer stops the service.** It moves to the next free port and says so on the card
+- The QR code keeps encoding the IP address, because Android phones cannot resolve `.local` names
+
+#### What the other end can do
+- **Let the peer favorite messages**: a new switch under "the peer can do", off on a fresh install and available only while the favorites feature is on. The browser gets a star on text messages and completed files in both directions, and saves them to the phone's favorites under Ungrouped. It can add favorites, never remove them
+- **The browser's star shows what the phone already keeps**: filled when the message is in the phone's favorites, whoever added it, and hollow again as soon as it is removed on the phone
+
+### Changed
+- **Peer recall follows recall.** Turning "Recall messages" off also turns "Allow recalling peer messages" off, and turning recall back on leaves it off until you turn it on yourself. Imported backups follow the same rule
+- The duplicate "Allow recalling peer messages" row under "Recall messages" is gone from Settings; the switch lives in the peer permissions panel, reachable from Settings and from the session header
+- The peer permissions row in Settings shows what the browser can see as a trailing value, like the other value rows
+- The connection card uses the app's own font for addresses (the system monospace font ignored OEM fonts and weights), gives the copy buttons the same tonal style as the QR button, moves the port notice after both addresses, and spaces the address block, the QR button and the PIN as three groups
+- `Referrer-Policy` is now `same-origin` instead of `no-referrer`, so same-origin requests keep a readable `Origin`. Cross-origin navigations still send nothing
+
+### Security
+- **The server answers only to its own host names.** Every request's `Host` must be the bound IP and port or the `.local` name on the card; anything else, including a website whose domain has been rebound to the phone's IP, gets `403`. This matters most with the PIN turned off, when there is no session to check
+- **State-changing requests and the WebSocket handshake must be same-origin.** A cross-site page can no longer upload files or open the chat socket, even with the PIN off
+
+### Fixed
+- The peer permissions panel labelled peer recall "Let the peer recall messages — the computer can recall messages it sent", which described plain recall. It now uses the same words as the setting it changes
+- **A peer switch could stay on while its prerequisite was missing** — after importing a backup onto an install without the permission, after revoking a permission in system settings, or after turning the favorites feature off — so granting the permission or turning the feature back on exposed the channel at once. Such switches are now turned off and stay off until you turn them on
+- Stopping the service briefly showed a half-empty screen before returning home; the card now holds its last frame while the page leaves
+- The copy buttons of the two address rows now line up
+
 ## [v1.21.0](https://github.com/Lifky/Flikky/releases/tag/v1.21.0) · 2026-09-19
 
 Three new channels and one permission model. The phone's album becomes browsable from both ends, installed apps can be extracted and sent as APKs, the connection card offers a QR code, and a single panel now states exactly what the other end is allowed to see.

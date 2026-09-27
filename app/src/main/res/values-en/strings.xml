@@ -22,7 +22,7 @@
     <string name="peer_permissions_favorites_need_feature">Turn on favourites first · Settings</string>
     <string name="peer_permissions_recall_need_feature">Turn on recall first · Settings</string>
     <string name="peer_permissions_favorite_messages">Let the peer favorite messages</string>
-    <string name="peer_permissions_favorite_messages_summary">The computer can save messages from this session to your favorites</string>
+    <string name="peer_permissions_favorite_messages_summary">The browser can save messages from this session to your favorites</string>
     <string name="peer_permissions_visible_none">Nothing shared</string>
     <string name="peer_permissions_visible_summary">Visible: %1$s</string>
     <string name="peer_permissions_visible_sep">, </string>
