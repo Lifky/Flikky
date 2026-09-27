@@ -3,6 +3,7 @@ package com.example.flikky.server
 import io.ktor.client.plugins.websocket.WebSockets as ClientWebSockets
 import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.delete
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
@@ -11,6 +12,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.install
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.delete
+import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.ApplicationTestBuilder
@@ -95,10 +97,14 @@ class SameOriginGuardTest {
     // Ktor 测试引擎的请求不带 Host（实测为 null）；真实浏览器一定带，这里显式补上。
     private val host = "10.0.2.16:8080"
 
-    private fun ApplicationTestBuilder.guardedApp(hits: MutableList<String>) = application {
+    private fun ApplicationTestBuilder.guardedApp(
+        hits: MutableList<String>,
+        allowed: () -> Set<String> = { setOf(host) },
+    ) = application {
         install(WebSockets)
-        installSameOriginGuard()
+        installSameOriginGuard(allowedHosts = allowed)
         routing {
+            get("/page") { hits += "get"; call.respondText("page") }
             post("/api/thing") { hits += "post"; call.respondText("ok") }
             delete("/api/thing") { hits += "delete"; call.respondText("ok") }
             webSocket("/ws") { hits += "ws" }
@@ -165,9 +171,9 @@ class SameOriginGuardTest {
         error("missing KtorServer.kt")
     }
 
-    @Test fun `the embedded server installs the guard`() {
+    @Test fun `the embedded server installs the guard with its own addresses`() {
         val module = server.substringAfter("embeddedServer(CIO").substringBefore("routing {")
-        assertTrue(module.contains("installSameOriginGuard()"))
+        assertTrue(module.contains("installSameOriginGuard(allowedHosts = { servedHosts(host, port, session.snapshot.value.localName) })"))
     }
 
     @Test fun `the referrer policy keeps same-origin origins readable`() {
@@ -175,5 +181,73 @@ class SameOriginGuardTest {
         // same-origin：同源照常带 Origin/Referer，跨源什么都不发 —— 对外链同样不泄露地址。
         assertTrue(server.contains("\"Referrer-Policy\", \"same-origin\""))
         assertFalse(server.contains("\"Referrer-Policy\", \"no-referrer\""))
+    }
+
+    // ── Host 白名单（D79 审查修订）：DNS 重绑定时 Host 与 Origin 都是攻击者域名，同源比对会成立；
+    // PIN 关闭时鉴权又放行一切。只认本机真正对外的两个名字，任何方法都一样。
+
+    @Test fun `served hosts are the bound address and the shown local name`() {
+        assertEquals(
+            setOf("10.0.2.16:8080", "flikky3.local:8080"),
+            servedHosts("10.0.2.16", 8080, com.example.flikky.session.LocalNameStatus.Owned(3)),
+        )
+        assertEquals(
+            "a renamed session answers for the number it actually got",
+            setOf("10.0.2.16:8081", "flikky4.local:8081"),
+            servedHosts("10.0.2.16", 8081, com.example.flikky.session.LocalNameStatus.Renamed(wanted = 3, actual = 4)),
+        )
+        assertEquals(
+            setOf("10.0.2.16:8080"),
+            servedHosts("10.0.2.16", 8080, com.example.flikky.session.LocalNameStatus.Disabled),
+        )
+        assertEquals(
+            setOf("10.0.2.16:8080"),
+            servedHosts("10.0.2.16", 8080, com.example.flikky.session.LocalNameStatus.Unavailable),
+        )
+    }
+
+    @Test fun `host matching ignores case and a trailing dot`() {
+        val served = setOf("10.0.2.16:8080", "flikky3.local:8080")
+        assertTrue(isServedHost("FLIKKY3.local:8080", served))
+        assertTrue(isServedHost("flikky3.local.:8080", served))
+        assertFalse(isServedHost("attacker.example:8080", served))
+        assertFalse("the port is part of the name", isServedHost("10.0.2.16:9999", served))
+        assertFalse(isServedHost(null, served))
+    }
+
+    @Test fun `a rebound name is refused even for a same-origin read`() = testApplication {
+        // 攻击页 attacker.example 重绑到手机 IP：Host 与 Origin 一致、方法是 GET —— 同源比对拦不住它。
+        val hits = mutableListOf<String>()
+        guardedApp(hits)
+        val resp = client.get("/page") {
+            header(HttpHeaders.Host, "attacker.example:8080")
+            header(HttpHeaders.Origin, "http://attacker.example:8080")
+        }
+        assertEquals(HttpStatusCode.Forbidden, resp.status)
+        assertTrue(resp.bodyAsText().contains("unknown_host"))
+        val post = client.post("/api/thing") {
+            header(HttpHeaders.Host, "attacker.example:8080")
+            header(HttpHeaders.Origin, "http://attacker.example:8080")
+        }
+        assertEquals(HttpStatusCode.Forbidden, post.status)
+        assertEquals(emptyList<String>(), hits)
+    }
+
+    @Test fun `the served names open normally`() = testApplication {
+        val hits = mutableListOf<String>()
+        guardedApp(hits, allowed = { setOf(host, "flikky3.local:8080") })
+        assertEquals(HttpStatusCode.OK, client.get("/page") { header(HttpHeaders.Host, host) }.status)
+        assertEquals(HttpStatusCode.OK, client.get("/page") { header(HttpHeaders.Host, "flikky3.local:8080") }.status)
+        assertEquals(listOf("get", "get"), hits)
+    }
+
+    @Test fun `the allowlist is read per request so a late name is honoured`() = testApplication {
+        // 局域网名称在服务起来之后才探测完成；白名单不能在装载时就定死。
+        var served = setOf(host)
+        val hits = mutableListOf<String>()
+        guardedApp(hits, allowed = { served })
+        assertEquals(HttpStatusCode.Forbidden, client.get("/page") { header(HttpHeaders.Host, "flikky3.local:8080") }.status)
+        served = setOf(host, "flikky3.local:8080")
+        assertEquals(HttpStatusCode.OK, client.get("/page") { header(HttpHeaders.Host, "flikky3.local:8080") }.status)
     }
 }

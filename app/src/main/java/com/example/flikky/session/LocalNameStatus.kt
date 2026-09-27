@@ -22,18 +22,24 @@ data class ConnectionAddresses(
     val portNotice: PortNotice?,
 )
 
+/**
+ * 本次会话对外显示（并在应答）的局域网名称编号。连接卡片与服务端的 Host 白名单共用这一份，
+ * 卡片上显示的 `.local` 地址一定能打开。
+ */
+fun LocalNameStatus.shownNumber(): Int? = when (this) {
+    is LocalNameStatus.Probing -> number
+    is LocalNameStatus.Owned -> number
+    is LocalNameStatus.Renamed -> actual
+    LocalNameStatus.Disabled, LocalNameStatus.Unavailable -> null
+}
+
 fun connectionAddresses(
     ip: String,
     boundPort: Int,
     requestedPort: Int,
     localName: LocalNameStatus,
 ): ConnectionAddresses {
-    val number = when (localName) {
-        is LocalNameStatus.Probing -> localName.number
-        is LocalNameStatus.Owned -> localName.number
-        is LocalNameStatus.Renamed -> localName.actual
-        LocalNameStatus.Disabled, LocalNameStatus.Unavailable -> null
-    }
+    val number = localName.shownNumber()
     return ConnectionAddresses(
         primaryUrl = LocalHostName.url(ip, boundPort),
         localUrl = number?.let { LocalHostName.url(LocalHostName.fqdn(it), boundPort) },

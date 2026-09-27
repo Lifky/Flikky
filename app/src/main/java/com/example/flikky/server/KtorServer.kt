@@ -162,8 +162,8 @@ class KtorServer(
                             call.respond(HttpStatusCode.InternalServerError, mapOf("error" to (cause.message ?: "error")))
                         }
                     }
-                    // D79：跨源的状态修改请求在进路由前就被挡掉（安全红线「必须校验同源」）。
-                    installSameOriginGuard()
+                    // D79：只认本机对外的名字（挡 DNS 重绑定）；跨源的状态修改请求在进路由前就被挡掉。
+                    installSameOriginGuard(allowedHosts = { servedHosts(host, port, session.snapshot.value.localName) })
                     intercept(ApplicationCallPipeline.Plugins) {
                         call.response.headers.append("Content-Security-Policy",
                             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
