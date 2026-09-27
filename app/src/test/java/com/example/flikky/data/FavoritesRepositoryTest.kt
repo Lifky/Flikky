@@ -562,4 +562,11 @@ class FavoritesRepositoryTest {
         assertEquals("a.txt", row.fileName)
         assertEquals("bytes", favoriteFileStore.resolve(row.fileId!!).readText())
     }
+
+    @Test fun favoritedIds_is_a_session_scoped_snapshot() = runTest {
+        repo.favoriteText(1L, "a", Message.Text(id = 5L, origin = Origin.PHONE, timestamp = 1L, content = "x"), null)
+        repo.favoriteText(2L, "b", Message.Text(id = 6L, origin = Origin.PHONE, timestamp = 1L, content = "y"), null)
+
+        assertEquals(listOf(5L), repo.favoritedIds(1L))
+    }
 }

@@ -31,6 +31,9 @@ interface FavoriteDao {
     @Query("SELECT sourceMessageId FROM favorites WHERE sourceSessionId = :sid ORDER BY sourceMessageId ASC")
     fun observeFavoritedMessageIds(sid: Long): Flow<List<Long>>
 
+    @Query("SELECT sourceMessageId FROM favorites WHERE sourceSessionId = :sid ORDER BY sourceMessageId ASC")
+    suspend fun favoritedMessageIds(sid: Long): List<Long>
+
     @Query("UPDATE favorites SET groupId = NULL WHERE groupId = :gid")
     suspend fun rehomeGroup(gid: Long)
 

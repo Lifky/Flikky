@@ -30,10 +30,14 @@ function fakeBubble({ kind, mime = '', mine = false, failed = false, uploading =
 }
 
 function actionsOf(bubble, recallOn, allowPeerRecall = false, favoriteOn = false) {
-    const context = { bubble, recallOn, allowPeerRecall, favoriteOn };
+    return fullActionsOf(bubble, recallOn, allowPeerRecall, favoriteOn).map(action => action.kind);
+}
+
+function fullActionsOf(bubble, recallOn, allowPeerRecall = false, favoriteOn = false, favorited = []) {
+    const context = { bubble, recallOn, allowPeerRecall, favoriteOn, favorited: new Set(favorited) };
     vm.createContext(context);
-    vm.runInContext(`${slice}\nglobalThis.result = buildMessageActions(bubble, recallOn, allowPeerRecall, favoriteOn).map(action => action.kind);`, context);
-    return Array.from(context.result);
+    vm.runInContext(`${slice}\nglobalThis.result = buildMessageActions(bubble, recallOn, allowPeerRecall, favoriteOn, favorited);`, context);
+    return Array.from(context.result).map(action => ({ ...action }));
 }
 
 test('text bubbles offer copy; own text adds recall only when enabled', () => {
@@ -77,16 +81,51 @@ test('peer favoriting adds favorite to text and completed files, before recall',
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'text', messageId: '5' }), true, false, false), ['copy']);
 });
 
+// 2026-09-27 用户：点了收藏后星标要变实心；手机上取消后要变回空心。
+test('a favorited message shows a filled star labelled as favorited', () => {
+    const star = (favorited) => fullActionsOf(fakeBubble({ kind: 'text', messageId: '5' }), false, false, true, favorited)
+        .find(action => action.kind === 'favorite');
+    assert.equal(star([]).filled, false);
+    assert.equal(star([]).labelKey, 'app.favorite');
+    assert.equal(star(['5']).filled, true);
+    assert.equal(star(['5']).labelKey, 'app.favorited');
+});
+
+test('every icon renderer honours the filled flag', () => {
+    const rendered = appJs.match(/materialSymbolEl\(action\.icon, [^)]*\)/g) || [];
+    assert.ok(rendered.length >= 2, `expected the bar and the menu, got ${rendered.length}`);
+    for (const call of rendered) assert.match(call, /!!action\.filled/, call);
+});
+
+test('the favorited set comes from history and from the phone push', () => {
+    assert.match(appJs, /Array\.isArray\(data\.favoritedIds\)/);
+    assert.match(appJs, /ev\.type === 'favorites_state'/);
+    assert.match(appJs, /function setFavoritedIds\(/);
+    assert.match(appJs, /buildMessageActions\(bubble, recallEnabled, allowPeerRecall, allowPeerFavorite, favoritedIds\)/);
+});
+
+test('tapping a filled star explains where to remove it instead of posting again', () => {
+    const body = appJs.slice(appJs.indexOf('async function favoriteMessage('));
+    const guard = body.indexOf('favoritedIds.has(');
+    const post = body.indexOf('fetch(');
+    assert.ok(guard >= 0 && guard < post, 'the local check must come before the request');
+    for (const key of ['app.favorited', 'app.favorite_exists']) {
+        assert.ok(i18nJs.split(`'${key}'`).length - 1 >= 2, `${key} must exist in zh-CN and en`);
+    }
+    assert.match(i18nJs, /'app\.favorite_exists': '已在收藏中，可在手机上取消'/);
+});
+
 test('favorite needs a server-side id and a completed file', () => {
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'text' }), false, false, true), ['copy']);
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', transferring: true, fileId: '9', messageId: '5' }), false, false, true), []);
     assert.deepEqual(actionsOf(fakeBubble({ kind: 'file', failed: true, fileId: '9', messageId: '5' }), false, false, true), []);
 });
 
-test('every action entry point passes the peer favorite flag', () => {
-    const calls = appJs.match(/buildMessageActions\(bubble, [^)]*\)/g) || [];
+test('every action entry point passes the peer favorite flag and state', () => {
+    // 只数调用点：声明本身（function buildMessageActions(...)）不算。
+    const calls = appJs.match(/(?<!function )buildMessageActions\(bubble, [^)]*\)/g) || [];
     assert.ok(calls.length >= 3, `expected the bar, the gesture check and the menu, got ${calls.length}`);
-    for (const call of calls) assert.match(call, /allowPeerFavorite/, call);
+    for (const call of calls) assert.match(call, /allowPeerFavorite, favoritedIds/, call);
 });
 
 test('peer favorite follows peer-info and posts to the favorite route', () => {

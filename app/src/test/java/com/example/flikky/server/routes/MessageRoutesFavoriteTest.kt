@@ -6,6 +6,7 @@ import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
 import io.ktor.client.plugins.cookies.HttpCookies
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -20,8 +21,10 @@ import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -43,6 +46,7 @@ class MessageRoutesFavoriteTest {
     private fun setupApp(
         favoriteHandler: suspend (Message) -> ServerFavoriteOutcome,
         peerFavoriteEnabled: () -> Boolean = { true },
+        favoritedIds: suspend () -> List<Long> = { emptyList() },
     ): io.ktor.server.application.Application.() -> Unit = {
         install(ContentNegotiation) { json() }
         routing {
@@ -68,6 +72,7 @@ class MessageRoutesFavoriteTest {
                 recallHandler = { _, _ -> error("recall is not under test") },
                 favoriteHandler = favoriteHandler,
                 peerFavoriteEnabled = peerFavoriteEnabled,
+                favoritedIds = favoritedIds,
             )
         }
     }
@@ -153,5 +158,31 @@ class MessageRoutesFavoriteTest {
         val resp = http.post("/api/messages/123/favorite") { header("X-Client-Id", "c") }
         assertEquals(HttpStatusCode.InternalServerError, resp.status)
         assertEquals("favorite_failed", errorOf(resp.bodyAsText()))
+    }
+
+    private fun favoritedOf(body: String) =
+        Json.parseToJsonElement(body).jsonObject["favoritedIds"]!!.jsonArray.map { it.jsonPrimitive.long }
+
+    @Test
+    fun `history tells the browser which messages are already favorited`() = testApplication {
+        application(setupApp(favoriteHandler = { error("unused") }, favoritedIds = { listOf(123L) }))
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+        assertEquals(listOf(123L), favoritedOf(http.get("/api/messages").bodyAsText()))
+    }
+
+    @Test
+    fun `history keeps favorited ids to itself while peer favoriting is off`() = testApplication {
+        // 只在允许对端收藏时才把收藏状态告诉浏览器（D78 同一判据）。
+        application(
+            setupApp(
+                favoriteHandler = { error("unused") },
+                peerFavoriteEnabled = { false },
+                favoritedIds = { error("must not be read while disabled") },
+            ),
+        )
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+        assertEquals(emptyList<Long>(), favoritedOf(http.get("/api/messages").bodyAsText()))
     }
 }

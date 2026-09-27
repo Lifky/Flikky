@@ -54,6 +54,9 @@ class FavoritesRepository(
     fun observeFavoritedIds(sessionId: Long): Flow<List<Long>> =
         favoriteDao.observeFavoritedMessageIds(sessionId)
 
+    /** 一次性快照（HTTP 用）：每次请求都 Flow.first() 会白白注册/注销一次 InvalidationTracker observer。 */
+    suspend fun favoritedIds(sid: Long): List<Long> = favoriteDao.favoritedMessageIds(sid)
+
     suspend fun isFavorited(sid: Long, mid: Long): Boolean =
         favoriteDao.findBySource(sid, mid) != null
 

@@ -41,6 +41,7 @@ import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.dto.LeadingVisualDto
 import com.example.flikky.server.dto.ServerFavoriteOutcome
 import com.example.flikky.server.dto.ServerRecallOutcome
+import com.example.flikky.server.dto.FavoritesStateDto
 import com.example.flikky.server.dto.StatusDto
 import com.example.flikky.server.dto.WireJson
 import com.example.flikky.session.LocalNameStatus
@@ -48,6 +49,7 @@ import com.example.flikky.session.Message
 import com.example.flikky.session.NetworkStatus
 import com.example.flikky.session.PeerChannelState
 import com.example.flikky.session.peerChannelState
+import com.example.flikky.session.peerFavoritedIds
 import com.example.flikky.ui.theme.resolveFlikkyTheme
 import com.example.flikky.ui.theme.resolveLeadingColors
 import com.example.flikky.ui.theme.toWireColors
@@ -68,6 +70,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -102,6 +105,7 @@ class TransferService : Service() {
     @Volatile private var currentMode: ServiceMode? = null
     private var currentRequirePin: Boolean = true
     private var statusBroadcastJob: Job? = null
+    private var peerFavoritesJob: Job? = null
 
     private val rebinder = NetworkRebinder()
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
@@ -347,6 +351,18 @@ class TransferService : Service() {
                 delay(1000)
             }
         }
+        // D78：手机上的收藏变化（在会话里、收藏页里、浏览器发起的都算，含取消）推给浏览器，
+        // 星标随之变实心/空心。同样必须 field-level [ktor] 现取 hub，理由同上。
+        peerFavoritesJob = scope.launch {
+            peerFavoritedIds(
+                gate = ServiceLocator.settingsRepository.settings
+                    .map { it.favoriteBetaEnabled && it.allowPeerFavorite },
+                ids = ServiceLocator.favoritesRepository.observeFavoritedIds(currentSessionId),
+            ).collect { ids ->
+                val payload = WireJson.encodeToString(FavoritesStateDto.serializer(), FavoritesStateDto(ids))
+                ktor?.wsHub?.broadcast("favorites_state", payload)
+            }
+        }
 
         val notif = NotificationHelper.build(
             context = this,
@@ -472,6 +488,7 @@ class TransferService : Service() {
         controller = null
         ServiceLocator.currentController = null
         statusBroadcastJob?.cancel(); statusBroadcastJob = null
+        peerFavoritesJob?.cancel(); peerFavoritesJob = null
 
         if (mode == ServiceMode.Transfer) {
             val sid = currentSessionId
@@ -567,6 +584,7 @@ class TransferService : Service() {
         },
         // 与 peer-info 的 allowPeerFavorite 同一判据：收藏功能与对端开关两轴都开。
         peerFavoriteEnabled = { latestSettings.favoriteBetaEnabled && latestSettings.allowPeerFavorite },
+        favoritedIds = { ServiceLocator.favoritesRepository.favoritedIds(currentSessionId) },
         onClientHello = { avatarKey, explicit ->
             val stored = ServiceLocator.settingsRepository.browserAvatarKeyOrNull()
             when (val decision = BrowserAvatarHelloPolicy.decide(explicit, stored)) {

@@ -56,7 +56,13 @@ data class MessagesResponse(
      * (file); discriminated by which fields are present.
      */
     val ordered: List<MessageDto> = emptyList(),
+    /** D78：本会话里手机已收藏的消息 id；只在允许对端收藏时给出，否则为空。 */
+    val favoritedIds: List<Long> = emptyList(),
 )
+
+/** D78：`favorites_state` 推送 —— 本会话已收藏消息的完整集合（整体替换，不是增量）。 */
+@Serializable
+data class FavoritesStateDto(val messageIds: List<Long>)
 
 @Serializable
 data class MessageDto(

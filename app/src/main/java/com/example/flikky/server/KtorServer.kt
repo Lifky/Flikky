@@ -69,6 +69,7 @@ class KtorServer(
     /** D78：浏览器收藏会话消息。Export 模式保持默认（关闭），export.html 没有这个入口。 */
     private val onFavoriteMessage: suspend (Message) -> ServerFavoriteOutcome = { ServerFavoriteOutcome.Failed },
     private val peerFavoriteEnabled: () -> Boolean = { false },
+    private val favoritedIds: suspend () -> List<Long> = { emptyList() },
     /**
      * client_hello adoption callback. Transfer mode injects the DataStore-backed policy;
      * export mode keeps the default session-only behavior.
@@ -226,6 +227,7 @@ class KtorServer(
             allowPeerRecall = allowPeerRecall,
             favoriteHandler = onFavoriteMessage,
             peerFavoriteEnabled = peerFavoriteEnabled,
+            favoritedIds = favoritedIds,
         )
         fileRoutes(
             session = session,

@@ -44,6 +44,8 @@ fun Route.messageRoutes(
     favoriteHandler: suspend (Message) -> ServerFavoriteOutcome = { ServerFavoriteOutcome.Failed },
     /** 收藏功能与「允许对端收藏消息」两轴都开才为真（调用方算好）。 */
     peerFavoriteEnabled: () -> Boolean = { false },
+    /** D78：本会话已收藏消息 id（历史接口带给浏览器画实心星）。只在 [peerFavoriteEnabled] 时读取。 */
+    favoritedIds: suspend () -> List<Long> = { emptyList() },
 ) {
     fun requireAuth(call: ApplicationCall): Boolean {
         val token = call.request.cookies[AUTH_COOKIE]
@@ -104,7 +106,8 @@ fun Route.messageRoutes(
                 )
             }
         }
-        call.respond(MessagesResponse(texts, files, ordered))
+        val favorited = if (peerFavoriteEnabled()) favoritedIds() else emptyList()
+        call.respond(MessagesResponse(texts, files, ordered, favoritedIds = favorited))
     }
 
     /**

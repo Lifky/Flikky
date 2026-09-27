@@ -178,6 +178,9 @@
     let allowPeerRecall = false;
     // D78：手机允许对端把会话消息收藏到手机（peer-info 只在收藏功能也开着时声明为真）。
     let allowPeerFavorite = false;
+    // 本会话里手机已收藏的消息 id（字符串）。来源：历史接口 + `favorites_state` 推送（整体替换）。
+    // 手机上取消收藏也会推过来，星标随之变回空心（用户 2026-09-27）。
+    let favoritedIds = new Set();
     // 每收藏成功一次就 +1 并发布到 body 上，收藏面板观察它重新拉取（app.js 不认识面板，D4 同一手法）。
     let favoritesRev = 0;
     // 消息操作样式（§12）：跟随 APP 设置，FLOATING=hover 浮条+右键，INLINE=常驻按钮行。
@@ -787,7 +790,8 @@
 
     // 操作集唯一事实源（§12.2，纯函数）：浮条/常驻行/右键菜单/长按菜单四个入口共用。
     // 只依赖 classList.contains 与 dataset，vm 测试用 stub 气泡即可跑。
-    function buildMessageActions(bubble, recallOn, allowPeerRecallOn = false, allowPeerFavoriteOn = false) {
+    function buildMessageActions(bubble, recallOn, allowPeerRecallOn = false, allowPeerFavoriteOn = false,
+        favorited = new Set()) {
         const kind = bubble.dataset.kind;
         const mine = bubble.classList.contains('me');
         const failed = bubble.classList.contains('failed');
@@ -808,7 +812,13 @@
         }
         // D78：两个方向的消息都能收藏到手机；要有 server-side id，文件要已完成。
         if (allowPeerFavoriteOn && bubble.dataset.messageId && (kind === 'text' || completed)) {
-            actions.push({ kind: 'favorite', icon: 'star', labelKey: 'app.favorite' });
+            const isFavorited = favorited.has(String(bubble.dataset.messageId));
+            actions.push({
+                kind: 'favorite',
+                icon: 'star',
+                filled: isFavorited,
+                labelKey: isFavorited ? 'app.favorited' : 'app.favorite',
+            });
         }
         // 撤回不受状态限制，但要有 server-side id（上传完成前没有）。
         if ((mine || allowPeerRecallOn) && recallOn && bubble.dataset.messageId) {
@@ -928,7 +938,7 @@
         if (!row) return;
         const old = row.querySelector('.msg-actions');
         if (old) old.remove();
-        const actions = buildMessageActions(bubble, recallEnabled, allowPeerRecall, allowPeerFavorite);
+        const actions = buildMessageActions(bubble, recallEnabled, allowPeerRecall, allowPeerFavorite, favoritedIds);
         if (!actions.length) return;
         const bar = document.createElement('div');
         bar.className = 'msg-actions';
@@ -939,7 +949,7 @@
             const label = t(action.labelKey);
             button.setAttribute('title', label);
             button.setAttribute('aria-label', label);
-            button.appendChild(materialSymbolEl(action.icon, false));
+            button.appendChild(materialSymbolEl(action.icon, !!action.filled));
             button.addEventListener('click', (event) => {
                 event.stopPropagation();
                 executeMessageAction(action, bubble);
@@ -1063,7 +1073,7 @@
         };
         bubble.addEventListener('contextmenu', (event) => {
             if (actionStyle === 'INLINE') return;
-            if (!buildMessageActions(bubble, recallEnabled, allowPeerRecall, allowPeerFavorite).length) return;
+            if (!buildMessageActions(bubble, recallEnabled, allowPeerRecall, allowPeerFavorite, favoritedIds).length) return;
             cancel();
             event.preventDefault();
             showActionsMenu(bubble, event.clientX, event.clientY);
@@ -1106,7 +1116,7 @@
     // 外层仍是 fixed 定位手写容器（mdui-dropdown 不支持任意屏幕坐标），内部官方 mdui-menu。
     function showActionsMenu(bubble, x, y) {
         closeRecallMenu();
-        const actions = buildMessageActions(bubble, recallEnabled, allowPeerRecall, allowPeerFavorite);
+        const actions = buildMessageActions(bubble, recallEnabled, allowPeerRecall, allowPeerFavorite, favoritedIds);
         if (!actions.length) return;
         const menu = document.createElement('div');
         menu.className = 'recall-menu';
@@ -1116,7 +1126,7 @@
         const mduiMenu = document.createElement('mdui-menu');
         for (const action of actions) {
             const item = document.createElement('mdui-menu-item');
-            item.appendChild(materialSymbolEl(action.icon, false, 'icon'));
+            item.appendChild(materialSymbolEl(action.icon, !!action.filled, 'icon'));
             item.appendChild(document.createTextNode(t(action.labelKey)));
             item.addEventListener('click', (event) => {
                 event.stopPropagation();
@@ -1172,12 +1182,23 @@
         dialog.open = true;
     }
 
+    // 整体替换，不是增量：推送与历史接口给的都是完整集合。
+    function setFavoritedIds(ids) {
+        favoritedIds = new Set((Array.isArray(ids) ? ids : []).map(String));
+        refreshAllMessageActions();
+    }
+
     // D78：收藏到手机。只能加不能删；重复收藏服务端去重，回 exists。
     async function favoriteMessage(messageId) {
         if (!allowPeerFavorite || !messageId) return;
         const notify = (kind, key) => {
             if (window.flikky && window.flikky[kind]) window.flikky[kind](t(key));
         };
+        // 实心星：浏览器取消不了，告诉用户去手机上取消，不再发请求。
+        if (favoritedIds.has(String(messageId))) {
+            notify('showInfo', 'app.favorite_exists');
+            return;
+        }
         try {
             const r = await fetch(`/api/messages/${messageId}/favorite`, {
                 method: 'POST',
@@ -1191,6 +1212,8 @@
                     return;
                 }
                 notify('showInfo', 'app.favorite_added');
+                // 推送随后也会到；先本地点亮，星标不用等一个来回。
+                setFavoritedIds([...favoritedIds, String(messageId)]);
                 favoritesRev += 1;
                 document.body.dataset.favoritesRev = String(favoritesRev);
             } else if (r.status === 403) {
@@ -1451,6 +1474,10 @@
             seen.add(key);
             return;
         }
+        if (ev.type === 'favorites_state') {
+            setFavoritedIds(ev.payload && ev.payload.messageIds);
+            return;
+        }
         if (ev.type === 'message_recalled') {
             // v1.3 D26 修订：服务端广播。本端 DELETE 成功路径已经自己 remove 节点了，
             // 这里覆盖"对端撤回"分支。removeMessageNode 幂等。
@@ -1555,6 +1582,7 @@
         const data = await r.json();
         if (connection !== currentWs || serverStopped) return;
         reconcileHistorySnapshot(data, knownIds);
+        if (Array.isArray(data.favoritedIds)) setFavoritedIds(data.favoritedIds);
         // 服务端 v1.2 起新增 `ordered`（按 timestamp 升序的混合列表）。优先用它，
         // 否则回退到 texts+files 各自顺序——但回退路径会丢失跨 kind 的时间顺序，
         // 仅做兼容。两条回放分支全程同步（无 await），finally 确保提前 return 或抛出
