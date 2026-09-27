@@ -248,18 +248,27 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             if (!albumAvailable && p[Keys.albumBrowsingEnabled] == true) {
                 p[Keys.albumBrowsingEnabled] = false
             }
-            if (p[Keys.favoriteBeta] != true && p[Keys.favoriteBrowsing] == true) {
-                p[Keys.favoriteBrowsing] = false
-            }
-            if (p[Keys.favoriteBeta] != true && p[Keys.allowPeerFavorite] == true) {
-                p[Keys.allowPeerFavorite] = false
-            }
-            // 撤回的两个键缺席时都读作「开」：只有显式写过 false 才算撤回已关，
-            // 而对端撤回缺席就是开着 —— 只看「== true」会放过从没写过这个键的老数据。
-            if (p[Keys.recallBeta] == false && (p[Keys.allowPeerRecall] ?: true)) {
-                p[Keys.allowPeerRecall] = false
-            }
+            revokeSettingsOwnedPeerGates(p)
         }
+
+    /**
+     * 前置条件是本库自己的键的那几个对端开关（收藏两个、撤回一个）。[revokeUnavailablePeerGates]
+     * 与 [importBackup] 共用这一份：导入要在**同一次写入**里落成合规状态 —— 回到前台的检查早于
+     * 导入写入（从文件选择器回来那一下），指望不上（D78 审查修订）。
+     */
+    private fun revokeSettingsOwnedPeerGates(p: MutablePreferences) {
+        if (p[Keys.favoriteBeta] != true && p[Keys.favoriteBrowsing] == true) {
+            p[Keys.favoriteBrowsing] = false
+        }
+        if (p[Keys.favoriteBeta] != true && p[Keys.allowPeerFavorite] == true) {
+            p[Keys.allowPeerFavorite] = false
+        }
+        // 撤回的两个键缺席时都读作「开」：只有显式写过 false 才算撤回已关，
+        // 而对端撤回缺席就是开着 —— 只看「== true」会放过从没写过这个键的老数据。
+        if (p[Keys.recallBeta] == false && (p[Keys.allowPeerRecall] ?: true)) {
+            p[Keys.allowPeerRecall] = false
+        }
+    }
 
     suspend fun setShowHiddenFiles(v: Boolean) = ds.edit { it[Keys.showHiddenFiles] = v }
     suspend fun setLeadingShape(v: LeadingShape) = ds.edit { it[Keys.leadingShape] = v.id }
@@ -449,6 +458,8 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
                 prefs[Keys.bgValue] = value.toString()
             }
         }
+        // 旧版备份常见「撤回关 + 对端撤回开」（旧版关撤回不连带关对端撤回）：按现行规则落盘。
+        revokeSettingsOwnedPeerGates(prefs)
     }
 
     private fun decodeBackground(mode: String?, value: String?): BackgroundSetting = when (mode) {
