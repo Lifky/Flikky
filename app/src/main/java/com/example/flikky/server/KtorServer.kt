@@ -162,11 +162,15 @@ class KtorServer(
                             call.respond(HttpStatusCode.InternalServerError, mapOf("error" to (cause.message ?: "error")))
                         }
                     }
+                    // D79：跨源的状态修改请求在进路由前就被挡掉（安全红线「必须校验同源」）。
+                    installSameOriginGuard()
                     intercept(ApplicationCallPipeline.Plugins) {
                         call.response.headers.append("Content-Security-Policy",
                             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
                         call.response.headers.append("X-Content-Type-Options", "nosniff")
-                        call.response.headers.append("Referrer-Policy", "no-referrer")
+                        // same-origin 而非 no-referrer（D79）：no-referrer 下同源表单/部分 fetch 会发 `Origin: null`，
+                        // 同源校验就把自己挡了。same-origin 对外链同样什么都不发，不泄露局域网地址。
+                        call.response.headers.append("Referrer-Policy", "same-origin")
                         call.response.headers.append("X-Frame-Options", "DENY")
                         call.response.headers.append("Cross-Origin-Opener-Policy", "same-origin")
                         call.response.headers.append("Cross-Origin-Resource-Policy", "same-origin")
