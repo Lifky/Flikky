@@ -50,8 +50,8 @@ class ConnectionInfoCardStructureTest {
     }
 
     @Test fun `the ip address is rendered before the local name`() {
-        val primary = card.indexOf("address.primaryUrl")
-        val local = card.indexOf("address.localUrl")
+        val primary = card.indexOf("url = address.primaryUrl")
+        val local = card.indexOf("address.localUrl?.let")
         assertTrue(primary in 0 until local)
     }
 
@@ -61,10 +61,15 @@ class ConnectionInfoCardStructureTest {
         assertFalse(base, base.contains("Monospace"))
     }
 
-    @Test fun `the hint explains the android limitation through the shared info button`() {
-        // 「以上任意地址均可打开」对安卓手机不成立（解析不了 .local）：说明放进 info，与设置页同一实现。
-        assertTrue(card.contains("InfoIconButton("))
-        assertTrue(card.contains("R.string.connection_local_info"))
+    @Test fun `the info button sits on the title line, not on its own hint line`() {
+        // 2026-09-27 用户选定方案 C：「以上任意地址均可打开」那一行去掉，说明进标题旁的 ⓘ。
+        // ⓘ 与设置页同一实现；只有显示局域网名称那一行时才有 ⓘ（它讲的就是那一行）。
+        val title = card.substringAfter("private fun TitleRow(").substringBefore("\n@Composable")
+        assertTrue(title.contains("R.string.connection_open_in_browser"))
+        assertTrue(title.contains("InfoIconButton("))
+        assertTrue(title.contains("R.string.connection_local_info"))
+        assertTrue(card.contains("TitleRow(showInfo = address.localUrl != null)"))
+        assertFalse(card.contains("R.string.connection_local_hint"))
         val settingItem = source("com/example/flikky/ui/settings/components/SettingItem.kt")
         assertTrue("settings rows must use the same info button", settingItem.contains("InfoIconButton("))
         assertFalse("settings rows must not keep a second info dialog", settingItem.contains("AlertDialog("))
@@ -74,6 +79,27 @@ class ConnectionInfoCardStructureTest {
         // tonal 圆底让 4dp 的触摸余量显得贴字：加间距，且字号预算必须扣掉它，否则长地址会被挤到换行。
         assertTrue(card.contains("Spacer(Modifier.width(COPY_BUTTON_GAP))"))
         assertTrue(card.contains("maxWidth - COPY_BUTTON_GAP - COPY_BUTTON_WIDTH"))
+    }
+
+    @Test fun `the centered title is balanced against its info button`() {
+        // 标题居中、ⓘ 挂在右边：左边补一个同宽的空位，标题文字本身才落在正中（与下面几行同一条中轴）。
+        val title = card.substringAfter("private fun TitleRow(").substringBefore("\n@Composable")
+        assertTrue(title.contains("Spacer(Modifier.width(INFO_BUTTON_SIZE))"))
+    }
+
+    @Test fun `the port notice follows both addresses instead of splitting them`() {
+        // 2026-09-27 装机：它夹在两行之间，读起来像只说第一行；其实两个地址用的是同一个端口。
+        val localRow = card.indexOf("address.localUrl?.let")
+        val notice = card.indexOf("R.string.connection_port_moved")
+        assertTrue(localRow in 0 until notice)
+    }
+
+    @Test fun `groups are spaced by relation, not by one uniform gap`() {
+        // 原来整张卡一个 spacedBy(md)：有关系的不靠近、没关系的不拉开，看不出分组。
+        val body = card.substringAfter("fun ConnectionInfoCard(").substringBefore("\n/** [ConnectionInfoCard] 的全部输入")
+        assertFalse(body.contains("verticalArrangement = Arrangement.spacedBy(Spacing.md)"))
+        assertTrue(body.contains("Spacer(Modifier.height(ADDRESS_ROW_GAP))"))
+        assertTrue(body.contains("Spacer(Modifier.height(GROUP_GAP))"))
     }
 
     @Test fun `both screens keep the last card while the page is leaving`() {

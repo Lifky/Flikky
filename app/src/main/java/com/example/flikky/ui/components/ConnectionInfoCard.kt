@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
@@ -65,16 +66,14 @@ fun ConnectionInfoCard(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
+        // 间距按关系给（2026-09-27 装机「排版乱」）：原来整张卡一个 spacedBy(md)，有关系的不靠近、
+        // 没关系的不拉开。现在分三组 —— 标题 + 地址 + 地址说明 / 二维码 / PIN —— 组内 4dp，组间 16dp。
         Column(
             modifier = Modifier.fillMaxWidth().padding(Spacing.sectionGap),
-            verticalArrangement = Arrangement.spacedBy(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                text = stringResource(R.string.connection_open_in_browser),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            // ⓘ 讲的是局域网名称那一行，没有那一行就不放（用户 2026-09-27 方案 C）。
+            TitleRow(showInfo = address.localUrl != null)
             // 第一行永远是 IP：最稳定，二维码编的也是它（D63、D77）。
             // 两行同一结构（地址 + 行尾复制）、**同一字号、绝不换行**（用户 2026-09-26）：
             // 按较长那行在可用宽度内能放下的最大字号一起缩，端口号不会被挤到下一行。
@@ -97,7 +96,6 @@ fun ConnectionInfoCard(
                 // 两行文字占同一个宽度（较长那行的），整组居中：行尾复制图标落在同一条竖线上。
                 val textWidth = with(density) { textWidthPx.toDp() }
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(Spacing.md),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -108,10 +106,8 @@ fun ConnectionInfoCard(
                         copyDescription = stringResource(R.string.connection_copy_address),
                         onCopy = { scope.launch { clipboard.setPlainText(address.primaryUrl) } },
                     )
-                    address.portNotice?.let { notice ->
-                        HintText(stringResource(R.string.connection_port_moved, notice.requested, notice.actual))
-                    }
                     address.localUrl?.let { localUrl ->
+                        Spacer(Modifier.height(ADDRESS_ROW_GAP))
                         AddressRow(
                             url = localUrl,
                             style = addressStyle,
@@ -122,20 +118,26 @@ fun ConnectionInfoCard(
                     }
                 }
             }
+            // 两个地址用的是同一个端口：说明放在两行之后，不夹在中间（夹着读起来像只说第一行）。
+            address.portNotice?.let { notice ->
+                AddressCaption(stringResource(R.string.connection_port_moved, notice.requested, notice.actual))
+            }
             LocalNameStatusLine(address.localName, onAdoptNumber)
+            Spacer(Modifier.height(GROUP_GAP))
             FilledTonalIconButton(onClick = { showQr = true }) {
                 Icon(
                     painter = painterResource(R.drawable.ic_qr_code_2),
                     contentDescription = stringResource(R.string.connection_show_qr),
                 )
             }
-            Spacer(Modifier.height(Spacing.xs))
+            Spacer(Modifier.height(GROUP_GAP))
             if (requirePin) {
                 Text(
                     text = "PIN",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Spacer(Modifier.height(Spacing.xs))
                 Text(
                     text = pin,
                     style = MaterialTheme.typography.displayMedium.copy(
@@ -150,6 +152,7 @@ fun ConnectionInfoCard(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Spacer(Modifier.height(Spacing.xs))
                 Text(
                     text = stringResource(R.string.connection_without_pin),
                     style = MaterialTheme.typography.titleLarge,
@@ -173,6 +176,15 @@ fun rememberLastCardInputs(address: ConnectionAddresses?, pin: String, requirePi
     val last = remember { LastNonNull<ConnectionCardInputs>() }
     return last.update(address?.let { ConnectionCardInputs(it, pin, requirePin) })
 }
+
+/** 同组内相邻两行之间（两行地址、地址与它的说明）。48dp 的按钮行自带留白，4dp 就够分开。 */
+private val ADDRESS_ROW_GAP = Spacing.xs
+
+/** 组与组之间（地址组 / 二维码 / PIN）。 */
+private val GROUP_GAP = Spacing.lg
+
+/** M3 IconButton 的最小触摸尺寸。标题行按它定高，有没有 ⓘ 行高都一样。 */
+private val INFO_BUTTON_SIZE = 48.dp
 
 /** 行尾复制按钮的最小触摸宽度（M3：48dp）。算字号时要把它从可用宽度里扣掉。 */
 private val COPY_BUTTON_WIDTH = 48.dp
@@ -214,6 +226,39 @@ private fun AddressRow(
     }
 }
 
+/**
+ * 「在浏览器中打开」+ ⓘ。标题居中、ⓘ 挂在右边，左边补一个同宽空位：
+ * 否则居中的是「文字 + 按钮」整体，文字本身偏左，和下面各行不在同一条中轴上。
+ */
+@Composable
+private fun TitleRow(showInfo: Boolean) {
+    Row(
+        modifier = Modifier.heightIn(min = INFO_BUTTON_SIZE),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (showInfo) Spacer(Modifier.width(INFO_BUTTON_SIZE))
+        Text(
+            text = stringResource(R.string.connection_open_in_browser),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (showInfo) {
+            // 与设置页 ⓘ 同一实现。原先的「以上任意地址均可打开」一行并进这里的说明（用户 2026-09-27）。
+            InfoIconButton(
+                title = stringResource(R.string.settings_access_address),
+                text = stringResource(R.string.connection_local_info),
+            )
+        }
+    }
+}
+
+/** 地址组里的一行说明：紧跟在地址下面，与地址同组。 */
+@Composable
+private fun AddressCaption(text: String) {
+    Spacer(Modifier.height(ADDRESS_ROW_GAP))
+    HintText(text)
+}
+
 @Composable
 private fun HintText(text: String) {
     Text(
@@ -227,17 +272,9 @@ private fun HintText(text: String) {
 @Composable
 private fun LocalNameStatusLine(status: LocalNameStatus, onAdoptNumber: ((Int) -> Unit)?) {
     when (status) {
-        is LocalNameStatus.Probing -> HintText(stringResource(R.string.connection_local_probing))
-        // 「任意地址均可打开」对安卓手机不成立（解析不了 .local）：这一点放进 ⓘ，主文案保持简短（用户 2026-09-27）。
-        is LocalNameStatus.Owned -> Row(verticalAlignment = Alignment.CenterVertically) {
-            HintText(stringResource(R.string.connection_local_hint))
-            InfoIconButton(
-                title = stringResource(R.string.settings_access_address),
-                text = stringResource(R.string.connection_local_info),
-            )
-        }
-        is LocalNameStatus.Renamed -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            HintText(
+        is LocalNameStatus.Probing -> AddressCaption(stringResource(R.string.connection_local_probing))
+        is LocalNameStatus.Renamed -> {
+            AddressCaption(
                 stringResource(
                     R.string.connection_local_renamed,
                     LocalHostName.label(status.wanted),
@@ -250,7 +287,8 @@ private fun LocalNameStatusLine(status: LocalNameStatus, onAdoptNumber: ((Int) -
                 }
             }
         }
-        LocalNameStatus.Unavailable -> HintText(stringResource(R.string.connection_local_unavailable))
-        LocalNameStatus.Disabled -> Unit
+        LocalNameStatus.Unavailable -> AddressCaption(stringResource(R.string.connection_local_unavailable))
+        // 名字已就绪：说明在标题旁的 ⓘ 里，这里不再单占一行（用户 2026-09-27 方案 C）。
+        is LocalNameStatus.Owned, LocalNameStatus.Disabled -> Unit
     }
 }

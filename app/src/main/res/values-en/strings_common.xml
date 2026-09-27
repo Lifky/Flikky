@@ -17,8 +17,7 @@
     <string name="common_rename_session">Rename session</string>
     <string name="connection_open_in_browser">Open in browser</string>
     <string name="connection_copy_address">Copy address</string>
-    <string name="connection_local_hint">Either address above works</string>
-    <string name="connection_local_info">The second line is a memorable local name that computer browsers can open directly. Android phones can\'t resolve names like this, so scan the code or type the IP address on the first line.</string>
+    <string name="connection_local_info">Either address works. The second line is a memorable local name that computer browsers can open directly. Android phones can\'t resolve names like this, so scan the code or type the IP address on the first line.</string>
     <string name="connection_local_probing">Checking the name…</string>
     <string name="connection_local_renamed">%1$s is taken, using %2$s this time</string>
     <string name="connection_local_adopt">Use %1$d</string>
