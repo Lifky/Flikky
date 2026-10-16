@@ -50,7 +50,7 @@ class ServingHeaderLayoutTest {
                                 peerAvatarKey = AvatarKey.DEFAULT_PEER,
                                 peerName = "对端设备",
                                 subtitle = subtitle.value,
-                                onAvatarClick = {},
+                                onPeerClick = {},
                                 onPermissionsClick = { calls += "permissions" },
                                 onSettingsClick = { calls += "settings" },
                                 onStopClick = { calls += "stop" },

@@ -36,6 +36,7 @@ import com.example.flikky.service.TransferController
 import com.example.flikky.service.TransferService
 import com.example.flikky.session.ConnectionAddresses
 import com.example.flikky.session.Message
+import com.example.flikky.session.PeerDevice
 import com.example.flikky.session.NetworkStatus
 import com.example.flikky.session.connectionAddresses
 import com.example.flikky.session.Origin
@@ -134,6 +135,22 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     /** M9: avatar chosen by the browser peer, set via client_hello WS frame. */
     val peerAvatarId: StateFlow<Int> = ServiceLocator.session.peerAvatarId
     val peerAvatarKey: StateFlow<String> = ServiceLocator.session.peerAvatarKey
+
+    /** v1.23：本次服务的对端设备（spec §3）。 */
+    val devices: StateFlow<List<PeerDevice>> = ServiceLocator.session.devices
+    val knownDeviceAvatars: StateFlow<Map<String, String>> = ServiceLocator.session.knownDeviceAvatars
+
+    fun renameDevice(deviceId: String, name: String) {
+        viewModelScope.launch { controller?.renameDevice(deviceId, name) }
+    }
+
+    fun setDeviceAvatar(deviceId: String, key: String) {
+        viewModelScope.launch { controller?.setDeviceAvatar(deviceId, key) }
+    }
+
+    fun disconnectDevice(deviceId: String) {
+        viewModelScope.launch { controller?.disconnectDevice(deviceId) }
+    }
 
     val settings: StateFlow<FlikkySettings> =
         ServiceLocator.settingsRepository.settings

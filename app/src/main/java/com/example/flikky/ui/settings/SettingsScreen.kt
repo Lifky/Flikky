@@ -981,8 +981,8 @@ fun SettingsScreen(
                 },
                 onDismiss = { activeSheet = null },
                 header = {
-                    // 专名直显，不进 i18n（spec §4.2）。
-                    val tabs = listOf("App", "Browser")
+                    // 「App」是专名直显；浏览器 tab 改的是「浏览器默认头像」（spec §5.3），所以进 i18n。
+                    val tabs = listOf("App", stringResource(R.string.avatar_tab_browser_default))
                     SingleChoiceSegmentedButtonRow(
                         modifier = Modifier
                             .fillMaxWidth()

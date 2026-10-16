@@ -60,4 +60,6 @@
     <string name="common_sort_by_size">按大小</string>
     <string name="common_sort_ascending">升序</string>
     <string name="common_sort_descending">降序</string>
+    <string name="device_unknown_browser">浏览器</string>
+    <string name="avatar_tab_browser_default">浏览器默认</string>
 </resources>

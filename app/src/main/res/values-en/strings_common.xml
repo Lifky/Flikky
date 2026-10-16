@@ -61,4 +61,6 @@
     <string name="common_sort_by_size">By size</string>
     <string name="common_sort_ascending">Ascending</string>
     <string name="common_sort_descending">Descending</string>
+    <string name="device_unknown_browser">Browser</string>
+    <string name="avatar_tab_browser_default">Browser default</string>
 </resources>

@@ -31,7 +31,6 @@
     <string name="serving_send">Send</string>
     <string name="serving_recall_title">Recall this message?</string>
     <string name="serving_recall_text">It will disappear on both devices and can\'t be recovered.</string>
-    <string name="serving_choose_browser_avatar">Choose browser avatar</string>
     <string name="serving_favorite_sent">Favorite sent</string>
     <string name="serving_active_session">Active session</string>
     <string name="serving_favorite_source_missing">Couldn\'t add favorite: source file is missing</string>
@@ -124,4 +123,18 @@
     <string name="serving_storage_search">Search this folder</string>
     <string name="serving_storage_search_empty">No matching files</string>
     <string name="serving_storage_search_exit">Exit search</string>
+    <string name="serving_devices_title">Connected devices</string>
+    <string name="serving_devices_open">View connected devices</string>
+    <string name="serving_device_online">Online</string>
+    <string name="serving_device_offline">Offline</string>
+    <string name="serving_device_more">More actions</string>
+    <string name="serving_device_rename">Rename</string>
+    <string name="serving_device_change_avatar">Change avatar</string>
+    <string name="serving_device_disconnect">Disconnect</string>
+    <string name="serving_device_name_title">Device name</string>
+    <string name="serving_device_avatar_title">Choose device avatar</string>
+    <string name="serving_disconnect_title">Disconnect “%1$s”?</string>
+    <string name="serving_disconnect_body_pin">They\'ll need a new PIN to reconnect.</string>
+    <string name="serving_disconnect_body_open">PIN is off, so they can reconnect right away.</string>
+    <string name="serving_header_multiple">%1$s · %2$d devices</string>
 </resources>

@@ -31,7 +31,6 @@
     <string name="serving_send">发送</string>
     <string name="serving_recall_title">撤回这条消息？</string>
     <string name="serving_recall_text">撤回后两端都会消失，不可恢复。</string>
-    <string name="serving_choose_browser_avatar">选择浏览器头像</string>
     <string name="serving_favorite_sent">已发送收藏</string>
     <string name="serving_active_session">进行中会话</string>
     <string name="serving_favorite_source_missing">收藏失败：源文件不存在</string>
@@ -126,4 +125,18 @@
     <string name="serving_storage_search">搜索这个文件夹</string>
     <string name="serving_storage_search_empty">没有匹配的文件</string>
     <string name="serving_storage_search_exit">退出搜索</string>
+    <string name="serving_devices_title">已连接设备</string>
+    <string name="serving_devices_open">查看已连接设备</string>
+    <string name="serving_device_online">在线</string>
+    <string name="serving_device_offline">离线</string>
+    <string name="serving_device_more">更多操作</string>
+    <string name="serving_device_rename">改名</string>
+    <string name="serving_device_change_avatar">换头像</string>
+    <string name="serving_device_disconnect">断开</string>
+    <string name="serving_device_name_title">设备名称</string>
+    <string name="serving_device_avatar_title">选择设备头像</string>
+    <string name="serving_disconnect_title">断开「%1$s」？</string>
+    <string name="serving_disconnect_body_pin">对方需要输入新 PIN 才能重新连接。</string>
+    <string name="serving_disconnect_body_open">未开启 PIN，对方可以直接重新连接。</string>
+    <string name="serving_header_multiple">%1$s 等 %2$d 台</string>
 </resources>

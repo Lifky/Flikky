@@ -69,9 +69,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.flikky.R
 import com.example.flikky.data.MediaStoreLibrary
 import com.example.flikky.di.ServiceLocator
+import com.example.flikky.session.PeerDevice
+import com.example.flikky.session.defaultName
+import com.example.flikky.session.displayName
 import com.example.flikky.session.peerChannelState
 import com.example.flikky.session.visibleChannelLabels
+import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.ConnectionInfoCard
+import com.example.flikky.ui.components.DeviceNameDialog
 import com.example.flikky.ui.components.rememberLastCardInputs
 import com.example.flikky.ui.components.ConversationHeader
 import com.example.flikky.ui.components.ImagePreviewDialog
@@ -121,7 +126,13 @@ fun ServingScreen(
     var quickPicker by remember { mutableStateOf<QuickPicker?>(null) }
     // 头像选择器的 App / Browser tab，与设置页同一形状（0 = App，1 = Browser）。
     var avatarSheetTab by remember { mutableStateOf(0) }
-    var showPeerAvatarPicker by remember { mutableStateOf(false) }
+    val devices by viewModel.devices.collectAsState()
+    var showDevices by remember { mutableStateOf(false) }
+    var renameTarget by remember { mutableStateOf<PeerDevice?>(null) }
+    var avatarTarget by remember { mutableStateOf<PeerDevice?>(null) }
+    var disconnectTarget by remember { mutableStateOf<PeerDevice?>(null) }
+    // 断开最后一台后面板里已无内容，自动收起（顶栏也随之换回连接卡片）。
+    LaunchedEffect(devices.isEmpty()) { if (devices.isEmpty()) showDevices = false }
     var albumPreview by remember { mutableStateOf<Uri?>(null) }
     val scope = rememberCoroutineScope()
     val backBlockedMessage = stringResource(R.string.serving_back_blocked)
@@ -253,12 +264,18 @@ fun ServingScreen(
                         hasStoragePermission = hasStoragePermission,
                         albumAccess = albumState.access,
                     )
+                    val unknownDevice = stringResource(R.string.device_unknown_browser)
+                    val primary = headerPeer(devices)
+                    val headerName = primary?.let { (device, count) ->
+                        if (count > 1) stringResource(R.string.serving_header_multiple, device.displayName(unknownDevice), count)
+                        else device.displayName(unknownDevice)
+                    }.orEmpty()
                     ConversationHeader(
                         peerAvatarId = peerAvatarId,
-                        peerAvatarKey = peerAvatarKey,
-                        peerName = "",
+                        peerAvatarKey = primary?.first?.avatarKey ?: peerAvatarKey,
+                        peerName = headerName,
                         subtitle = visibleText,
-                        onAvatarClick = { showPeerAvatarPicker = true },
+                        onPeerClick = { showDevices = true },
                         onPermissionsClick = { showPeerPermissions = true },
                         onSettingsClick = { showQuickSettings = true },
                         onStopClick = { viewModel.stopService(); onStopped() },
@@ -502,8 +519,8 @@ fun ServingScreen(
                 },
                 onDismiss = { quickPicker = null },
                 header = {
-                    // 专名直显，不进 i18n（spec §4.2）——与设置页同一处理。
-                    val tabs = listOf("App", "Browser")
+                    // 「App」是专名直显；浏览器 tab 改的是「浏览器默认头像」（spec §5.3），所以进 i18n。
+                    val tabs = listOf("App", stringResource(R.string.avatar_tab_browser_default))
                     SingleChoiceSegmentedButtonRow(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -530,13 +547,45 @@ fun ServingScreen(
         null -> Unit
     }
 
-    if (showPeerAvatarPicker) {
+    if (showDevices) {
+        DevicesSheet(
+            devices = devices,
+            onRename = { renameTarget = it },
+            // 头像选择器也是 ModalBottomSheet，不能叠在设备面板上：先收起面板。
+            onChangeAvatar = { showDevices = false; avatarTarget = it },
+            onDisconnect = { disconnectTarget = it },
+            onDismiss = { showDevices = false },
+        )
+    }
+    val unknownDeviceLabel = stringResource(R.string.device_unknown_browser)
+    renameTarget?.let { target ->
+        DeviceNameDialog(
+            title = stringResource(R.string.serving_device_name_title),
+            currentName = target.name,
+            defaultName = target.defaultName(unknownDeviceLabel),
+            onConfirm = { viewModel.renameDevice(target.deviceId, it); renameTarget = null },
+            onDismiss = { renameTarget = null },
+        )
+    }
+    avatarTarget?.let { target ->
         AvatarPickerSheet(
-            title = stringResource(R.string.serving_choose_browser_avatar),
-            currentKey = peerAvatarKey,
+            title = stringResource(R.string.serving_device_avatar_title),
+            currentKey = target.avatarKey,
             fallbackKey = AvatarKey.DEFAULT_PEER,
-            onSelect = { viewModel.setBrowserDefaultAvatarKey(it); showPeerAvatarPicker = false },
-            onDismiss = { showPeerAvatarPicker = false },
+            onSelect = { viewModel.setDeviceAvatar(target.deviceId, it); avatarTarget = null },
+            onDismiss = { avatarTarget = null },
+        )
+    }
+    disconnectTarget?.let { target ->
+        ConfirmDialog(
+            title = stringResource(R.string.serving_disconnect_title, target.displayName(unknownDeviceLabel)),
+            text = stringResource(
+                if (ui.requirePin) R.string.serving_disconnect_body_pin else R.string.serving_disconnect_body_open,
+            ),
+            confirmLabel = stringResource(R.string.serving_device_disconnect),
+            danger = true,
+            onConfirm = { viewModel.disconnectDevice(target.deviceId); disconnectTarget = null },
+            onDismiss = { disconnectTarget = null },
         )
     }
 
