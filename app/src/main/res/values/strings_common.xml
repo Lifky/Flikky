@@ -62,4 +62,5 @@
     <string name="common_sort_descending">降序</string>
     <string name="device_unknown_browser">浏览器</string>
     <string name="avatar_tab_browser_default">浏览器默认</string>
+    <string name="connection_pin_used_by">已被「%1$s」使用</string>
 </resources>

@@ -44,6 +44,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -285,12 +286,14 @@ fun ServingScreen(
                     val card = rememberLastCardInputs(ui.address, ui.pin, ui.requirePin)
                     // fillMaxWidth：卡片还没出现时，下面的等待行与停止按钮也保持居中。
                     Column(Modifier.fillMaxWidth().padding(Spacing.sectionGap)) {
+                        val cardPeer = connectionCardPeer(ui.requirePin, devices, stringResource(R.string.device_unknown_browser))
                         card?.let {
                             ConnectionInfoCard(
                                 address = it.address,
                                 pin = it.pin,
                                 requirePin = it.requirePin,
                                 onAdoptNumber = ServiceLocator::adoptHostNumber,
+                                pinUsedBy = cardPeer.pinUsedBy,
                             )
                         }
                         Row(
@@ -300,10 +303,17 @@ fun ServingScreen(
                         ) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                             Text(
-                                stringResource(R.string.serving_waiting_browser),
+                                cardPeer.offlineName?.let { stringResource(R.string.serving_device_offline_waiting, it) }
+                                    ?: stringResource(R.string.serving_waiting_browser),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                        }
+                        if (cardPeer.offlineName != null) {
+                            TextButton(
+                                onClick = { showDevices = true },
+                                modifier = Modifier.align(Alignment.CenterHorizontally),
+                            ) { Text(stringResource(R.string.serving_manage_devices)) }
                         }
                         Spacer(Modifier.height(Spacing.sm))
                         FilledTonalButton(

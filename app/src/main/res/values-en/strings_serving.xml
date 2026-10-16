@@ -137,4 +137,6 @@
     <string name="serving_disconnect_body_pin">They\'ll need a new PIN to reconnect.</string>
     <string name="serving_disconnect_body_open">PIN is off, so they can reconnect right away.</string>
     <string name="serving_header_multiple">%1$s · %2$d devices</string>
+    <string name="serving_device_offline_waiting">%1$s is offline · Waiting to reconnect</string>
+    <string name="serving_manage_devices">Manage devices</string>
 </resources>

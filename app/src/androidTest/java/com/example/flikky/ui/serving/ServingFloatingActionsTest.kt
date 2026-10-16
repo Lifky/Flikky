@@ -37,7 +37,7 @@ class ServingFloatingActionsTest {
                     viewModel = viewModel(),
                     ui = ServingUiState(messages = listOf(Message.Text(1, Origin.BROWSER, 1, "Copy this"))),
                     settings = settings, progressMap = emptyMap(), peerAvatarId = 0,
-                    peerAvatarKey = "icon:desktop_windows", actionTarget = target.value,
+                    peerAvatarKey = "icon:desktop_windows", deviceAvatars = emptyMap(), actionTarget = target.value,
                     onActionTargetChange = { target.value = it },
                     snackbarHostState = remember { SnackbarHostState() }, scope = rememberCoroutineScope(),
                     existingFiles = emptyList(), onSendExistingFile = {},

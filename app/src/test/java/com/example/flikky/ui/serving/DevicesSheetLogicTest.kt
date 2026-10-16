@@ -26,4 +26,17 @@ class DevicesSheetLogicTest {
         assertEquals("a" to 2, headerPeer(list)?.let { it.first.deviceId to it.second })
         assertNull(headerPeer(listOf(d("c", 0, false))))
     }
+
+    @Test fun `with nobody online the card names the device that still holds access`() {
+        val offline = d("a", 1, false, name = "张三的笔记本")
+        assertEquals(CardPeerState(pinUsedBy = "张三的笔记本", offlineName = "张三的笔记本"),
+            connectionCardPeer(requirePin = true, devices = listOf(offline), unknownLabel = "浏览器"))
+        assertEquals(CardPeerState(pinUsedBy = null, offlineName = "张三的笔记本"),
+            connectionCardPeer(requirePin = false, devices = listOf(offline), unknownLabel = "浏览器"))
+    }
+
+    @Test fun `with no devices or someone online the card stays as it was`() {
+        assertEquals(CardPeerState(null, null), connectionCardPeer(true, emptyList(), "浏览器"))
+        assertEquals(CardPeerState(null, null), connectionCardPeer(true, listOf(d("a", 1, true)), "浏览器"))
+    }
 }

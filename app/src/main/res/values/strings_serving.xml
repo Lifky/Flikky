@@ -139,4 +139,6 @@
     <string name="serving_disconnect_body_pin">对方需要输入新 PIN 才能重新连接。</string>
     <string name="serving_disconnect_body_open">未开启 PIN，对方可以直接重新连接。</string>
     <string name="serving_header_multiple">%1$s 等 %2$d 台</string>
+    <string name="serving_device_offline_waiting">%1$s 已离线 · 等待重新连接</string>
+    <string name="serving_manage_devices">管理设备</string>
 </resources>

@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -58,6 +59,8 @@ fun ConnectionInfoCard(
     modifier: Modifier = Modifier,
     requirePin: Boolean = true,
     onAdoptNumber: ((Int) -> Unit)? = null,
+    /** PIN 已被这台设备用掉时显示它的名字，而不是那串已失效的数字（spec §6.4）。导出页不传。 */
+    pinUsedBy: String? = null,
 ) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -138,14 +141,24 @@ fun ConnectionInfoCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(Spacing.xs))
-                Text(
-                    text = pin,
-                    style = MaterialTheme.typography.displayMedium.copy(
-                        fontFamily = FontFamily.Monospace,
-                        // PIN is intentionally bold so users can read and transcribe it quickly.
-                        fontWeight = FontWeight.Bold,
-                    ),
-                )
+                if (pinUsedBy != null) {
+                    Text(
+                        text = stringResource(R.string.connection_pin_used_by, pinUsedBy),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.testTag("pin-used-by"),
+                    )
+                } else {
+                    Text(
+                        text = pin,
+                        style = MaterialTheme.typography.displayMedium.copy(
+                            fontFamily = FontFamily.Monospace,
+                            // PIN is intentionally bold so users can read and transcribe it quickly.
+                            fontWeight = FontWeight.Bold,
+                        ),
+                    )
+                }
             } else {
                 Text(
                     text = stringResource(R.string.connection_method),

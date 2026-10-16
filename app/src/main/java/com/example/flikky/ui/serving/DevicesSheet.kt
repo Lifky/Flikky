@@ -176,3 +176,16 @@ internal fun headerPeer(devices: List<PeerDevice>): Pair<PeerDevice, Int>? {
     val online = devices.filter { it.online }.sortedBy { it.connectedAt }
     return online.firstOrNull()?.let { it to online.size }
 }
+
+/** 连接卡片要额外说明的对端状态（spec §6.4）。两项都为 null 时卡片与改版前完全一致。 */
+data class CardPeerState(val pinUsedBy: String?, val offlineName: String?)
+
+/**
+ * 没有设备在线、但还有设备持有凭据时：PIN 模式下那串数字已经失效，改为说明它被谁用了；
+ * 等待行说明是谁离线了，并给出「管理设备」入口 —— 要换电脑，先断开它，新 PIN 立刻出现。
+ */
+internal fun connectionCardPeer(requirePin: Boolean, devices: List<PeerDevice>, unknownLabel: String): CardPeerState {
+    if (devices.isEmpty() || devices.any { it.online }) return CardPeerState(null, null)
+    val name = devices.minBy { it.connectedAt }.displayName(unknownLabel)
+    return CardPeerState(pinUsedBy = if (requirePin) name else null, offlineName = name)
+}
