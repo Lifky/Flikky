@@ -7,15 +7,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,13 +32,13 @@ import com.example.flikky.data.settings.AvatarGroupingMode
 import com.example.flikky.data.settings.BUBBLE_CORNER_MAX
 import com.example.flikky.data.settings.BUBBLE_CORNER_MIN
 import com.example.flikky.data.settings.DarkMode
-import com.example.flikky.data.settings.DEVICE_NAME_MAX
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.data.settings.MessageActionStyle
 import com.example.flikky.data.settings.ThemeMode
 import com.example.flikky.ui.components.Avatar
 import com.example.flikky.ui.components.ChoiceDialog
 import com.example.flikky.ui.components.ChoiceRow
+import com.example.flikky.ui.components.DeviceNameDialog
 import com.example.flikky.ui.settings.components.SettingItem
 import com.example.flikky.ui.settings.components.SettingSection
 import com.example.flikky.ui.settings.localizedLabel
@@ -418,33 +415,12 @@ fun QuickSettingsSheet(
     }
 
     if (showDeviceNameDialog) {
-        // 与设置页逐字一致：预填「当前生效的名字」（空则是默认名），保存时把
-        // 「改回默认名」归一化成空串，否则默认名会被当成用户自定义值存下来。
-        var draft by remember { mutableStateOf(settings.deviceName.ifBlank { defaultDeviceName }) }
-        AlertDialog(
-            onDismissRequest = { showDeviceNameDialog = false },
-            title = { Text(stringResource(R.string.settings_device_name)) },
-            text = {
-                OutlinedTextField(
-                    value = draft,
-                    onValueChange = { if (it.length <= DEVICE_NAME_MAX) draft = it },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.settings_device_name_limit)) },
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    onSetDeviceName(
-                        draft.trim().takeUnless { it == defaultDeviceName }.orEmpty(),
-                    )
-                    showDeviceNameDialog = false
-                }) { Text(stringResource(R.string.common_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeviceNameDialog = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
+        DeviceNameDialog(
+            title = stringResource(R.string.settings_device_name),
+            currentName = settings.deviceName,
+            defaultName = defaultDeviceName,
+            onConfirm = { onSetDeviceName(it); showDeviceNameDialog = false },
+            onDismiss = { showDeviceNameDialog = false },
         )
     }
 }

@@ -94,7 +94,6 @@ import com.example.flikky.ui.serving.peerVisibleSummary
 import com.example.flikky.ui.serving.requestAllFilesAccess
 import com.example.flikky.data.settings.AppLanguage
 import com.example.flikky.data.settings.AppLanguageManager
-import com.example.flikky.data.settings.DEVICE_NAME_MAX
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.AnimationSpeed
@@ -109,6 +108,7 @@ import com.example.flikky.ui.components.Avatar
 import com.example.flikky.ui.components.AvatarKey
 import com.example.flikky.ui.components.ChoiceDialog
 import com.example.flikky.ui.components.ChoiceRow
+import com.example.flikky.ui.components.DeviceNameDialog
 import com.example.flikky.ui.components.maxContentWidth
 import com.example.flikky.ui.components.UpdateAvailableDialog
 import com.example.flikky.ui.exporting.ArchiveViewModel
@@ -1088,32 +1088,12 @@ fun SettingsScreen(
 
     // ─── Device name dialog ───────────────────────────────────────────────────
     if (showDeviceNameDialog) {
-        var draft by remember { mutableStateOf(s.deviceName.ifBlank { defaultDeviceName }) }
-        AlertDialog(
-            onDismissRequest = { showDeviceNameDialog = false },
-            title = { Text(stringResource(R.string.settings_device_name)) },
-            text = {
-                OutlinedTextField(
-                    value = draft,
-                    onValueChange = { if (it.length <= DEVICE_NAME_MAX) draft = it },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.settings_device_name_limit)) },
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val normalized = draft.trim()
-                        .takeUnless { it == defaultDeviceName }
-                        .orEmpty()
-                    viewModel.setDeviceName(normalized)
-                    showDeviceNameDialog = false
-                }) { Text(stringResource(R.string.common_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeviceNameDialog = false }) {
-                    Text(stringResource(R.string.common_cancel))
-                }
-            },
+        DeviceNameDialog(
+            title = stringResource(R.string.settings_device_name),
+            currentName = s.deviceName,
+            defaultName = defaultDeviceName,
+            onConfirm = { viewModel.setDeviceName(it); showDeviceNameDialog = false },
+            onDismiss = { showDeviceNameDialog = false },
         )
     }
 
