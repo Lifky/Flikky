@@ -7,7 +7,9 @@ import com.example.flikky.server.dto.WebThemeDto
 import io.ktor.http.ContentType
 import io.ktor.http.Cookie
 import io.ktor.http.CookieEncoding
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.call
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -20,6 +22,20 @@ import java.io.FileNotFoundException
 
 const val AUTH_COOKIE = "flikky_token"
 
+/** 会话 Cookie：HttpOnly + SameSite=Strict + Path=/，不设过期 —— 会话结束即失效（spec §4.1）。 */
+internal fun ApplicationCall.appendAuthCookie(token: String) {
+    response.cookies.append(
+        Cookie(
+            name = AUTH_COOKIE,
+            value = token,
+            encoding = CookieEncoding.RAW,
+            path = "/",
+            httpOnly = true,
+            extensions = mapOf("SameSite" to "Strict"),
+        )
+    )
+}
+
 fun Route.authRoutes(
     authGate: AuthGate,
     readAsset: (String) -> ByteArray,
@@ -29,7 +45,15 @@ fun Route.authRoutes(
     publicThemeProvider: () -> WebThemeDto = { WebThemeDto() },
 ) {
     get("/") {
+        // 已持有有效凭据（第二个标签页、刷新、重新输入地址）：直接去落地页。
+        // 否则 PIN 模式会把人留在一个 PIN 早已用掉的登录页上。
+        if (authGate.isAuthorized(call.request.cookies[AUTH_COOKIE])) {
+            call.respondRedirect(redirectAfterLogin())
+            return@get
+        }
         if (!authGate.required) {
+            // B54：关 PIN 也签发受控会话，之后照常按设备校验（spec §4.3）。
+            authGate.issueOpen(call.request.headers[HttpHeaders.UserAgent])?.let { call.appendAuthCookie(it.token) }
             call.respondRedirect(redirectAfterLogin())
             return@get
         }
@@ -43,24 +67,18 @@ fun Route.authRoutes(
             return@post
         }
         val req = call.receive<AuthRequest>()
-        when (val r = authGate.authenticate(req.pin)) {
-            is PinAuth.Result.Ok -> {
-                call.response.cookies.append(
-                    Cookie(
-                        name = AUTH_COOKIE,
-                        value = r.token,
-                        encoding = CookieEncoding.RAW,
-                        path = "/",
-                        httpOnly = true,
-                        extensions = mapOf("SameSite" to "Strict"),
-                    )
-                )
+        when (val attempt = authGate.authenticate(req.pin, call.request.headers[HttpHeaders.UserAgent])) {
+            is AuthAttempt.Granted -> {
+                call.appendAuthCookie(attempt.issued.token)
                 call.respond(AuthResponse(ok = true, redirectTo = redirectAfterLogin()))
             }
-            PinAuth.Result.Wrong -> call.respond(HttpStatusCode.Unauthorized, AuthResponse(false, "wrong_pin"))
-            PinAuth.Result.Locked -> call.respond(HttpStatusCode.TooManyRequests, AuthResponse(false, "locked", 30))
-            PinAuth.Result.PinAlreadyUsed -> call.respond(HttpStatusCode.Gone, AuthResponse(false, "pin_consumed"))
-            PinAuth.Result.Terminated -> call.respond(HttpStatusCode.Forbidden, AuthResponse(false, "terminated"))
+            is AuthAttempt.Denied -> when (attempt.result) {
+                PinAuth.Result.Wrong -> call.respond(HttpStatusCode.Unauthorized, AuthResponse(false, "wrong_pin"))
+                PinAuth.Result.Locked -> call.respond(HttpStatusCode.TooManyRequests, AuthResponse(false, "locked", 30))
+                PinAuth.Result.PinAlreadyUsed -> call.respond(HttpStatusCode.Gone, AuthResponse(false, "pin_consumed"))
+                PinAuth.Result.Terminated -> call.respond(HttpStatusCode.Forbidden, AuthResponse(false, "terminated"))
+                is PinAuth.Result.Ok -> call.respond(HttpStatusCode.InternalServerError)
+            }
         }
     }
 

@@ -33,6 +33,7 @@ import com.example.flikky.network.MdnsResponder
 import com.example.flikky.network.NetworkRebinder
 import com.example.flikky.network.UsableIpPolicy
 import com.example.flikky.network.RebindIntent
+import com.example.flikky.server.DeviceRegistry
 import com.example.flikky.server.KtorServer
 import com.example.flikky.server.PinAuth
 import com.example.flikky.server.ServiceMode
@@ -100,6 +101,11 @@ class TransferService : Service() {
 
     @Volatile private var ktor: KtorServer? = null
     private var pinAuth: PinAuth? = null
+    /**
+     * 本次服务的设备与凭据（spec §3.4）。与 [pinAuth] 一样跨 rebind 存活、只经参数交给每个新 KtorServer；
+     * **不持有任何 KtorServer 成员**（rebind 引用规范）。
+     */
+    private var deviceRegistry: DeviceRegistry? = null
     private var controller: TransferController? = null
     private var currentSessionId: Long = -1L
     @Volatile private var currentMode: ServiceMode? = null
@@ -293,10 +299,12 @@ class TransferService : Service() {
             tokenSupplier = { IdGen.newToken() },
         )
         pinAuth = auth
+        val registry = DeviceRegistry(defaultAvatar = { latestSettings.browserAvatarKey })
+        deviceRegistry = registry
 
         currentMode = ServiceMode.Transfer
         // 新会话从用户设定的端口起扫（spec §4.6）；只有 rebind 沿用已绑端口。
-        val server = buildTransferKtor(ip, auth, startPort = latestSettings.customPort)
+        val server = buildTransferKtor(ip, auth, registry, startPort = latestSettings.customPort)
         val port = runCatching { server.start() }.getOrElse {
             Log.e(TAG, "startTransfer failed to bind", it)
             stopActiveServer()
@@ -419,10 +427,12 @@ class TransferService : Service() {
             tokenSupplier = { IdGen.newToken() },
         )
         pinAuth = auth
+        val registry = DeviceRegistry()
+        deviceRegistry = registry
 
         currentMode = ServiceMode.Export
         // 导出不走 session.startNew()，snapshot 里可能还留着上次的 boundPort —— 别拿它起扫。
-        val server = buildExportKtor(ip, auth, startPort = latestSettings.customPort)
+        val server = buildExportKtor(ip, auth, registry, startPort = latestSettings.customPort)
         val port = runCatching { server.start() }.getOrElse {
             Log.e(TAG, "export failed to bind", it)
             stopActiveServer()
@@ -521,6 +531,8 @@ class TransferService : Service() {
         }
         currentMode = null
         pinAuth = null
+        deviceRegistry?.revokeAll()
+        deviceRegistry = null
         currentHostIp = null
         currentRequirePin = true
         _running.value = null
@@ -531,11 +543,12 @@ class TransferService : Service() {
      * rebind path after the previous engine was torn down — both flows use the
      * same PinAuth/session wiring; only [host] changes on a rebind.
      */
-    private fun buildTransferKtor(host: String, auth: PinAuth, startPort: Int): KtorServer = KtorServer(
+    private fun buildTransferKtor(host: String, auth: PinAuth, registry: DeviceRegistry, startPort: Int): KtorServer = KtorServer(
         host = host,
         startPort = startPort,
         endPort = LocalHostName.portRange(startPort).last,
         pinAuth = auth,
+        deviceRegistry = registry,
         session = ServiceLocator.session,
         stats = ServiceLocator.stats,
         fileStore = ServiceLocator.fileStore,
@@ -643,11 +656,12 @@ class TransferService : Service() {
      * Builds an Export-mode KtorServer. Mirrors buildTransferKtor so the
      * rebind path has a symmetric factory to call.
      */
-    private fun buildExportKtor(host: String, auth: PinAuth, startPort: Int): KtorServer = KtorServer(
+    private fun buildExportKtor(host: String, auth: PinAuth, registry: DeviceRegistry, startPort: Int): KtorServer = KtorServer(
         host = host,
         startPort = startPort,
         endPort = LocalHostName.portRange(startPort).last,
         pinAuth = auth,
+        deviceRegistry = registry,
         session = ServiceLocator.session,
         stats = ServiceLocator.stats,
         fileStore = ServiceLocator.fileStore,
@@ -761,6 +775,7 @@ class TransferService : Service() {
     private fun rebindTo(newIp: String) {
         val mode = currentMode ?: return
         val auth = pinAuth ?: return
+        val registry = deviceRegistry ?: return
         if (!UsableIpPolicy.isUsable(newIp)) return
         ServiceLocator.session.updateNetworkStatus(NetworkStatus.Switching)
         val previous = ktor
@@ -769,8 +784,8 @@ class TransferService : Service() {
         // rebind 优先沿用本会话已绑端口（D75）。
         val startPort = ServiceLocator.session.snapshot.value.boundPort.takeIf { it > 0 } ?: latestSettings.customPort
         val replacement = when (mode) {
-            ServiceMode.Transfer -> buildTransferKtor(newIp, auth, startPort)
-            ServiceMode.Export -> buildExportKtor(newIp, auth, startPort)
+            ServiceMode.Transfer -> buildTransferKtor(newIp, auth, registry, startPort)
+            ServiceMode.Export -> buildExportKtor(newIp, auth, registry, startPort)
         }
         val port = runCatching { replacement.start() }.getOrNull()
         if (port == null) {
@@ -782,7 +797,11 @@ class TransferService : Service() {
         }
         // Rotate only after a successful host change: a failed attempt must not
         // invalidate the cookie needed if the original Wi-Fi returns.
-        if (currentHostIp != newIp) auth.renewPin(IdGen.newPin())
+        if (currentHostIp != newIp) {
+            // D75：新 IP 是新的 Cookie host —— 换发 PIN，并作废所有旧凭据（以前靠 PinAuth 存的那一份 token）。
+            auth.renewPin(IdGen.newPin())
+            registry.revokeAll()
+        }
         ktor = replacement
         rebinder.prime(newIp)
         currentHostIp = newIp

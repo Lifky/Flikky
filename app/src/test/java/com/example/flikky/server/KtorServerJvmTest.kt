@@ -100,7 +100,7 @@ class KtorServerJvmTest {
     }
 
     @Test
-    fun `pin disabled allows app and messages without auth cookie`() = testApplication {
+    fun `pin disabled still issues a controlled session before the app and api`() = testApplication {
         val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
         val session = SessionState(nowMs = { 0L })
         val authGate = AuthGate(required = false, pinAuth = pin)
@@ -126,18 +126,19 @@ class KtorServerJvmTest {
             }
         }
 
-        val appResp: HttpResponse = client.get("/app")
+        // B54：关 PIN 不等于不鉴权 —— 没有 Cookie 的直接请求被拒。
+        assertEquals(HttpStatusCode.Unauthorized, client.get("/api/messages").status)
+
+        val http = createClient { install(HttpCookies) }
+        val appResp: HttpResponse = http.get("/")
         assertEquals(HttpStatusCode.OK, appResp.status)
         assertEquals("app", appResp.bodyAsText())
 
-        val sendResp: HttpResponse = client.post("/api/messages") {
+        val sendResp: HttpResponse = http.post("/api/messages") {
             contentType(ContentType.Application.Json)
             setBody("""{"text":"hello"}""")
         }
         assertEquals(HttpStatusCode.OK, sendResp.status)
-
-        val historyResp: HttpResponse = client.get("/api/messages")
-        assertEquals(HttpStatusCode.OK, historyResp.status)
-        assertTrue(historyResp.bodyAsText().contains("hello"))
+        assertEquals(HttpStatusCode.OK, http.get("/api/messages").status)
     }
 }

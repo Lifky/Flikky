@@ -26,11 +26,10 @@ class PinAuthTest {
     }
 
     @Test
-    fun `new host gets a fresh single-use pin and invalidates the old cookie`() {
+    fun `new host gets a fresh single-use pin`() {
         auth.tryConsume("123456")
         auth.renewPin("654321")
         assertEquals("654321", auth.currentPin())
-        assertFalse(auth.validateToken("TOKEN"))
         assertTrue(auth.tryConsume("123456") is PinAuth.Result.Wrong)
         assertTrue(auth.tryConsume("654321") is PinAuth.Result.Ok)
         assertTrue(auth.tryConsume("654321") is PinAuth.Result.PinAlreadyUsed)
@@ -62,21 +61,53 @@ class PinAuthTest {
     }
 
     @Test
-    fun `validateToken recognizes issued token`() {
-        auth.tryConsume("123456")
-        assertTrue(auth.validateToken("TOKEN"))
-        assertFalse(auth.validateToken("other"))
-    }
-
-    @Test
-    fun `validateToken returns false before any pin consumed`() {
-        assertFalse(auth.validateToken("anything"))
-    }
-
-    @Test
     fun `currentPin exposes the pin before use and null after`() {
         assertEquals("123456", auth.currentPin())
         auth.tryConsume("123456")
         assertNull(auth.currentPin())
+    }
+
+    @Test
+    fun `a disconnect issues a new pin but keeps the brute force counters`() {
+        assertTrue(auth.tryConsume("000000") is PinAuth.Result.Wrong)
+        assertTrue(auth.tryConsume("111111") is PinAuth.Result.Wrong)
+        assertTrue(auth.tryConsume("123456") is PinAuth.Result.Ok)
+        auth.issueNextPin("222222")
+        assertEquals("222222", auth.currentPin())
+        // 窗口内第三次错 → 锁定：计数没有被清零（D75：同 IP 意味着攻击者还在原位）
+        assertTrue(auth.tryConsume("999999") is PinAuth.Result.Locked)
+    }
+
+    @Test
+    fun `a terminated auth stays terminated after a new pin`() {
+        repeat(5) { auth.tryConsume("000000") }
+        auth.issueNextPin("222222")
+        assertTrue(auth.tryConsume("222222") is PinAuth.Result.Terminated)
+    }
+
+    @Test
+    fun `a new host resets the counters`() {
+        auth.tryConsume("000000")
+        auth.tryConsume("111111")
+        auth.renewPin("654321")
+        assertTrue(auth.tryConsume("999999") is PinAuth.Result.Wrong)
+    }
+
+    @Test
+    fun `a next pin is needed only once the pin is used and nobody holds a credential`() {
+        assertFalse(auth.needsNextPin(hasCredentials = false))
+        auth.tryConsume("123456")
+        assertFalse(auth.needsNextPin(hasCredentials = true))
+        assertTrue(auth.needsNextPin(hasCredentials = false))
+    }
+
+    @Test
+    fun `pin auth keeps no copy of the issued token`() {
+        auth.tryConsume("123456")
+        val held = PinAuth::class.java.declaredFields.map { f ->
+            f.isAccessible = true
+            f.get(auth)?.toString().orEmpty()
+        }
+        assertTrue(held.none { it == "TOKEN" })
     }
 }

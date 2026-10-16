@@ -61,10 +61,14 @@ class FileRoutesThumbTest {
     ) {
         fileRoutes(
             session = h.session,
-            authGate = AuthGate(
-                required = authRequired,
-                pinAuth = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" }),
-            ),
+            authGate = if (authRequired) {
+                AuthGate(
+                    required = true,
+                    pinAuth = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" }),
+                )
+            } else {
+                allowAllAuthGate()
+            },
             store = h.store,
             stats = h.stats,
             currentSessionId = { 5L },

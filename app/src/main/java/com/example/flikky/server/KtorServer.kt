@@ -51,6 +51,11 @@ class KtorServer(
     private val startPort: Int = 8080,
     private val endPort: Int = 8099,
     private val pinAuth: PinAuth,
+    /**
+     * 本次服务的设备（spec §3）。TransferService 字段，跨 rebind 存活，每个新 KtorServer 都拿同一个。
+     * 默认值只给测试用。
+     */
+    private val deviceRegistry: DeviceRegistry = DeviceRegistry(),
     private val session: SessionState,
     private val stats: TransferStats,
     private val fileStore: FileStore,
@@ -135,7 +140,7 @@ class KtorServer(
         private set
 
     internal val wsHub = WsHub()
-    private val authGate = AuthGate(required = requirePin, pinAuth = pinAuth)
+    private val authGate = AuthGate(required = requirePin, pinAuth = pinAuth, registry = deviceRegistry)
 
     fun start(): Int {
         var lastError: Throwable? = null

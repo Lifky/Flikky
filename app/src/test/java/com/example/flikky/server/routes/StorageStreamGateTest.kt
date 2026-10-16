@@ -1,6 +1,5 @@
 package com.example.flikky.server.routes
 
-import com.example.flikky.server.PinAuth
 import com.example.flikky.server.dto.StorageListDto
 import com.example.flikky.util.SortSpec
 import io.ktor.client.HttpClient
@@ -45,14 +44,7 @@ class StorageStreamGateTest {
         install(ContentNegotiation) { json() }
         routing {
             storageRoutes(
-                authGate = AuthGate(
-                    false,
-                    PinAuth(
-                        nowMs = { 0L },
-                        pinSupplier = { "000000" },
-                        tokenSupplier = { "TOKEN" },
-                    ),
-                ),
+                authGate = allowAllAuthGate(),
                 enabled = gate,
                 hasPermission = { true },
                 browser = {

@@ -1,5 +1,6 @@
 package com.example.flikky.server
 
+/** 只核对 PIN：单次使用、3 次锁 30 秒、5 次终止。token 只经手不存，凭据由 DeviceRegistry 保管哈希。 */
 class PinAuth(
     private val nowMs: () -> Long,
     pinSupplier: () -> String,
@@ -14,7 +15,6 @@ class PinAuth(
     }
 
     private var pin: String? = pinSupplier()
-    private var issuedToken: String? = null
     private var wrongTotal: Int = 0
     private var wrongInWindow: Int = 0
     private var lockUntilMs: Long = 0L
@@ -23,11 +23,10 @@ class PinAuth(
     @Synchronized
     fun currentPin(): String? = pin
 
-    /** Cookies cannot cross IP hosts. Issue a fresh one-time PIN when the bound host changes. */
+    /** 换了绑定 IP（D75）：换一个新的一次性 PIN，并清零防暴力破解计数。旧 Cookie 由 DeviceRegistry.revokeAll() 作废。 */
     @Synchronized
     fun renewPin(newPin: String) {
         pin = newPin
-        issuedToken = null
         wrongTotal = 0
         wrongInWindow = 0
         lockUntilMs = 0L
@@ -68,13 +67,22 @@ class PinAuth(
 
         // Correct pin, not locked
         val token = tokenSupplier()
-        issuedToken = token
         pin = null
         return Result.Ok(token)
     }
 
+    /**
+     * 断开设备后换一个新 PIN（spec §4.4）。**只换 PIN**：防暴力破解计数全部保留 ——
+     * 同一个 IP 意味着攻击者还在原位，清零等于送他一轮新的尝试（D75）。换 IP 用 [renewPin]。
+     */
     @Synchronized
-    fun validateToken(token: String): Boolean = issuedToken != null && issuedToken == token
+    fun issueNextPin(newPin: String) {
+        pin = newPin
+    }
+
+    /** PIN 已被用掉、且再没有设备持有凭据时才需要新 PIN（spec §4.2 的不变式）。 */
+    @Synchronized
+    fun needsNextPin(hasCredentials: Boolean): Boolean = pin == null && !hasCredentials
 
     companion object {
         const val LOCK_THRESHOLD = 3

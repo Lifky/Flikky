@@ -26,8 +26,8 @@ class TransferServiceStartPortSourceTest {
     }
 
     @Test fun `fresh transfer and export starts scan from the custom port`() {
-        assertTrue(service.contains("buildTransferKtor(ip, auth, startPort = latestSettings.customPort)"))
-        assertTrue(service.contains("buildExportKtor(ip, auth, startPort = latestSettings.customPort)"))
+        assertTrue(service.contains("buildTransferKtor(ip, auth, registry, startPort = latestSettings.customPort)"))
+        assertTrue(service.contains("buildExportKtor(ip, auth, registry, startPort = latestSettings.customPort)"))
     }
 
     @Test fun `only the rebind path reuses the bound port`() {

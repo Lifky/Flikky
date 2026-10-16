@@ -84,7 +84,7 @@ class ExportRoutesTest {
             routing {
                 exportRoutes(
                     sessionState = session,
-                    authGate = AuthGate(required = false, pinAuth = pin),
+                    authGate = allowAllAuthGate(),
                     readAsset = { byteArrayOf() },
                     exportedBy = { snapshot },
                     fileResolver = { _, _ -> null },

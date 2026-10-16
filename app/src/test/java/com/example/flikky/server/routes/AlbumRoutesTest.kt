@@ -78,7 +78,7 @@ class AlbumRoutesTest {
         }
 
     private fun run(enabled:()->Boolean={true}, access:AlbumAccess=AlbumAccess.Full, authorised:Boolean=true, lib:MediaLibrary=empty, check:suspend (io.ktor.client.HttpClient)->Unit)=testApplication {
-        application { install(ContentNegotiation){json(WireJson)}; routing { albumRoutes(AuthGate(!authorised,PinAuth({0},{"0"},{"token"})),{enabled()},{access},{lib}) } }
+        application { install(ContentNegotiation){json(WireJson)}; routing { albumRoutes(if (authorised) allowAllAuthGate() else AuthGate(true, PinAuth({0},{"0"},{"token"})),{enabled()},{access},{lib}) } }
         check(client)
     }
 
