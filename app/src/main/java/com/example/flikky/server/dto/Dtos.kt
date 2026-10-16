@@ -219,7 +219,3 @@ data class WebThemeDto(
     val languageTag: String = "zh-CN",
 )
 
-@Serializable
-data class PeerAvatarChangedDto(
-    val avatarKey: String,
-)

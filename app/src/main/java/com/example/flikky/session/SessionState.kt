@@ -82,6 +82,8 @@ class SessionState(private val nowMs: () -> Long) {
             boundPort = 0,
             networkStatus = NetworkStatus.Ok,
         )
+        _devices.value = emptyList()
+        _knownDeviceAvatars.value = emptyMap()
     }
 
     /**
@@ -172,6 +174,8 @@ class SessionState(private val nowMs: () -> Long) {
         _fileTransferProgress.value = emptyMap()
         _peerAvatarId.value = 0
         _peerAvatarKey.value = "icon:desktop_windows"
+        _devices.value = emptyList()
+        _knownDeviceAvatars.value = emptyMap()
     }
 
     /**
@@ -197,10 +201,26 @@ class SessionState(private val nowMs: () -> Long) {
 
     fun setPeerAvatar(id: Int) { _peerAvatarId.value = id }
 
+    // 「浏览器默认头像」的会话内镜像（v1.23 起各设备头像见 [devices]）；聊天气泡找不到发送设备时用它兜底。
     private val _peerAvatarKey = MutableStateFlow("icon:desktop_windows")
     val peerAvatarKey: StateFlow<String> = _peerAvatarKey.asStateFlow()
 
     fun setPeerAvatarKey(key: String) { _peerAvatarKey.value = key }
+
+    // v1.23：本次服务的对端设备（只含 visible 设备，spec §3.2），由 TransferService 从 DeviceRegistry 镜像进来。
+    private val _devices = MutableStateFlow<List<PeerDevice>>(emptyList())
+    val devices: StateFlow<List<PeerDevice>> = _devices.asStateFlow()
+
+    // 本会话出现过的每台设备的最近头像：被断开的设备离开 [devices] 后，它发过的气泡仍要画对头像。
+    private val _knownDeviceAvatars = MutableStateFlow<Map<String, String>>(emptyMap())
+    val knownDeviceAvatars: StateFlow<Map<String, String>> = _knownDeviceAvatars.asStateFlow()
+
+    fun setDevices(list: List<PeerDevice>) {
+        _devices.value = list
+        if (list.isNotEmpty()) {
+            _knownDeviceAvatars.update { known -> known + list.associate { it.deviceId to it.avatarKey } }
+        }
+    }
 
     private val _exportMode = MutableStateFlow<ExportMode>(ExportMode.Idle)
     val exportMode: StateFlow<ExportMode> = _exportMode

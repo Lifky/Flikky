@@ -821,18 +821,9 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { ServiceLocator.settingsRepository.setAlbumBrowsingEnabled(enabled) }
     }
 
-    fun setPeerAvatarKey(key: String) {
-        viewModelScope.launch {
-            val ctrl = controller
-            if (ctrl != null) {
-                ctrl.setPeerAvatarKey(key)
-            } else {
-                ServiceLocator.session.setPeerAvatarKey(key)
-            }
-            // Persist last: session is already updated above, so the settings collector
-            // in TransferService sees no diff and does not re-broadcast.
-            ServiceLocator.settingsRepository.setBrowserAvatarKey(key)
-        }
+    /** 「浏览器默认头像」只落 DataStore；TransferService 的设置收集器负责推给跟随默认值的设备（spec §5.3）。 */
+    fun setBrowserDefaultAvatarKey(key: String) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setBrowserAvatarKey(key) }
     }
 
     private fun sendFavoriteFile(favorite: FavoriteEntity) {

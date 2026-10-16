@@ -37,7 +37,7 @@ import com.example.flikky.server.DeviceRegistry
 import com.example.flikky.server.KtorServer
 import com.example.flikky.server.PinAuth
 import com.example.flikky.server.ServiceMode
-import com.example.flikky.server.dto.PeerAvatarChangedDto
+import com.example.flikky.server.dto.toDtoJson
 import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.dto.LeadingVisualDto
 import com.example.flikky.server.dto.ServerFavoriteOutcome
@@ -110,6 +110,7 @@ class TransferService : Service() {
     @Volatile private var currentMode: ServiceMode? = null
     private var currentRequirePin: Boolean = true
     private var statusBroadcastJob: Job? = null
+    private var devicesJob: Job? = null
     private var peerFavoritesJob: Job? = null
 
     private val rebinder = NetworkRebinder()
@@ -271,20 +272,13 @@ class TransferService : Service() {
                     // server 侧的 SharedStorageBrowser 在非 suspend 路径上列举，
                     // 拿不到 DataStore 的 Flow —— 这里是它唯一的同步入口。
                     ServiceLocator.latestShowHiddenFiles = it.showHiddenFiles
-                    // DataStore -> session + browser propagation (single point). Skips when the
-                    // session already holds the value - adoption/Serving paths write the session
-                    // first, so this also suppresses echo broadcasts back to the browser.
+                    // 「浏览器默认头像」（spec §5.3）：会话内镜像一份给聊天气泡兜底；没自选过头像的设备跟着变，
+                    // 只推给变了的那几台。必须经 field 现取 [ktor]（rebind 引用规范）。
                     val browserAvatar = it.browserAvatarKey
-                    if (browserAvatar != ServiceLocator.session.peerAvatarKey.value) {
-                        ServiceLocator.session.setPeerAvatarKey(browserAvatar)
-                        if (currentMode == ServiceMode.Transfer) {
-                            ktor?.wsHub?.broadcast(
-                                "peer_avatar_changed",
-                                WireJson.encodeToString(
-                                    PeerAvatarChangedDto.serializer(),
-                                    PeerAvatarChangedDto(browserAvatar),
-                                ),
-                            )
+                    ServiceLocator.session.setPeerAvatarKey(browserAvatar)
+                    if (currentMode == ServiceMode.Transfer) {
+                        deviceRegistry?.applyDefaultAvatar(browserAvatar)?.forEach { d ->
+                            ktor?.wsHub?.sendToDevice(d.deviceId, "device_updated", d.toDtoJson())
                         }
                     }
                     broadcastCurrentSettings()
@@ -300,6 +294,13 @@ class TransferService : Service() {
         pinAuth = auth
         val registry = DeviceRegistry(defaultAvatar = { latestSettings.browserAvatarKey })
         deviceRegistry = registry
+        // 设备 → 界面与会话快照。`sid` 是本函数的局部值（会话 id 跨 rebind 不变），不是 KtorServer 成员。
+        devicesJob = scope.launch {
+            registry.devices.collect { list ->
+                ServiceLocator.session.setDevices(list)
+                list.forEach { d -> runCatching { ServiceLocator.repository.upsertSessionDevice(sid, d) } }
+            }
+        }
 
         currentMode = ServiceMode.Transfer
         // 新会话从用户设定的端口起扫（spec §4.6）；只有 rebind 沿用已绑端口。
@@ -330,6 +331,8 @@ class TransferService : Service() {
             scope = scope,
             recallEnabled = { latestSettings.recallBetaEnabled },
             allowPeerRecall = { latestSettings.allowPeerRecall },
+            devices = registry,
+            onDeviceRevoked = { refreshPinAfterRevoke() },
         )
         // v1.3：HistoryViewModel 撤回入口通过 ServiceLocator 拿 controller。
         // 见 ServiceLocator.currentController 的 KDoc。
@@ -498,6 +501,7 @@ class TransferService : Service() {
         ServiceLocator.currentController = null
         statusBroadcastJob?.cancel(); statusBroadcastJob = null
         peerFavoritesJob?.cancel(); peerFavoritesJob = null
+        devicesJob?.cancel(); devicesJob = null
 
         if (mode == ServiceMode.Transfer) {
             val sid = currentSessionId
@@ -509,7 +513,8 @@ class TransferService : Service() {
                             sid,
                             endedAt = System.currentTimeMillis(),
                             peerAvatarId = ServiceLocator.session.peerAvatarId.value,
-                            peerAvatarKey = ServiceLocator.session.peerAvatarKey.value,
+                            peerAvatarKey = ServiceLocator.session.devices.value.firstOrNull()?.avatarKey
+                                ?: ServiceLocator.session.peerAvatarKey.value,
                         )
                         ServiceLocator.repository.fifoSweep()
                     }
@@ -532,9 +537,23 @@ class TransferService : Service() {
         pinAuth = null
         deviceRegistry?.revokeAll()
         deviceRegistry = null
+        ServiceLocator.session.setDevices(emptyList())
         currentHostIp = null
         currentRequirePin = true
         _running.value = null
+    }
+
+    /**
+     * 断开设备之后（spec §4.4）：PIN 模式下 PIN 已用掉、又没人持有凭据时换发一个新 PIN，
+     * 连接卡片随 [_running] 刷新。只换 PIN、不清零防暴力破解计数（见 PinAuth.issueNextPin）。
+     */
+    private fun refreshPinAfterRevoke() {
+        val auth = pinAuth ?: return
+        val registry = deviceRegistry ?: return
+        if (!currentRequirePin || !auth.needsNextPin(registry.hasCredentials())) return
+        auth.issueNextPin(IdGen.newPin())
+        val pin = auth.currentPin() ?: return
+        _running.value = _running.value?.copy(pin = pin)
     }
 
     /**

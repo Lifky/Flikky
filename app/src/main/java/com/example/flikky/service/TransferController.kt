@@ -6,20 +6,24 @@ import android.provider.OpenableColumns
 import com.example.flikky.data.SessionFileStore
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.SessionRepository.RecallOutcome
+import com.example.flikky.server.DeviceRegistry
+import com.example.flikky.server.dto.toDtoJson
 import com.example.flikky.server.dto.FileMessageDto
 import com.example.flikky.server.dto.FileProgressDto
 import com.example.flikky.server.dto.FileReadyDto
 import com.example.flikky.server.dto.FileRemovedDto
-import com.example.flikky.server.dto.PeerAvatarChangedDto
 import com.example.flikky.server.dto.TextMessageDto
 import com.example.flikky.server.dto.WireJson
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
+import com.example.flikky.session.PeerDevice
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
 import com.example.flikky.session.canRecallMessage
+import com.example.flikky.util.DeviceNamePolicy
 import com.example.flikky.util.IdGen
+import com.example.flikky.util.PeerAvatarPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -50,6 +54,10 @@ class TransferController(
     private val scope: CoroutineScope,
     private val recallEnabled: () -> Boolean = { false },
     private val allowPeerRecall: () -> Boolean = { false },
+    /** 本次服务的设备（spec §3）。TransferService 字段，跨 rebind 存活，不是 KtorServer 成员。 */
+    private val devices: DeviceRegistry = DeviceRegistry(),
+    /** 断开之后回调：PIN 模式下没人再持有凭据时由 TransferService 换发 PIN（spec §4.4）。 */
+    private val onDeviceRevoked: () -> Unit = {},
 ) {
     suspend fun sendText(text: String) {
         if (text.isBlank()) return
@@ -225,9 +233,27 @@ class TransferController(
         return outcome
     }
 
-    suspend fun setPeerAvatarKey(key: String) {
-        session.setPeerAvatarKey(key)
-        val dto = PeerAvatarChangedDto(key)
-        wsHub()?.broadcast("peer_avatar_changed", WireJson.encodeToString(PeerAvatarChangedDto.serializer(), dto))
+    /** 手机设备面板改名（spec §6.3 #11）。空串 = 恢复默认名。 */
+    suspend fun renameDevice(deviceId: String, name: String) {
+        val updated = devices.update(deviceId, name = DeviceNamePolicy.normalize(name)) ?: return
+        pushDevice(updated)
+    }
+
+    /** 手机给某台设备单独换头像：记为「本机自选」，之后不再跟随默认值（spec §5.3）。 */
+    suspend fun setDeviceAvatar(deviceId: String, key: String) {
+        if (!PeerAvatarPolicy.isAcceptableKey(key)) return
+        val updated = devices.update(deviceId, avatarKey = key, avatarExplicit = true) ?: return
+        pushDevice(updated)
+    }
+
+    /** 断开：撤销凭据 → 告诉那台设备并关闭它的连接 → 回调（spec §4.4）。 */
+    suspend fun disconnectDevice(deviceId: String) {
+        if (!devices.revoke(deviceId)) return
+        wsHub()?.closeDevice(deviceId)
+        onDeviceRevoked()
+    }
+
+    private suspend fun pushDevice(device: PeerDevice) {
+        wsHub()?.sendToDevice(device.deviceId, "device_updated", device.toDtoJson())
     }
 }

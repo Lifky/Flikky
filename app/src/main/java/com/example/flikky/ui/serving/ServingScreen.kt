@@ -494,10 +494,10 @@ fun ServingScreen(
             // 用的是只落库的 setBrowserAvatarKey，在会话中不够（浏览器不会立刻跟随）。
             val isApp = avatarSheetTab == 0
             AvatarPickerSheet(
-                currentKey = if (isApp) settings.phoneAvatarKey else peerAvatarKey,
+                currentKey = if (isApp) settings.phoneAvatarKey else settings.browserAvatarKey,
                 fallbackKey = if (isApp) AvatarKey.DEFAULT_PHONE else AvatarKey.DEFAULT_PEER,
                 onSelect = {
-                    if (isApp) viewModel.setPhoneAvatarKey(it) else viewModel.setPeerAvatarKey(it)
+                    if (isApp) viewModel.setPhoneAvatarKey(it) else viewModel.setBrowserDefaultAvatarKey(it)
                     quickPicker = null
                 },
                 onDismiss = { quickPicker = null },
@@ -535,7 +535,7 @@ fun ServingScreen(
             title = stringResource(R.string.serving_choose_browser_avatar),
             currentKey = peerAvatarKey,
             fallbackKey = AvatarKey.DEFAULT_PEER,
-            onSelect = { viewModel.setPeerAvatarKey(it); showPeerAvatarPicker = false },
+            onSelect = { viewModel.setBrowserDefaultAvatarKey(it); showPeerAvatarPicker = false },
             onDismiss = { showPeerAvatarPicker = false },
         )
     }

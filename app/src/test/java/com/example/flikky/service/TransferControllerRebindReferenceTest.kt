@@ -78,4 +78,28 @@ class TransferControllerRebindReferenceTest {
         coVerify(exactly = 1) { oldHub.broadcast(any(), any()) }   // still 1
         coVerify(exactly = 1) { newHub.broadcast("text_added", any()) }
     }
+
+    @Test
+    fun `disconnectDevice closes the device on the current hub even after rebind`() = runTest {
+        val oldHub = mockk<WsHub>(relaxed = true)
+        val newHub = mockk<WsHub>(relaxed = true)
+        var currentHub: WsHub? = oldHub
+        val registry = com.example.flikky.server.DeviceRegistry(idSupplier = { "dev-1" })
+        registry.issue(null, viaPin = true, token = "T")
+        val controller = TransferController(
+            session = SessionState(nowMs = { 1_000L }).apply { startNew(sessionId = 42L) },
+            stats = TransferStats(nowMs = { 1_000L }),
+            fileStore = mockk(relaxed = true),
+            repository = mockk(relaxed = true),
+            wsHub = { currentHub },
+            nowMs = { 1_000L },
+            senderId = "phone-test",
+            scope = TestScope(),
+            devices = registry,
+        )
+        currentHub = newHub
+        controller.disconnectDevice("dev-1")
+        coVerify(exactly = 0) { oldHub.closeDevice(any()) }
+        coVerify(exactly = 1) { newHub.closeDevice("dev-1") }
+    }
 }
