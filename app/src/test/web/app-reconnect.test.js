@@ -9,7 +9,7 @@ const source = fs.readFileSync(path.join(__dirname, '../../main/assets/web/app.j
 function connection() {
   const sockets = [], events = [], changes = [], timers = [];
   const context = {
-    currentWs: null, reconnectTimer: null, serverStopped: false, hadConnected: false,
+    currentWs: null, reconnectTimer: null, serverStopped: false, deviceRevoked: false, hadConnected: false,
     peerAppearanceRevision: 0,
     location: { protocol: 'http:', host: 'phone' },
     WebSocket: function () { this.readyState = 0; sockets.push(this); },

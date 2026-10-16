@@ -3,52 +3,31 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
+const { functionBody } = require('./scan.js');
 
-const appJsPath = path.resolve(__dirname, '../../main/assets/web/app.js');
-const appJs = fs.readFileSync(appJsPath, 'utf8');
+const appJs = fs.readFileSync(path.resolve(__dirname, '../../main/assets/web/app.js'), 'utf8');
 
-const helloStart = appJs.indexOf('function sendClientHello');
-const helloEnd = appJs.indexOf('// Init header avatar on load.');
-assert.notEqual(helloStart, -1, 'sendClientHello marker must exist');
-assert.notEqual(helloEnd, -1, 'hello end marker must exist');
-const helloSlice = appJs.slice(helloStart, helloEnd);
-
-function sentFrames(invoke) {
+test('the connect announce sends the device-self hello frame', () => {
     const frames = [];
     const context = {
         JSON,
         myAvatarKey: 'icon:star',
-        currentWs: { readyState: 1, send(frame) { frames.push(frame); } },
+        localStorage: {},
+        // app.js 里的局部常量叫 deviceSelf（= window.flikkyDeviceSelf）。
+        deviceSelf: { helloFrame: (storage, key) => ({ type: 'client_hello', avatarKey: key, avatarExplicit: true, deviceName: '客厅电脑' }) },
+        currentWs: { readyState: 1, send(frame) { frames.push(JSON.parse(frame)); } },
     };
-    vm.runInNewContext(`${helloSlice}\n${invoke}`, context);
-    return frames.map((frame) => JSON.parse(frame));
-}
-
-test('connect announce sends explicit false', () => {
-    const frames = sentFrames('sendClientHello(false);');
-    assert.equal(frames.length, 1);
-    assert.deepEqual(frames[0], {
-        type: 'client_hello',
-        avatarKey: 'icon:star',
-        explicit: false,
-    });
+    vm.runInNewContext(`${functionBody(appJs, 'function sendClientHello(')}\nsendClientHello();`, context);
+    assert.deepEqual(frames, [{ type: 'client_hello', avatarKey: 'icon:star', avatarExplicit: true, deviceName: '客厅电脑' }]);
 });
 
-test('user pick sends explicit true', () => {
-    const frames = sentFrames('sendClientHello(true);');
-    assert.deepEqual(frames[0], {
-        type: 'client_hello',
-        avatarKey: 'icon:star',
-        explicit: true,
-    });
+test('picking an avatar saves it as this device\'s own choice instead of re-announcing', () => {
+    const body = functionBody(appJs, 'function selectAvatar(');
+    assert.ok(body.includes('markAvatarExplicit'), 'selectAvatar must mark the pick as explicit');
+    assert.ok(body.includes('putSelf('), 'selectAvatar must save through PUT /api/devices/self');
+    assert.equal(body.includes('sendClientHello'), false, 'a pick is not an announce');
 });
 
-test('call sites pass the right explicit flag', () => {
-    const selectAvatarBody = appJs.slice(
-        appJs.indexOf('function selectAvatar'),
-        appJs.indexOf('function sendClientHello'),
-    );
-    assert.ok(selectAvatarBody.includes('sendClientHello(true)'), 'selectAvatar must send explicit:true');
-    assert.ok(appJs.includes('sendClientHello(false)'), 'connect announce must send explicit:false');
-    assert.ok(!appJs.includes('sendClientHello();'), 'no call site may omit the explicit flag');
+test('the old phone push of the browser avatar is gone', () => {
+    assert.equal(appJs.includes('peer_avatar_changed'), false);
 });

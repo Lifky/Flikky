@@ -171,6 +171,83 @@
     }
 
     let myAvatarKey = readMyAvatarKey();
+    // v1.23：本机设备记录（spec §7）。第一次 device_updated 到达前为 null，界面用默认名兜底。
+    let mySelf = null;
+    const deviceSelf = window.flikkyDeviceSelf;
+
+    function myDisplayName() {
+        return deviceSelf ? deviceSelf.displayName(mySelf, t('app.device.browser')) : t('app.device.browser');
+    }
+
+    // 发布到 <body>，设置面板自己观察（D1：app.js 只管发布）；侧栏头像的提示带上本机名（spec §7.1 #24）。
+    function publishSelfName() {
+        const name = myDisplayName();
+        document.body.dataset.deviceName = name;
+        const btn = document.getElementById('my-avatar-btn');
+        if (!btn) return;
+        // 这两个属性改由这里维护：留着 data-i18n-* 的话，切语言时会被静态译文盖回不带名字的版本。
+        btn.removeAttribute('data-i18n-title');
+        btn.removeAttribute('data-i18n-aria-label');
+        btn.title = t('app.my_avatar_named', { name });
+        btn.setAttribute('aria-label', t('app.my_avatar_named', { name }));
+    }
+
+    function applySelf(payload) {
+        if (!deviceSelf) return;
+        const self = deviceSelf.applyUpdate(localStorage, payload);
+        if (!self) return;
+        mySelf = self;
+        if (self.avatarKey) {
+            myAvatarKey = normalizeAvatarKey(self.avatarKey, AVATAR_DEFAULT_BROWSER);
+            renderMyAvatarBtn();
+            refreshBrowserMessageAvatars();
+            updatePickerSelection();
+        }
+        publishSelfName();
+    }
+
+    async function putSelf(body) {
+        try {
+            const r = await fetch('/api/devices/self', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-Client-Id': myClientId },
+                body: JSON.stringify(body),
+            });
+            if (r.status === 401) { onDeviceRevoked('unauthorized'); return; }
+            if (!r.ok) throw new Error(String(r.status));
+            applySelf(await r.json());
+        } catch (_) {
+            if (window.flikky && window.flikky.showError) window.flikky.showError(t('app.device.update_failed'));
+        }
+    }
+
+    function openDeviceNameDialog() {
+        const dialog = document.getElementById('device-name-dialog');
+        const input = document.getElementById('device-name-input');
+        if (!dialog || !input) return;
+        input.value = myDisplayName();
+        const okBtn = dialog.querySelector('[data-action="confirm"]');
+        const cancelBtn = dialog.querySelector('[data-action="cancel"]');
+        function cleanup() {
+            dialog.open = false;
+            okBtn.removeEventListener('click', submit);
+            cancelBtn.removeEventListener('click', cleanup);
+            input.removeEventListener('keydown', onKey);
+        }
+        function submit() {
+            cleanup();
+            if (!deviceSelf) return;
+            const draft = deviceSelf.clampName(input.value);
+            // 改回默认名 = 清空，与手机端同一语义（spec §5.2）。
+            const fallback = deviceSelf.defaultName(mySelf, t('app.device.browser'));
+            putSelf({ name: draft === fallback ? '' : draft });
+        }
+        function onKey(e) { if (e.key === 'Enter') submit(); }
+        okBtn.addEventListener('click', submit);
+        cancelBtn.addEventListener('click', cleanup);
+        input.addEventListener('keydown', onKey);
+        dialog.open = true;
+    }
     let phoneAvatarKey = AVATAR_DEFAULT_PHONE;
     let avatarPickerFilled = avatarIconSpec(normalizeAvatarKey(myAvatarKey, AVATAR_DEFAULT_BROWSER)).filled;
     let avatarGrouping = 'EACH';
@@ -706,26 +783,26 @@
         refreshBrowserMessageAvatars();
         updatePickerSelection();
         closeAvatarPicker();
-        // Re-send client_hello so the phone updates its view of our avatar.
-        sendClientHello(true);
+        if (deviceSelf) deviceSelf.markAvatarExplicit(localStorage, myAvatarKey);
+        // 浏览器自己选的头像：只改这台设备，标为「本机自选」，不再改写手机的「浏览器默认」（spec §5.3）。
+        putSelf({ avatarKey: myAvatarKey });
     }
 
-    // ── M9b: client_hello ─────────────────────────────────────────────────
-    function sendClientHello(explicit) {
-        if (currentWs && currentWs.readyState === 1) {
-            try {
-                currentWs.send(JSON.stringify({
-                    type: 'client_hello',
-                    avatarKey: myAvatarKey,
-                    // Explicit picks win on the phone; connect announces may be pushed back.
-                    explicit: !!explicit,
-                }));
-            } catch (_) {}
-        }
+    // ── M9b / v1.23: client_hello ────────────────────────────────────────
+    // 连接后第一帧：用本地记忆（名字、头像、是否自选）告诉手机「我是谁」。服务端只采纳每台设备的第一次。
+    function sendClientHello() {
+        if (!currentWs || currentWs.readyState !== 1) return;
+        try {
+            const frame = deviceSelf
+                ? deviceSelf.helloFrame(localStorage, myAvatarKey)
+                : { type: 'client_hello', avatarKey: myAvatarKey, avatarExplicit: false, deviceName: '' };
+            currentWs.send(JSON.stringify(frame));
+        } catch (_) {}
     }
 
     // Init header avatar on load.
     renderMyAvatarBtn();
+    publishSelfName();
 
     // Attach picker open/close handlers after DOM is ready.
     const myAvatarBtnEl = document.getElementById('my-avatar-btn');
@@ -1456,6 +1533,14 @@
             handlePong(ev.id);
             return;
         }
+        if (ev.type === 'device_updated') {
+            applySelf(ev.payload);
+            return;
+        }
+        if (ev.type === 'device_revoked') {
+            onDeviceRevoked('revoked');
+            return;
+        }
         // 服务端主动停止 — 抢在 ws.onclose 之前标记，让重连流程跳过这个 WS。
         if (ev.type === 'server_stopped') {
             serverStopped = true;
@@ -1537,15 +1622,6 @@
         } else if (ev.type === 'status') {
             lastStatus = ev.payload;
             renderStatus();
-        } else if (ev.type === 'peer_avatar_changed') {
-            if (ev.payload && typeof ev.payload.avatarKey === 'string') {
-                myAvatarKey = normalizeAvatarKey(ev.payload.avatarKey, AVATAR_DEFAULT_BROWSER);
-                localStorage.setItem('flikky_avatar_key', myAvatarKey);
-                localStorage.removeItem('flikky_avatar');
-                renderMyAvatarBtn();
-                refreshBrowserMessageAvatars();
-                updatePickerSelection();
-            }
         } else if (ev.type === 'settings_changed') {
             peerAppearanceRevision++;
             applyPeerAppearance(ev.payload || {}, t('app.phone'));
@@ -1578,6 +1654,7 @@
         const knownIds = Array.from(list.querySelectorAll('[data-message-id]'), node => String(node.dataset.messageId));
         lastBubbleOrigin = null;
         const r = await fetch('/api/messages');
+        if (r.status === 401) { onDeviceRevoked('unauthorized'); return; }
         if (!r.ok) return;
         const data = await r.json();
         if (connection !== currentWs || serverStopped) return;
@@ -1648,12 +1725,21 @@
 
     const connectionDialog = document.getElementById('connection-dialog');
     const connectionDialogMessage = document.getElementById('connection-dialog-message');
+    const connectionDialogReconnect = document.getElementById('connection-dialog-reconnect');
+    const connectionDialogIcon = document.getElementById('connection-dialog-icon');
+    if (connectionDialogReconnect) {
+        // 回首页：开着 PIN 进登录页，关 PIN 直接签发一台新设备（spec §7.2 #25）。
+        connectionDialogReconnect.addEventListener('click', () => { location.href = '/'; });
+    }
     let connectionDialogState = null;
     function showConnectionDialog(kind, key, values) {
         if (!connectionDialog || !connectionDialogMessage) return;
         connectionDialogState = { kind, key, values };
         connectionDialog.dataset.kind = kind;
         connectionDialogMessage.textContent = t(key, values);
+        const deviceGone = kind === 'revoked' || kind === 'unauthorized';
+        if (connectionDialogReconnect) connectionDialogReconnect.hidden = !deviceGone;
+        if (connectionDialogIcon) connectionDialogIcon.dataset.icon = deviceGone ? 'link_off' : 'signal_disconnected';
         connectionDialog.open = true;
     }
     function hideConnectionDialog() {
@@ -1672,6 +1758,7 @@
     // 这种情况下浏览器不该尝试重连 —— 下次启动的服务是新会话，新 PIN，
     // 旧 URL 反正连不上。区分这两种语义是 user 在 test3 之后的核心反馈。
     let serverStopped = false;
+    let deviceRevoked = false;
     let activeUploads = [];
     // 重连尝试上限。万一 server_stopped event 由于 race 没及时到达浏览器，
     // 这一层兜底确保不会无限重连；每次握手也有 5 秒上限。
@@ -1775,8 +1862,17 @@
         pingFailCount = 0;
     }
 
+    // v1.23：手机断开了这台设备，或凭据已失效（spec §4.4、§4.6）。与 server_stopped 一样停止重连。
+    function onDeviceRevoked(kind) {
+        deviceRevoked = true;
+        setWebConnectionActive(false);
+        setConnectionWatermarkState('disconnected');
+        setSendEnabled(false);
+        showConnectionDialog(kind, kind === 'unauthorized' ? 'app.device.unauthorized' : 'app.device.revoked');
+    }
+
     function openWs() {
-        if (serverStopped) return;
+        if (serverStopped || deviceRevoked) return;
         if (currentWs && (currentWs.readyState === 0 || currentWs.readyState === 1)) return;
         if (reconnectTimer != null) { clearTimeout(reconnectTimer); reconnectTimer = null; }
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1798,7 +1894,7 @@
             reconnectAttempts = 0;   // 成功一次就清零计数
             startHeartbeat();
             // M9b: announce our avatar to the phone; fetch phone's info.
-            sendClientHello(false);
+            sendClientHello();
             fetchPeerInfo().catch(() => {});
             // 重连后追平断开期间手机端发的消息（seen 集合 dedup 防重复渲染）。
             loadHistory().catch(() => {});
@@ -1812,7 +1908,7 @@
             }
             hadConnected = true;
         };
-        ws.onclose = () => {
+        ws.onclose = (event) => {
             clearTimeout(connectTimer);
             // enterDisconnected 把 currentWs 设为 null → 旧 WS 到这里 noop。
             // 只有「新 WS 连接失败」或「server 正常 close」才走到下面。
@@ -1824,6 +1920,13 @@
             setConn('app.disconnected');
             setSendEnabled(false);
             stopHeartbeat();
+            const closeKind = deviceSelf ? deviceSelf.closeKind(event && event.code) : null;
+            if (deviceRevoked || closeKind) {
+                deviceRevoked = true;
+                const kind = closeKind || 'revoked';
+                showConnectionDialog(kind, kind === 'unauthorized' ? 'app.device.unauthorized' : 'app.device.revoked');
+                return;
+            }
             if (serverStopped) {
                 showConnectionDialog('terminated', 'app.service_stopped');
                 return;
@@ -1845,7 +1948,7 @@
             // 不在 onerror 里做重试 — 让 onclose 兜底，避免双重 timer。
         };
         ws.onmessage = (e) => {
-            if (currentWs !== ws || serverStopped) return;
+            if (currentWs !== ws || serverStopped || deviceRevoked) return;
             lastFrameAt = Date.now();
             try { onWsEvent(JSON.parse(e.data)); } catch (_) {}
         };
@@ -2281,6 +2384,8 @@
     window.setMobileDest = setMobileDest;
     window.flikky = window.flikky || {};
     window.flikky.animateShellLayout = animateShellLayout;
+    window.flikky.openDeviceNameDialog = openDeviceNameDialog;
+    window.flikky.openAvatarPicker = openAvatarPicker;
     // 分类图标映射的唯一事实源，供收藏面板取用（见 fileSymbolName 处的注释）。
     window.flikky.fileSymbolName = fileSymbolName;
     window.flikky.mediaKind = mediaKind;
@@ -2398,6 +2503,7 @@
     });
 
     i18n.onChange(() => {
+        publishSelfName();
         conn.textContent = t(currentConnKey);
         if (lastStatus) renderStatus();
         else countEl.textContent = countText('app.files', 0);

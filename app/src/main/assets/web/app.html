@@ -269,9 +269,10 @@
     </mdui-dialog>
 
     <mdui-dialog id="connection-dialog">
-        <span slot="icon" class="material-symbols-outlined" data-icon="signal_disconnected" aria-hidden="true"></span>
+        <span slot="icon" id="connection-dialog-icon" class="material-symbols-outlined" data-icon="signal_disconnected" aria-hidden="true"></span>
         <div slot="headline" data-i18n="app.disconnected">已断开</div>
         <div id="connection-dialog-message" role="status" aria-live="assertive"></div>
+        <mdui-button slot="action" id="connection-dialog-reconnect" variant="text" data-i18n="app.device.reconnect" hidden>重新连接</mdui-button>
     </mdui-dialog>
 
     <!-- v1.3 D26: 撤回二次确认 dialog。两端一致：手机端 AlertDialog ⇄ 浏览器 mdui-dialog -->
@@ -279,6 +280,13 @@
         <div data-i18n="app.recall_body" style="padding: 0 24px 8px;">撤回后两端都会消失，不可恢复。</div>
         <mdui-button slot="action" data-action="cancel" data-i18n="common.cancel" variant="text">取消</mdui-button>
         <mdui-button slot="action" data-action="confirm" data-i18n="app.recall" variant="text">撤回</mdui-button>
+    </mdui-dialog>
+
+    <!-- v1.23：给这台浏览器起名（spec §7.1 #21）。计数规则与手机端一致：UTF-16 计 20。 -->
+    <mdui-dialog id="device-name-dialog" close-on-overlay-click="true" close-on-esc="true" headline="设备名称" data-i18n-headline="app.device.name_title">
+        <mdui-text-field id="device-name-input" variant="outlined" maxlength="20" counter enterkeyhint="done" label="最多 20 字" data-i18n-label="app.device.name_limit"></mdui-text-field>
+        <mdui-button slot="action" data-action="cancel" data-i18n="common.cancel" variant="text">取消</mdui-button>
+        <mdui-button slot="action" data-action="confirm" data-i18n="common.confirm" variant="text">确定</mdui-button>
     </mdui-dialog>
 
     <mdui-snackbar id="snackbar" placement="top"></mdui-snackbar>
@@ -299,6 +307,7 @@
     <script src="/static/snackbar.js"></script>
     <script src="/static/leading-types.js"></script>
     <script src="/static/leading.js"></script>
+    <script src="/static/device-self.js"></script>
     <script src="/static/app.js"></script>
     <script src="/static/sort.js"></script>
     <script src="/static/sort-menu.js"></script>
