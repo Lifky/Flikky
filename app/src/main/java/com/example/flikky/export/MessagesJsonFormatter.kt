@@ -27,6 +27,7 @@ object MessagesJsonFormatter {
             endedAt = endedAt,
             pinned = pinned,
             messages = messages.map { it.toDto(fileIdToRelativePath) },
+            devices = devices,
         )
 
     private fun MessageExport.toDto(fileIdToRelativePath: Map<String, String>?): MessageDto =
@@ -35,6 +36,7 @@ object MessagesJsonFormatter {
                 ts = ts,
                 origin = origin.wireName(),
                 content = content,
+                senderDeviceId = senderDeviceId,
             )
             is MessageExport.File -> MessageDto.FileDto(
                 ts = ts,
@@ -45,6 +47,7 @@ object MessagesJsonFormatter {
                 sizeBytes = sizeBytes,
                 relativePath = fileIdToRelativePath?.get(fileId) ?: "files/$name",
                 status = status,
+                senderDeviceId = senderDeviceId,
             )
         }
 }

@@ -46,7 +46,7 @@ object ZipExporter {
     private const val SAFE_NAME_MAX = 40
     private const val README_TIMESTAMP_PATTERN = "yyyy-MM-dd HH:mm:ss"
     private const val BUFFER_SIZE = 8 * 1024
-    private const val SCHEMA_VERSION = 2
+    private const val SCHEMA_VERSION = 3 // 3：v1.23 会话带 devices、消息带 senderDeviceId
     private val json = Json { encodeDefaults = true }
 
     fun write(

@@ -77,4 +77,14 @@ class SessionRepositoryDevicesTest {
         )
         assertTrue(bare.observeSessionDevices(1L).first().isEmpty())
     }
+
+    @Test fun `an exported session carries its devices`() = runTest {
+        val sid = repo.beginSession("s", startedAt = 1L)
+        repo.appendMessage(sid, Message.Text(id = 43L, origin = Origin.BROWSER, timestamp = 2L, content = "hi", senderDeviceId = "dev-1"))
+        repo.upsertSessionDevice(sid, device(name = "张三的笔记本"))
+        repo.endSession(sid, endedAt = 3L)
+        val exported = repo.exportSnapshot(listOf(sid)).sessions.single()
+        assertEquals("张三的笔记本", exported.devices.single().name)
+        assertEquals("dev-1", (exported.messages.single() as com.example.flikky.export.MessageExport.Text).senderDeviceId)
+    }
 }

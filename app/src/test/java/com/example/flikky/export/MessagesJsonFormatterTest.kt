@@ -207,7 +207,7 @@ class MessagesJsonFormatterTest {
 
         // top-level keys all present
         val expectedKeys = setOf(
-            "sessionId", "name", "startedAt", "endedAt", "pinned", "messages",
+            "sessionId", "name", "startedAt", "endedAt", "pinned", "messages", "devices",
         )
         assertEquals(expectedKeys, root.keys)
 
@@ -215,13 +215,13 @@ class MessagesJsonFormatterTest {
         assertEquals(2, msgs.size)
 
         val textKeys = msgs[0].jsonObject.keys
-        assertEquals(setOf("type", "ts", "origin", "content"), textKeys)
+        assertEquals(setOf("type", "ts", "origin", "content", "senderDeviceId"), textKeys)
 
         val fileKeys = msgs[1].jsonObject.keys
         assertEquals(
             setOf(
                 "type", "ts", "origin",
-                "fileId", "name", "mime", "sizeBytes", "relativePath", "status",
+                "fileId", "name", "mime", "sizeBytes", "relativePath", "status", "senderDeviceId",
             ),
             fileKeys,
         )

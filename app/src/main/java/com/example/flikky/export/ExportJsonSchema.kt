@@ -36,6 +36,7 @@ internal data class SessionDto(
     val endedAt: Long?,
     val pinned: Boolean,
     val messages: List<MessageDto>,
+    val devices: List<SessionDeviceExport> = emptyList(),
 )
 
 @Serializable
@@ -49,6 +50,7 @@ internal sealed class MessageDto {
         override val ts: Long,
         override val origin: String,
         val content: String,
+        val senderDeviceId: String? = null,
     ) : MessageDto()
 
     @Serializable
@@ -62,5 +64,6 @@ internal sealed class MessageDto {
         val sizeBytes: Long,
         val relativePath: String,
         val status: String? = null,
+        val senderDeviceId: String? = null,
     ) : MessageDto()
 }

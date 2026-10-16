@@ -14,6 +14,7 @@ data class ParsedSession(
     val messages: List<ParsedMessage>,
     val version: String?,
     val sessionDir: String,
+    val devices: List<SessionDeviceExport> = emptyList(),
 )
 
 data class ParsedBackup(
@@ -32,6 +33,7 @@ sealed class ParsedMessage {
         override val ts: Long,
         override val origin: String,
         val content: String,
+        val senderDeviceId: String? = null,
     ) : ParsedMessage()
 
     data class File(
@@ -43,6 +45,7 @@ sealed class ParsedMessage {
         val sizeBytes: Long,
         val relativePath: String,
         val status: String? = null,
+        val senderDeviceId: String? = null,
     ) : ParsedMessage()
 }
 
@@ -76,6 +79,7 @@ object ZipImporter {
                 messages = messages,
                 version = version,
                 sessionDir = sessionDir,
+                devices = dto.devices,
             ))
         }
         return sessions
@@ -173,12 +177,14 @@ object ZipImporter {
     private fun MessageDto.toParsedMessage(): ParsedMessage = when (this) {
         is MessageDto.TextDto -> ParsedMessage.Text(
             ts = ts, origin = origin, content = content,
+            senderDeviceId = senderDeviceId,
         )
         is MessageDto.FileDto -> ParsedMessage.File(
             ts = ts, origin = origin, fileId = fileId,
             name = name, mime = mime, sizeBytes = sizeBytes,
             relativePath = relativePath,
             status = status,
+            senderDeviceId = senderDeviceId,
         )
     }
 }

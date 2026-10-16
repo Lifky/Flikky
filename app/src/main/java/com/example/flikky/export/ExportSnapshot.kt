@@ -101,6 +101,21 @@ data class SettingsExport(
     val autoCheckUpdate: Boolean? = null,
 )
 
+/**
+ * v1.23：会话参与设备（spec §8.2）。既是导出模型也是归档 JSON 形状 —— 同 [FavoriteExport] 的做法。
+ * 全部字段有默认值，旧归档、旧版 App 导入都不受影响（导入端 `ignoreUnknownKeys`）。
+ */
+@Serializable
+data class SessionDeviceExport(
+    val deviceId: String,
+    val kind: String = "BROWSER",
+    val name: String = "",
+    val defaultLabel: String? = null,
+    val defaultOrdinal: Int = 1,
+    val avatarKey: String = "icon:desktop_windows",
+    val firstSeenAt: Long = 0L,
+)
+
 data class SessionExport(
     val id: Long,
     val name: String,
@@ -108,6 +123,7 @@ data class SessionExport(
     val endedAt: Long?,
     val pinned: Boolean,
     val messages: List<MessageExport>,
+    val devices: List<SessionDeviceExport> = emptyList(),
 )
 
 sealed class MessageExport {
@@ -118,6 +134,7 @@ sealed class MessageExport {
         override val ts: Long,
         override val origin: Origin,
         val content: String,
+        val senderDeviceId: String? = null,
     ) : MessageExport()
 
     data class File(
@@ -128,5 +145,6 @@ sealed class MessageExport {
         val mime: String,
         val sizeBytes: Long,
         val status: String? = null,
+        val senderDeviceId: String? = null,
     ) : MessageExport()
 }

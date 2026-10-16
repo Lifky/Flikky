@@ -7,12 +7,14 @@ import com.example.flikky.data.db.SessionDao
 import com.example.flikky.data.db.SessionDeviceDao
 import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.MessageEntity
+import com.example.flikky.data.db.entities.SessionDeviceEntity
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.export.ExportScope
 import com.example.flikky.export.MessageExport
 import com.example.flikky.export.ParsedMessage
 import com.example.flikky.export.ParsedSession
+import com.example.flikky.export.SessionDeviceExport
 import com.example.flikky.export.SessionExport
 import com.example.flikky.export.ZipImporter
 import com.example.flikky.export.wireNameToOrigin
@@ -269,14 +271,14 @@ class SessionRepository(
             val row = sessionDao.getById(id) ?: continue
             if (row.endedAt == null) continue
             val messages = messageDao.listBySession(row.id)
-            sessions.add(row.toSessionExport(messages))
+            sessions.add(row.toSessionExport(messages, sessionDeviceDao?.listBySession(row.id).orEmpty()))
         }
         return ExportSnapshot(sessions = sessions, exportedAt = now())
     }
 
     suspend fun exportAllSnapshot(): ExportSnapshot {
         val sessions = sessionDao.listFinished().map { row ->
-            row.toSessionExport(messageDao.listBySession(row.id))
+            row.toSessionExport(messageDao.listBySession(row.id), sessionDeviceDao?.listBySession(row.id).orEmpty())
         }
         return ExportSnapshot(
             sessions = sessions,
@@ -285,7 +287,10 @@ class SessionRepository(
         )
     }
 
-    private fun SessionEntity.toSessionExport(messages: List<MessageEntity>): SessionExport =
+    private fun SessionEntity.toSessionExport(
+        messages: List<MessageEntity>,
+        devices: List<SessionDeviceEntity>,
+    ): SessionExport =
         SessionExport(
             id = id,
             name = name,
@@ -293,6 +298,12 @@ class SessionRepository(
             endedAt = endedAt,
             pinned = pinned,
             messages = messages.map { it.toMessageExport() },
+            devices = devices.map {
+                SessionDeviceExport(
+                    deviceId = it.deviceId, kind = it.kind, name = it.name, defaultLabel = it.defaultLabel,
+                    defaultOrdinal = it.defaultOrdinal, avatarKey = it.avatarKey, firstSeenAt = it.firstSeenAt,
+                )
+            },
         )
 
     private fun MessageEntity.toMessageExport(): MessageExport = when (kind) {
@@ -300,6 +311,7 @@ class SessionRepository(
             ts = timestamp,
             origin = Origin.valueOf(origin),
             content = content ?: "",
+            senderDeviceId = senderDeviceId,
         )
         "FILE" -> MessageExport.File(
             ts = timestamp,
@@ -309,6 +321,7 @@ class SessionRepository(
             mime = fileMime ?: "application/octet-stream",
             sizeBytes = fileSize ?: 0L,
             status = fileStatus,
+            senderDeviceId = senderDeviceId,
         )
         else -> error("Unknown message kind: $kind")
     }
@@ -559,6 +572,7 @@ class SessionRepository(
                                 timestamp = msg.ts,
                                 kind = "TEXT",
                                 content = msg.content,
+                                senderDeviceId = msg.senderDeviceId,
                             ))
                             is ParsedMessage.File -> {
                                 val newFileId = UUID.randomUUID().toString()
@@ -588,6 +602,7 @@ class SessionRepository(
                                     fileSize = msg.sizeBytes,
                                     fileMime = msg.mime,
                                     fileStatus = if (isDeleted) "DELETED" else "COMPLETED",
+                                    senderDeviceId = msg.senderDeviceId,
                                 ))
                             }
                         }
@@ -595,6 +610,15 @@ class SessionRepository(
 
                     if (entities.isNotEmpty()) {
                         messageDao.insertAll(entities)
+                    }
+                    if (parsed.devices.isNotEmpty()) {
+                        sessionDeviceDao?.upsertAll(parsed.devices.map {
+                            SessionDeviceEntity(
+                                sessionId = newSessionId, deviceId = it.deviceId, kind = it.kind, name = it.name,
+                                defaultLabel = it.defaultLabel, defaultOrdinal = it.defaultOrdinal,
+                                avatarKey = it.avatarKey, firstSeenAt = it.firstSeenAt,
+                            )
+                        })
                     }
 
                     val previewText = parsed.messages
