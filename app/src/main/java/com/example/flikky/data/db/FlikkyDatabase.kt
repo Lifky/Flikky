@@ -11,6 +11,7 @@ import com.example.flikky.data.db.entities.MessageFtsEntity
 import com.example.flikky.data.db.entities.FavoriteEntity
 import com.example.flikky.data.db.entities.FavoriteGroupEntity
 import com.example.flikky.data.db.entities.GroupEntity
+import com.example.flikky.data.db.entities.SessionDeviceEntity
 import com.example.flikky.data.db.entities.SessionEntity
 
 @Database(
@@ -21,8 +22,9 @@ import com.example.flikky.data.db.entities.SessionEntity
         GroupEntity::class,
         FavoriteEntity::class,
         FavoriteGroupEntity::class,
+        SessionDeviceEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = false,
 )
 abstract class FlikkyDatabase : RoomDatabase() {
@@ -31,6 +33,7 @@ abstract class FlikkyDatabase : RoomDatabase() {
     abstract fun groupDao(): GroupDao
     abstract fun favoriteDao(): FavoriteDao
     abstract fun favoriteGroupDao(): FavoriteGroupDao
+    abstract fun sessionDeviceDao(): SessionDeviceDao
 
     companion object {
         /**
@@ -197,13 +200,37 @@ abstract class FlikkyDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7: Migration = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `session_devices` (" +
+                        "`sessionId` INTEGER NOT NULL, " +
+                        "`deviceId` TEXT NOT NULL, " +
+                        "`kind` TEXT NOT NULL, " +
+                        "`name` TEXT NOT NULL, " +
+                        "`defaultLabel` TEXT, " +
+                        "`defaultOrdinal` INTEGER NOT NULL, " +
+                        "`avatarKey` TEXT NOT NULL, " +
+                        "`firstSeenAt` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`sessionId`, `deviceId`), " +
+                        "FOREIGN KEY(`sessionId`) REFERENCES `sessions`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL("ALTER TABLE messages ADD COLUMN senderDeviceId TEXT DEFAULT NULL")
+            }
+        }
+
+        /** 生产与迁移测试共用一份清单，加新迁移只改这里。 */
+        val ALL_MIGRATIONS: Array<Migration> = arrayOf(
+            MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+        )
+
         fun build(context: Context): FlikkyDatabase =
             Room.databaseBuilder(
                 context.applicationContext,
                 FlikkyDatabase::class.java,
                 "flikky.db",
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(*ALL_MIGRATIONS)
                 .addCallback(onCreateCallback)
                 .build()
     }

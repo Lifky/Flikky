@@ -4,6 +4,7 @@ import com.example.flikky.data.db.FileOverviewRow
 import com.example.flikky.data.db.MessageDao
 import com.example.flikky.data.db.GroupDao
 import com.example.flikky.data.db.SessionDao
+import com.example.flikky.data.db.SessionDeviceDao
 import com.example.flikky.data.db.entities.GroupEntity
 import com.example.flikky.data.db.entities.MessageEntity
 import com.example.flikky.data.db.entities.SessionEntity
@@ -17,9 +18,11 @@ import com.example.flikky.export.ZipImporter
 import com.example.flikky.export.wireNameToOrigin
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
+import com.example.flikky.session.PeerDevice
 import com.example.flikky.util.IdGen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -36,6 +39,11 @@ class SessionRepository(
     private val fileStore: SessionFileStore,
     private val now: () -> Long,
     private val retainLimitProvider: suspend () -> Int = { 20 },
+    /**
+     * v1.23 会话参与设备快照（spec §8.1）。可空只为让不关心设备的旧测试不必改构造；
+     * 生产由 ServiceLocator 注入。为 null 时设备相关读写都是空操作。
+     */
+    private val sessionDeviceDao: SessionDeviceDao? = null,
 ) {
     suspend fun beginSession(name: String, startedAt: Long, groupId: Long? = null): Long {
         // Seed the message-id counter above all persisted ids BEFORE this session
@@ -57,6 +65,14 @@ class SessionRepository(
     suspend fun appendMessage(sessionId: Long, msg: Message) {
         messageDao.insert(msg.toEntity(sessionId))
     }
+
+    suspend fun upsertSessionDevice(sessionId: Long, device: PeerDevice) {
+        sessionDeviceDao?.upsert(device.toSessionDeviceEntity(sessionId))
+    }
+
+    fun observeSessionDevices(sessionId: Long): Flow<List<PeerDevice>> =
+        sessionDeviceDao?.observeBySession(sessionId)?.map { rows -> rows.map { it.toPeerDevice() } }
+            ?: flowOf(emptyList())
 
     suspend fun endSession(
         sessionId: Long,

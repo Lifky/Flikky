@@ -128,6 +128,7 @@ object ServiceLocator {
             fileStore = fileStore,
             now = System::currentTimeMillis,
             retainLimitProvider = { settingsRepository.settings.first().historyRetainLimit },
+            sessionDeviceDao = database.sessionDeviceDao(),
         )
         favoritesRepository = FavoritesRepository(
             favoriteDao = database.favoriteDao(),

@@ -37,13 +37,7 @@ class FlikkyDatabaseMigrationTest {
         }
 
         val roomDb = Room.databaseBuilder(context, FlikkyDatabase::class.java, TEST_DB)
-            .addMigrations(
-                FlikkyDatabase.MIGRATION_1_2,
-                FlikkyDatabase.MIGRATION_2_3,
-                FlikkyDatabase.MIGRATION_3_4,
-                FlikkyDatabase.MIGRATION_4_5,
-                FlikkyDatabase.MIGRATION_5_6,
-            )
+            .addMigrations(*FlikkyDatabase.ALL_MIGRATIONS)
             .allowMainThreadQueries()
             .build()
         try {
@@ -67,13 +61,7 @@ class FlikkyDatabaseMigrationTest {
         }
 
         val roomDb = Room.databaseBuilder(context, FlikkyDatabase::class.java, TEST_DB)
-            .addMigrations(
-                FlikkyDatabase.MIGRATION_1_2,
-                FlikkyDatabase.MIGRATION_2_3,
-                FlikkyDatabase.MIGRATION_3_4,
-                FlikkyDatabase.MIGRATION_4_5,
-                FlikkyDatabase.MIGRATION_5_6,
-            )
+            .addMigrations(*FlikkyDatabase.ALL_MIGRATIONS)
             .allowMainThreadQueries()
             .build()
         try {
@@ -116,13 +104,7 @@ class FlikkyDatabaseMigrationTest {
         }
 
         val roomDb = Room.databaseBuilder(context, FlikkyDatabase::class.java, TEST_DB)
-            .addMigrations(
-                FlikkyDatabase.MIGRATION_1_2,
-                FlikkyDatabase.MIGRATION_2_3,
-                FlikkyDatabase.MIGRATION_3_4,
-                FlikkyDatabase.MIGRATION_4_5,
-                FlikkyDatabase.MIGRATION_5_6,
-            )
+            .addMigrations(*FlikkyDatabase.ALL_MIGRATIONS)
             .allowMainThreadQueries()
             .build()
         try {
@@ -131,6 +113,37 @@ class FlikkyDatabaseMigrationTest {
             db.query("SELECT peerAvatarKey FROM sessions WHERE id = 1").use { cursor ->
                 assertTrue(cursor.moveToFirst())
                 assertTrue(cursor.getString(0) == "icon:desktop_windows")
+            }
+        } finally {
+            roomDb.close()
+        }
+    }
+
+    @Test
+    fun migration6To7AddsSessionDevicesAndSenderDeviceId() {
+        SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(TEST_DB), null).use { db ->
+            createV6Schema(db)
+            db.execSQL(
+                "INSERT INTO sessions (id, startedAt, endedAt, name, pinned, messageCount, fileCount, totalBytes, previewText, peerAvatarId, groupId, peerAvatarKey) " +
+                    "VALUES (1, 100, 200, 'old', 0, 1, 0, 0, NULL, 0, NULL, 'icon:desktop_windows')"
+            )
+            db.execSQL(
+                "INSERT INTO messages (id, sessionId, origin, timestamp, kind, content) VALUES (7, 1, 'BROWSER', 150, 'TEXT', 'hi')"
+            )
+            db.version = 6
+        }
+
+        val roomDb = Room.databaseBuilder(context, FlikkyDatabase::class.java, TEST_DB)
+            .addMigrations(*FlikkyDatabase.ALL_MIGRATIONS)
+            .allowMainThreadQueries()
+            .build()
+        try {
+            val db = roomDb.openHelper.writableDatabase
+            assertTrue(hasTable(db, "session_devices"))
+            assertTrue(hasColumn(db, "messages", "senderDeviceId"))
+            db.query("SELECT senderDeviceId FROM messages WHERE id = 7").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertTrue(cursor.isNull(0))
             }
         } finally {
             roomDb.close()
@@ -218,6 +231,13 @@ class FlikkyDatabaseMigrationTest {
                 "ON `favorites` (`sourceSessionId`, `sourceMessageId`)"
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_favorites_groupId` ON `favorites` (`groupId`)")
+    }
+
+    private fun createV6Schema(db: SQLiteDatabase) {
+        createV5Schema(db)
+        db.execSQL(
+            "ALTER TABLE sessions ADD COLUMN peerAvatarKey TEXT NOT NULL DEFAULT 'icon:desktop_windows'"
+        )
     }
 
     private fun hasTable(db: androidx.sqlite.db.SupportSQLiteDatabase, table: String): Boolean =
