@@ -71,7 +71,8 @@ fun Route.fileRoutes(
     }
 
     post("/api/files") {
-        if (!authed(call)) { call.respond(HttpStatusCode.Unauthorized); return@post }
+        val device = authGate.deviceFor(call.request.cookies[AUTH_COOKIE])
+        if (device == null) { call.respond(HttpStatusCode.Unauthorized); return@post }
         val sid = currentSessionId()
         val senderId = call.request.headers["X-Client-Id"]
         val declaredSize = call.request.headers["X-File-Size"]?.toLongOrNull() ?: 0L
@@ -106,6 +107,7 @@ fun Route.fileRoutes(
                         mime = mime,
                         status = Message.File.Status.IN_PROGRESS,
                         senderId = senderId,
+                        senderDeviceId = device.deviceId,
                     )
                     session.addMessage(inProgressMsg)
                     stats.incrementFileCount()

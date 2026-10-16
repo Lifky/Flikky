@@ -1,5 +1,6 @@
 package com.example.flikky.server.routes
 
+import com.example.flikky.server.DeviceRegistry
 import com.example.flikky.server.PinAuth
 import com.example.flikky.session.SessionState
 import io.ktor.client.plugins.cookies.HttpCookies
@@ -42,9 +43,10 @@ class WsRoutesPingPongTest {
             install(ContentNegotiation) { json() }
             install(ServerWebSockets) {}
             routing {
-                val authGate = AuthGate(required = true, pinAuth = pin)
+                val registry = DeviceRegistry()
+                val authGate = AuthGate(required = true, pinAuth = pin, registry = registry)
                 authRoutes(authGate, readAsset = { byteArrayOf() })
-                wsRoutes(authGate, session, hub)
+                wsRoutes(authGate, session, hub, registry)
             }
         }
 
@@ -86,9 +88,10 @@ class WsRoutesPingPongTest {
             install(ContentNegotiation) { json() }
             install(ServerWebSockets) {}
             routing {
-                val authGate = AuthGate(required = true, pinAuth = pin)
+                val registry = DeviceRegistry()
+                val authGate = AuthGate(required = true, pinAuth = pin, registry = registry)
                 authRoutes(authGate, readAsset = { byteArrayOf() })
-                wsRoutes(authGate, session, hub)
+                wsRoutes(authGate, session, hub, registry)
             }
         }
 

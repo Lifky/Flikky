@@ -292,4 +292,20 @@ class FileRoutesTest {
 
         assertEquals(HttpStatusCode.Unauthorized, client.get("/api/files/archive").status)
     }
+
+    @Test
+    fun `an uploaded file records the device that sent it`() = testApplication {
+        val h = Harness(tmp.root)
+        application {
+            install(ContentNegotiation) { json() }
+            routing { installFileRoutes(h) }
+        }
+        client.post("/api/files") {
+            setBody(MultiPartFormDataContent(formData {
+                val (_, bytes, headers) = filePart("a.bin", "x".toByteArray())
+                append("file", bytes, headers)
+            }))
+        }
+        assertEquals("test-device", (h.persisted.single() as Message.File).senderDeviceId)
+    }
 }

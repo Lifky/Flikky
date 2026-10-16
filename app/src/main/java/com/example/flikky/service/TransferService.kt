@@ -54,10 +54,9 @@ import com.example.flikky.session.peerFavoritedIds
 import com.example.flikky.ui.theme.resolveFlikkyTheme
 import com.example.flikky.ui.theme.resolveLeadingColors
 import com.example.flikky.ui.theme.toWireColors
-import com.example.flikky.util.BrowserAvatarHelloDecision
-import com.example.flikky.util.BrowserAvatarHelloPolicy
 import com.example.flikky.util.IdGen
 import com.example.flikky.util.LocalHostName
+import com.example.flikky.util.PeerAvatarPolicy
 import com.example.flikky.util.AlbumAccess
 import com.example.flikky.data.currentAlbumAccess
 import com.example.flikky.data.hasAllFilesAccess
@@ -598,18 +597,12 @@ class TransferService : Service() {
         // 与 peer-info 的 allowPeerFavorite 同一判据：收藏功能与对端开关两轴都开。
         peerFavoriteEnabled = { latestSettings.favoriteBetaEnabled && latestSettings.allowPeerFavorite },
         favoritedIds = { ServiceLocator.favoritesRepository.favoritedIds(currentSessionId) },
-        onClientHello = { avatarKey, explicit ->
+        decideHelloAvatar = { announcedKey, explicit ->
             val stored = ServiceLocator.settingsRepository.browserAvatarKeyOrNull()
-            when (val decision = BrowserAvatarHelloPolicy.decide(explicit, stored)) {
-                is BrowserAvatarHelloDecision.Adopt -> {
-                    // Session first, then persist: the collector's diff check sees the session
-                    // already updated and stays silent (no echo back to the browser).
-                    ServiceLocator.session.setPeerAvatarKey(avatarKey)
-                    ServiceLocator.settingsRepository.setBrowserAvatarKey(avatarKey)
-                    null
-                }
-                is BrowserAvatarHelloDecision.PushBack -> decision.authoritativeKey
-            }
+            val decision = PeerAvatarPolicy.onHello(announcedKey, explicit, stored)
+            // 迁移路径：手机从未存过默认值时，沿用浏览器本地的旧头像作为「浏览器默认」（spec §5.3）。
+            if (decision.persistAsDefault) ServiceLocator.settingsRepository.setBrowserAvatarKey(decision.avatarKey)
+            decision
         },
         thumbnailGenerator = AndroidThumbnailGenerator(),
         mode = ServiceMode.Transfer,

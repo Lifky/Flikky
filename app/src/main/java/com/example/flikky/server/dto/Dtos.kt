@@ -219,16 +219,6 @@ data class WebThemeDto(
     val languageTag: String = "zh-CN",
 )
 
-/**
- * M9: client_hello WS frame from browser, carrying the browser's chosen avatar ID.
- */
-@Serializable
-data class ClientHelloDto(
-    val type: String,
-    val avatarId: Int = 0,
-    val avatarKey: String? = null,
-)
-
 @Serializable
 data class PeerAvatarChangedDto(
     val avatarKey: String,

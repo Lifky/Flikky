@@ -7,11 +7,13 @@ import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.FavoritesResponseDto
 import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.dto.WebThemeDto
+import com.example.flikky.server.dto.toDtoJson
 import com.example.flikky.server.routes.FileStore
 import com.example.flikky.server.routes.ThumbnailGenerator
 import com.example.flikky.server.routes.AuthGate
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.server.routes.authRoutes
+import com.example.flikky.server.routes.deviceRoutes
 import com.example.flikky.server.routes.albumRoutes
 import com.example.flikky.server.routes.exportRoutes
 import com.example.flikky.server.routes.favoriteRoutes
@@ -27,6 +29,7 @@ import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
 import com.example.flikky.util.AlbumAccess
 import com.example.flikky.util.LocalHostName
+import com.example.flikky.util.PeerAvatarPolicy
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.ApplicationCallPipeline
@@ -76,13 +79,11 @@ class KtorServer(
     private val peerFavoriteEnabled: () -> Boolean = { false },
     private val favoritedIds: suspend () -> List<Long> = { emptyList() },
     /**
-     * client_hello adoption callback. Transfer mode injects the DataStore-backed policy;
-     * export mode keeps the default session-only behavior.
+     * 浏览器第一次连接上报的头像怎么定（spec §5.3）。TransferService 注入读写 DataStore 的版本；
+     * 导出模式与测试用默认值（不持久化）。
      */
-    private val onClientHello: suspend (avatarKey: String, explicit: Boolean) -> String? = { key, _ ->
-        session.setPeerAvatarKey(key)
-        null
-    },
+    private val decideHelloAvatar: suspend (announcedKey: String?, explicit: Boolean) -> PeerAvatarPolicy.Decision =
+        { key, explicit -> PeerAvatarPolicy.onHello(key, explicit, storedDefault = null) },
     private val nowMs: () -> Long = System::currentTimeMillis,
     private val mode: ServiceMode = ServiceMode.Transfer,
     private val requirePin: Boolean = true,
@@ -250,6 +251,11 @@ class KtorServer(
             thumbnailer = thumbnailGenerator,
         )
         peerInfoRoutes(authGate, peerInfoProvider)
+        deviceRoutes(
+            authGate = authGate,
+            registry = deviceRegistry,
+            onSelfUpdated = { d -> wsHub.sendToDevice(d.deviceId, "device_updated", d.toDtoJson()) },
+        )
         favoriteRoutes(
             authGate = authGate,
             listProvider = favoritesProvider,
@@ -276,7 +282,7 @@ class KtorServer(
             albumThumbFile = albumThumbFileProvider,
             thumbnailCacheMaxBytes = storageThumbnailCacheMaxBytes,
         )
-        wsRoutes(authGate, session, wsHub, onClientHello)
+        wsRoutes(authGate, session, wsHub, deviceRegistry, decideHelloAvatar)
     }
 
     private fun Route.installExportRoutes(authGate: AuthGate) {
@@ -298,7 +304,7 @@ class KtorServer(
         peerInfoRoutes(authGate, peerInfoProvider)
         // v1.3 test2 修订：export 页也挂 WS，让浏览器通过 WS onclose 立即
         // 感知断网（不再依赖 fetch 探测的 3 秒延迟）。WS 复用同一 cookie 鉴权。
-        wsRoutes(authGate, session, wsHub, onClientHello)
+        wsRoutes(authGate, session, wsHub, deviceRegistry, decideHelloAvatar)
     }
 
     /**

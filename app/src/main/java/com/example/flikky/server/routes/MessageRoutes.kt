@@ -53,7 +53,8 @@ fun Route.messageRoutes(
     }
 
     post("/api/messages") {
-        if (!requireAuth(call)) { call.respond(HttpStatusCode.Unauthorized); return@post }
+        val device = authGate.deviceFor(call.request.cookies[AUTH_COOKIE])
+        if (device == null) { call.respond(HttpStatusCode.Unauthorized); return@post }
         // 同 FileRoutes：senderId 透传到广播 payload 给前端 dedup 用。
         val senderId = call.request.headers["X-Client-Id"]
         val req = call.receive<SendTextRequest>()
@@ -63,6 +64,7 @@ fun Route.messageRoutes(
             timestamp = nowMs(),
             content = req.text,
             senderId = senderId,
+            senderDeviceId = device.deviceId,
         )
         session.addMessage(msg)
         runCatching { onPersist(msg) }

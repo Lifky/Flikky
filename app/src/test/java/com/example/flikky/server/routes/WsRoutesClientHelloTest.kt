@@ -1,167 +1,107 @@
 package com.example.flikky.server.routes
 
+import com.example.flikky.server.DeviceRegistry
 import com.example.flikky.server.PinAuth
 import com.example.flikky.session.SessionState
+import com.example.flikky.util.PeerAvatarPolicy
+import io.ktor.client.HttpClient
 import io.ktor.client.plugins.cookies.HttpCookies
+import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
-import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
+import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
-import io.ktor.server.websocket.WebSockets as ServerWebSockets
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import io.ktor.server.websocket.WebSockets as ServerWebSockets
 
-/**
- * client_hello adoption is delegated through onClientHello so server/ stays independent from
- * Android DataStore. A non-null callback result is broadcast back as the authoritative avatar.
- */
+/** client_hello 是正规 JSON；每台设备只采纳第一次上报，之后以服务端为准（spec §5.2–§5.4）。 */
 class WsRoutesClientHelloTest {
+    private val registry = DeviceRegistry(idSupplier = { "dev-1" })
+    private val decisions = mutableListOf<Pair<String?, Boolean>>()
 
-    private suspend fun io.ktor.client.HttpClient.authOk() {
-        val response: HttpResponse = post("/api/auth") {
-            contentType(ContentType.Application.Json)
-            setBody("""{"pin":"000000"}""")
-        }
-        assertEquals(HttpStatusCode.OK, response.status)
-    }
-
-    @Test
-    fun `explicit hello reaches callback and does not push back`() = testApplication {
+    private fun ApplicationTestBuilder.setUp(
+        decide: suspend (String?, Boolean) -> PeerAvatarPolicy.Decision = { key, explicit ->
+            decisions += key to explicit
+            PeerAvatarPolicy.onHello(key, explicit, storedDefault = "icon:face")
+        },
+    ) {
         val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
-        val session = SessionState(nowMs = { 0L })
-        val hub = WsHub()
-        var seenKey: String? = null
-        var seenExplicit: Boolean? = null
-
         application {
             install(ContentNegotiation) { json() }
             install(ServerWebSockets) {}
             routing {
-                val authGate = AuthGate(required = true, pinAuth = pin)
-                authRoutes(authGate, readAsset = { byteArrayOf() })
-                wsRoutes(authGate, session, hub, onClientHello = { key, explicit ->
-                    seenKey = key
-                    seenExplicit = explicit
-                    null
-                })
+                val gate = AuthGate(required = true, pinAuth = pin, registry = registry)
+                authRoutes(gate, readAsset = { byteArrayOf() })
+                wsRoutes(gate, SessionState(nowMs = { 0L }), WsHub(), registry, decide)
             }
-        }
-
-        val http = createClient {
-            install(HttpCookies)
-            install(WebSockets)
-        }
-        http.authOk()
-
-        http.webSocket("/ws") {
-            send(Frame.Text("""{"type":"client_hello","avatarKey":"icon:star","explicit":true}"""))
-            send(Frame.Text("""{"type":"ping","id":1}"""))
-            val reply = withTimeout(2_000) {
-                var found: String? = null
-                for (frame in incoming) {
-                    if (frame is Frame.Text) {
-                        found = frame.readText()
-                        break
-                    }
-                }
-                found
-            }
-            assertEquals("""{"type":"pong","id":1}""", reply)
-        }
-        assertEquals("icon:star", seenKey)
-        assertEquals(true, seenExplicit)
-    }
-
-    @Test
-    fun `announce hello with pushback broadcasts the authoritative avatar`() = testApplication {
-        val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
-        val session = SessionState(nowMs = { 0L })
-        val hub = WsHub()
-
-        application {
-            install(ContentNegotiation) { json() }
-            install(ServerWebSockets) {}
-            routing {
-                val authGate = AuthGate(required = true, pinAuth = pin)
-                authRoutes(authGate, readAsset = { byteArrayOf() })
-                wsRoutes(authGate, session, hub, onClientHello = { _, _ -> "icon:palette" })
-            }
-        }
-
-        val http = createClient {
-            install(HttpCookies)
-            install(WebSockets)
-        }
-        http.authOk()
-
-        http.webSocket("/ws") {
-            send(Frame.Text("""{"type":"client_hello","avatarKey":"icon:desktop_windows","explicit":false}"""))
-            val reply = withTimeout(2_000) {
-                var found: String? = null
-                for (frame in incoming) {
-                    if (frame is Frame.Text) {
-                        found = frame.readText()
-                        break
-                    }
-                }
-                found
-            }
-            assertEquals(
-                """{"type":"peer_avatar_changed","payload":{"avatarKey":"icon:palette"}}""",
-                reply,
-            )
         }
     }
 
-    @Test
-    fun `hello without explicit field defaults to announce`() = testApplication {
-        val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
-        val session = SessionState(nowMs = { 0L })
-        val hub = WsHub()
-        var seenExplicit: Boolean? = null
+    private suspend fun ApplicationTestBuilder.loggedIn(): HttpClient {
+        val http = createClient { install(HttpCookies); install(WebSockets) }
+        http.post("/api/auth") { contentType(ContentType.Application.Json); setBody("""{"pin":"000000"}""") }
+        return http
+    }
 
-        application {
-            install(ContentNegotiation) { json() }
-            install(ServerWebSockets) {}
-            routing {
-                val authGate = AuthGate(required = true, pinAuth = pin)
-                authRoutes(authGate, readAsset = { byteArrayOf() })
-                wsRoutes(authGate, session, hub, onClientHello = { _, explicit ->
-                    seenExplicit = explicit
-                    null
-                })
+    private suspend fun DefaultClientWebSocketSession.nextPayload(type: String): JsonObject =
+        withTimeout(2_000) {
+            var found: JsonObject? = null
+            while (found == null) {
+                val frame = incoming.receive()
+                if (frame !is Frame.Text) continue
+                val obj = Json.parseToJsonElement(frame.readText()).jsonObject
+                if (obj["type"]?.jsonPrimitive?.content == type) found = obj["payload"]!!.jsonObject
             }
+            found
         }
 
-        val http = createClient {
-            install(HttpCookies)
-            install(WebSockets)
+    @Test fun `the first hello names the device and the phone gets the decided avatar`() = testApplication {
+        setUp()
+        loggedIn().webSocket("/ws") {
+            send(Frame.Text("""{"type":"client_hello","avatarKey":"icon:star","avatarExplicit":true,"deviceName":"  我的 \"笔记本\" 😀 "}"""))
+            val payload = nextPayload("device_updated")
+            assertEquals("我的 \"笔记本\" 😀", payload["name"]!!.jsonPrimitive.content)
+            assertEquals("icon:star", payload["avatarKey"]!!.jsonPrimitive.content)
         }
-        http.authOk()
+        assertEquals("我的 \"笔记本\" 😀", registry.device("dev-1")!!.name)
+        assertEquals(listOf<Pair<String?, Boolean>>("icon:star" to true), decisions)
+    }
 
+    @Test fun `a later hello cannot overwrite a name the phone set meanwhile`() = testApplication {
+        setUp()
+        val http = loggedIn()
         http.webSocket("/ws") {
-            send(Frame.Text("""{"type":"client_hello","avatarKey":"icon:star"}"""))
-            send(Frame.Text("""{"type":"ping","id":2}"""))
-            withTimeout(2_000) {
-                for (frame in incoming) {
-                    if (frame is Frame.Text) break
-                }
-            }
+            send(Frame.Text("""{"type":"client_hello","avatarKey":"icon:star","avatarExplicit":false,"deviceName":"旧名字"}"""))
+            nextPayload("device_updated")
         }
-        assertEquals(false, seenExplicit)
-        assertNull(null)
+        registry.update("dev-1", name = "手机改的名字")
+        http.webSocket("/ws") {
+            send(Frame.Text("""{"type":"client_hello","avatarKey":"icon:star","avatarExplicit":false,"deviceName":"旧名字"}"""))
+            assertEquals("手机改的名字", nextPayload("device_updated")["name"]!!.jsonPrimitive.content)
+        }
+        assertEquals(1, decisions.size)
+    }
+
+    @Test fun `frames that are not a hello are ignored`() {
+        assertNull(parseClientHello("""{"type":"foo"}"""))
+        assertNull(parseClientHello("""{"type":"client_hello""""))
+        assertEquals("x", parseClientHello("""{"type":"client_hello","deviceName":"x","extra":1}""")?.deviceName)
     }
 }
