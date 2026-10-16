@@ -203,7 +203,9 @@ test('reset-split actually clears shell state at runtime', () => {
     // Must not match the header's collapse button (also a <button>, and found
     // first in traversal order since the header is appended before the body) —
     // the reset-split row is a plain buildRow() button with class "fk-item".
-    const resetButton = findDescendant(root, (n) => n.tagName === 'button' && n.className === 'fk-item');
+    // v1.23 起「本机」组的两行也是 fk-item 按钮且排在前面，所以按标题认出重置那一行。
+    const resetButton = findDescendant(root, (n) => n.tagName === 'button' && n.className === 'fk-item'
+        && findDescendant(n, (c) => c.textContent === 'app.settings.resetSplit'));
     assert.ok(resetButton, 'reset-split button must exist in the rendered tree');
     resetButton.fire('click');
 
@@ -389,4 +391,28 @@ test('the timestamps row reads an absent attribute as OFF, matching the phone de
         findDescendant(root, (n) => n.textContent === 'app.settings.timestampsSubOff'),
         'with no data-timestamps attribute the row must read as off',
     );
+});
+
+test('the panel opens with a "this device" group showing the published name', () => {
+    const { root, body, observed } = loadPanel();
+    const bodyEl = root.children[1];
+    assert.equal(bodyEl.children[0].textContent, 'app.settings.this_device', 'this device must be the first section');
+    assert.ok(findDescendant(root, (n) => n.textContent === 'app.device.browser'), 'falls back to the browser word');
+
+    const watcher = observed.find((o) => o.target === body);
+    assert.ok(watcher.options.attributeFilter.includes('data-device-name'));
+    body.dataset.deviceName = '客厅电脑';
+    watcher.fire();
+    assert.ok(findDescendant(root, (n) => n.textContent === '客厅电脑'));
+});
+
+test('the device rows hand off to app.js instead of editing state themselves', () => {
+    const start = SRC.indexOf('function buildDeviceGroup');
+    // 截到「布局」组的注释头为止：那段注释本身提到 localStorage，不属于本机组。
+    const end = SRC.indexOf('// ── 布局');
+    assert.ok(start !== -1 && end > start, 'buildDeviceGroup must sit before buildLayoutGroup');
+    const group = SRC.slice(start, end);
+    assert.ok(group.includes('openDeviceNameDialog'));
+    assert.ok(group.includes('openAvatarPicker'));
+    assert.equal(group.includes('localStorage'), false, 'the panel must not write device identity itself');
 });

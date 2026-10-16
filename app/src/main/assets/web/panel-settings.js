@@ -88,6 +88,33 @@
         return el;
     }
 
+    // ── 本机（v1.23，spec §7.1）：这台浏览器自己的名字与头像。面板只负责画和转交，
+    // 真正的读写在 app.js（它持有本机记录、负责 PUT 与写回本地）。
+    function openViaApp(name) {
+        if (window.flikky && typeof window.flikky[name] === 'function') window.flikky[name]();
+    }
+
+    function buildDeviceGroup() {
+        const group = document.createElement('div');
+        group.className = 'fk-group';
+
+        const name = buildRow('button', 'computer');
+        name.title.textContent = t('app.settings.device_name');
+        name.sub.textContent = document.body.dataset.deviceName || t('app.device.browser');
+        name.item.appendChild(buildTrailIcon('edit'));
+        name.item.addEventListener('click', () => openViaApp('openDeviceNameDialog'));
+        group.appendChild(name.item);
+
+        const avatar = buildRow('button', 'account_circle');
+        avatar.title.textContent = t('app.settings.avatar');
+        avatar.sub.textContent = t('app.settings.avatar_sub');
+        avatar.item.appendChild(buildTrailIcon('edit'));
+        avatar.item.addEventListener('click', () => openViaApp('openAvatarPicker'));
+        group.appendChild(avatar.item);
+
+        return group;
+    }
+
     // ── 布局：本组是可写的——两个 mdui-switch + 一个重置按钮，都直接写
     // shell.dataset / localStorage，读的时候也从同一处读，保证重开面板不失真。
     function buildLayoutGroup(shell) {
@@ -248,6 +275,8 @@
 
         const body = document.createElement('div');
         body.className = 'fk-panel-body flikky-scroll';
+        body.appendChild(sectionTitle(t('app.settings.this_device')));
+        body.appendChild(buildDeviceGroup());
         body.appendChild(sectionTitle(t('app.settings.layout')));
         body.appendChild(buildLayoutGroup(shell));
         body.appendChild(sectionTitle(t('app.settings.fromPhone')));
@@ -265,7 +294,7 @@
     // 这里不让 app.js 反过来通知面板（那会让 app.js 知道面板存在），而是观察它已经
     // 发布出来的 DOM 状态——正是 D1 定的方向：app.js 只管发布，面板自己读。
     // 观察的是 <body>，面板写的是 #shell 和自己的子树，不会自激。
-    const PUBLISHED_ATTRS = ['data-app-version', 'data-timestamps'];
+    const PUBLISHED_ATTRS = ['data-app-version', 'data-timestamps', 'data-device-name'];
 
     function observePublishedState(root) {
         if (typeof MutationObserver !== 'function') return;
