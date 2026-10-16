@@ -157,7 +157,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
 
     /**
      * One-shot raw read: null means the user (or a browser hello) has never persisted a
-     * browser avatar - the upgrade-migration branch in BrowserAvatarHelloPolicy keys off this.
+     * browser default avatar - the upgrade-migration branch in PeerAvatarPolicy.onHello keys off this.
      */
     suspend fun browserAvatarKeyOrNull(): String? = ds.data.first()[Keys.browserAvatarKey]
 

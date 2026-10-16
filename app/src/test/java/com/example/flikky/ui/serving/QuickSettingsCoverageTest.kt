@@ -40,7 +40,7 @@ class QuickSettingsCoverageTest {
         "leadingColorMode" to "onOpenLeadingColorPicker",
         "phoneAvatarKey" to "onOpenAvatarPicker",
         // 注意：browserAvatarKey **不在**这张表里，因为它不进 PeerInfoDto —— 它走另一条
-        // 通道（TransferController → session → `peer_avatar_changed` 事件）。快捷设置里
+        // 通道（设置收集器 → DeviceRegistry.applyDefaultAvatar → 按设备推 `device_updated`，v1.23）。快捷设置里
         // 它跟手机头像共用同一个入口（那张 sheet 有 App / Browser 两个 tab），但本测试的
         // 判据是「出现在 toPeerInfoDto 的映射里」，所以登记它会被 stale-row 那条正确判红。
         // 也就是说：本测试覆盖的是 PeerInfoDto 这条通道，不是「所有会同步的东西」。
