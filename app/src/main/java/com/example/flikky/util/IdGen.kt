@@ -13,8 +13,16 @@ object IdGen {
         return n.toString().padStart(6, '0')
     }
 
+    /** 会话凭据：256 位（红线「至少 256 位」）。明文只用于种 Cookie，服务端只存它的 SHA-256。 */
     fun newToken(): String {
-        val bytes = ByteArray(16)
+        val bytes = ByteArray(32)
+        random.nextBytes(bytes)
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    }
+
+    /** 设备 ID：公开、只用于指代（spec §3.2），72 位随机足够区分，**不是**凭据。 */
+    fun newDeviceId(): String {
+        val bytes = ByteArray(9)
         random.nextBytes(bytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }

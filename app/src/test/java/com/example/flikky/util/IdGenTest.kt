@@ -16,10 +16,18 @@ class IdGenTest {
     }
 
     @Test
-    fun `newToken is 22 chars base64url without padding`() {
+    fun `newToken is 256-bit, 43 chars base64url without padding`() {
         val t = IdGen.newToken()
-        assertEquals(22, t.length)
+        assertEquals(43, t.length)
         assertTrue("base64url chars: $t", t.all { it.isLetterOrDigit() || it == '-' || it == '_' })
+    }
+
+    @Test
+    fun `newDeviceId is a short url-safe public id`() {
+        val id = IdGen.newDeviceId()
+        assertEquals(12, id.length)
+        assertTrue("base64url chars: $id", id.all { it.isLetterOrDigit() || it == '-' || it == '_' })
+        assertNotEquals(id, IdGen.newDeviceId())
     }
 
     @Test
