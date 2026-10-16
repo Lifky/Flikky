@@ -127,6 +127,7 @@ fun ServingScreen(
     // 头像选择器的 App / Browser tab，与设置页同一形状（0 = App，1 = Browser）。
     var avatarSheetTab by remember { mutableStateOf(0) }
     val devices by viewModel.devices.collectAsState()
+    val knownAvatars by viewModel.knownDeviceAvatars.collectAsState()
     var showDevices by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<PeerDevice?>(null) }
     var avatarTarget by remember { mutableStateOf<PeerDevice?>(null) }
@@ -373,6 +374,7 @@ fun ServingScreen(
                         progressMap = progressMap,
                         peerAvatarId = peerAvatarId,
                         peerAvatarKey = peerAvatarKey,
+                        deviceAvatars = knownAvatars,
                         actionTarget = actionTarget,
                         onActionTargetChange = { actionTarget = it },
                         snackbarHostState = snackbarHostState,

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +27,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MenuDefaults
@@ -57,11 +59,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.text.style.TextOverflow
 import com.example.flikky.R
+import com.example.flikky.ui.components.AvatarKey
 import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
+import com.example.flikky.session.displayName
+import com.example.flikky.session.peerAvatarFor
 import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
@@ -94,7 +100,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun HistoryScreen(
     sessionId: Long,
@@ -111,6 +117,11 @@ fun HistoryScreen(
     )
     val homeViewModel: HomeViewModel = viewModel()
     val session by viewModel.session.collectAsState(initial = null)
+    val devices by viewModel.devices.collectAsState()
+    val unknownDevice = stringResource(R.string.device_unknown_browser)
+    val deviceAvatars = remember(devices) { devices.associate { it.deviceId to it.avatarKey } }
+    val deviceNames = devices.map { it.displayName(unknownDevice) }
+    val separator = stringResource(R.string.common_list_separator)
     val messages by viewModel.messages.collectAsState()
     val groups by homeViewModel.groups.collectAsState(initial = emptyList())
     val settings by ServiceLocator.settingsRepository.settings.collectAsState(initial = FlikkySettings())
@@ -355,57 +366,69 @@ fun HistoryScreen(
             ) { Snackbar(it) }
         },
         topBar = {
-            TopAppBar(
-                title = { Text(session?.name ?: stringResource(R.string.history_session_fallback)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.history_back),
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { menuExpanded = true }, enabled = !inProgress) {
-                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.common_more))
-                    }
-                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        val pinned = session?.pinned == true
-                        DropdownMenuItem(
-                            text = {
-                                Text(stringResource(if (pinned) R.string.history_unpin else R.string.history_pin))
-                            },
-                            onClick = { menuExpanded = false; viewModel.setPinned(!pinned) },
-                            leadingIcon = { Icon(pinPainter, contentDescription = null) },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.history_rename)) },
-                            onClick = { menuExpanded = false; showRename = true },
-                            leadingIcon = { Icon(editPainter, contentDescription = null) },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.history_move_to_group)) },
-                            onClick = { menuExpanded = false; showMoveSheet = true },
-                            leadingIcon = { Icon(movePainter, contentDescription = null) },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.history_export)) },
-                            onClick = { menuExpanded = false; showExportDestination = true },
-                            leadingIcon = { Icon(exportPainter, contentDescription = null) },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.history_delete)) },
-                            onClick = { menuExpanded = false; showDelete = true },
-                            leadingIcon = { Icon(deletePainter, contentDescription = null) },
-                            colors = MenuDefaults.itemColors(
-                                textColor = MaterialTheme.colorScheme.error,
-                                leadingIconColor = MaterialTheme.colorScheme.error,
-                            ),
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(),
-            )
+            val historyNavIcon: @Composable () -> Unit = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.history_back),
+                    )
+                }
+            }
+            val historyActions: @Composable RowScope.() -> Unit = {
+                IconButton(onClick = { menuExpanded = true }, enabled = !inProgress) {
+                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.common_more))
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    val pinned = session?.pinned == true
+                    DropdownMenuItem(
+                        text = {
+                            Text(stringResource(if (pinned) R.string.history_unpin else R.string.history_pin))
+                        },
+                        onClick = { menuExpanded = false; viewModel.setPinned(!pinned) },
+                        leadingIcon = { Icon(pinPainter, contentDescription = null) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.history_rename)) },
+                        onClick = { menuExpanded = false; showRename = true },
+                        leadingIcon = { Icon(editPainter, contentDescription = null) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.history_move_to_group)) },
+                        onClick = { menuExpanded = false; showMoveSheet = true },
+                        leadingIcon = { Icon(movePainter, contentDescription = null) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.history_export)) },
+                        onClick = { menuExpanded = false; showExportDestination = true },
+                        leadingIcon = { Icon(exportPainter, contentDescription = null) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.history_delete)) },
+                        onClick = { menuExpanded = false; showDelete = true },
+                        leadingIcon = { Icon(deletePainter, contentDescription = null) },
+                        colors = MenuDefaults.itemColors(
+                            textColor = MaterialTheme.colorScheme.error,
+                            leadingIconColor = MaterialTheme.colorScheme.error,
+                        ),
+                    )
+                }
+            }
+            val title: @Composable () -> Unit = {
+                Text(session?.name ?: stringResource(R.string.history_session_fallback))
+            }
+            if (deviceNames.isEmpty()) {
+                TopAppBar(title = title, navigationIcon = historyNavIcon, actions = historyActions,
+                    colors = TopAppBarDefaults.topAppBarColors())
+            } else {
+                // Expressive TopAppBar 的 subtitle 槽（material3 1.5.0-alpha22 已提供，@ExperimentalMaterial3ExpressiveApi）。
+                TopAppBar(
+                    title = title,
+                    subtitle = { Text(deviceNames.joinToString(separator), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = historyNavIcon,
+                    actions = historyActions,
+                    colors = TopAppBarDefaults.topAppBarColors(),
+                )
+            }
         },
     ) { pad ->
       Box(
@@ -481,7 +504,7 @@ fun HistoryScreen(
                             avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
                                        else (session?.peerAvatarId ?: 0),
                             avatarKey = if (msg.origin == Origin.PHONE) settings.phoneAvatarKey
-                                        else session?.peerAvatarKey,
+                                        else peerAvatarFor(msg.senderDeviceId, deviceAvatars, session?.peerAvatarKey ?: AvatarKey.DEFAULT_PEER),
                             cornerRadius = settings.bubbleCornerRadius.dp,
                             selected = floating && isActionTarget,
                             thumbnailFile = (msg as? Message.File)

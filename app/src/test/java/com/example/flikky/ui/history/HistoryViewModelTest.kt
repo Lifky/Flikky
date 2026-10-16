@@ -6,6 +6,7 @@ import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
+import com.example.flikky.session.PeerDevice
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -35,6 +36,7 @@ class HistoryViewModelTest {
     @Test fun exposes_session_and_messages() = runTest(dispatcher) {
         val app = mockk<Application>(relaxed = true)
         val repo = mockk<SessionRepository>()
+        every { repo.observeSessionDevices(any()) } returns MutableStateFlow(emptyList())
         every { repo.observeSession(42L) } returns MutableStateFlow(
             SessionEntity(id = 42L, startedAt = 1L, endedAt = 2L, name = "s")
         )
@@ -54,6 +56,7 @@ class HistoryViewModelTest {
     @Test fun rename_delegates() = runTest(dispatcher) {
         val app = mockk<Application>(relaxed = true)
         val repo = mockk<SessionRepository>()
+        every { repo.observeSessionDevices(any()) } returns MutableStateFlow(emptyList())
         every { repo.observeSession(any()) } returns MutableStateFlow(null)
         every { repo.observeMessages(any()) } returns MutableStateFlow(emptyList())
         coEvery { repo.rename(any(), any()) } just Runs
@@ -61,5 +64,19 @@ class HistoryViewModelTest {
         val vm = HistoryViewModel(app, repo, sessionId = 7L)
         vm.rename("new").join()
         coVerify { repo.rename(7L, "new") }
+    }
+
+    @Test fun exposes_session_devices() = runTest(dispatcher) {
+        val app = mockk<Application>(relaxed = true)
+        val repo = mockk<SessionRepository>()
+        every { repo.observeSession(any()) } returns MutableStateFlow(null)
+        every { repo.observeMessages(any()) } returns MutableStateFlow(emptyList())
+        every { repo.observeSessionDevices(42L) } returns MutableStateFlow(
+            listOf(PeerDevice(deviceId = "a", name = "张三的笔记本", avatarKey = "icon:star", connectedAt = 1L, visible = true))
+        )
+        val vm = HistoryViewModel(app, repo, sessionId = 42L)
+        vm.devices.test {
+            assertEquals("张三的笔记本", awaitItem().single().name); cancelAndIgnoreRemainingEvents()
+        }
     }
 }

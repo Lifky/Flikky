@@ -10,6 +10,7 @@ import com.example.flikky.data.db.entities.SessionEntity
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.session.Message
 import com.example.flikky.session.PendingMessageDeletes
+import com.example.flikky.session.PeerDevice
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +27,10 @@ class HistoryViewModel(
 ) : AndroidViewModel(app) {
 
     val session: Flow<SessionEntity?> = repository.observeSession(sessionId)
+
+    /** 本会话参与过的设备（spec §6.5）：顶栏副标题与气泡头像都用它。旧会话为空。 */
+    val devices: StateFlow<List<PeerDevice>> =
+        repository.observeSessionDevices(sessionId).stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     /** IDs that have been soft-deleted but not yet committed to DB. */
     private val _pendingDeleteIds = MutableStateFlow<Set<Long>>(emptySet())

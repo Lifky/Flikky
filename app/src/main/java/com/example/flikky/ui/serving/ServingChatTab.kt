@@ -51,6 +51,7 @@ import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
+import com.example.flikky.session.peerAvatarFor
 import com.example.flikky.ui.components.ConversationBackground
 import com.example.flikky.ui.components.ConversationStatusRow
 import com.example.flikky.ui.components.ImagePreviewDialog
@@ -97,6 +98,7 @@ fun ServingChatTab(
     progressMap: Map<Long, Float>,
     peerAvatarId: Int,
     peerAvatarKey: String,
+    deviceAvatars: Map<String, String>,
     actionTarget: Long?,
     onActionTargetChange: (Long?) -> Unit,
     snackbarHostState: SnackbarHostState,
@@ -403,7 +405,7 @@ fun ServingChatTab(
                                 avatarId = if (msg.origin == Origin.PHONE) settings.phoneAvatarId
                                            else peerAvatarId,
                                 avatarKey = if (msg.origin == Origin.PHONE) settings.phoneAvatarKey
-                                            else peerAvatarKey,
+                                            else peerAvatarFor(msg.senderDeviceId, deviceAvatars, peerAvatarKey),
                                 cornerRadius = settings.bubbleCornerRadius.dp,
                                 selected = floating && isActionTarget,
                                 thumbnailFile = (msg as? Message.File)
