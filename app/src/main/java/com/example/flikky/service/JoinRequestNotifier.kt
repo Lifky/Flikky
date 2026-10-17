@@ -26,6 +26,10 @@ object JoinRequestNotifier {
     const val ACTION_DENY = "com.example.flikky.action.JOIN_DENY"
     const val EXTRA_REQUEST_ID = "requestId"
 
+    /** 会话页就在眼前时交给页内弹窗；同时再弹横幅通知只是噪音。 */
+    fun notifiable(pending: List<JoinRequests.View>, servingVisible: Boolean): List<JoinRequests.View> =
+        if (servingVisible) emptyList() else pending
+
     fun update(context: Context, pending: List<JoinRequests.View>) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
         val first = pending.firstOrNull()

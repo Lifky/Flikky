@@ -79,6 +79,12 @@ object ServiceLocator {
     @Volatile var currentController: TransferController? = null
 
     /**
+     * 会话页此刻是否在前台（v1.23 多设备）：在的话「请求加入」只弹页内对话框，不再发横幅通知。
+     * ServingScreen 按生命周期写，TransferService 订阅。
+     */
+    val servingVisible = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    /**
      * v1.3 对端撤回通知渠道。TransferService 在 onRecallMessage 桥接
      * 成功撤回时 emit；ServingViewModel 监听后弹 snackbar。
      * extraBufferCapacity 避免 tryEmit 在无 collector 时丢弃。

@@ -43,4 +43,11 @@ class JoinRequestNotifierTest {
         assertEquals("r1", intent.getStringExtra(JoinRequestNotifier.EXTRA_REQUEST_ID))
         assertEquals(JoinRequestActionReceiver::class.java.name, intent.component?.className)
     }
+
+    // 会话页就在眼前时，页内弹窗已经够了；同时再弹一条横幅通知只是噪音。
+    @Test fun `the notification is left to the in-app dialog while the serving screen is visible`() {
+        val pending = listOf(JoinRequests.View("r1", null, 0L))
+        assertEquals(emptyList<JoinRequests.View>(), JoinRequestNotifier.notifiable(pending, servingVisible = true))
+        assertEquals(pending, JoinRequestNotifier.notifiable(pending, servingVisible = false))
+    }
 }

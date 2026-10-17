@@ -74,6 +74,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -303,10 +304,11 @@ class TransferService : Service() {
         joinRequests = joins
         // 加入请求 → 手机界面（弹窗）与通知。
         joinsJob = scope.launch {
-            joins.pending.collect { list ->
-                ServiceLocator.session.setJoinRequests(list)
-                JoinRequestNotifier.update(this@TransferService, list)
-            }
+            combine(joins.pending, ServiceLocator.servingVisible) { list, visible -> list to visible }
+                .collect { (list, visible) ->
+                    ServiceLocator.session.setJoinRequests(list)
+                    JoinRequestNotifier.update(this@TransferService, JoinRequestNotifier.notifiable(list, visible))
+                }
         }
         // 设备 → 界面与会话快照。`sid` 是本函数的局部值（会话 id 跨 rebind 不变），不是 KtorServer 成员。
         devicesJob = scope.launch {
