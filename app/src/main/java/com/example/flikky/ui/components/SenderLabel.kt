@@ -22,13 +22,12 @@ internal fun senderNamesEnabled(mode: SenderNameMode, peerDeviceCount: Int): Boo
 }
 
 /**
- * 第 [index] 条要不要标名字：只标对方一侧（[senders] 里本端的消息为 null），
- * 同一个发送者连续发的几条只在第一条上标（群聊惯例）。
+ * 第 [index] 条要不要标名字（两侧都标，装机反馈：别人有、自己没有反而别扭）。[senders] 是 [groupKey]。
+ * [everyMessage]（常驻按钮）：每条都标 —— 每条下面都有一排按钮，只标首条会让后面几条上方空一块。
+ * 否则（悬浮工具栏）：同一发送者连续几条只标第一条；[breakBefore]（前面有时间分隔条）时重新开始。
  */
-internal fun senderLabelAt(senders: List<String?>, index: Int): Boolean {
-    val sender = senders[index] ?: return false
-    return index == 0 || senders[index - 1] != sender
-}
+internal fun senderLabelAt(senders: List<String>, index: Int, everyMessage: Boolean, breakBefore: Boolean = false): Boolean =
+    everyMessage || index == 0 || breakBefore || senders[index - 1] != senders[index]
 
 /** 旧数据（v1.23 之前）里浏览器发的消息没有发送设备，统一算作一台「浏览器」。 */
 internal const val LEGACY_BROWSER_SENDER = "legacy-browser"

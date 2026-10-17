@@ -497,11 +497,18 @@ function runOtherDevicesTest() {
 
   assertDeepEqual(sides(), ['them', 'me', 'them'], 'another computer sits on the other side');
   assertDeepEqual(avatarSymbolText(rows()[0].children[0]), 'face', 'another computer shows its own avatar');
-  assertDeepEqual(labels(), ['书房', '手机'], 'names head the other side once two devices are in the session');
+  // INLINE（默认常驻按钮）：每条都标，自己这一侧也标。
+  assertDeepEqual(labels(), ['书房', 'Chrome', '手机'], 'every message names its sender once two devices are in the session');
+  const meLabel = app.list.children.find((node) => node.classList && node.classList.contains('bubble-sender') && node.textContent === 'Chrome');
+  assertDeepEqual(meLabel.classList.contains('me'), true, 'my own name sits on my side');
+
 
   app.onWsEvent({ type: 'peers', payload: roster('icon:star') });
   assertDeepEqual(avatarSymbolText(rows()[0].children[0]), 'star', 'its avatar change reaches this page');
   assertDeepEqual(sides(), ['them', 'me', 'them'], 'a broadcast roster without selfDeviceId keeps who I am');
+  app.onWsEvent({ type: 'settings_changed', payload: { messageActionStyle: 'FLOATING' } });
+  app.renderText({ id: 4, origin: 'PHONE', content: 'phone again' }, false);
+  assertDeepEqual(labels(), ['书房', 'Chrome', '手机'], 'with the floating toolbar only the first of a run is named');
 
   app.onWsEvent({ type: 'settings_changed', payload: { senderNameMode: 'OFF' } });
   assertDeepEqual(labels(), [], 'the phone can turn names off');

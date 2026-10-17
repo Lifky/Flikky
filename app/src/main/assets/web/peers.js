@@ -35,12 +35,14 @@
     }
 
     /**
-     * 每条要不要标名字：只标对方一侧；同一发送者连续几条只标第一条（群聊惯例）；
-     * 时间分隔条之后重新开始一段。[breaks][i] 为真表示第 i 条前面有分隔条。
+     * 每条要不要标名字（两侧都标，装机反馈：别人有、自己没有反而别扭）。
+     * [everyMessage]（常驻按钮）：每条都标 —— 每条下面都有一排按钮，只标首条会让后面几条上方空一块。
+     * 否则（悬浮工具栏）：同一发送者连续几条只标第一条，时间分隔条后重新开始；[breaks][i] 为真表示第 i 条前有分隔条。
      */
-    function labelPlan(senders, breaks) {
+    function labelPlan(senders, breaks, everyMessage) {
         return senders.map((sender, i) => {
-            if (sender === ME) return false;
+            if (!sender) return false;
+            if (everyMessage) return true;
             return i === 0 || senders[i - 1] !== sender || !!(breaks && breaks[i]);
         });
     }

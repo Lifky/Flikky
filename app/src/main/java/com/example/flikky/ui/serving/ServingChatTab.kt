@@ -55,7 +55,6 @@ import com.example.flikky.session.PeerDevice
 import com.example.flikky.session.displayName
 import com.example.flikky.session.peerAvatarFor
 import com.example.flikky.ui.components.groupKey
-import com.example.flikky.ui.components.peerSenderKey
 import com.example.flikky.ui.components.senderLabelAt
 import com.example.flikky.ui.components.senderNamesEnabled
 import com.example.flikky.ui.components.ConversationBackground
@@ -361,8 +360,9 @@ fun ServingChatTab(
     }
 
     val unknownDevice = stringResource(R.string.device_unknown_browser)
+    val phoneName = settings.deviceName.ifBlank { stringResource(R.string.settings_default_device_name) }
     val namesOn = senderNamesEnabled(settings.senderNameMode, peerDeviceCount = knownDevices.size)
-    val senderKeys = remember(ui.messages) { ui.messages.map { it.peerSenderKey() } }
+    val senderKeys = remember(ui.messages) { ui.messages.map { it.groupKey() } }
     Column(modifier = modifier.fillMaxSize()) {
         Box(modifier = Modifier.weight(1f)) {
             ConversationBackground(
@@ -387,8 +387,13 @@ fun ServingChatTab(
                                 nextMsg == null || nextMsg.groupKey() != msg.groupKey()
                             com.example.flikky.data.settings.AvatarGroupingMode.EACH -> true
                         }
-                        val senderName = if (namesOn && senderLabelAt(senderKeys, index)) {
-                            msg.senderDeviceId?.let(knownDevices::get)?.displayName(unknownDevice) ?: unknownDevice
+                        val senderName = if (namesOn && senderLabelAt(
+                    senderKeys, index,
+                    everyMessage = settings.messageActionStyle == com.example.flikky.data.settings.MessageActionStyle.INLINE,
+                    breakBefore = settings.sessionTimestampEnabled && index in timestampDividerIndices,
+                )) {
+                            if (msg.origin == Origin.PHONE) phoneName
+                    else msg.senderDeviceId?.let(knownDevices::get)?.displayName(unknownDevice) ?: unknownDevice
                         } else {
                             null
                         }

@@ -69,7 +69,6 @@ import com.example.flikky.session.Origin
 import com.example.flikky.session.displayName
 import com.example.flikky.session.peerAvatarFor
 import com.example.flikky.ui.components.groupKey
-import com.example.flikky.ui.components.peerSenderKey
 import com.example.flikky.ui.components.senderLabelAt
 import com.example.flikky.ui.components.senderNamesEnabled
 import com.example.flikky.ui.components.MessageAction
@@ -131,7 +130,8 @@ fun HistoryScreen(
     val settings by ServiceLocator.settingsRepository.settings.collectAsState(initial = FlikkySettings())
     val devicesById = remember(devices) { devices.associateBy { it.deviceId } }
     val namesOn = senderNamesEnabled(settings.senderNameMode, peerDeviceCount = devices.size)
-    val senderKeys = remember(messages) { messages.map { it.peerSenderKey() } }
+    val phoneName = settings.deviceName.ifBlank { stringResource(R.string.settings_default_device_name) }
+    val senderKeys = remember(messages) { messages.map { it.groupKey() } }
     val timestampDividerIndices = remember(messages) {
         SessionTimestamp.dividerIndices(messages.map { it.timestamp })
     }
@@ -465,8 +465,13 @@ fun HistoryScreen(
                         nextMsg == null || nextMsg.groupKey() != msg.groupKey()
                     com.example.flikky.data.settings.AvatarGroupingMode.EACH -> true
                 }
-                val senderName = if (namesOn && senderLabelAt(senderKeys, index)) {
-                    msg.senderDeviceId?.let(devicesById::get)?.displayName(unknownDevice) ?: unknownDevice
+                val senderName = if (namesOn && senderLabelAt(
+                    senderKeys, index,
+                    everyMessage = settings.messageActionStyle == com.example.flikky.data.settings.MessageActionStyle.INLINE,
+                    breakBefore = settings.sessionTimestampEnabled && index in timestampDividerIndices,
+                )) {
+                    if (msg.origin == Origin.PHONE) phoneName
+                    else msg.senderDeviceId?.let(devicesById::get)?.displayName(unknownDevice) ?: unknownDevice
                 } else {
                     null
                 }

@@ -23,16 +23,18 @@ class SenderLabelTest {
         assertFalse(senderNamesEnabled(SenderNameMode.OFF, peerDeviceCount = 5))
     }
 
-    @Test fun `a name heads each run of messages from the same sender`() {
-        // 群聊惯例：同一个人连续发的几条只在第一条上标名字。
-        val senders = listOf("a", "a", "b", "a", "a")
-        val shown = senders.indices.map { i -> senderLabelAt(senders, i) }
+    // 悬浮工具栏：气泡挨得紧，同一个人连续几条只在第一条上标（群聊惯例）。时间分隔条后重新开始。
+    @Test fun `with the floating toolbar a name heads each run of messages from the same sender`() {
+        val senders = listOf("a", "a", "b", PHONE_SENDER, PHONE_SENDER)
+        val shown = senders.indices.map { i -> senderLabelAt(senders, i, everyMessage = false) }
         assertEquals(listOf(true, false, true, true, false), shown)
+        assertTrue(senderLabelAt(listOf("a", "a"), 1, everyMessage = false, breakBefore = true))
     }
 
-    @Test fun `messages from this side never carry a name`() {
-        val senders = listOf("a", null, "a")
-        assertEquals(listOf(true, false, true), senders.indices.map { senderLabelAt(senders, it) })
+    // 常驻按钮：每条下面都有一排按钮，只标首条会让后面几条上方空出一块，看着像缺了东西（装机反馈）。
+    @Test fun `with inline buttons every message carries its name, on both sides`() {
+        val senders = listOf("a", "a", PHONE_SENDER)
+        assertEquals(listOf(true, true, true), senders.indices.map { senderLabelAt(senders, it, everyMessage = true) })
     }
 
     // 头像分组与名字都按「发送设备」分组：两台电脑交替发言时，按来源（都是 BROWSER）分组会把它们并成一组。

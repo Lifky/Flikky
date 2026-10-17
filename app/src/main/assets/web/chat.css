@@ -324,6 +324,14 @@
   text-overflow: ellipsis;
 }
 
+/* 自己这一侧：靠右，与右侧头像（36px + 间距）内缘对齐。 */
+.bubble-sender.me {
+  align-self: flex-end;
+  padding-inline-start: 0;
+  padding-inline-end: calc(36px + var(--flikky-space-sm));
+  text-align: end;
+}
+
 /* 改名对话框：outlined 文本框的浮动标签骑在边框上、超出组件顶边约半个字高，
  * 而 mdui-dialog 正文槽会裁掉溢出（装机 Screenshot_1 标签被切）。顶部留出这段高度。 */
 #device-name-input {

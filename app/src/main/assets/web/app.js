@@ -204,10 +204,9 @@
         const self = deviceSelf.applyUpdate(localStorage, payload);
         if (!self) return;
         mySelf = self;
-        if (self.deviceId && self.deviceId !== myDeviceId) {
-            myDeviceId = self.deviceId;
-            reflowMessageAvatars();
-        }
+        if (self.deviceId) myDeviceId = self.deviceId;
+        // 改名也要重画：自己这一侧的气泡也标名字。
+        reflowMessageAvatars();
         if (self.avatarKey) {
             myAvatarKey = normalizeAvatarKey(self.avatarKey, AVATAR_DEFAULT_BROWSER);
             renderMyAvatarBtn();
@@ -388,12 +387,14 @@
 
     function senderDisplayName(sender) {
         if (sender === 'phone') return phoneDisplayName || t('app.phone');
+        // 自己：本机记录还没到时用名册里自己那一项（名册连上即推，通常更早）。
+        if (sender === 'me') return (mySelf || !peersLib) ? myDisplayName() : peersLib.displayName(peerRoster.get(myDeviceId), t('app.device.browser'));
         return peersLib ? peersLib.displayName(peerRoster.get(sender), t('app.device.browser')) : t('app.device.browser');
     }
 
-    function makeSenderLabel(name) {
+    function makeSenderLabel(name, mine) {
         const el = document.createElement('div');
-        el.className = 'bubble-sender';
+        el.className = mine ? 'bubble-sender me' : 'bubble-sender';
         el.textContent = name;
         return el;
     }
@@ -471,7 +472,7 @@
         const senders = rows.map(rowSender);
         const breaks = rows.map((r) => !!(r && r.dataset && r.dataset.groupBreak));
         const labels = peersLib && peersLib.namesEnabled(senderNameMode, peerRoster.size)
-            ? peersLib.labelPlan(senders, breaks)
+            ? peersLib.labelPlan(senders, breaks, actionStyle === 'INLINE')
             : [];
         let previousSender = null;
         rows.forEach((row, index) => {
@@ -483,7 +484,7 @@
             const sameAsPrev = sender === previousSender && !breaks[index];
             const sameAsNext = sender === nextSender && !breaks[index + 1];
             applyGroupingClasses(row, sameAsPrev, sameAsNext);
-            if (labels[index]) list.insertBefore(makeSenderLabel(senderDisplayName(sender)), row);
+            if (labels[index]) list.insertBefore(makeSenderLabel(senderDisplayName(sender), sender === 'me'), row);
             previousSender = sender;
         });
         lastBubbleOrigin = previousSender;

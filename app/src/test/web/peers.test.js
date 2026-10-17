@@ -38,16 +38,22 @@ test('names follow the phone setting', () => {
     assert.equal(p.namesEnabled('nonsense', 2), true, 'unknown values fall back to AUTO');
 });
 
-test('a name heads each run from the same sender and never sits on my own messages', () => {
+// 装机反馈：自己这一侧也标名字（别人都有，自己没有反而别扭）；常驻按钮时每条都标，悬浮工具栏时只标首条。
+test('with the floating toolbar a name heads each run, my own side included', () => {
     const p = load();
     const me = p.ME;
-    const senders = ['dev-b', 'dev-b', p.PHONE, me, 'dev-b'];
-    assert.deepEqual(p.labelPlan(senders, [false, false, false, false, false]), [true, false, true, false, true]);
+    const senders = ['dev-b', 'dev-b', p.PHONE, me, me];
+    assert.deepEqual(p.labelPlan(senders, [false, false, false, false, false], false), [true, false, true, true, false]);
+});
+
+test('with inline buttons every message carries its name', () => {
+    const p = load();
+    assert.deepEqual(p.labelPlan(['dev-b', 'dev-b', p.ME], [false, false, false], true), [true, true, true]);
 });
 
 test('a time divider starts a new run', () => {
     const p = load();
-    assert.deepEqual(p.labelPlan(['dev-b', 'dev-b'], [false, true]), [true, true]);
+    assert.deepEqual(p.labelPlan(['dev-b', 'dev-b'], [false, true], false), [true, true]);
 });
 
 test('roster entries resolve names and avatars, with safe fallbacks', () => {
