@@ -45,6 +45,11 @@
             </intent-filter>
         </activity>
 
+        <!-- 「请求加入」通知上的允许 / 拒绝（v1.23 多设备）。只收本应用的 PendingIntent。 -->
+        <receiver
+            android:name=".service.JoinRequestActionReceiver"
+            android:exported="false" />
+
         <service
             android:name=".service.TransferService"
             android:exported="false"

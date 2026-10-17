@@ -51,6 +51,12 @@ fun Route.authRoutes(
             call.respondRedirect(redirectAfterLogin())
             return@get
         }
+        // 会话里已有设备：不管开没开 PIN，都进入口页「请求加入」，由手机允许（v1.23 多设备）。
+        // 关 PIN 时不能再自动签发 —— 那等于局域网里谁来都直接进。
+        if (authGate.joinRequired) {
+            call.respondBytes(readAsset("web/login.html"), ContentType.Text.Html)
+            return@get
+        }
         if (!authGate.required) {
             // B54：关 PIN 也签发受控会话，之后照常按设备校验（spec §4.3）。
             authGate.issueOpen(call.request.headers[HttpHeaders.UserAgent])?.let { call.appendAuthCookie(it.token) }

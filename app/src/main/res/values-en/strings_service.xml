@@ -20,4 +20,10 @@
     <string name="service_export_body">%1$s / %2$s available to download</string>
     <string name="service_export_fallback">Export available</string>
     <string name="service_default_session_name">Session %1$s</string>
+    <string name="join_request_channel_name">Device join requests</string>
+    <string name="join_request_channel_description">Lets you know when a new device wants to join this session</string>
+    <string name="join_request_title">“%1$s” wants to join this session</string>
+    <string name="join_request_body">Once allowed, it can see every message and file in the session</string>
+    <string name="join_request_allow">Allow</string>
+    <string name="join_request_deny">Deny</string>
 </resources>

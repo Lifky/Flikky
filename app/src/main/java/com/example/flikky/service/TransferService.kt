@@ -34,6 +34,7 @@ import com.example.flikky.network.NetworkRebinder
 import com.example.flikky.network.UsableIpPolicy
 import com.example.flikky.network.RebindIntent
 import com.example.flikky.server.DeviceRegistry
+import com.example.flikky.server.JoinRequests
 import com.example.flikky.server.KtorServer
 import com.example.flikky.server.PinAuth
 import com.example.flikky.server.ServiceMode
@@ -106,6 +107,9 @@ class TransferService : Service() {
      * **不持有任何 KtorServer 成员**（rebind 引用规范）。
      */
     private var deviceRegistry: DeviceRegistry? = null
+    /** 「请求加入」队列（v1.23 多设备）。与 [deviceRegistry] 一样跨 rebind 存活，经参数交给每个新 KtorServer。 */
+    private var joinRequests: JoinRequests? = null
+    private var joinsJob: Job? = null
     private var controller: TransferController? = null
     private var currentSessionId: Long = -1L
     @Volatile private var currentMode: ServiceMode? = null
@@ -295,6 +299,15 @@ class TransferService : Service() {
         pinAuth = auth
         val registry = DeviceRegistry(defaultAvatar = { latestSettings.browserAvatarKey })
         deviceRegistry = registry
+        val joins = JoinRequests()
+        joinRequests = joins
+        // 加入请求 → 手机界面（弹窗）与通知。
+        joinsJob = scope.launch {
+            joins.pending.collect { list ->
+                ServiceLocator.session.setJoinRequests(list)
+                JoinRequestNotifier.update(this@TransferService, list)
+            }
+        }
         // 设备 → 界面与会话快照。`sid` 是本函数的局部值（会话 id 跨 rebind 不变），不是 KtorServer 成员。
         devicesJob = scope.launch {
             registry.devices.collect { list ->
@@ -336,6 +349,7 @@ class TransferService : Service() {
             allowPeerRecall = { latestSettings.allowPeerRecall },
             devices = registry,
             onDeviceRevoked = { refreshPinAfterRevoke() },
+            joins = joins,
         )
         // v1.3：HistoryViewModel 撤回入口通过 ServiceLocator 拿 controller。
         // 见 ServiceLocator.currentController 的 KDoc。
@@ -505,6 +519,7 @@ class TransferService : Service() {
         statusBroadcastJob?.cancel(); statusBroadcastJob = null
         peerFavoritesJob?.cancel(); peerFavoritesJob = null
         devicesJob?.cancel(); devicesJob = null
+        joinsJob?.cancel(); joinsJob = null
 
         if (mode == ServiceMode.Transfer) {
             val sid = currentSessionId
@@ -540,6 +555,9 @@ class TransferService : Service() {
         pinAuth = null
         deviceRegistry?.revokeAll()
         deviceRegistry = null
+        joinRequests?.clear()
+        joinRequests = null
+        JoinRequestNotifier.update(this, emptyList())
         ServiceLocator.session.setDevices(emptyList())
         currentHostIp = null
         currentRequirePin = true
@@ -570,6 +588,7 @@ class TransferService : Service() {
         endPort = LocalHostName.portRange(startPort).last,
         pinAuth = auth,
         deviceRegistry = registry,
+        joinRequests = joinRequests,
         session = ServiceLocator.session,
         stats = ServiceLocator.stats,
         fileStore = ServiceLocator.fileStore,
@@ -677,6 +696,7 @@ class TransferService : Service() {
         endPort = LocalHostName.portRange(startPort).last,
         pinAuth = auth,
         deviceRegistry = registry,
+        joinRequests = joinRequests,
         session = ServiceLocator.session,
         stats = ServiceLocator.stats,
         fileStore = ServiceLocator.fileStore,
@@ -816,6 +836,7 @@ class TransferService : Service() {
             // D75：新 IP 是新的 Cookie host —— 换发 PIN，并作废所有旧凭据（以前靠 PinAuth 存的那一份 token）。
             auth.renewPin(IdGen.newPin())
             registry.revokeAll()
+            joinRequests?.clear()
         }
         ktor = replacement
         rebinder.prime(newIp)

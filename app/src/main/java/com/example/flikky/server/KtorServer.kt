@@ -14,6 +14,7 @@ import com.example.flikky.server.routes.AuthGate
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.server.routes.authRoutes
 import com.example.flikky.server.routes.deviceRoutes
+import com.example.flikky.server.routes.joinRoutes
 import com.example.flikky.server.routes.albumRoutes
 import com.example.flikky.server.routes.exportRoutes
 import com.example.flikky.server.routes.favoriteRoutes
@@ -59,6 +60,8 @@ class KtorServer(
      * 默认值只给测试用。
      */
     private val deviceRegistry: DeviceRegistry = DeviceRegistry(),
+    /** 「请求加入」队列（v1.23 多设备）。TransferService 字段，跨 rebind 存活；只在传输模式生效。 */
+    private val joinRequests: JoinRequests? = null,
     private val session: SessionState,
     private val stats: TransferStats,
     private val fileStore: FileStore,
@@ -141,7 +144,12 @@ class KtorServer(
         private set
 
     internal val wsHub = WsHub()
-    private val authGate = AuthGate(required = requirePin, pinAuth = pinAuth, registry = deviceRegistry)
+    private val authGate = AuthGate(
+        required = requirePin,
+        pinAuth = pinAuth,
+        registry = deviceRegistry,
+        joinRequests = joinRequests.takeIf { mode == ServiceMode.Transfer },
+    )
 
     fun start(): Int {
         var lastError: Throwable? = null
@@ -251,6 +259,7 @@ class KtorServer(
             thumbnailer = thumbnailGenerator,
         )
         peerInfoRoutes(authGate, peerInfoProvider)
+        joinRequests?.let { joinRoutes(authGate, it, redirectAfterLogin = { "/app" }) }
         deviceRoutes(
             authGate = authGate,
             registry = deviceRegistry,

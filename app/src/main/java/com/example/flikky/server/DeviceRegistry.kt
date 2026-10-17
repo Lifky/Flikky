@@ -145,6 +145,10 @@ class DeviceRegistry(
         publish()
     }
 
+    /** 会话里有没有「真的进来了」的设备：有就要手机允许新设备加入（JoinRequests）。pending 不算。 */
+    @Synchronized
+    fun hasVisibleDevices(): Boolean = byId.values.any { it.visible }
+
     /** 还有没有任何设备持有凭据（含 pending）。PIN 换发的判据，见 PinAuth.needsNextPin。 */
     @Synchronized
     fun hasCredentials(): Boolean = byId.isNotEmpty()

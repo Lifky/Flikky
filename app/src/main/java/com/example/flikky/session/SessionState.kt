@@ -85,6 +85,7 @@ class SessionState(private val nowMs: () -> Long) {
         _devices.value = emptyList()
         _knownDeviceAvatars.value = emptyMap()
         _knownDevices.value = emptyMap()
+        _joinRequests.value = emptyList()
     }
 
     /**
@@ -178,6 +179,7 @@ class SessionState(private val nowMs: () -> Long) {
         _devices.value = emptyList()
         _knownDeviceAvatars.value = emptyMap()
         _knownDevices.value = emptyMap()
+        _joinRequests.value = emptyList()
     }
 
     /**
@@ -216,6 +218,12 @@ class SessionState(private val nowMs: () -> Long) {
     // 本会话出现过的每台设备的最近头像：被断开的设备离开 [devices] 后，它发过的气泡仍要画对头像。
     private val _knownDeviceAvatars = MutableStateFlow<Map<String, String>>(emptyMap())
     val knownDeviceAvatars: StateFlow<Map<String, String>> = _knownDeviceAvatars.asStateFlow()
+
+    // 等手机处理的「请求加入」（v1.23 多设备），由 TransferService 从 JoinRequests 镜像进来。
+    private val _joinRequests = MutableStateFlow<List<com.example.flikky.server.JoinRequests.View>>(emptyList())
+    val joinRequests: StateFlow<List<com.example.flikky.server.JoinRequests.View>> = _joinRequests.asStateFlow()
+
+    fun setJoinRequests(list: List<com.example.flikky.server.JoinRequests.View>) { _joinRequests.value = list }
 
     // 本会话见过的每台设备的最近记录（含已断开的）：浏览器端名册与历史消息的发送者都靠它。
     private val _knownDevices = MutableStateFlow<Map<String, PeerDevice>>(emptyMap())

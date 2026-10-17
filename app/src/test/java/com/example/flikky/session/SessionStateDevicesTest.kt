@@ -37,4 +37,12 @@ class SessionStateDevicesTest {
         s.startNew(3L)
         assertTrue(s.knownDevices.value.isEmpty())
     }
+
+    @Test fun `pending join requests are mirrored for the phone and forgotten with the session`() {
+        val s = SessionState(nowMs = { 0L })
+        s.setJoinRequests(listOf(com.example.flikky.server.JoinRequests.View("r1", "Chrome · Windows", 0L)))
+        assertEquals(listOf("r1"), s.joinRequests.value.map { it.id })
+        s.reset()
+        assertTrue(s.joinRequests.value.isEmpty())
+    }
 }
