@@ -86,7 +86,7 @@ function makeLocalStorage() {
 // test needs to poke at the result: the shell/root/body fakes, the
 // localStorage stub, and how many times the i18n listener fired (proves
 // mount() renders exactly once at load — D4).
-function loadPanel({ language = 'zh-CN', railSide = 'left', swap = '0', timestamps = 'on', appVersion = '' } = {}) {
+function loadPanel({ language = 'zh-CN', railSide = 'left', swap = '0', timestamps = 'on', appVersion = '', senderNames = '' } = {}) {
     const shell = makeElement('div');
     shell.dataset.railSide = railSide;
     shell.dataset.swap = swap;
@@ -97,6 +97,7 @@ function loadPanel({ language = 'zh-CN', railSide = 'left', swap = '0', timestam
     // 无条件写会让「属性缺失」这个真实状态在测试里无法表达。
     if (timestamps) body.dataset.timestamps = timestamps;
     if (appVersion) body.dataset.appVersion = appVersion;
+    if (senderNames) body.dataset.senderNames = senderNames;
 
     const root = makeElement('div');
 
@@ -258,6 +259,8 @@ test('new app.settings.* i18n keys exist in both dictionaries', () => {
         'app.settings.languageZh', 'app.settings.languageEn',
         'app.settings.theme', 'app.settings.themeSub',
         'app.settings.timestamps', 'app.settings.timestampsSubOn', 'app.settings.timestampsSubOff',
+        'app.settings.senderNames', 'app.settings.senderNamesSubAuto', 'app.settings.senderNamesSubAlways',
+        'app.settings.senderNamesSubOff',
         'app.settings.about', 'app.settings.browserClient', 'app.settings.browserClientNoVersion',
         'app.settings.github',
     ];
@@ -391,6 +394,16 @@ test('the timestamps row reads an absent attribute as OFF, matching the phone de
         findDescendant(root, (n) => n.textContent === 'app.settings.timestampsSubOff'),
         'with no data-timestamps attribute the row must read as off',
     );
+});
+
+// 「发送者名字」由手机控制（v1.23 多设备）：浏览器只显示当前状态，缺省按手机默认「自动」读。
+test('the sender names row mirrors the phone setting, reading absent as auto', () => {
+    const shows = (senderNames, key) =>
+        !!findDescendant(loadPanel({ senderNames }).root, (n) => n.textContent === key);
+    assert.ok(shows('', 'app.settings.senderNamesSubAuto'));
+    assert.ok(shows('ALWAYS', 'app.settings.senderNamesSubAlways'));
+    assert.ok(shows('OFF', 'app.settings.senderNamesSubOff'));
+    assert.match(SRC, /'data-sender-names'/, 'the panel must re-render when the phone changes it');
 });
 
 test('the panel opens with a "this device" group showing the published name', () => {

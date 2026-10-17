@@ -307,6 +307,21 @@
   display: block;
 }
 
+/* 多设备时气泡上方的发送者名字（v1.23）：与气泡左缘对齐（头像 36px + 间距），紧贴它下面那条气泡。 */
+.bubble-sender {
+  align-self: flex-start;
+  max-width: 70%;
+  padding-inline-start: calc(36px + var(--flikky-space-sm));
+  margin-bottom: var(--flikky-space-xs);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: rgb(var(--mdui-color-on-surface-variant));
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 /* 改名对话框：outlined 文本框的浮动标签骑在边框上、超出组件顶边约半个字高，
  * 而 mdui-dialog 正文槽会裁掉溢出（装机 Screenshot_1 标签被切）。顶部留出这段高度。 */
 #device-name-input {

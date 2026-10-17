@@ -201,8 +201,8 @@ function fakeRowElement(tag) {
 // replayingHistory, pendingGroupBreak, avatar helpers) can all be supplied as
 // stubs on the vm context instead of booting the whole app.js IIFE.
 function appendBubbleRowWithFlag(replayingHistory) {
-    const start = appJs.indexOf('    function appendBubbleRow(bubbleEl, origin) {');
-    const end = appJs.indexOf('    function rowOrigin(row) {');
+    const start = appJs.indexOf('    function appendBubbleRow(bubbleEl, origin, senderDeviceId) {');
+    const end = appJs.indexOf('    function senderOf(origin, senderDeviceId) {');
     assert.ok(start >= 0 && end > start, 'appendBubbleRow not found in app.js');
     const fnSlice = appJs.slice(start, end);
 
@@ -219,6 +219,8 @@ function appendBubbleRowWithFlag(replayingHistory) {
         myAvatarKey: 'icon:desktop_windows',
         phoneAvatarKey: 'icon:smartphone',
         makeAvatarEl: () => fakeRowElement('mdui-avatar'),
+        senderOf: (origin) => (origin === 'BROWSER' ? 'me' : 'phone'),
+        avatarKeyForSender: () => 'icon:desktop_windows',
         reflowMessageAvatars() {},
         renderMessageActionBar() {},
     };

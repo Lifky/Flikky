@@ -202,6 +202,18 @@
         timestamps.item.appendChild(buildTrailIcon('smartphone'));
         group.appendChild(timestamps.item);
 
+        // 缺省按手机默认「自动」读（FlikkySettings.senderNameMode = AUTO）。
+        const senderMode = document.body.dataset.senderNames;
+        const senderSubKey = senderMode === 'ALWAYS' ? 'app.settings.senderNamesSubAlways'
+            : senderMode === 'OFF' ? 'app.settings.senderNamesSubOff'
+                : 'app.settings.senderNamesSubAuto';
+        const senderNames = buildRow('div', 'badge');
+        senderNames.item.style.cursor = 'default';
+        senderNames.title.textContent = t('app.settings.senderNames');
+        senderNames.sub.textContent = t(senderSubKey);
+        senderNames.item.appendChild(buildTrailIcon('smartphone'));
+        group.appendChild(senderNames.item);
+
         return group;
     }
 
@@ -294,7 +306,7 @@
     // 这里不让 app.js 反过来通知面板（那会让 app.js 知道面板存在），而是观察它已经
     // 发布出来的 DOM 状态——正是 D1 定的方向：app.js 只管发布，面板自己读。
     // 观察的是 <body>，面板写的是 #shell 和自己的子树，不会自激。
-    const PUBLISHED_ATTRS = ['data-app-version', 'data-timestamps', 'data-device-name'];
+    const PUBLISHED_ATTRS = ['data-app-version', 'data-timestamps', 'data-device-name', 'data-sender-names'];
 
     function observePublishedState(root) {
         if (typeof MutationObserver !== 'function') return;

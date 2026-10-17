@@ -174,6 +174,13 @@
     // v1.23：本机设备记录（spec §7）。第一次 device_updated 到达前为 null，界面用默认名兜底。
     let mySelf = null;
     const deviceSelf = window.flikkyDeviceSelf;
+    // v1.23 多设备：会话里的其他设备（规则在 peers.js）。myDeviceId 来自 /api/messages 与连上时的 `peers` 帧；
+    // 不知道之前，浏览器发的消息照旧画在自己这边（单浏览器时代的行为）。
+    const peersLib = window.flikkyPeers;
+    let myDeviceId = null;
+    let peerRoster = new Map();
+    let senderNameMode = 'AUTO';
+    let phoneDisplayName = '';
 
     function myDisplayName() {
         return deviceSelf ? deviceSelf.displayName(mySelf, t('app.device.browser')) : t('app.device.browser');
@@ -197,6 +204,10 @@
         const self = deviceSelf.applyUpdate(localStorage, payload);
         if (!self) return;
         mySelf = self;
+        if (self.deviceId && self.deviceId !== myDeviceId) {
+            myDeviceId = self.deviceId;
+            reflowMessageAvatars();
+        }
         if (self.avatarKey) {
             myAvatarKey = normalizeAvatarKey(self.avatarKey, AVATAR_DEFAULT_BROWSER);
             renderMyAvatarBtn();
@@ -321,13 +332,17 @@
     // Wrap a bubble div in a bubble-row that includes the appropriate avatar
     // or spacer. `origin` is 'PHONE' | 'BROWSER'.
     // Returns the row element (appended to list).
-    function appendBubbleRow(bubbleEl, origin) {
-        const mine = origin === 'BROWSER';
-        const isContinuation = origin === lastBubbleOrigin;
-        lastBubbleOrigin = origin;
+    function appendBubbleRow(bubbleEl, origin, senderDeviceId) {
+        const sender = senderOf(origin, senderDeviceId);
+        const mine = sender === 'me';
+        const isContinuation = sender === lastBubbleOrigin;
+        lastBubbleOrigin = sender;
 
         const row = document.createElement('div');
         row.className = 'bubble-row ' + (mine ? 'me' : 'them');
+        // 记下原始来源：自己是哪台可能晚一步才知道，reflow 时据此重新判定左右（applyRowSide）。
+        row.dataset.origin = origin;
+        row.dataset.senderDevice = senderDeviceId || '';
         if (!replayingHistory) row.classList.add('bubble-row--enter');
         if (pendingGroupBreak) { row.dataset.groupBreak = '1'; pendingGroupBreak = false; }
 
@@ -337,7 +352,7 @@
             spacer.className = 'avatar-spacer';
             row.appendChild(spacer);
         } else {
-            const avatarEl = makeAvatarEl(mine ? myAvatarKey : phoneAvatarKey);
+            const avatarEl = makeAvatarEl(avatarKeyForSender(sender));
             row.appendChild(avatarEl);
         }
         row.appendChild(bubbleEl);
@@ -349,11 +364,61 @@
         return row;
     }
 
-    function rowOrigin(row) {
-        if (!row) return null;
-        if (row.classList.contains('me')) return 'BROWSER';
-        if (row.classList.contains('them')) return 'PHONE';
+    // 发送者键：'me' / 'phone' / 对方的 deviceId（peers.js 的 senderKey）。
+    function senderOf(origin, senderDeviceId) {
+        if (peersLib) return peersLib.senderKey(origin, senderDeviceId || null, myDeviceId);
+        return origin === 'BROWSER' ? 'me' : 'phone';
+    }
+
+    function rowSender(row) {
+        if (!row || !row.classList || !row.classList.contains('bubble-row')) return null;
+        if (row.dataset && row.dataset.origin) return senderOf(row.dataset.origin, row.dataset.senderDevice);
+        if (row.classList.contains('me')) return 'me';
+        if (row.classList.contains('them')) return 'phone';
         return null;
+    }
+
+    // 发送者键是字面量 'me' / 'phone'（与 peers.js 的 ME / PHONE 相同）：peers.js 没加载时页面照样能画。
+    function avatarKeyForSender(sender) {
+        if (sender === 'me') return myAvatarKey;
+        if (sender === 'phone') return phoneAvatarKey;
+        const entry = peerRoster.get(sender);
+        return (entry && entry.avatarKey) || AVATAR_DEFAULT_BROWSER;
+    }
+
+    function senderDisplayName(sender) {
+        if (sender === 'phone') return phoneDisplayName || t('app.phone');
+        return peersLib ? peersLib.displayName(peerRoster.get(sender), t('app.device.browser')) : t('app.device.browser');
+    }
+
+    function makeSenderLabel(name) {
+        const el = document.createElement('div');
+        el.className = 'bubble-sender';
+        el.textContent = name;
+        return el;
+    }
+
+    // 左右由发送者决定：别的电脑发的画在对方一侧。变了就重建操作栏（撤回等按「是不是我的」给）。
+    function applyRowSide(row, sender) {
+        const mine = sender === 'me';
+        if (row.classList.contains('me') === mine) return;
+        row.classList.toggle('me', mine);
+        row.classList.toggle('them', !mine);
+        const bubble = row.querySelector('.bubble, .file-bubble');
+        if (bubble) {
+            bubble.classList.toggle('me', mine);
+            bubble.classList.toggle('them', !mine);
+            renderMessageActionBar(row, bubble);
+        }
+    }
+
+    function applyRoster(payload) {
+        if (!peersLib) return;
+        if (payload && typeof payload.selfDeviceId === 'string' && payload.selfDeviceId) {
+            myDeviceId = payload.selfDeviceId;
+        }
+        peerRoster = peersLib.parseRoster(payload);
+        reflowMessageAvatars();
     }
 
     function makeAvatarSpacer() {
@@ -362,9 +427,9 @@
         return spacer;
     }
 
-    function setRowAvatarMarker(row, origin, showAvatar) {
+    function setRowAvatarMarker(row, sender, showAvatar) {
         const marker = showAvatar
-            ? makeAvatarEl(origin === 'BROWSER' ? myAvatarKey : phoneAvatarKey)
+            ? makeAvatarEl(avatarKeyForSender(sender))
             : makeAvatarSpacer();
         const current = row.children[0];
         if (current && (current.classList.contains('avatar-circle') || current.classList.contains('avatar-spacer'))) {
@@ -399,21 +464,29 @@
         else if (sameAsPrev) row.classList.add('grouped-end');
     }
 
+    // 按发送者（而不是来源）分组：两台电脑交替发言不能并成一组。名字标签每次整体重建，删消息也不会留下孤儿标签。
     function reflowMessageAvatars() {
+        list.querySelectorAll('.bubble-sender').forEach((el) => el.remove());
         const rows = Array.from(list.querySelectorAll('.bubble-row'));
-        let previousOrigin = null;
+        const senders = rows.map(rowSender);
+        const breaks = rows.map((r) => !!(r && r.dataset && r.dataset.groupBreak));
+        const labels = peersLib && peersLib.namesEnabled(senderNameMode, peerRoster.size)
+            ? peersLib.labelPlan(senders, breaks)
+            : [];
+        let previousSender = null;
         rows.forEach((row, index) => {
-            const origin = rowOrigin(row);
-            if (!origin) return;
-            const nextOrigin = rowOrigin(rows[index + 1]);
-            setRowAvatarMarker(row, origin, shouldShowAvatarForRow(origin, previousOrigin, nextOrigin));
-            const breakBefore = (r) => !!(r && r.dataset && r.dataset.groupBreak);
-            const sameAsPrev = origin === previousOrigin && !breakBefore(row);
-            const sameAsNext = origin === nextOrigin && !breakBefore(rows[index + 1]);
+            const sender = senders[index];
+            if (!sender) return;
+            applyRowSide(row, sender);
+            const nextSender = senders[index + 1] || null;
+            setRowAvatarMarker(row, sender, shouldShowAvatarForRow(sender, previousSender, nextSender));
+            const sameAsPrev = sender === previousSender && !breaks[index];
+            const sameAsNext = sender === nextSender && !breaks[index + 1];
             applyGroupingClasses(row, sameAsPrev, sameAsNext);
-            previousOrigin = origin;
+            if (labels[index]) list.insertBefore(makeSenderLabel(senderDisplayName(sender)), row);
+            previousSender = sender;
         });
-        lastBubbleOrigin = previousOrigin;
+        lastBubbleOrigin = previousSender;
     }
 
     // Update the header avatar and name for the peer.
@@ -433,10 +506,9 @@
         renderAvatar(btn, myAvatarKey);
     }
 
+    // 头像按发送者取（自己 / 手机 / 名册里的别的电脑），reflow 会把每行重新画一遍。
     function refreshBrowserMessageAvatars() {
-        list.querySelectorAll('.bubble-row.me > .avatar-circle').forEach((avatarEl) => {
-            renderAvatar(avatarEl, myAvatarKey);
-        });
+        reflowMessageAvatars();
     }
 
     // Convert an ARGB Long string (e.g. "4294944066") to a CSS color string.
@@ -591,6 +663,11 @@
             i18n.applyServerLanguage(data.languageTag);
         }
         const name = (data.deviceName && typeof data.deviceName === 'string') ? data.deviceName : fallbackName;
+        phoneDisplayName = name;
+        if (Object.prototype.hasOwnProperty.call(data, 'senderNameMode')) {
+            senderNameMode = peersLib ? peersLib.normalizeMode(data.senderNameMode) : 'AUTO';
+            document.body.dataset.senderNames = senderNameMode;
+        }
         const prevRecall = recallEnabled;
         const prevAllowPeerRecall = allowPeerRecall;
         const prevAllowPeerFavorite = allowPeerFavorite;
@@ -1106,20 +1183,22 @@
 
     function renderText(msg, mine) {
         maybeInsertTimeDivider(msg.timestamp);
+        const origin = msg.origin || (mine ? 'BROWSER' : 'PHONE');
         const div = document.createElement('div');
-        div.className = 'bubble ' + (mine ? 'me' : 'them');
+        div.className = 'bubble ' + (senderOf(origin, msg.senderDeviceId) === 'me' ? 'me' : 'them');
         div.textContent = msg.content;
         div.dataset.messageId = msg.id;
         div.dataset.kind = 'text';
-        appendBubbleRow(div, mine ? 'BROWSER' : 'PHONE');
+        appendBubbleRow(div, origin, msg.senderDeviceId);
         attachBubbleGestureHandlers(div);
         return div;
     }
 
     function renderFile(msg, mine) {
         maybeInsertTimeDivider(msg.timestamp);
+        const origin = msg.origin || (mine ? 'BROWSER' : 'PHONE');
         const div = document.createElement('div');
-        div.className = 'file-bubble ' + (mine ? 'me' : 'them');
+        div.className = 'file-bubble ' + (senderOf(origin, msg.senderDeviceId) === 'me' ? 'me' : 'them');
         div.dataset.messageId = msg.id;
         div.dataset.kind = 'file';
         div.dataset.mime = msg.mime || '';
@@ -1132,7 +1211,7 @@
         } else {
             buildClassicFileContent(div, msg.fileId, msg.name, msg.sizeBytes);
         }
-        appendBubbleRow(div, mine ? 'BROWSER' : 'PHONE');
+        appendBubbleRow(div, origin, msg.senderDeviceId);
         attachBubbleGestureHandlers(div);
         if (!completed) markBubbleFailedNoRetry(div, 'app.transfer_failed');
         return div;
@@ -1358,7 +1437,7 @@
 
     function renderTransferringBubble(msg) {
         maybeInsertTimeDivider(msg.timestamp);
-        const mine = msg.origin === 'BROWSER';
+        const mine = senderOf(msg.origin, msg.senderDeviceId) === 'me';
         const div = document.createElement('div');
         div.className = 'file-bubble ' + (mine ? 'me' : 'them') + ' transferring';
         div.dataset.messageId = msg.id;
@@ -1391,7 +1470,7 @@
         div.appendChild(bar);
         div.appendChild(pct);
 
-        appendBubbleRow(div, mine ? 'BROWSER' : 'PHONE');
+        appendBubbleRow(div, msg.origin, msg.senderDeviceId);
         attachBubbleGestureHandlers(div);
         return div;
     }
@@ -1537,6 +1616,10 @@
             applySelf(ev.payload);
             return;
         }
+        if (ev.type === 'peers') {
+            applyRoster(ev.payload);
+            return;
+        }
         if (ev.type === 'device_revoked') {
             onDeviceRevoked('revoked');
             return;
@@ -1658,6 +1741,8 @@
         if (!r.ok) return;
         const data = await r.json();
         if (connection !== currentWs || serverStopped) return;
+        // 先认清自己是哪台，再回放：否则别的电脑发的历史消息会先被画到右边。
+        if (typeof data.selfDeviceId === 'string' && data.selfDeviceId) myDeviceId = data.selfDeviceId;
         reconcileHistorySnapshot(data, knownIds);
         if (Array.isArray(data.favoritedIds)) setFavoritedIds(data.favoritedIds);
         // 服务端 v1.2 起新增 `ordered`（按 timestamp 升序的混合列表）。优先用它，

@@ -21,6 +21,12 @@ class ClassList {
     this._write(classes);
   }
 
+  toggle(name, force) {
+    const on = force === undefined ? !this._classes().has(name) : !!force;
+    if (on) this.add(name); else this.remove(name);
+    return on;
+  }
+
   remove(...names) {
     const classes = this._classes();
     names.forEach((name) => classes.delete(name));
@@ -163,6 +169,7 @@ function walk(root, visit) {
 
 function matches(el, selector) {
   if (!el) return false;
+  if (selector.includes(',')) return selector.split(',').some((part) => matches(el, part.trim()));
   if (selector.startsWith('.')) {
     return selector.slice(1).split('.').every((name) => el.classList.contains(name));
   }
@@ -231,7 +238,7 @@ function createDocument() {
   return document;
 }
 
-function loadAppForTest() {
+function loadAppForTest(options = {}) {
   const appPath = path.join(__dirname, '..', 'app', 'src', 'main', 'assets', 'web', 'app.js');
   const source = fs.readFileSync(appPath, 'utf8');
   const patched = source.replace(
@@ -280,6 +287,13 @@ function loadAppForTest() {
   context.window.location = context.location;
   context.window.localStorage = context.localStorage;
 
+  if (options.withPeers) {
+    // app.js 读 window.flikkyPeers；peers.js 挂在 globalThis 上，所以在 window 对象上跑一遍。
+    ['device-self.js', 'peers.js'].forEach((name) => {
+      const modulePath = path.join(__dirname, '..', 'app', 'src', 'main', 'assets', 'web', name);
+      vm.runInNewContext(fs.readFileSync(modulePath, 'utf8'), { globalThis: context.window }, { filename: modulePath });
+    });
+  }
   vm.runInNewContext(patched, context, { filename: appPath });
   return context.window.__flikkyWebTest;
 }
@@ -462,5 +476,49 @@ function runServerStoppedUpdatesDefaultWatermarkTest() {
 }
 
 runServerStoppedUpdatesDefaultWatermarkTest();
+
+// v1.23 多设备装机反馈：两台浏览器的消息都画在右边、头像都是本机的、看不出是谁发的。
+function runOtherDevicesTest() {
+  const app = loadAppForTest({ withPeers: true });
+  const roster = (bAvatar) => ({ devices: [
+    { deviceId: 'dev-me', name: '', defaultLabel: 'Chrome · Windows', defaultOrdinal: 1, avatarKey: 'icon:desktop_windows', online: true, present: true },
+    { deviceId: 'dev-b', name: '书房', defaultLabel: null, defaultOrdinal: 1, avatarKey: bAvatar, online: true, present: true },
+  ] });
+  app.onWsEvent({ type: 'peers', payload: { ...roster('icon:face'), selfDeviceId: 'dev-me' } });
+  app.renderText({ id: 1, origin: 'BROWSER', senderDeviceId: 'dev-b', content: 'from b' }, true);
+  app.renderText({ id: 2, origin: 'BROWSER', senderDeviceId: 'dev-me', content: 'mine' }, true);
+  app.renderText({ id: 3, origin: 'PHONE', content: 'phone' }, false);
+
+  const rows = () => app.list.children.filter((row) => row.classList.contains('bubble-row'));
+  const sides = () => rows().map((row) => (row.classList.contains('me') ? 'me' : 'them'));
+  const labels = () => app.list.children
+    .filter((node) => node.classList && node.classList.contains('bubble-sender'))
+    .map((node) => node.textContent);
+
+  assertDeepEqual(sides(), ['them', 'me', 'them'], 'another computer sits on the other side');
+  assertDeepEqual(avatarSymbolText(rows()[0].children[0]), 'face', 'another computer shows its own avatar');
+  assertDeepEqual(labels(), ['书房', '手机'], 'names head the other side once two devices are in the session');
+
+  app.onWsEvent({ type: 'peers', payload: roster('icon:star') });
+  assertDeepEqual(avatarSymbolText(rows()[0].children[0]), 'star', 'its avatar change reaches this page');
+  assertDeepEqual(sides(), ['them', 'me', 'them'], 'a broadcast roster without selfDeviceId keeps who I am');
+
+  app.onWsEvent({ type: 'settings_changed', payload: { senderNameMode: 'OFF' } });
+  assertDeepEqual(labels(), [], 'the phone can turn names off');
+}
+
+runOtherDevicesTest();
+
+// 自己是哪台晚一步才知道：先按旧规则画在右边，知道之后改到对方一侧。
+function runLateSelfIdTest() {
+  const app = loadAppForTest({ withPeers: true });
+  app.renderText({ id: 1, origin: 'BROWSER', senderDeviceId: 'dev-b', content: 'from b' }, true);
+  const side = () => (app.list.children.find((row) => row.classList.contains('bubble-row')).classList.contains('me') ? 'me' : 'them');
+  assertDeepEqual(side(), 'me', 'before knowing who I am, the old single-browser rule applies');
+  app.onWsEvent({ type: 'device_updated', payload: { deviceId: 'dev-me', name: '', defaultLabel: null, defaultOrdinal: 1, avatarKey: 'icon:desktop_windows', avatarExplicit: false } });
+  assertDeepEqual(side(), 'them', 'once this page learns its own id, the other computer moves across');
+}
+
+runLateSelfIdTest();
 
 console.log('web avatar reflow test passed');
