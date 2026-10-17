@@ -33,7 +33,7 @@ fun DeviceNameDialog(
         text = {
             OutlinedTextField(
                 value = draft,
-                onValueChange = { if (it.length <= DEVICE_NAME_MAX) draft = it },
+                onValueChange = { if (acceptsDeviceNameEdit(draft, it)) draft = it },
                 singleLine = true,
                 label = { Text(stringResource(R.string.settings_device_name_limit)) },
             )
@@ -52,3 +52,10 @@ fun DeviceNameDialog(
 /** 否则默认名会被当成用户自定义值存下来，之后默认名变了（比如换了语言）它也不跟着变。 */
 internal fun normalizeDeviceNameDraft(draft: String, defaultName: String): String =
     draft.trim().takeUnless { it == defaultName }.orEmpty()
+
+/**
+ * 只拒绝「变长且超过上限」的编辑。预填值（默认名）可能本身就超长（旧数据、两位数编号）：
+ * 若一律按长度拒绝，用户删字也被拒，输入框看起来像卡死了。超长部分在保存时由服务端规范化截断。
+ */
+internal fun acceptsDeviceNameEdit(current: String, next: String): Boolean =
+    next.length <= DEVICE_NAME_MAX || next.length < current.length

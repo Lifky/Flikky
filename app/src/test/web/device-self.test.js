@@ -97,3 +97,14 @@ test('a storage that throws (private mode) never breaks the page', () => {
 test('the module never touches innerHTML', () => {
     assert.equal(/innerHTML/.test(SRC), false);
 });
+
+// v1.23 审查 Important #1：预填的默认名可能超过 20 字（「Samsung Internet · Android」）。
+// 不改直接确定，必须识别为「沿用默认名」，而不是截成一个怪名字存下来。
+test('confirming an unedited over-length default keeps the default', () => {
+    const self = load();
+    const longDefault = 'Samsung Internet · Android 2';
+    assert.equal(self.nameToSave(longDefault, longDefault), '');
+    assert.equal(self.nameToSave('  ' + longDefault + ' ', longDefault), '');
+    assert.equal(self.nameToSave('客厅电脑', longDefault), '客厅电脑');
+    assert.equal(self.nameToSave('a'.repeat(25), 'Chrome · Windows'), 'a'.repeat(20));
+});

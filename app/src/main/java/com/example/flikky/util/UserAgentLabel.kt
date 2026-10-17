@@ -21,7 +21,7 @@ object UserAgentLabel {
     private fun browserOf(ua: String): String? = when {
         "Edg/" in ua || "EdgA/" in ua || "EdgiOS/" in ua -> "Edge"
         "OPR/" in ua || "Opera" in ua -> "Opera"
-        "SamsungBrowser/" in ua -> "Samsung Internet"
+        "SamsungBrowser/" in ua -> "Samsung" // 不用全称「Samsung Internet」：加系统与编号后会超过改名框 20 字的上限
         "Firefox/" in ua || "FxiOS/" in ua -> "Firefox"
         "Chrome/" in ua || "CriOS/" in ua -> "Chrome"
         "Safari/" in ua -> "Safari"

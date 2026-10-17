@@ -63,6 +63,17 @@
         return self;
     }
 
+    /**
+     * 改名对话框确认时要存的名字。先拿未截断的输入和默认名比：预填的默认名可能超过 20 字，
+     * 截断后再比会把「没改直接确定」误当成一个新名字存下来。空串 = 沿用默认名（spec §5.2）。
+     */
+    function nameToSave(rawInput, fallback) {
+        const raw = String(rawInput == null ? '' : rawInput).trim();
+        if (raw === fallback) return '';
+        const clamped = clampName(raw);
+        return clamped === fallback ? '' : clamped;
+    }
+
     function markAvatarExplicit(storage, avatarKey) {
         safeSet(storage, KEY_AVATAR, avatarKey);
         safeSet(storage, KEY_EXPLICIT, '1');
@@ -87,6 +98,6 @@
     global.flikkyDeviceSelf = {
         NAME_MAX, CLOSE_UNAUTHORIZED, CLOSE_REVOKED,
         clampName, storedName, avatarExplicit, helloFrame, applyUpdate,
-        markAvatarExplicit, defaultName, displayName, closeKind,
+        nameToSave, markAvatarExplicit, defaultName, displayName, closeKind,
     };
 })(globalThis);

@@ -237,12 +237,12 @@
         function submit() {
             cleanup();
             if (!deviceSelf) return;
-            const draft = deviceSelf.clampName(input.value);
             // 改回默认名 = 清空，与手机端同一语义（spec §5.2）。
             const fallback = deviceSelf.defaultName(mySelf, t('app.device.browser'));
-            putSelf({ name: draft === fallback ? '' : draft });
+            putSelf({ name: deviceSelf.nameToSave(input.value, fallback) });
         }
-        function onKey(e) { if (e.key === 'Enter') submit(); }
+        // 输入法组字中的回车是「上屏」，不是「确定」。
+        function onKey(e) { if (e.key === 'Enter' && !e.isComposing) submit(); }
         okBtn.addEventListener('click', submit);
         cancelBtn.addEventListener('click', cleanup);
         input.addEventListener('keydown', onKey);

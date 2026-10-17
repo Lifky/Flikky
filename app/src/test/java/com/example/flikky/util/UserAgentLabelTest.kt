@@ -2,6 +2,7 @@ package com.example.flikky.util
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UserAgentLabelTest {
@@ -21,7 +22,7 @@ class UserAgentLabelTest {
         "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36"
             to "Chrome · Android",
         "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/28.0 Chrome/130.0.0.0 Mobile Safari/537.36"
-            to "Samsung Internet · Android",
+            to "Samsung · Android",
         "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1"
             to "Safari · iOS",
         "Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/141.0.0.0 Mobile/15E148 Safari/604.1"
@@ -34,6 +35,17 @@ class UserAgentLabelTest {
 
     @Test fun `known browsers and systems get a brand label`() {
         cases.forEach { (ua, expected) -> assertEquals(ua, expected, UserAgentLabel.from(ua)) }
+    }
+
+    /**
+     * 默认名会预填进改名框，而改名框按 [DeviceNamePolicy.MAX_LENGTH] 限长：标签加上「 2」这样的编号后
+     * 若超长，预填值本身就放不进框（v1.23 审查 Important #1：「Samsung Internet · Android 2」28 字）。
+     */
+    @Test fun `every label leaves room for a two-digit ordinal`() {
+        cases.forEach { (ua, _) ->
+            val label = UserAgentLabel.from(ua)!!
+            assertTrue("$label is too long", label.length + " 99".length <= DeviceNamePolicy.MAX_LENGTH)
+        }
     }
 
     @Test fun `unknown or missing agents get no label`() {

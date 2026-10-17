@@ -104,3 +104,30 @@ test('app.html loads device-self.js before app.js and has the name dialog', () =
     assert.match(html, /id="device-name-input"[^>]*\bcounter\b/);
     assert.match(html, /id="connection-dialog-reconnect"/);
 });
+
+// v1.23 审查（重新定级为 Important）：中文输入法里按回车是「上屏候选词」，不能顺手把半截名字提交出去。
+test('enter while an IME is composing does not submit the name', () => {
+    const listeners = {};
+    const on = (el) => Object.assign(el, {
+        addEventListener(type, fn) { (listeners[type] = listeners[type] || []).push(fn); },
+        removeEventListener(type, fn) { listeners[type] = (listeners[type] || []).filter((f) => f !== fn); },
+    });
+    const input = on({ value: '' });
+    const okBtn = { addEventListener() {}, removeEventListener() {} };
+    const dialog = { open: false, querySelector: () => okBtn };
+    const puts = [];
+    const context = {
+        document: { getElementById: (id) => (id === 'device-name-dialog' ? dialog : input) },
+        deviceSelf: deviceSelf(), mySelf: null, t: (k) => k,
+        myDisplayName: () => 'Chrome · Windows', putSelf: (body) => puts.push(body),
+    };
+    vm.createContext(context);
+    vm.runInContext(functionBody(source, 'function openDeviceNameDialog('), context);
+    context.openDeviceNameDialog();
+    input.value = '客厅';
+    listeners.keydown.forEach((fn) => fn({ key: 'Enter', isComposing: true }));
+    assert.deepEqual(puts, []);
+    assert.equal(dialog.open, true);
+    listeners.keydown.forEach((fn) => fn({ key: 'Enter', isComposing: false }));
+    assert.deepEqual(JSON.parse(JSON.stringify(puts)), [{ name: '客厅' }]);
+});
