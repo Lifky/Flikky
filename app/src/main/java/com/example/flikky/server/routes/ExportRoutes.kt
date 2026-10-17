@@ -14,6 +14,7 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondOutputStream
+import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import java.io.FileNotFoundException
@@ -55,7 +56,9 @@ fun Route.exportRoutes(
     }
 
     get("/export") {
-        if (!authed(call)) { call.respond(HttpStatusCode.Unauthorized); return@get }
+        // 页面路由与 /app 一致：没有有效凭据时送回入口页（关 PIN 在那里签发，开 PIN 显示登录页）。
+        // 裸 401 会让旧标签页、书签、换 IP 后的访问停在一个走不下去的空页面上。
+        if (!authed(call)) { call.respondRedirect("/"); return@get }
         val bytes = try {
             readAsset("web/export.html")
         } catch (_: FileNotFoundException) {
