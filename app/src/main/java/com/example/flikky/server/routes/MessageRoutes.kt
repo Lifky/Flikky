@@ -11,7 +11,7 @@ import com.example.flikky.server.dto.WireJson
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
-import com.example.flikky.session.canRecallMessage
+import com.example.flikky.session.canBrowserRecall
 import com.example.flikky.util.IdGen
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
@@ -131,7 +131,8 @@ fun Route.messageRoutes(
      * NotFound 当 idempotent 成功处理（节点已经移除了）。
      */
     delete("/api/messages/{id}") {
-        if (!requireAuth(call)) { call.respond(HttpStatusCode.Unauthorized); return@delete }
+        val requester = authGate.deviceFor(call.request.cookies[AUTH_COOKIE])
+        if (requester == null) { call.respond(HttpStatusCode.Unauthorized); return@delete }
         val recallOn = recallEnabled()
         if (!recallOn) {
             call.respond(HttpStatusCode.Forbidden, mapOf("error" to "recall_disabled"))
@@ -143,7 +144,7 @@ fun Route.messageRoutes(
             ?: run { call.respond(HttpStatusCode.BadRequest, mapOf("error" to "missing_client_id")); return@delete }
         val target = session.snapshot.value.messages.firstOrNull { it.id == id }
             ?: run { call.respond(HttpStatusCode.NotFound, mapOf("error" to "not_found")); return@delete }
-        if (!canRecallMessage(Origin.BROWSER, target.origin, recallOn, allowPeerRecall())) {
+        if (!canBrowserRecall(requester.deviceId, target, recallOn, allowPeerRecall())) {
             call.respond(HttpStatusCode.Forbidden, mapOf("error" to "denied"))
             return@delete
         }
