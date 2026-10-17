@@ -2,6 +2,7 @@ package com.example.flikky.server.routes
 
 import com.example.flikky.server.DeviceRegistry
 import com.example.flikky.server.dto.ClientHelloDto
+import com.example.flikky.server.dto.peerRosterJson
 import com.example.flikky.server.dto.toDtoJson
 import com.example.flikky.session.SessionState
 import com.example.flikky.util.DeviceNamePolicy
@@ -121,6 +122,10 @@ fun Route.wsRoutes(
         hub.add(this, deviceId)
         registry.attach(deviceId)
         session.setClientConnected(true)
+        // 先让它认得会话里的其他设备，再处理后续帧；之后的变化由 TransferService 整体广播（spec §12）。
+        runCatching {
+            send(Frame.Text("""{"type":"peers","payload":${peerRosterJson(session.knownDevices.value.values, registry.devices.value)}}"""))
+        }
         try {
             for (frame in incoming) {
                 if (frame !is Frame.Text) continue

@@ -84,6 +84,7 @@ class SessionState(private val nowMs: () -> Long) {
         )
         _devices.value = emptyList()
         _knownDeviceAvatars.value = emptyMap()
+        _knownDevices.value = emptyMap()
     }
 
     /**
@@ -176,6 +177,7 @@ class SessionState(private val nowMs: () -> Long) {
         _peerAvatarKey.value = "icon:desktop_windows"
         _devices.value = emptyList()
         _knownDeviceAvatars.value = emptyMap()
+        _knownDevices.value = emptyMap()
     }
 
     /**
@@ -215,10 +217,15 @@ class SessionState(private val nowMs: () -> Long) {
     private val _knownDeviceAvatars = MutableStateFlow<Map<String, String>>(emptyMap())
     val knownDeviceAvatars: StateFlow<Map<String, String>> = _knownDeviceAvatars.asStateFlow()
 
+    // 本会话见过的每台设备的最近记录（含已断开的）：浏览器端名册与历史消息的发送者都靠它。
+    private val _knownDevices = MutableStateFlow<Map<String, PeerDevice>>(emptyMap())
+    val knownDevices: StateFlow<Map<String, PeerDevice>> = _knownDevices.asStateFlow()
+
     fun setDevices(list: List<PeerDevice>) {
         _devices.value = list
         if (list.isNotEmpty()) {
             _knownDeviceAvatars.update { known -> known + list.associate { it.deviceId to it.avatarKey } }
+            _knownDevices.update { known -> known + list.associateBy { it.deviceId } }
         }
     }
 

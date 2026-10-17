@@ -26,4 +26,15 @@ class SessionStateDevicesTest {
         assertTrue(s.devices.value.isEmpty())
         assertTrue(s.knownDeviceAvatars.value.isEmpty())
     }
+
+    // 被断开的设备离开 [devices] 后，名册里仍要有它的名字与头像（它发过的消息还在）。
+    @Test fun `every device seen this session is remembered with its latest record`() {
+        val s = SessionState(nowMs = { 0L })
+        s.setDevices(listOf(d("a", "icon:star").copy(name = "客厅")))
+        s.setDevices(listOf(d("a", "icon:face").copy(name = "书房")))
+        s.setDevices(emptyList())
+        assertEquals("书房", s.knownDevices.value.getValue("a").name)
+        s.startNew(3L)
+        assertTrue(s.knownDevices.value.isEmpty())
+    }
 }

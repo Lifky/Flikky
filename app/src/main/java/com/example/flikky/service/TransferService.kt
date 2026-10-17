@@ -37,6 +37,7 @@ import com.example.flikky.server.DeviceRegistry
 import com.example.flikky.server.KtorServer
 import com.example.flikky.server.PinAuth
 import com.example.flikky.server.ServiceMode
+import com.example.flikky.server.dto.peerRosterJson
 import com.example.flikky.server.dto.toDtoJson
 import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.dto.LeadingVisualDto
@@ -298,6 +299,8 @@ class TransferService : Service() {
         devicesJob = scope.launch {
             registry.devices.collect { list ->
                 ServiceLocator.session.setDevices(list)
+                // 名册推给所有浏览器（改名、换头像、上下线、断开都会走到这里）。经 field 现取 [ktor]（rebind 引用规范）。
+                ktor?.wsHub?.broadcast("peers", peerRosterJson(ServiceLocator.session.knownDevices.value.values, list))
                 list.forEach { d -> runCatching { ServiceLocator.repository.upsertSessionDevice(sid, d) } }
             }
         }

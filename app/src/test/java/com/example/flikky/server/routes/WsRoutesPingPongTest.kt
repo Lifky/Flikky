@@ -67,7 +67,8 @@ class WsRoutesPingPongTest {
             val reply = withTimeout(2_000) {
                 var found: String? = null
                 for (frame in incoming) {
-                    if (frame is Frame.Text) {
+                    // 连上即推的「本场名册」与本测试无关（v1.23 多设备）。
+                    if (frame is Frame.Text && !frame.readText().startsWith("""{"type":"peers"""")) {
                         found = frame.readText()
                         break
                     }
@@ -113,7 +114,8 @@ class WsRoutesPingPongTest {
             val reply = withTimeout(2_000) {
                 var found: String? = null
                 for (frame in incoming) {
-                    if (frame is Frame.Text) {
+                    // 连上即推的「本场名册」与本测试无关（v1.23 多设备）。
+                    if (frame is Frame.Text && !frame.readText().startsWith("""{"type":"peers"""")) {
                         found = frame.readText()
                         break
                     }

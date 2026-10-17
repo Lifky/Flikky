@@ -33,6 +33,16 @@ class WsRoutesDevicesTest {
             registry.devices.value
         }
 
+    /** 下一条不是「本场名册」的文本帧（名册连上即推，也会随设备变化重推）。 */
+    private suspend fun io.ktor.client.plugins.websocket.DefaultClientWebSocketSession.nextNonRoster(): String {
+        while (true) {
+            val frame = incoming.receive()
+            if (frame !is Frame.Text) continue
+            val text = frame.readText()
+            if (!text.startsWith("""{"type":"peers"""")) return text
+        }
+    }
+
     @Test fun `a socket without a credential is closed as unauthorized`() = testApplication {
         val registry = DeviceRegistry()
         val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
@@ -74,7 +84,7 @@ class WsRoutesDevicesTest {
                     // 等 A 被断开之后再 ping：证明断开一台不会波及另一台。
                     aRevoked.await()
                     send(Frame.Text("""{"type":"ping","id":9}"""))
-                    bReply.complete((incoming.receive() as Frame.Text).readText())
+                    bReply.complete(nextNonRoster())
                 }
             }
             val knownB = withTimeout(5_000) { bId.await() }
@@ -83,11 +93,32 @@ class WsRoutesDevicesTest {
                 registry.revoke(aId)
                 hub.closeDevice(aId)
                 aRevoked.complete(Unit)
-                val first = withTimeout(2_000) { (incoming.receive() as Frame.Text).readText() }
+                val first = withTimeout(2_000) { nextNonRoster() }
                 assertTrue(first.contains("device_revoked"))
                 assertEquals(WS_CLOSE_REVOKED, withTimeout(2_000) { closeReason.await() }!!.code)
             }
             assertEquals("""{"type":"pong","id":9}""", withTimeout(5_000) { bReply.await() })
+        }
+    }
+
+    @Test fun `a new connection is told who else is in the session`() = testApplication {
+        val registry = DeviceRegistry()
+        val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
+        application {
+            install(ContentNegotiation) { json() }
+            install(ServerWebSockets) {}
+            routing {
+                val gate = AuthGate(required = false, pinAuth = pin, registry = registry)
+                authRoutes(gate, readAsset = { byteArrayOf() })
+                wsRoutes(gate, SessionState(nowMs = { 0L }), WsHub(), registry)
+            }
+        }
+        val client = createClient { install(HttpCookies); install(WebSockets) }.also { it.get("/") }
+        client.webSocket("/ws") {
+            val first = withTimeout(2_000) { (incoming.receive() as Frame.Text).readText() }
+            assertTrue(first, first.startsWith("""{"type":"peers","payload":{"devices":["""))
+            val me = registry.devices.value.single()
+            assertTrue(first, first.contains(""""deviceId":"${me.deviceId}""""))
         }
     }
 }
