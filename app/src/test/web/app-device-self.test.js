@@ -131,3 +131,12 @@ test('enter while an IME is composing does not submit the name', () => {
     listeners.keydown.forEach((fn) => fn({ key: 'Enter', isComposing: false }));
     assert.deepEqual(JSON.parse(JSON.stringify(puts)), [{ name: '客厅' }]);
 });
+
+// 装机 Screenshot_1：outlined 文本框的浮动标签骑在边框上，超出组件顶边半个字高；
+// mdui-dialog 正文槽会裁掉溢出部分，标签上半截就被切了。给输入框顶部留出标签的高度。
+test('the name field leaves room above it for the floating label', () => {
+    const css = fs.readFileSync(path.join(WEB, 'chat.css'), 'utf8');
+    const rule = css.match(/#device-name-input\s*\{([^}]*)\}/);
+    assert.ok(rule, 'chat.css must style #device-name-input');
+    assert.match(rule[1], /margin-top\s*:/);
+});

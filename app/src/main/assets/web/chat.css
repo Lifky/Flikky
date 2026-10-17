@@ -307,6 +307,13 @@
   display: block;
 }
 
+/* 改名对话框：outlined 文本框的浮动标签骑在边框上、超出组件顶边约半个字高，
+ * 而 mdui-dialog 正文槽会裁掉溢出（装机 Screenshot_1 标签被切）。顶部留出这段高度。 */
+#device-name-input {
+  display: block;
+  margin-top: var(--flikky-space-sm);
+}
+
 /* Avatar picker — the dialog chrome (overlay / panel / headline) is provided by
  * the official mdui-dialog; only the preset grid needs custom layout. */
 .avatar-picker-grid {
