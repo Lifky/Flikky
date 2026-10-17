@@ -29,6 +29,11 @@ data class TextMessageDto(
      * bubble). Null for historical messages and phone-originated events.
      */
     val senderId: String? = null,
+    /**
+     * v1.23：发这条消息的对端设备（公开 ID，只用于指代）。多台浏览器靠它判断「这条是不是我发的」、
+     * 画对头像与名字。手机发的消息与旧数据为 null。
+     */
+    val senderDeviceId: String? = null,
 )
 
 @Serializable
@@ -43,6 +48,8 @@ data class FileMessageDto(
     val status: String,
     /** See [TextMessageDto.senderId]. */
     val senderId: String? = null,
+    /** See [TextMessageDto.senderDeviceId]. */
+    val senderDeviceId: String? = null,
 )
 
 @Serializable
@@ -76,6 +83,8 @@ data class MessageDto(
     val sizeBytes: Long? = null,
     val mime: String? = null,
     val status: String? = null,
+    /** See [TextMessageDto.senderDeviceId]. */
+    val senderDeviceId: String? = null,
 )
 
 @Serializable

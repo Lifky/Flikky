@@ -68,7 +68,10 @@ fun Route.messageRoutes(
         )
         session.addMessage(msg)
         runCatching { onPersist(msg) }
-        val dto = TextMessageDto(msg.id, msg.origin.name, msg.timestamp, msg.content, senderId = senderId)
+        val dto = TextMessageDto(
+            msg.id, msg.origin.name, msg.timestamp, msg.content,
+            senderId = senderId, senderDeviceId = msg.senderDeviceId,
+        )
         broadcastEvent("text_added", WireJson.encodeToString(TextMessageDto.serializer(), dto))
         call.respond(dto.copy(senderId = null))
     }
@@ -77,10 +80,13 @@ fun Route.messageRoutes(
         if (!requireAuth(call)) { call.respond(HttpStatusCode.Unauthorized); return@get }
         val snap = session.snapshot.value
         val texts = snap.messages.filterIsInstance<Message.Text>().map {
-            TextMessageDto(it.id, it.origin.name, it.timestamp, it.content)
+            TextMessageDto(it.id, it.origin.name, it.timestamp, it.content, senderDeviceId = it.senderDeviceId)
         }
         val files = snap.messages.filterIsInstance<Message.File>().map {
-            FileMessageDto(it.id, it.origin.name, it.timestamp, it.fileId, it.name, it.sizeBytes, it.mime, it.status.name)
+            FileMessageDto(
+                it.id, it.origin.name, it.timestamp, it.fileId, it.name, it.sizeBytes, it.mime, it.status.name,
+                senderDeviceId = it.senderDeviceId,
+            )
         }
         // Unified, ts-sorted view so the frontend renders chronologically on
         // reload — the old (texts, files) shape forced clients to interleave
@@ -94,6 +100,7 @@ fun Route.messageRoutes(
                     origin = m.origin.name,
                     timestamp = m.timestamp,
                     content = m.content,
+                    senderDeviceId = m.senderDeviceId,
                 )
                 is Message.File -> com.example.flikky.server.dto.MessageDto(
                     kind = "file",
@@ -105,6 +112,7 @@ fun Route.messageRoutes(
                     sizeBytes = m.sizeBytes,
                     mime = m.mime,
                     status = m.status.name,
+                    senderDeviceId = m.senderDeviceId,
                 )
             }
         }

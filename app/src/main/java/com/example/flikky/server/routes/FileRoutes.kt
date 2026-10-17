@@ -116,6 +116,7 @@ fun Route.fileRoutes(
                         inProgressMsg.fileId, inProgressMsg.name, inProgressMsg.sizeBytes,
                         inProgressMsg.mime, inProgressMsg.status.name,
                         senderId = senderId,
+                        senderDeviceId = inProgressMsg.senderDeviceId,
                     )
                     broadcastEvent("file_added",
                         WireJson.encodeToString(FileMessageDto.serializer(), inProgressDto))
@@ -188,6 +189,7 @@ fun Route.fileRoutes(
             last.id, last.origin.name, last.timestamp,
             last.fileId, last.name, last.sizeBytes,
             last.mime, last.status.name,
+            senderDeviceId = last.senderDeviceId,
         )
         call.respond(responseDto)
     }

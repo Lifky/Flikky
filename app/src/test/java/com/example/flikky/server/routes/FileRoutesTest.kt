@@ -307,5 +307,7 @@ class FileRoutesTest {
             }))
         }
         assertEquals("test-device", (h.persisted.single() as Message.File).senderDeviceId)
+        val added = h.events.single { it.first == "file_added" }.second
+        assertTrue(added, added.contains("\"senderDeviceId\":\"test-device\""))
     }
 }
