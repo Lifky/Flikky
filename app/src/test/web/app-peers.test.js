@@ -87,3 +87,12 @@ test('a sender name is plain text', () => {
     assert.match(body, /textContent = /);
     assert.doesNotMatch(body, /innerHTML/);
 });
+
+// 装机 Screenshot_5：消息列表是定高、可滚动的 flex 纵列；名字标签带 overflow:hidden，
+// 自动最小高度因此变成 0 —— 消息一多、列表溢出时，浏览器把每个标签压成 0 高，只剩 4px 外边距。
+test('sender labels never shrink inside the scrolling list', () => {
+    const css = fs.readFileSync(path.join(WEB, 'chat.css'), 'utf8');
+    const rule = css.match(/\.bubble-sender\s*\{([^}]*)\}/);
+    assert.ok(rule);
+    assert.match(rule[1], /flex-shrink\s*:\s*0/);
+});

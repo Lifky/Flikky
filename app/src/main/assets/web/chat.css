@@ -309,6 +309,8 @@
 
 /* 多设备时气泡上方的发送者名字（v1.23）：与气泡左缘对齐（头像 36px + 间距），紧贴它下面那条气泡。 */
 .bubble-sender {
+  /* 列表是定高可滚动的 flex 纵列，overflow:hidden 让自动最小高度变 0：不钉住就会在溢出时被压没（Screenshot_5）。 */
+  flex-shrink: 0;
   align-self: flex-start;
   max-width: 70%;
   padding-inline-start: calc(36px + var(--flikky-space-sm));
