@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -61,6 +62,8 @@ fun ConnectionInfoCard(
     onAdoptNumber: ((Int) -> Unit)? = null,
     /** PIN 已被这台设备用掉时显示它的名字，而不是那串已失效的数字（spec §6.4）。导出页不传。 */
     pinUsedBy: String? = null,
+    /** 用过这个 PIN 的设备不止一台时（经手机允许加入），改说台数。 */
+    pinUsedByCount: Int = 1,
 ) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -143,7 +146,11 @@ fun ConnectionInfoCard(
                 Spacer(Modifier.height(Spacing.xs))
                 if (pinUsedBy != null) {
                     Text(
-                        text = stringResource(R.string.connection_pin_used_by, pinUsedBy),
+                        text = if (pinUsedByCount > 1) {
+                            pluralStringResource(R.plurals.connection_pin_used_by_many, pinUsedByCount, pinUsedByCount)
+                        } else {
+                            stringResource(R.string.connection_pin_used_by, pinUsedBy)
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,

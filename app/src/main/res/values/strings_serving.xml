@@ -138,7 +138,13 @@
     <string name="serving_disconnect_title">断开「%1$s」？</string>
     <string name="serving_disconnect_body_pin">对方需要输入新 PIN 才能重新连接。</string>
     <string name="serving_disconnect_body_open">未开启 PIN，对方可以直接重新连接。</string>
-    <string name="serving_header_multiple">%1$s 等 %2$d 台</string>
-    <string name="serving_device_offline_waiting">%1$s 已离线 · 等待重新连接</string>
-    <string name="serving_manage_devices">管理设备</string>
+    <string name="serving_device_offline_one">%1$s 已离线</string>
+    <string name="serving_offline_hint">等待重新连接 · 点按管理设备</string>
+    <string name="serving_device_joined">%1$s 已加入</string>
+    <plurals name="serving_devices_online">
+        <item quantity="other">%1$d 台设备在线</item>
+    </plurals>
+    <plurals name="serving_devices_offline">
+        <item quantity="other">%1$d 台设备已离线</item>
+    </plurals>
 </resources>

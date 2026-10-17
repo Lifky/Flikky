@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -47,6 +48,8 @@ fun ConversationHeader(
     modifier: Modifier = Modifier,
     /** 点头像或名字：打开「已连接设备」面板（spec §6.1）。null = 不可点。 */
     onPeerClick: (() -> Unit)? = null,
+    /** 多台在线时叠放的头像（最多 3 个）；空 = 用上面单个头像。 */
+    peerAvatarKeys: List<String> = emptyList(),
 ) {
     Row(
         modifier = modifier.fillMaxWidth().padding(horizontal = Spacing.screenEdge, vertical = Spacing.sm),
@@ -54,7 +57,9 @@ fun ConversationHeader(
         horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
         val avatar: @Composable () -> Unit = {
-            if (peerAvatarKey != null) {
+            if (peerAvatarKeys.size > 1) {
+                AvatarStack(peerAvatarKeys, size = 32.dp)
+            } else if (peerAvatarKey != null) {
                 Avatar(avatarKey = peerAvatarKey, size = Sizes.avatar)
             } else {
                 Avatar(avatarId = peerAvatarId, size = Sizes.avatar)
@@ -77,8 +82,8 @@ fun ConversationHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
-            // 48dp 方框与原来 IconButton 的触摸区等宽：头像与名字的位置和改版前一致。
-            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { avatar() }
+            // 一台时 48dp 方框与原来 IconButton 的触摸区等宽，头像与名字的位置和改版前一致；多台时按叠放宽度。
+            Box(Modifier.heightIn(min = 48.dp).widthIn(min = 48.dp), contentAlignment = Alignment.Center) { avatar() }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = peerName.ifBlank { stringResource(R.string.conversation_peer_device) },
@@ -92,6 +97,14 @@ fun ConversationHeader(
                         color = MaterialTheme.colorScheme.connected,
                     )
                 }
+            }
+            // 下拉箭头：一眼看出这块能点开（装机反馈：管理设备的入口不显眼）。
+            if (onPeerClick != null) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_expand_more),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
         Row {

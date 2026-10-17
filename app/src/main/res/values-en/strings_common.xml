@@ -64,4 +64,8 @@
     <string name="device_unknown_browser">Browser</string>
     <string name="avatar_tab_browser_default">Browser default</string>
     <string name="connection_pin_used_by">Used by “%1$s”</string>
+    <plurals name="connection_pin_used_by_many">
+        <item quantity="one">Used by %1$d device</item>
+        <item quantity="other">Used by %1$d devices</item>
+    </plurals>
 </resources>

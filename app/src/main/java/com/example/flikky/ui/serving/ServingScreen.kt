@@ -58,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntSize
@@ -138,6 +139,17 @@ fun ServingScreen(
     LaunchedEffect(devices.isEmpty()) { if (devices.isEmpty()) showDevices = false }
     var albumPreview by remember { mutableStateOf<Uri?>(null) }
     val scope = rememberCoroutineScope()
+    // 新设备加入时提示一句（装机反馈：多了一台设备用户不知道）。第一次拿到列表不算加入。
+    var seenDeviceIds by remember { mutableStateOf<Set<String>?>(null) }
+    val joinedUnknownLabel = stringResource(R.string.device_unknown_browser)
+    val joinedTemplate = stringResource(R.string.serving_device_joined)
+    LaunchedEffect(devices) {
+        val joined = newlyJoined(seenDeviceIds, devices)
+        seenDeviceIds = (seenDeviceIds ?: emptySet()) + devices.map { it.deviceId }
+        joined.forEach { d ->
+            scope.launch { snackbarHostState.showSnackbar(joinedTemplate.format(d.displayName(joinedUnknownLabel))) }
+        }
+    }
     val backBlockedMessage = stringResource(R.string.serving_back_blocked)
     val fileSentMessage = stringResource(R.string.files_quick_sent)
 
@@ -268,14 +280,17 @@ fun ServingScreen(
                         albumAccess = albumState.access,
                     )
                     val unknownDevice = stringResource(R.string.device_unknown_browser)
-                    val primary = headerPeer(devices)
-                    val headerName = primary?.let { (device, count) ->
-                        if (count > 1) stringResource(R.string.serving_header_multiple, device.displayName(unknownDevice), count)
-                        else device.displayName(unknownDevice)
-                    }.orEmpty()
+                    val summary = headerSummary(devices)
+                    val headerName = when {
+                        summary == null -> ""
+                        summary.onlineCount > 1 ->
+                            pluralStringResource(R.plurals.serving_devices_online, summary.onlineCount, summary.onlineCount)
+                        else -> summary.primary.displayName(unknownDevice)
+                    }
                     ConversationHeader(
                         peerAvatarId = peerAvatarId,
-                        peerAvatarKey = primary?.first?.avatarKey ?: peerAvatarKey,
+                        peerAvatarKey = summary?.primary?.avatarKey ?: peerAvatarKey,
+                        peerAvatarKeys = summary?.avatarKeys.orEmpty(),
                         peerName = headerName,
                         subtitle = visibleText,
                         onPeerClick = { showDevices = true },
@@ -287,34 +302,37 @@ fun ServingScreen(
                     val card = rememberLastCardInputs(ui.address, ui.pin, ui.requirePin)
                     // fillMaxWidth：卡片还没出现时，下面的等待行与停止按钮也保持居中。
                     Column(Modifier.fillMaxWidth().padding(Spacing.sectionGap)) {
-                        val cardPeer = connectionCardPeer(ui.requirePin, devices, stringResource(R.string.device_unknown_browser))
+                        val offline = offlinePeers(devices, stringResource(R.string.device_unknown_browser))
                         card?.let {
                             ConnectionInfoCard(
                                 address = it.address,
                                 pin = it.pin,
                                 requirePin = it.requirePin,
                                 onAdoptNumber = ServiceLocator::adoptHostNumber,
-                                pinUsedBy = cardPeer.pinUsedBy,
+                                pinUsedBy = offline?.takeIf { ui.requirePin }?.firstName,
+                                pinUsedByCount = offline?.count ?: 1,
                             )
                         }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
-                            modifier = Modifier.padding(top = Spacing.lg).align(Alignment.CenterHorizontally),
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                            Text(
-                                cardPeer.offlineName?.let { stringResource(R.string.serving_device_offline_waiting, it) }
-                                    ?: stringResource(R.string.serving_waiting_browser),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        if (cardPeer.offlineName != null) {
-                            TextButton(
+                        // 一行状态，同时是「管理设备」的入口（装机 Screenshot_3：原先等待行 + 管理设备按钮两层）。
+                        if (offline != null) {
+                            OfflinePeersRow(
+                                peers = offline,
                                 onClick = { showDevices = true },
-                                modifier = Modifier.align(Alignment.CenterHorizontally),
-                            ) { Text(stringResource(R.string.serving_manage_devices)) }
+                                modifier = Modifier.padding(top = Spacing.lg),
+                            )
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                                modifier = Modifier.padding(top = Spacing.lg).align(Alignment.CenterHorizontally),
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                Text(
+                                    stringResource(R.string.serving_waiting_browser),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                         Spacer(Modifier.height(Spacing.sm))
                         FilledTonalButton(
@@ -370,7 +388,11 @@ fun ServingScreen(
                     }
                 }
             }
-            HorizontalPager(
+            // 没有设备在线时只留「连接卡片 + 一行状态 + 停止服务」（装机 Screenshot_3 用户裁决）：
+            // 聊天记录与输入框挤在卡片下面只会显得乱，而此刻发出去也没人收。记录不丢，有设备上线就回来。
+            if (!ui.clientConnected) {
+                Spacer(Modifier.weight(1f))
+            } else HorizontalPager(
                 state = pagerState,
                 // tab 栏藏起来时手势也要禁掉。只藏栏不禁手势，用户能滑到一个
                 // 看不见入口的页面上——那比摆着 tab 栏更让人困惑。

@@ -136,7 +136,15 @@
     <string name="serving_disconnect_title">Disconnect “%1$s”?</string>
     <string name="serving_disconnect_body_pin">They\'ll need a new PIN to reconnect.</string>
     <string name="serving_disconnect_body_open">PIN is off, so they can reconnect right away.</string>
-    <string name="serving_header_multiple">%1$s · %2$d devices</string>
-    <string name="serving_device_offline_waiting">%1$s is offline · Waiting to reconnect</string>
-    <string name="serving_manage_devices">Manage devices</string>
+    <string name="serving_device_offline_one">%1$s is offline</string>
+    <string name="serving_offline_hint">Waiting to reconnect · Tap to manage devices</string>
+    <string name="serving_device_joined">%1$s joined</string>
+    <plurals name="serving_devices_online">
+        <item quantity="one">%1$d device online</item>
+        <item quantity="other">%1$d devices online</item>
+    </plurals>
+    <plurals name="serving_devices_offline">
+        <item quantity="one">%1$d device offline</item>
+        <item quantity="other">%1$d devices offline</item>
+    </plurals>
 </resources>
