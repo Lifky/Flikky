@@ -74,7 +74,7 @@ test('a malformed update is ignored', () => {
 test('display names fall back to the default label with its ordinal', () => {
     const self = load();
     assert.equal(self.displayName({ name: '张三', defaultLabel: 'Chrome · Windows', defaultOrdinal: 2 }, '浏览器'), '张三');
-    assert.equal(self.displayName({ name: '', defaultLabel: 'Chrome · Windows', defaultOrdinal: 2 }, '浏览器'), 'Chrome · Windows 2');
+    assert.equal(self.displayName({ name: '', defaultLabel: 'Chrome · Windows', defaultOrdinal: 2 }, '浏览器'), 'Chrome 2', 'the default name is just the browser');
     assert.equal(self.displayName({ name: '', defaultLabel: null, defaultOrdinal: 1 }, '浏览器'), '浏览器');
     assert.equal(self.displayName(null, '浏览器'), '浏览器');
 });

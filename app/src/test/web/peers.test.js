@@ -57,7 +57,7 @@ test('roster entries resolve names and avatars, with safe fallbacks', () => {
         { deviceId: 'dev-c', name: '书房', defaultLabel: null, defaultOrdinal: 1, avatarKey: 'icon:star', online: false, present: false },
     ] });
     assert.equal(roster.size, 2);
-    assert.equal(p.displayName(roster.get('dev-b'), '浏览器'), 'Edge · Windows 2');
+    assert.equal(p.displayName(roster.get('dev-b'), '浏览器'), 'Edge 2');
     assert.equal(p.displayName(roster.get('dev-c'), '浏览器'), '书房');
     assert.equal(p.displayName(undefined, '浏览器'), '浏览器');
     assert.equal(p.parseRoster(null).size, 0);

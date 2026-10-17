@@ -42,8 +42,8 @@ class DevicesSheetTest {
         }
         compose.onNodeWithText("张三的笔记本").assertExists()
         compose.onNodeWithText("Chrome · Windows · 在线").assertExists()
-        compose.onNodeWithText("Safari · macOS").assertExists()
-        compose.onNodeWithText("离线").assertExists()
+        compose.onNodeWithText("Safari").assertExists()
+        compose.onNodeWithText("Safari · macOS · 离线").assertExists()
         // 在线的「张三的笔记本」排第一行，取第一个 ⋮。
         compose.onAllNodesWithContentDescription("更多操作")[0].performClick()
         compose.onNodeWithText("断开").performClick()

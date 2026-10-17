@@ -79,8 +79,13 @@
         safeSet(storage, KEY_EXPLICIT, '1');
     }
 
+    /** `Chrome · Windows` → `Chrome`：默认名只含浏览器名，与手机端 PeerDevice.shortLabel 一致。 */
+    function shortLabel(label) {
+        return typeof label === 'string' && label ? label.split(' · ')[0] : null;
+    }
+
     function defaultName(self, browserWord) {
-        const label = self && typeof self.defaultLabel === 'string' ? self.defaultLabel : browserWord;
+        const label = (self && shortLabel(self.defaultLabel)) || browserWord;
         const ordinal = self && Number.isInteger(self.defaultOrdinal) ? self.defaultOrdinal : 1;
         return ordinal > 1 ? label + ' ' + ordinal : label;
     }
@@ -98,6 +103,6 @@
     global.flikkyDeviceSelf = {
         NAME_MAX, CLOSE_UNAUTHORIZED, CLOSE_REVOKED,
         clampName, storedName, avatarExplicit, helloFrame, applyUpdate,
-        nameToSave, markAvatarExplicit, defaultName, displayName, closeKind,
+        nameToSave, markAvatarExplicit, shortLabel, defaultName, displayName, closeKind,
     };
 })(globalThis);

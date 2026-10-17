@@ -24,9 +24,16 @@ data class PeerDevice(
     val online: Boolean get() = connections > 0
 }
 
-/** 默认名：`Chrome · Windows`，同名第二台起加编号；识别不出用 [unknownLabel]（「浏览器」，随语言）。 */
+/**
+ * 默认名只取浏览器名（`Chrome`），同名第二台起加编号；识别不出用 [unknownLabel]（「浏览器」，随语言）。
+ * 完整的「浏览器 · 系统」只放设备面板副标题（装机 Screenshot_6~8：完整标签在顶栏必被截断）。
+ * 浏览器端同一规则：device-self.js / peers.js 的 `shortLabel`。
+ */
 fun PeerDevice.defaultName(unknownLabel: String): String =
-    (defaultLabel ?: unknownLabel) + if (defaultOrdinal > 1) " $defaultOrdinal" else ""
+    (shortLabel() ?: unknownLabel) + if (defaultOrdinal > 1) " $defaultOrdinal" else ""
+
+/** `Chrome · Windows` → `Chrome`。编号按它分配（DeviceRegistry），否则两台系统不同的 Edge 会同名。 */
+fun PeerDevice.shortLabel(): String? = defaultLabel?.substringBefore(" · ")
 
 fun PeerDevice.displayName(unknownLabel: String): String = name.ifBlank { defaultName(unknownLabel) }
 

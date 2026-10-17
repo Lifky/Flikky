@@ -40,7 +40,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.example.flikky.R
 import com.example.flikky.session.PeerDevice
-import com.example.flikky.session.defaultName
 import com.example.flikky.session.displayName
 import com.example.flikky.ui.components.Avatar
 import com.example.flikky.ui.components.AvatarStack
@@ -104,7 +103,7 @@ private fun DeviceRow(
     val unknown = stringResource(R.string.device_unknown_browser)
     val status = stringResource(if (device.online) R.string.serving_device_online else R.string.serving_device_offline)
     val statusColor = if (device.online) MaterialTheme.colorScheme.connected else MaterialTheme.colorScheme.onSurfaceVariant
-    val label = deviceSupportingLabel(device, unknown)
+    val label = deviceSupportingLabel(device)
     SegmentedListItem(
         onClick = { onRename(device) },
         shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
@@ -172,9 +171,8 @@ private fun DeviceRowMenu(
 internal fun devicesInSheetOrder(devices: List<PeerDevice>): List<PeerDevice> =
     devices.sortedWith(compareByDescending<PeerDevice> { it.online }.thenBy { it.connectedAt })
 
-/** 有自定义名时副标题带上默认名；用默认名时不重复同一句话（spec §6.2 #7）。 */
-internal fun deviceSupportingLabel(device: PeerDevice, unknownLabel: String): String? =
-    if (device.name.isBlank()) null else device.defaultName(unknownLabel)
+/** 副标题始终是完整的「浏览器 · 系统」（装机 Screenshot_8）；默认名只含浏览器，系统信息靠这里补全。 */
+internal fun deviceSupportingLabel(device: PeerDevice): String? = device.defaultLabel
 
 /** 叠放头像最多几个：再多就看不清了，台数交给旁边的文字。 */
 internal const val MAX_STACKED_AVATARS = 3

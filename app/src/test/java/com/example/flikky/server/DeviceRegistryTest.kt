@@ -142,4 +142,16 @@ class DeviceRegistryTest {
         assertEquals(DeviceRegistry.hashOf("x"), DeviceRegistry.hashOf("x"))
         assertFalse(DeviceRegistry.hashOf("x") == DeviceRegistry.hashOf("y"))
     }
+
+    // 默认名只留浏览器名后，Windows 上的 Edge 与 Mac 上的 Edge 都叫「Edge」：编号按名字算，不按完整标签。
+    @Test fun `the same browser on different systems still gets distinct names`() {
+        val uas = listOf(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0",
+        )
+        var n = 0
+        val r = DeviceRegistry(idSupplier = { "d${++n}" })
+        val ordinals = uas.map { r.issue(it, viaPin = true).device.defaultOrdinal }
+        assertEquals(listOf(1, 2), ordinals)
+    }
 }

@@ -16,9 +16,11 @@ class DevicesSheetLogicTest {
         assertEquals(listOf("on-early", "on-late", "off-early"), devicesInSheetOrder(list).map { it.deviceId })
     }
 
-    @Test fun `the default name is repeated in the supporting line only under a custom name`() {
-        assertEquals("Chrome · Windows", deviceSupportingLabel(d("a", 1, true, name = "张三的笔记本"), "浏览器"))
-        assertNull(deviceSupportingLabel(d("a", 1, true), "浏览器"))
+    // 装机 Screenshot_8：标题是名字，副标题始终是完整的「浏览器 · 系统」—— 不管改没改过名。
+    @Test fun `the supporting line always carries the full browser and system`() {
+        assertEquals("Chrome · Windows", deviceSupportingLabel(d("a", 1, true, name = "张三的笔记本")))
+        assertEquals("Chrome · Windows", deviceSupportingLabel(d("a", 1, true)))
+        assertNull(deviceSupportingLabel(d("a", 1, true).copy(defaultLabel = null)))
     }
 
     private fun da(id: String, at: Long, online: Boolean, avatar: String) =
@@ -44,7 +46,7 @@ class DevicesSheetLogicTest {
     @Test fun `with nobody online the waiting row counts every offline device`() {
         val offline = offlinePeers(listOf(da("b", 2, false, "icon:face"), da("a", 1, false, "icon:star")), "浏览器")!!
         assertEquals(2, offline.count)
-        assertEquals("Chrome · Windows", offline.firstName)
+        assertEquals("Chrome", offline.firstName)
         assertEquals(listOf("icon:star", "icon:face"), offline.avatarKeys)
     }
 

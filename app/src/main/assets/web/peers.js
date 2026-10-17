@@ -67,7 +67,8 @@
     function displayName(entry, fallback) {
         if (!entry) return fallback;
         if (entry.name) return entry.name;
-        const label = entry.defaultLabel || fallback;
+        // 默认名只含浏览器名（`Chrome · Windows` → `Chrome`），与手机端 PeerDevice.defaultName 一致。
+        const label = (entry.defaultLabel && entry.defaultLabel.split(' · ')[0]) || fallback;
         return entry.defaultOrdinal > 1 ? label + ' ' + entry.defaultOrdinal : label;
     }
 

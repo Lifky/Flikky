@@ -1,6 +1,7 @@
 package com.example.flikky.server
 
 import com.example.flikky.session.PeerDevice
+import com.example.flikky.session.shortLabel
 import com.example.flikky.util.IdGen
 import com.example.flikky.util.PeerAvatarPolicy
 import com.example.flikky.util.UserAgentLabel
@@ -154,9 +155,10 @@ class DeviceRegistry(
     fun hasCredentials(): Boolean = byId.isNotEmpty()
 
     private fun makeVisible(device: PeerDevice): PeerDevice {
-        // 取同名标签里最大编号 + 1，而不是计数：撤销过中间那台时计数会撞号。
+        // 取同名里最大编号 + 1，而不是计数：撤销过中间那台时计数会撞号。按默认名（只含浏览器）比，
+        // 不按完整标签 —— 否则 Windows 与 Mac 上的 Edge 都叫「Edge」。
         val maxOrdinal = byId.values
-            .filter { it.visible && it.deviceId != device.deviceId && it.defaultLabel == device.defaultLabel }
+            .filter { it.visible && it.deviceId != device.deviceId && it.shortLabel() == device.shortLabel() }
             .maxOfOrNull { it.defaultOrdinal } ?: 0
         return device.copy(visible = true, defaultOrdinal = maxOrdinal + 1)
     }
