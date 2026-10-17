@@ -44,6 +44,83 @@
 
     fetchPublicTheme();
 
+    // ── v1.23 请求加入 ────────────────────────────────────────────────────
+    // 会话里已有设备时，新设备不能再靠 PIN（PIN 已用掉）或直接进（关 PIN），要手机点「允许」。
+    const joinLib = window.flikkyJoin;
+    const joinPanel = document.getElementById('join-panel');
+    const joinText = document.getElementById('join-text');
+    const joinBtn = document.getElementById('join-btn');
+    const loginSub = document.getElementById('login-sub');
+    let joinState = 'idle';
+    let pollTimer = null;
+
+    function renderJoin() {
+        if (!joinLib || !joinPanel) return;
+        const v = joinLib.view(joinState);
+        joinText.textContent = t(v.textKey);
+        joinBtn.textContent = t(v.buttonKey);
+        joinBtn.disabled = v.buttonDisabled;
+    }
+
+    function showJoin() {
+        if (!joinPanel) return;
+        form.hidden = true;
+        if (loginSub) loginSub.hidden = true;
+        joinPanel.hidden = false;
+        renderJoin();
+    }
+
+    function setJoinState(state) {
+        joinState = state;
+        renderJoin();
+        if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+        if (joinLib.view(state).polling) pollTimer = setTimeout(pollJoin, joinLib.POLL_MS);
+    }
+
+    async function handleJoinResponse(resp) {
+        const body = await resp.json().catch(() => ({}));
+        const next = joinLib.outcome(resp.status, body);
+        if (next === 'approved') {
+            window.location.href = body.redirectTo || '/app';
+            return;
+        }
+        // 409：其实不需要加入了（比如手机断开了所有设备、换了新 PIN）——回到正常的进入方式。
+        if (next === 'not_needed') { window.location.href = '/'; return; }
+        setJoinState(next);
+    }
+
+    async function pollJoin() {
+        try {
+            await handleJoinResponse(await fetch('/api/join/status', { method: 'POST' }));
+        } catch (_) {
+            setJoinState('error');
+        }
+    }
+
+    if (joinBtn) {
+        joinBtn.addEventListener('click', async () => {
+            joinBtn.disabled = true;
+            try {
+                await handleJoinResponse(await fetch('/api/join', { method: 'POST' }));
+            } catch (_) {
+                setJoinState('error');
+            }
+        });
+    }
+
+    async function checkJoinState() {
+        try {
+            const resp = await fetch('/api/join/state');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data && data.joinRequired === true) showJoin();
+        } catch (_) {
+            // 拿不到就按 PIN 页处理：提交 PIN 时服务端会说明 PIN 已被使用，再切过来。
+        }
+    }
+
+    checkJoinState();
+
     // 把当前值画到 6 个格子上，并把「下一个待输入」的格子标成活跃。
     // 输满 6 位时没有待输入格 —— 活跃态全部清掉，视觉上落在「已完成」。
     function syncCells() {
@@ -72,6 +149,7 @@
 
     i18n.onChange(() => {
         if (currentError) helperEl.textContent = t(currentError.key, currentError.values);
+        if (joinPanel && !joinPanel.hidden) renderJoin();
     });
 
     pinField.addEventListener('input', () => {
@@ -108,7 +186,7 @@
             const err = data.error;
             if (err === 'locked') showError('login.locked');
             else if (err === 'terminated') showError('login.terminated');
-            else if (err === 'pin_consumed') showError('login.pin_consumed');
+            else if (err === 'pin_consumed') showJoin();
             else showError('login.wrong_pin');
         } catch (_) {
             showError('login.network_error');

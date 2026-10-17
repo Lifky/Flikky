@@ -108,10 +108,11 @@ async function runLoginThemeTest() {
   vm.runInNewContext(fs.readFileSync(loginPath, 'utf8'), context, { filename: loginPath });
   await flushMicrotasks();
 
+  // v1.23 起入口页还会问一句「要不要走请求加入」；主题仍须第一个取，免得页面先按默认配色闪一下。
   assertDeepEqual(
     calls.filter((call) => call[0] === 'fetch'),
-    [['fetch', '/api/web-theme']],
-    'login page should fetch public theme before PIN auth',
+    [['fetch', '/api/web-theme'], ['fetch', '/api/join/state']],
+    'login page should fetch public theme first, then ask which way in',
   );
   assertDeepEqual(
     calls.filter((call) => call[0] !== 'fetch'),

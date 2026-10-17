@@ -181,6 +181,14 @@ body {
   cursor: default;
 }
 
+/* v1.23 请求加入：与 PIN 表单同一列宽，说明在上、按钮在下。 */
+.fk-join {
+  display: flex;
+  flex-direction: column;
+  gap: var(--flikky-space-lg);
+  width: 100%;
+}
+
 /* ── 导出 ────────────────────────────────────────────────────────────── */
 
 .fk-export-head {

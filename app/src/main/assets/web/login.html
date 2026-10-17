@@ -18,7 +18,7 @@
                      两份 SVG 是同一枚标识的两种节奏，按用户指定分配，内容不改。 -->
                 <img class="fk-login-logo" src="/static/flikky-logo-quick.svg" alt="Flikky">
             </div>
-            <p class="fk-login-sub" data-i18n="login.description">请在手机屏幕上查看 6 位 PIN 码。</p>
+            <p class="fk-login-sub" id="login-sub" data-i18n="login.description">请在手机屏幕上查看 6 位 PIN 码。</p>
 
             <form id="pin-form" autocomplete="off" novalidate>
                 <!-- 6 个格子只是显示层；真正接收输入的是下面那个透明 input。
@@ -41,11 +41,18 @@
                 <button class="fk-btn" id="submit-btn" type="submit"
                         data-i18n="login.submit" disabled>进入</button>
             </form>
+
+            <!-- v1.23：会话里已有设备时改走「请求加入」，由手机允许（login.js 按 /api/join/state 切换）。 -->
+            <section class="fk-join" id="join-panel" hidden>
+                <p class="fk-login-sub" id="join-text" role="status" aria-live="polite"></p>
+                <button class="fk-btn" id="join-btn" type="button"></button>
+            </section>
         </main>
     </div>
 
     <script src="/static/vendor/mdui.global.js"></script>
     <script src="/static/i18n.js"></script>
+    <script src="/static/join.js"></script>
     <script src="/static/login.js"></script>
 </body>
 </html>
