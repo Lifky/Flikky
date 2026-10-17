@@ -55,5 +55,7 @@ class MessageRoutesSenderDeviceTest {
         val history = Json.parseToJsonElement(http.get("/api/messages").bodyAsText()).jsonObject
         val first = history["ordered"]!!.jsonArray.first().jsonObject
         assertEquals("dev-1", first["senderDeviceId"]?.jsonPrimitive?.content)
+        // 浏览器渲染历史前就要知道「我是哪台」，否则别的电脑的消息会先被画到右边。
+        assertEquals("dev-1", history["selfDeviceId"]?.jsonPrimitive?.content)
     }
 }

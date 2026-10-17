@@ -119,6 +119,7 @@ class WsRoutesDevicesTest {
             assertTrue(first, first.startsWith("""{"type":"peers","payload":{"devices":["""))
             val me = registry.devices.value.single()
             assertTrue(first, first.contains(""""deviceId":"${me.deviceId}""""))
+            assertTrue(first, first.contains(""""selfDeviceId":"${me.deviceId}""""))
         }
     }
 }

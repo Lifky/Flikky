@@ -124,7 +124,7 @@ fun Route.wsRoutes(
         session.setClientConnected(true)
         // 先让它认得会话里的其他设备，再处理后续帧；之后的变化由 TransferService 整体广播（spec §12）。
         runCatching {
-            send(Frame.Text("""{"type":"peers","payload":${peerRosterJson(session.knownDevices.value.values, registry.devices.value)}}"""))
+            send(Frame.Text("""{"type":"peers","payload":${peerRosterJson(session.knownDevices.value.values, registry.devices.value, selfDeviceId = deviceId)}}"""))
         }
         try {
             for (frame in incoming) {

@@ -117,7 +117,8 @@ fun Route.messageRoutes(
             }
         }
         val favorited = if (peerFavoriteEnabled()) favoritedIds() else emptyList()
-        call.respond(MessagesResponse(texts, files, ordered, favoritedIds = favorited))
+        val self = authGate.deviceFor(call.request.cookies[AUTH_COOKIE])?.deviceId
+        call.respond(MessagesResponse(texts, files, ordered, favoritedIds = favorited, selfDeviceId = self))
     }
 
     /**

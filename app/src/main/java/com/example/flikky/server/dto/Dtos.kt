@@ -65,6 +65,8 @@ data class MessagesResponse(
     val ordered: List<MessageDto> = emptyList(),
     /** D78：本会话里手机已收藏的消息 id；只在允许对端收藏时给出，否则为空。 */
     val favoritedIds: List<Long> = emptyList(),
+    /** 请求方自己的设备 ID（v1.23 多设备）：浏览器据此判断哪些消息是「我发的」，渲染历史前就要知道。 */
+    val selfDeviceId: String? = null,
 )
 
 /** D78：`favorites_state` 推送 —— 本会话已收藏消息的完整集合（整体替换，不是增量）。 */

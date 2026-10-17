@@ -35,11 +35,12 @@ data class PeerEntryDto(
     val present: Boolean,
 )
 
+/** [selfDeviceId] 只出现在连上时单独发给这条连接的那一帧里；整体广播时为 null，浏览器保留已知值。 */
 @Serializable
-data class PeerRosterDto(val devices: List<PeerEntryDto>)
+data class PeerRosterDto(val devices: List<PeerEntryDto>, val selfDeviceId: String? = null)
 
 /** [known]：本会话见过的每台设备的最近记录；[current]：此刻 registry 里的可见设备（以它为准）。按加入先后排。 */
-fun peerRosterJson(known: Collection<PeerDevice>, current: List<PeerDevice>): String {
+fun peerRosterJson(known: Collection<PeerDevice>, current: List<PeerDevice>, selfDeviceId: String? = null): String {
     val currentIds = current.mapTo(HashSet()) { it.deviceId }
     val merged = LinkedHashMap<String, PeerDevice>()
     known.forEach { merged[it.deviceId] = it }
@@ -48,7 +49,7 @@ fun peerRosterJson(known: Collection<PeerDevice>, current: List<PeerDevice>): St
         val present = d.deviceId in currentIds
         PeerEntryDto(d.deviceId, d.name, d.defaultLabel, d.defaultOrdinal, d.avatarKey, present && d.online, present)
     }
-    return WireJson.encodeToString(PeerRosterDto.serializer(), PeerRosterDto(entries))
+    return WireJson.encodeToString(PeerRosterDto.serializer(), PeerRosterDto(entries, selfDeviceId))
 }
 
 /** 浏览器连接后发的第一帧（spec §5.4）。字段全部来自它的 localStorage。 */
