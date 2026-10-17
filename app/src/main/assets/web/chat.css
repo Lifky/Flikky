@@ -1082,6 +1082,29 @@ body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
   .header-peer-name {
     max-width: none;
   }
+
+  /* 头部统计（装机 Screenshot_4）：三段统计把名字挤成「来…」。默认收起，
+     点「已连接」chip 从右向左展开、再点收回（app.js toggleHeaderStats）；宽屏照旧常驻。 */
+  #conn { cursor: pointer; }
+  .fk-chat-stats {
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateX(16px);
+    /* 收起时连同 flex gap 一起让出来，名字能用满。 */
+    margin-inline-start: calc(-1 * var(--flikky-space-md));
+    transition:
+      max-width var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+      margin var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+      transform var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default),
+      opacity var(--flikky-spring-effects-default-dur) var(--flikky-spring-effects-default);
+  }
+  .fk-chat-head[data-stats="open"] .fk-chat-stats {
+    max-width: 260px;
+    opacity: 1;
+    transform: none;
+    margin-inline-start: 0;
+  }
   .file-bubble.media .thumb {
     max-width: calc(100vw - 120px);
   }
@@ -1097,4 +1120,8 @@ body.mobile-ua[data-action-style="FLOATING"] .msg-actions {
   .chat-list {
     padding-bottom: calc(var(--flikky-dock-inset) * 2 + 64px + var(--flikky-navbar-h) + env(safe-area-inset-bottom, 0px));
   }
+}
+
+@media (max-width: 839px) and (prefers-reduced-motion: reduce) {
+  .fk-chat-stats { transition-duration: 0ms; }
 }

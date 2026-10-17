@@ -306,7 +306,7 @@ test('the header stats are separated, and the separator is not in the markup', (
   // 三个 span 的内容由 app.js 各自 textContent 写入（#uptime/#count/#rate），
   // 任何写进 markup 的分隔符都会被下一次更新抹掉 —— 所以必须由 CSS 生成。
   assert.match(chat, /\.fk-chat-stats\s*>\s*span\s*\+\s*span::before\s*\{[^}]*content:/);
-  const statsMarkup = appHtml.match(/<span class="fk-chat-stats">[\s\S]*?<\/span>\s*<\/span>/);
+  const statsMarkup = appHtml.match(/<span class="fk-chat-stats"[^>]*>[\s\S]*?<\/span>\s*<\/span>/);
   assert.ok(statsMarkup, 'could not locate the stats markup');
   assert.equal(/·/.test(statsMarkup[0]), false, 'separators must not live in the markup');
 });

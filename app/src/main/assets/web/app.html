@@ -131,10 +131,10 @@
             <header class="fk-chat-head" id="header-peer" aria-label="对方信息" data-i18n-aria-label="app.peer_info">
                 <div class="avatar-circle" id="peer-avatar" aria-label="对方头像" data-i18n-aria-label="app.peer_avatar"></div>
                 <div class="fk-chat-peer"><span class="header-peer-name" id="peer-name"></span></div>
-                <span class="fk-chat-stats">
+                <span class="fk-chat-stats" id="chat-stats">
                     <span id="uptime">00:00</span><span id="count">0 个文件</span><span id="rate">0 B/s</span>
                 </span>
-                <mdui-chip id="conn" data-i18n="app.connecting" variant="assist" selected>连接中…</mdui-chip>
+                <mdui-chip id="conn" data-i18n="app.connecting" variant="assist" selected aria-controls="chat-stats">连接中…</mdui-chip>
             </header>
 
             <div id="chat-list-shell" class="chat-list-shell">

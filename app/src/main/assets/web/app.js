@@ -11,6 +11,16 @@
     const fileBtn = document.getElementById('file-btn');
     const filePicker = document.getElementById('file-picker');
     const conn = document.getElementById('conn');
+    const headerEl = document.getElementById('header-peer');
+    // 窄屏：统计默认收起，点「已连接」chip 展开 / 收回（装机 Screenshot_4，样式见 chat.css「窄屏头部统计」）。
+    // 宽屏统计常驻，chip 不做事 —— 断点与 chat.css 一致。
+    function toggleHeaderStats() {
+        if (!headerEl || !window.matchMedia || !window.matchMedia('(max-width: 839px)').matches) return;
+        const open = headerEl.dataset.stats !== 'open';
+        headerEl.dataset.stats = open ? 'open' : 'closed';
+        conn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    if (conn && conn.addEventListener) conn.addEventListener('click', toggleHeaderStats);
     const uptimeEl = document.getElementById('uptime');
     const countEl = document.getElementById('count');
     const rateEl = document.getElementById('rate');
