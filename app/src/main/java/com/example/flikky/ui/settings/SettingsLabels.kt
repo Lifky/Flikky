@@ -7,6 +7,7 @@ import com.example.flikky.R
 import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.AppLanguage
 import com.example.flikky.data.settings.AvatarGroupingMode
+import com.example.flikky.data.settings.SenderNameMode
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.ContrastLevel
 import com.example.flikky.data.settings.DarkMode
@@ -74,6 +75,15 @@ internal fun AvatarGroupingMode.localizedLabel(): String = stringResource(
         AvatarGroupingMode.FIRST -> R.string.settings_avatar_first
         AvatarGroupingMode.LAST -> R.string.settings_avatar_last
         AvatarGroupingMode.EACH -> R.string.settings_avatar_each
+    }
+)
+
+@Composable
+internal fun SenderNameMode.localizedLabel(): String = stringResource(
+    when (this) {
+        SenderNameMode.AUTO -> R.string.settings_sender_name_auto
+        SenderNameMode.ALWAYS -> R.string.settings_sender_name_always
+        SenderNameMode.OFF -> R.string.settings_sender_name_off
     }
 )
 

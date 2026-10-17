@@ -129,6 +129,7 @@ fun ServingScreen(
     var avatarSheetTab by remember { mutableStateOf(0) }
     val devices by viewModel.devices.collectAsState()
     val knownAvatars by viewModel.knownDeviceAvatars.collectAsState()
+    val knownDevices by viewModel.knownDevices.collectAsState()
     var showDevices by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<PeerDevice?>(null) }
     var avatarTarget by remember { mutableStateOf<PeerDevice?>(null) }
@@ -385,6 +386,7 @@ fun ServingScreen(
                         peerAvatarId = peerAvatarId,
                         peerAvatarKey = peerAvatarKey,
                         deviceAvatars = knownAvatars,
+                        knownDevices = knownDevices,
                         actionTarget = actionTarget,
                         onActionTargetChange = { actionTarget = it },
                         snackbarHostState = snackbarHostState,
@@ -480,6 +482,7 @@ fun ServingScreen(
             defaultDeviceName = stringResource(R.string.settings_default_device_name),
             onSetBubbleCorner = { viewModel.setBubbleCornerRadius(it) },
             onSetAvatarGrouping = { viewModel.setAvatarGrouping(it) },
+            onSetSenderNameMode = { viewModel.setSenderNameMode(it) },
             onSetDarkMode = { viewModel.setDarkMode(it) },
             onSetAmoled = { viewModel.setAmoled(it) },
             onSetDeviceName = { viewModel.setDeviceName(it) },

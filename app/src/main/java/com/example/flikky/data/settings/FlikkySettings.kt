@@ -56,6 +56,12 @@ enum class MessageActionStyle { FLOATING, INLINE }
 /** 头像显示模式：FIRST=同来源组内首条；LAST=同来源组内末条；EACH=每条都显示。 */
 enum class AvatarGroupingMode { FIRST, LAST, EACH }
 
+/**
+ * 气泡上方的发送者名字（v1.23 多设备）：AUTO = 本会话出现过 2 台以上对端设备时显示；
+ * ALWAYS = 一对一也显示；OFF = 不显示。两端同步，浏览器经 settings_changed 跟随。
+ */
+enum class SenderNameMode { AUTO, ALWAYS, OFF }
+
 sealed class BackgroundSetting {
     object Default : BackgroundSetting()           // 显示连接状态 + 对端
     object Blank : BackgroundSetting()             // 空白
@@ -102,6 +108,7 @@ data class FlikkySettings(
     val bubbleCornerRadius: Int = BUBBLE_CORNER_DEFAULT,   // dp，钳制 8..28
     val messageActionStyle: MessageActionStyle = MessageActionStyle.INLINE,
     val avatarGrouping: AvatarGroupingMode = AvatarGroupingMode.EACH,
+    val senderNameMode: SenderNameMode = SenderNameMode.AUTO,
     /** 允许会话进行中按返回键退出到主页。 */
     val allowBackDuringSession: Boolean = true,
     /** 会话中显示时间戳分隔条（两端同步，浏览器经 settings_changed 跟随）。 */

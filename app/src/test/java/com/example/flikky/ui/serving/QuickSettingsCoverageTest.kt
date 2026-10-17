@@ -48,6 +48,7 @@ class QuickSettingsCoverageTest {
         "deviceName" to "onSetDeviceName",
         "bubbleCornerRadius" to "onSetBubbleCorner",
         "avatarGrouping" to "onSetAvatarGrouping",
+        "senderNameMode" to "onSetSenderNameMode",
         "messageActionStyle" to "onSetMessageActionStyle",
         "sessionTimestampEnabled" to "onSetSessionTimestamp",
         "recallBetaEnabled" to "onSetRecallBeta",

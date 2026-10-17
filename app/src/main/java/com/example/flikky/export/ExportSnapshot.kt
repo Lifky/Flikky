@@ -78,6 +78,7 @@ data class SettingsExport(
     val bubbleCornerRadius: Int? = null,
     val messageActionStyle: String? = null,
     val avatarGrouping: String? = null,
+    val senderNameMode: String? = null,
     val allowBackDuringSession: Boolean? = null,
     val sessionTimestampEnabled: Boolean? = null,
     val keepScreenOnDuringSession: Boolean? = null,

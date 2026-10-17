@@ -186,6 +186,8 @@ data class PeerInfoDto(
     // 默认 10 与 data.settings.BUBBLE_CORNER_DEFAULT 对齐；DTO 不依赖 data 层，故此处内联。
     val bubbleCornerRadius: Int = 10,
     val avatarGrouping: String = "EACH",
+    // 气泡上方的发送者名字（AUTO/ALWAYS/OFF）——浏览器与手机同一规则，见 ui/components/SenderLabel.kt。
+    val senderNameMode: String = "AUTO",
     // 消息操作样式（FLOATING/INLINE）——Web 端据此切换 hover 浮条 vs 常驻按钮行（§12）。
     val messageActionStyle: String = "INLINE",
     val animationSpeed: String = "STANDARD",

@@ -73,6 +73,8 @@ fun MessageBubble(
     cornerRadius: Dp = 18.dp,
     selected: Boolean = false,
     thumbnailFile: File? = null,
+    /** 气泡上方的发送者名字（多设备时，见 SenderLabel.kt）；null = 不显示。只用于对方一侧。 */
+    senderName: String? = null,
 ) {
     val mine = msg.origin == Origin.PHONE
     val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.8f).dp
@@ -133,6 +135,8 @@ fun MessageBubble(
             fileMsg.status == Message.File.Status.COMPLETED &&
             thumbnailFile != null &&
             !thumbLoadFailed
+        Column(horizontalAlignment = if (mine) Alignment.End else Alignment.Start) {
+        if (!mine && senderName != null) SenderLabel(senderName)
         Box(
             modifier = Modifier
                 .widthIn(max = maxWidth)
@@ -163,6 +167,7 @@ fun MessageBubble(
                     transferProgress = transferProgress,
                 )
             }
+        }
         }
         if (mine) {
             Spacer(Modifier.width(Spacing.sm))

@@ -98,6 +98,7 @@ import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.AvatarGroupingMode
+import com.example.flikky.data.settings.SenderNameMode
 import com.example.flikky.data.settings.MessageActionStyle
 import com.example.flikky.data.settings.THUMBNAIL_CACHE_LIMIT_DEFAULT_MB
 import com.example.flikky.data.settings.THUMBNAIL_CACHE_LIMIT_OPTIONS_MB
@@ -186,6 +187,7 @@ fun SettingsScreen(
     var showThumbnailCacheDialog by remember { mutableStateOf(false) }
     var showActionStyleDialog by remember { mutableStateOf(false) }
     var showAvatarGroupingDialog by remember { mutableStateOf(false) }
+    var showSenderNameDialog by remember { mutableStateOf(false) }
     var showAnimSpeedDialog by remember { mutableStateOf(false) }
     var showDeleteAllDialog by remember { mutableStateOf(false) }
     var showImportProgress by remember { mutableStateOf(false) }
@@ -507,7 +509,7 @@ fun SettingsScreen(
 
             // ─── 会话外观 ───────────────────────────────────────────────────────
             item {
-                val sectionItems = 4
+                val sectionItems = 5
                 SettingSection(title = stringResource(R.string.settings_section_session_appearance)) {
                     var radiusDraft by remember(s.bubbleCornerRadius) {
                         mutableStateOf(s.bubbleCornerRadius.toFloat())
@@ -544,13 +546,21 @@ fun SettingsScreen(
                         onClick = { showAvatarGroupingDialog = true },
                         index = 1, total = sectionItems,
                     )
+                    SettingItem(
+                        title = stringResource(R.string.settings_sender_name),
+                        leadingIcon = painterResource(R.drawable.ic_badge),
+                        infoText = stringResource(R.string.settings_sender_name_summary),
+                        trailingValue = s.senderNameMode.localizedLabel(),
+                        onClick = { showSenderNameDialog = true },
+                        index = 2, total = sectionItems,
+                    )
                     val bgValue = s.background.localizedLabel()
                     SettingItem(
                         title = stringResource(R.string.settings_session_background),
                         leadingIcon = painterResource(R.drawable.ic_image),
                         trailingValue = bgValue,
                         onClick = { activeSheet = ActiveSheet.Background },
-                        index = 2, total = sectionItems,
+                        index = 3, total = sectionItems,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_session_timestamp),
@@ -562,7 +572,7 @@ fun SettingsScreen(
                                 onCheckedChange = viewModel::setSessionTimestampEnabled,
                             )
                         },
-                        index = 3, total = sectionItems,
+                        index = 4, total = sectionItems,
                     )
                 }
             }
@@ -1061,6 +1071,25 @@ fun SettingsScreen(
                     onClick = {
                         viewModel.setAvatarGrouping(mode)
                         showAvatarGroupingDialog = false
+                    },
+                )
+            }
+        }
+    }
+
+    // ─── Sender name dialog ───────────────────────────────────────────────────
+    if (showSenderNameDialog) {
+        ChoiceDialog(
+            title = stringResource(R.string.settings_sender_name),
+            onDismiss = { showSenderNameDialog = false },
+        ) {
+            SenderNameMode.entries.forEach { mode ->
+                ChoiceRow(
+                    label = mode.localizedLabel(),
+                    selected = s.senderNameMode == mode,
+                    onClick = {
+                        viewModel.setSenderNameMode(mode)
+                        showSenderNameDialog = false
                     },
                 )
             }

@@ -25,6 +25,7 @@ import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.InstalledAppScanner
 import com.example.flikky.data.MediaStoreLibrary
 import com.example.flikky.data.settings.AvatarGroupingMode
+import com.example.flikky.data.settings.SenderNameMode
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.DarkMode
 import com.example.flikky.data.settings.MessageActionStyle
@@ -138,6 +139,8 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     /** v1.23：本次服务的对端设备（spec §3）。 */
     val devices: StateFlow<List<PeerDevice>> = ServiceLocator.session.devices
+    val knownDevices: StateFlow<Map<String, PeerDevice>> = ServiceLocator.session.knownDevices
+
     val knownDeviceAvatars: StateFlow<Map<String, String>> = ServiceLocator.session.knownDeviceAvatars
 
     fun renameDevice(deviceId: String, name: String) {
@@ -755,6 +758,10 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setAvatarGrouping(mode: AvatarGroupingMode) {
         viewModelScope.launch { ServiceLocator.settingsRepository.setAvatarGrouping(mode) }
+    }
+
+    fun setSenderNameMode(mode: SenderNameMode) {
+        viewModelScope.launch { ServiceLocator.settingsRepository.setSenderNameMode(mode) }
     }
 
     fun setDarkMode(mode: DarkMode) {

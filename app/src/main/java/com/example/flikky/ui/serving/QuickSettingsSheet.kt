@@ -29,6 +29,7 @@ import com.example.flikky.R
 import com.example.flikky.data.settings.AppLanguage
 import com.example.flikky.data.settings.AppLanguageManager
 import com.example.flikky.data.settings.AvatarGroupingMode
+import com.example.flikky.data.settings.SenderNameMode
 import com.example.flikky.data.settings.BUBBLE_CORNER_MAX
 import com.example.flikky.data.settings.BUBBLE_CORNER_MIN
 import com.example.flikky.data.settings.DarkMode
@@ -67,7 +68,7 @@ enum class QuickPicker { Theme, LeadingShape, LeadingColor, Avatar, Background }
  * 收录的同步项包括：
  *   主题色 themeSeed · 深色模式 themeDark · AMOLED amoled · 设备名 deviceName ·
  *   两端头像 phoneAvatarKey/browserAvatarKey · 气泡圆角 bubbleCornerRadius ·
- *   头像显示 avatarGrouping · 会话背景 backgroundMode/Value · 会话时间戳
+ *   头像显示 avatarGrouping · 发送者名字 senderNameMode · 会话背景 backgroundMode/Value · 会话时间戳
  *   sessionTimestampEnabled · 消息操作样式 messageActionStyle · 撤回 recallEnabled ·
  *   收藏 beta favoriteEnabled · leading 形状/配色 · 应用语言 languageTag
  *
@@ -98,6 +99,7 @@ fun QuickSettingsSheet(
     defaultDeviceName: String,
     onSetBubbleCorner: (Int) -> Unit,
     onSetAvatarGrouping: (AvatarGroupingMode) -> Unit,
+    onSetSenderNameMode: (SenderNameMode) -> Unit,
     onSetDarkMode: (DarkMode) -> Unit,
     onSetAmoled: (Boolean) -> Unit,
     onSetDeviceName: (String) -> Unit,
@@ -117,6 +119,7 @@ fun QuickSettingsSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showDarkModeDialog by remember { mutableStateOf(false) }
     var showAvatarGroupingDialog by remember { mutableStateOf(false) }
+    var showSenderNameDialog by remember { mutableStateOf(false) }
     var showActionStyleDialog by remember { mutableStateOf(false) }
     var showDeviceNameDialog by remember { mutableStateOf(false) }
     var showLanguageDialog by remember { mutableStateOf(false) }
@@ -251,7 +254,7 @@ fun QuickSettingsSheet(
 
             // ─── 会话外观 ─────────────────────────────────────────────────────
             run {
-                val total = 4
+                val total = 5
                 SettingSection(title = stringResource(R.string.settings_section_session_appearance)) {
                     // 与设置页同一份样板：本地 draft 实时反馈，松手才提交到 DataStore
                     // （每一帧都写会把 DataStore 和 settings_changed 广播都打爆）。
@@ -288,11 +291,19 @@ fun QuickSettingsSheet(
                         index = 1, total = total,
                     )
                     SettingItem(
+                        title = stringResource(R.string.settings_sender_name),
+                        leadingIcon = painterResource(R.drawable.ic_badge),
+                        infoText = stringResource(R.string.settings_sender_name_summary),
+                        trailingValue = settings.senderNameMode.localizedLabel(),
+                        onClick = { showSenderNameDialog = true },
+                        index = 2, total = total,
+                    )
+                    SettingItem(
                         title = stringResource(R.string.settings_session_background),
                         leadingIcon = painterResource(R.drawable.ic_image),
                         trailingValue = settings.background.localizedLabel(),
                         onClick = onOpenBackgroundPicker,
-                        index = 2, total = total,
+                        index = 3, total = total,
                     )
                     SettingItem(
                         title = stringResource(R.string.settings_session_timestamp),
@@ -304,7 +315,7 @@ fun QuickSettingsSheet(
                                 onCheckedChange = onSetSessionTimestamp,
                             )
                         },
-                        index = 3, total = total,
+                        index = 4, total = total,
                     )
                 }
             }
@@ -376,6 +387,21 @@ fun QuickSettingsSheet(
                     label = mode.localizedLabel(),
                     selected = settings.avatarGrouping == mode,
                     onClick = { onSetAvatarGrouping(mode); showAvatarGroupingDialog = false },
+                )
+            }
+        }
+    }
+
+    if (showSenderNameDialog) {
+        ChoiceDialog(
+            title = stringResource(R.string.settings_sender_name),
+            onDismiss = { showSenderNameDialog = false },
+        ) {
+            SenderNameMode.entries.forEach { mode ->
+                ChoiceRow(
+                    label = mode.localizedLabel(),
+                    selected = settings.senderNameMode == mode,
+                    onClick = { onSetSenderNameMode(mode); showSenderNameDialog = false },
                 )
             }
         }

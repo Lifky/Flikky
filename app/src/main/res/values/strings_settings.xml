@@ -60,6 +60,11 @@
     <string name="settings_avatar_first">组内首条显示</string>
     <string name="settings_avatar_last">组内末条显示</string>
     <string name="settings_avatar_each">每条都显示</string>
+    <string name="settings_sender_name">发送者名字</string>
+    <string name="settings_sender_name_summary">在气泡上方显示是哪台设备发的。「自动」= 本次会话连过 2 台以上设备时显示，两端同步</string>
+    <string name="settings_sender_name_auto">自动</string>
+    <string name="settings_sender_name_always">始终显示</string>
+    <string name="settings_sender_name_off">不显示</string>
     <string name="settings_session_background">进行中会话背景</string>
     <string name="settings_session_timestamp">会话时间戳</string>
     <string name="settings_session_timestamp_summary">新消息距上次时间戳达到 5 分钟时显示发送时间，两端同步</string>

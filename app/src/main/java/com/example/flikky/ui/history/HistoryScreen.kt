@@ -68,6 +68,10 @@ import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.session.displayName
 import com.example.flikky.session.peerAvatarFor
+import com.example.flikky.ui.components.groupKey
+import com.example.flikky.ui.components.peerSenderKey
+import com.example.flikky.ui.components.senderLabelAt
+import com.example.flikky.ui.components.senderNamesEnabled
 import com.example.flikky.ui.components.MessageAction
 import com.example.flikky.ui.components.MessageActionBar
 import com.example.flikky.ui.components.MessageBubble
@@ -125,6 +129,9 @@ fun HistoryScreen(
     val messages by viewModel.messages.collectAsState()
     val groups by homeViewModel.groups.collectAsState(initial = emptyList())
     val settings by ServiceLocator.settingsRepository.settings.collectAsState(initial = FlikkySettings())
+    val devicesById = remember(devices) { devices.associateBy { it.deviceId } }
+    val namesOn = senderNamesEnabled(settings.senderNameMode, peerDeviceCount = devices.size)
+    val senderKeys = remember(messages) { messages.map { it.peerSenderKey() } }
     val timestampDividerIndices = remember(messages) {
         SessionTimestamp.dividerIndices(messages.map { it.timestamp })
     }
@@ -453,10 +460,15 @@ fun HistoryScreen(
                 val nextMsg = if (index < messages.size - 1) messages[index + 1] else null
                 val showAvatar = when (settings.avatarGrouping) {
                     com.example.flikky.data.settings.AvatarGroupingMode.FIRST ->
-                        prevMsg == null || prevMsg.origin != msg.origin
+                        prevMsg == null || prevMsg.groupKey() != msg.groupKey()
                     com.example.flikky.data.settings.AvatarGroupingMode.LAST ->
-                        nextMsg == null || nextMsg.origin != msg.origin
+                        nextMsg == null || nextMsg.groupKey() != msg.groupKey()
                     com.example.flikky.data.settings.AvatarGroupingMode.EACH -> true
+                }
+                val senderName = if (namesOn && senderLabelAt(senderKeys, index)) {
+                    msg.senderDeviceId?.let(devicesById::get)?.displayName(unknownDevice) ?: unknownDevice
+                } else {
+                    null
                 }
                 val isHighlighted = msg.id == activeHighlight
                 val highlightColor by animateColorAsState(
@@ -507,6 +519,7 @@ fun HistoryScreen(
                                         else peerAvatarFor(msg.senderDeviceId, deviceAvatars, session?.peerAvatarKey ?: AvatarKey.DEFAULT_PEER),
                             cornerRadius = settings.bubbleCornerRadius.dp,
                             selected = floating && isActionTarget,
+                            senderName = senderName,
                             thumbnailFile = (msg as? Message.File)
                                 ?.takeIf {
                                     it.status == Message.File.Status.COMPLETED &&

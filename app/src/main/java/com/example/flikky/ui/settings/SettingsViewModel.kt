@@ -11,6 +11,7 @@ import com.example.flikky.data.settings.AnimationSpeed
 import com.example.flikky.data.settings.AppLanguage
 import com.example.flikky.data.settings.AppLanguageManager
 import com.example.flikky.data.settings.AvatarGroupingMode
+import com.example.flikky.data.settings.SenderNameMode
 import com.example.flikky.data.settings.BackgroundSetting
 import com.example.flikky.data.settings.ContrastLevel
 import com.example.flikky.data.settings.DarkMode
@@ -105,6 +106,9 @@ class SettingsViewModel @JvmOverloads constructor(
 
     fun setAvatarGrouping(value: AvatarGroupingMode) =
         viewModelScope.launch { repository.setAvatarGrouping(value) }
+
+    fun setSenderNameMode(value: SenderNameMode) =
+        viewModelScope.launch { repository.setSenderNameMode(value) }
 
     fun setAnimationSpeed(value: AnimationSpeed) =
         viewModelScope.launch { repository.setAnimationSpeed(value) }

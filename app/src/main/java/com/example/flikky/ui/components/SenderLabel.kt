@@ -1,0 +1,54 @@
+package com.example.flikky.ui.components
+
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
+import com.example.flikky.data.settings.SenderNameMode
+import com.example.flikky.session.Message
+import com.example.flikky.session.Origin
+import com.example.flikky.ui.theme.Spacing
+
+/**
+ * 气泡上方的发送者名字（v1.23 多设备）。两端同一规则，浏览器端见 app.js 的 `senderLabelVisible`：
+ * 「自动」= 本会话出现过 2 台以上对端设备时显示（一对一时名字只是噪音）。
+ */
+internal fun senderNamesEnabled(mode: SenderNameMode, peerDeviceCount: Int): Boolean = when (mode) {
+    SenderNameMode.AUTO -> peerDeviceCount >= 2
+    SenderNameMode.ALWAYS -> true
+    SenderNameMode.OFF -> false
+}
+
+/**
+ * 第 [index] 条要不要标名字：只标对方一侧（[senders] 里本端的消息为 null），
+ * 同一个发送者连续发的几条只在第一条上标（群聊惯例）。
+ */
+internal fun senderLabelAt(senders: List<String?>, index: Int): Boolean {
+    val sender = senders[index] ?: return false
+    return index == 0 || senders[index - 1] != sender
+}
+
+/** 旧数据（v1.23 之前）里浏览器发的消息没有发送设备，统一算作一台「浏览器」。 */
+internal const val LEGACY_BROWSER_SENDER = "legacy-browser"
+internal const val PHONE_SENDER = "phone"
+
+/** 对方一侧的发送者键：手机自己发的为 null（不标名字）。 */
+internal fun Message.peerSenderKey(): String? =
+    if (origin == Origin.PHONE) null else senderDeviceId ?: LEGACY_BROWSER_SENDER
+
+/** 头像分组用的键：按发送设备分组，而不是按来源 —— 两台电脑交替发言不能并成一组。 */
+internal fun Message.groupKey(): String = peerSenderKey() ?: PHONE_SENDER
+
+@Composable
+fun SenderLabel(name: String, modifier: Modifier = Modifier) {
+    Text(
+        text = name,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier.padding(bottom = Spacing.xs),
+    )
+}

@@ -965,6 +965,7 @@ class TransferService : Service() {
                 amoled = amoled,
                 bubbleCornerRadius = bubbleCornerRadius,
                 avatarGrouping = avatarGrouping.name,
+                senderNameMode = senderNameMode.name,
                 messageActionStyle = messageActionStyle.name,
                 animationSpeed = animationSpeed.name,
                 sessionTimestampEnabled = sessionTimestampEnabled,

@@ -39,6 +39,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
         val bubbleCorner = intPreferencesKey("bubble_corner")
         val msgActionStyle = stringPreferencesKey("msg_action_style")
         val avatarGrouping = stringPreferencesKey("avatar_grouping")
+        val senderNameMode = stringPreferencesKey("sender_name_mode")
         val allowBackDuringSession = booleanPreferencesKey("allow_back_during_session")
         val sessionTimestampEnabled = booleanPreferencesKey("session_timestamp_enabled")
         val keepScreenOnDuringSession = booleanPreferencesKey("keep_screen_on_during_session")
@@ -106,6 +107,9 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             avatarGrouping = p[Keys.avatarGrouping]
                 ?.let { runCatching { AvatarGroupingMode.valueOf(it) }.getOrNull() }
                 ?: AvatarGroupingMode.EACH,
+            senderNameMode = p[Keys.senderNameMode]
+                ?.let { runCatching { SenderNameMode.valueOf(it) }.getOrNull() }
+                ?: SenderNameMode.AUTO,
             allowBackDuringSession = p[Keys.allowBackDuringSession] ?: true,
             sessionTimestampEnabled = p[Keys.sessionTimestampEnabled] ?: false,
             keepScreenOnDuringSession = p[Keys.keepScreenOnDuringSession] ?: false,
@@ -201,6 +205,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
     }
     suspend fun setMessageActionStyle(v: MessageActionStyle) = ds.edit { it[Keys.msgActionStyle] = v.name }
     suspend fun setAvatarGrouping(v: AvatarGroupingMode) = ds.edit { it[Keys.avatarGrouping] = v.name }
+    suspend fun setSenderNameMode(v: SenderNameMode) = ds.edit { it[Keys.senderNameMode] = v.name }
     suspend fun setAllowBackDuringSession(v: Boolean) = ds.edit { it[Keys.allowBackDuringSession] = v }
     suspend fun setSessionTimestampEnabled(v: Boolean) = ds.edit { it[Keys.sessionTimestampEnabled] = v }
     suspend fun setKeepScreenOnDuringSession(v: Boolean) = ds.edit { it[Keys.keepScreenOnDuringSession] = v }
@@ -363,6 +368,7 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             bubbleCornerRadius = s.bubbleCornerRadius,
             messageActionStyle = s.messageActionStyle.name,
             avatarGrouping = s.avatarGrouping.name,
+            senderNameMode = s.senderNameMode.name,
             allowBackDuringSession = s.allowBackDuringSession,
             sessionTimestampEnabled = s.sessionTimestampEnabled,
             keepScreenOnDuringSession = s.keepScreenOnDuringSession,
@@ -418,6 +424,8 @@ class SettingsRepository(private val ds: DataStore<Preferences>) {
             ?.let { prefs[Keys.msgActionStyle] = it }
         backup.avatarGrouping?.enumNameOrNull<AvatarGroupingMode>()
             ?.let { prefs[Keys.avatarGrouping] = it }
+        backup.senderNameMode?.enumNameOrNull<SenderNameMode>()
+            ?.let { prefs[Keys.senderNameMode] = it }
         backup.allowBackDuringSession?.let { prefs[Keys.allowBackDuringSession] = it }
         backup.sessionTimestampEnabled?.let { prefs[Keys.sessionTimestampEnabled] = it }
         backup.keepScreenOnDuringSession?.let { prefs[Keys.keepScreenOnDuringSession] = it }

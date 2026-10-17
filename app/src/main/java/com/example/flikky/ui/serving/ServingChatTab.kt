@@ -51,7 +51,13 @@ import com.example.flikky.data.settings.FlikkySettings
 import com.example.flikky.di.ServiceLocator
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
+import com.example.flikky.session.PeerDevice
+import com.example.flikky.session.displayName
 import com.example.flikky.session.peerAvatarFor
+import com.example.flikky.ui.components.groupKey
+import com.example.flikky.ui.components.peerSenderKey
+import com.example.flikky.ui.components.senderLabelAt
+import com.example.flikky.ui.components.senderNamesEnabled
 import com.example.flikky.ui.components.ConversationBackground
 import com.example.flikky.ui.components.ConversationStatusRow
 import com.example.flikky.ui.components.ImagePreviewDialog
@@ -99,6 +105,8 @@ fun ServingChatTab(
     peerAvatarId: Int,
     peerAvatarKey: String,
     deviceAvatars: Map<String, String>,
+    /** 本会话见过的每台对端设备（含已断开的），用于名字标签。 */
+    knownDevices: Map<String, PeerDevice> = emptyMap(),
     actionTarget: Long?,
     onActionTargetChange: (Long?) -> Unit,
     snackbarHostState: SnackbarHostState,
@@ -352,6 +360,9 @@ fun ServingChatTab(
         if (listState.isScrollInProgress) onActionTargetChange(null)
     }
 
+    val unknownDevice = stringResource(R.string.device_unknown_browser)
+    val namesOn = senderNamesEnabled(settings.senderNameMode, peerDeviceCount = knownDevices.size)
+    val senderKeys = remember(ui.messages) { ui.messages.map { it.peerSenderKey() } }
     Column(modifier = modifier.fillMaxSize()) {
         Box(modifier = Modifier.weight(1f)) {
             ConversationBackground(
@@ -371,10 +382,15 @@ fun ServingChatTab(
                         val nextMsg = ui.messages.getOrNull(index + 1)
                         val showAvatar = when (settings.avatarGrouping) {
                             com.example.flikky.data.settings.AvatarGroupingMode.FIRST ->
-                                prevMsg == null || prevMsg.origin != msg.origin
+                                prevMsg == null || prevMsg.groupKey() != msg.groupKey()
                             com.example.flikky.data.settings.AvatarGroupingMode.LAST ->
-                                nextMsg == null || nextMsg.origin != msg.origin
+                                nextMsg == null || nextMsg.groupKey() != msg.groupKey()
                             com.example.flikky.data.settings.AvatarGroupingMode.EACH -> true
+                        }
+                        val senderName = if (namesOn && senderLabelAt(senderKeys, index)) {
+                            msg.senderDeviceId?.let(knownDevices::get)?.displayName(unknownDevice) ?: unknownDevice
+                        } else {
+                            null
                         }
                         val isActionTarget = actionTarget == msg.id
                         val floating = settings.messageActionStyle ==
@@ -408,6 +424,7 @@ fun ServingChatTab(
                                             else peerAvatarFor(msg.senderDeviceId, deviceAvatars, peerAvatarKey),
                                 cornerRadius = settings.bubbleCornerRadius.dp,
                                 selected = floating && isActionTarget,
+                                senderName = senderName,
                                 thumbnailFile = (msg as? Message.File)
                                     ?.takeIf {
                                         it.status == Message.File.Status.COMPLETED &&
