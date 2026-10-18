@@ -46,6 +46,14 @@ class LeadingSheetsTest {
         assertTrue("QuickSettingsSheet 配色行没有使用 ic_interests_fill：\n$quickSettingsRow", quickSettingsRow.contains("R.drawable.ic_interests_fill"))
     }
 
+    // 装机反馈：选中框是圆角，点按的水波纹却是直角方块 —— clickable 之前没裁剪，ripple 铺满整块正方形。
+    @Test
+    fun `a shape tile ripples inside its rounded outline`() {
+        val sheet = productCode("ui/settings/LeadingShapeSheet.kt")
+        val tile = sheet.substring(sheet.indexOf(".size(64.dp)"), sheet.indexOf(".clickable"))
+        assertTrue("形状格子在 clickable 之前没有 clip(圆角)：$tile", tile.contains(".clip(MaterialTheme.shapes.medium)"))
+    }
+
     @Test
     fun `every shape preview uses the real file leading visual`() {
         val sheet = productCode("ui/settings/LeadingShapeSheet.kt")
