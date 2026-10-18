@@ -4,6 +4,47 @@
 
 This file records user-facing changes for each Flikky release, loosely following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow `x.y.z`: x for major architectural changes, y for new features, z for bug fixes. Dates are tag creation dates.
 
+## [v1.23.0](https://github.com/Lifky/Flikky/releases/tag/v1.23.0) · 2026-10-18
+
+Every device gets a name and a credential of its own. The phone sees, renames and disconnects each browser that connects; one session can hold several computers, a new device joins only once the phone allows it, and every bubble shows which device sent it.
+
+### Added
+
+#### Devices have names
+- Browsers are named after themselves by default ("Edge", then "Edge 2" for a second one); the full "browser · system" label is shown in the devices panel
+- A new "This device" group at the top of the browser's settings renames this device and changes its avatar. The phone can rename any device too; the last write wins, and a name changed while a browser was offline is not overwritten when it reconnects
+- Session history shows which devices took part, and browser bubbles use the avatar of the device that sent them
+
+#### Manage connected devices
+- Tap the session header to open the connected-devices panel: online or offline, rename, change avatar, disconnect. With several online, the header stacks their avatars, reads "N devices online" and shows a drop-down arrow
+- A disconnected browser sees "The phone disconnected this device" with a Reconnect button instead of retrying forever; with the PIN on, the phone shows a fresh PIN right away
+
+#### Several computers in one session
+- The first device gets in as before (PIN, or straight in with the PIN off); every later one taps "Ask to join" on the entry page and gets in once you tap "Allow" on the phone. The rule is the same with the PIN on or off, and for browser downloads of an export
+- On the session or export screen the phone shows a dialog; in the background it posts a notification with Allow and Deny. Once a device joins, the phone says "X joined"
+- Messages from another computer sit on the other side with its own avatar; when any device changes its avatar, all of its bubbles update on every other device
+- **Settings › Chat appearance › Sender names**: auto (shown once 2 or more devices have joined, the default), always or off, followed by the browser. Both sides are labelled; with inline buttons every message carries a name, with the floating toolbar only the first of a run does
+
+### Changed
+- With no device online, the session screen keeps only the connection card, one status line and Stop. The status line says how many devices are offline and opens the devices panel. A used PIN reads "Used by X" instead of showing digits that no longer work
+- Browser avatars: an avatar chosen in that browser wins; otherwise the device follows the phone's "browser default", and changes to it apply at once. Choosing an avatar in a browser no longer rewrites the phone's default
+- Phone browsers and narrow windows: run time, file count and speed fold into the "Connected" chip and slide out from the right when tapped, so the name is no longer squeezed to "…"
+- Backups include each session's devices and the sending device of every message; older backups import as before. The database upgrades automatically
+
+### Security
+- **Sign-in credentials are now 256-bit and the server stores only their SHA-256.** Each device has its own credential and can be revoked on its own
+- **Turning the PIN off no longer means anyone can walk in**: the server still issues a controlled session, and once a device is in, new ones need the phone's approval. A cross-site page touching the phone's address no longer leaves a "ghost device" in the list
+- A browser can recall only messages sent by its own device; another computer's messages count as the peer's and need "Allow recalling peer messages"
+- Join-request credentials live only in an HttpOnly, SameSite=Strict cookie, are stored as hashes, expire after a minute, and at most 3 can wait at once; "Allow" on the notification asks you to unlock first
+- The new PIN issued after a disconnect keeps the brute-force counters
+
+### Fixed
+- Opening `/export` with an expired credential now returns to the entry page instead of a blank 401
+- The "Up to 20 characters" label of the browser's rename field was half cut off by the dialog; pressing Enter while an input method is composing no longer submits
+- Deleting characters from an over-long default name in the rename field no longer looks stuck
+- Once the chat needed scrolling, the names above bubbles collapsed into an empty gap
+- The ripple in the file icon shape picker was a square; it now follows the rounded selection outline
+
 ## [v1.22.0](https://github.com/Lifky/Flikky/releases/tag/v1.22.0) · 2026-09-28
 
 A memorable address, and a peer that can do a little more. The phone now answers to `flikky{N}.local` next to its IP, with a number and port you choose; the browser can favorite session messages to the phone; and the server answers only to its own names and refuses cross-origin writes.
