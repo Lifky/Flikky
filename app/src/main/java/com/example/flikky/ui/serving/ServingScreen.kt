@@ -131,23 +131,6 @@ fun ServingScreen(
     val devices by viewModel.devices.collectAsState()
     val knownAvatars by viewModel.knownDeviceAvatars.collectAsState()
     val knownDevices by viewModel.knownDevices.collectAsState()
-    val joinRequests by viewModel.joinRequests.collectAsState()
-    // 会话页在前台时「请求加入」只弹页内对话框；切到后台才发通知（见 ServiceLocator.servingVisible）。
-    val visibilityOwner = LocalLifecycleOwner.current
-    DisposableEffect(visibilityOwner) {
-        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            when (event) {
-                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> ServiceLocator.servingVisible.value = true
-                androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> ServiceLocator.servingVisible.value = false
-                else -> Unit
-            }
-        }
-        visibilityOwner.lifecycle.addObserver(observer)
-        onDispose {
-            visibilityOwner.lifecycle.removeObserver(observer)
-            ServiceLocator.servingVisible.value = false
-        }
-    }
     var showDevices by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<PeerDevice?>(null) }
     var avatarTarget by remember { mutableStateOf<PeerDevice?>(null) }
@@ -490,14 +473,7 @@ fun ServingScreen(
         ImagePreviewDialog(model = uri, onDismiss = { albumPreview = null })
     }
 
-    // 一次处理一个：处理掉，下一个顶上来。
-    joinRequests.firstOrNull()?.let { request ->
-        JoinRequestDialog(
-            request = request,
-            onAllow = { viewModel.approveJoin(request.id) },
-            onDeny = { viewModel.denyJoin(request.id) },
-        )
-    }
+    com.example.flikky.ui.components.JoinRequestHost()
 
     if (showPeerPermissions) {
         PeerPermissionsSheet(

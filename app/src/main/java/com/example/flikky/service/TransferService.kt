@@ -300,16 +300,7 @@ class TransferService : Service() {
         pinAuth = auth
         val registry = DeviceRegistry(defaultAvatar = { latestSettings.browserAvatarKey })
         deviceRegistry = registry
-        val joins = JoinRequests()
-        joinRequests = joins
-        // 加入请求 → 手机界面（弹窗）与通知。
-        joinsJob = scope.launch {
-            combine(joins.pending, ServiceLocator.servingVisible) { list, visible -> list to visible }
-                .collect { (list, visible) ->
-                    ServiceLocator.session.setJoinRequests(list)
-                    JoinRequestNotifier.update(this@TransferService, JoinRequestNotifier.notifiable(list, visible))
-                }
-        }
+        startJoinRequests()
         // 设备 → 界面与会话快照。`sid` 是本函数的局部值（会话 id 跨 rebind 不变），不是 KtorServer 成员。
         devicesJob = scope.launch {
             registry.devices.collect { list ->
@@ -351,7 +342,6 @@ class TransferService : Service() {
             allowPeerRecall = { latestSettings.allowPeerRecall },
             devices = registry,
             onDeviceRevoked = { refreshPinAfterRevoke() },
-            joins = joins,
         )
         // v1.3：HistoryViewModel 撤回入口通过 ServiceLocator 拿 controller。
         // 见 ServiceLocator.currentController 的 KDoc。
@@ -450,6 +440,8 @@ class TransferService : Service() {
         pinAuth = auth
         val registry = DeviceRegistry()
         deviceRegistry = registry
+        // 导出同样要（装机反馈）：已有设备时新设备经手机允许才能进，不然关 PIN 谁来都能下载全部历史。
+        startJoinRequests()
 
         currentMode = ServiceMode.Export
         // 导出不走 session.startNew()，snapshot 里可能还留着上次的 boundPort —— 别拿它起扫。
@@ -559,6 +551,8 @@ class TransferService : Service() {
         deviceRegistry = null
         joinRequests?.clear()
         joinRequests = null
+        ServiceLocator.currentJoinRequests = null
+        ServiceLocator.session.setJoinRequests(emptyList())
         JoinRequestNotifier.update(this, emptyList())
         ServiceLocator.session.setDevices(emptyList())
         currentHostIp = null
@@ -584,6 +578,24 @@ class TransferService : Service() {
      * rebind path after the previous engine was torn down — both flows use the
      * same PinAuth/session wiring; only [host] changes on a rebind.
      */
+    /**
+     * 「请求加入」队列：传输与导出共用（v1.23 多设备）。跨 rebind 存活（field），经参数交给每个新 KtorServer；
+     * 手机界面与通知按钮经 [ServiceLocator.currentJoinRequests] 允许 / 拒绝。
+     */
+    private fun startJoinRequests() {
+        val joins = JoinRequests()
+        joinRequests = joins
+        ServiceLocator.currentJoinRequests = joins
+        // 加入请求 → 手机界面（弹窗）与通知；页内弹窗在前台时不发通知。
+        joinsJob = scope.launch {
+            combine(joins.pending, ServiceLocator.joinDialogShown) { list, shown -> list to shown }
+                .collect { (list, shown) ->
+                    ServiceLocator.session.setJoinRequests(list)
+                    JoinRequestNotifier.update(this@TransferService, JoinRequestNotifier.notifiable(list, shown))
+                }
+        }
+    }
+
     private fun buildTransferKtor(host: String, auth: PinAuth, registry: DeviceRegistry, startPort: Int): KtorServer = KtorServer(
         host = host,
         startPort = startPort,

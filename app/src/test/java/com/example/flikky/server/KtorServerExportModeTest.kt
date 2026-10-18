@@ -69,6 +69,9 @@ class KtorServerExportModeTest {
         session: SessionState,
         pin: PinAuth,
         onZipSent: suspend () -> Unit = {},
+        registry: DeviceRegistry = DeviceRegistry(),
+        joins: JoinRequests? = null,
+        requirePin: Boolean = true,
         peerInfoProvider: () -> PeerInfoDto = {
             PeerInfoDto(
                 deviceName = "Flikky",
@@ -95,6 +98,9 @@ class KtorServerExportModeTest {
             mode = mode,
             onZipSent = onZipSent,
             peerInfoProvider = peerInfoProvider,
+            deviceRegistry = registry,
+            joinRequests = joins,
+            requirePin = requirePin,
         )
     }
 
@@ -345,6 +351,47 @@ class KtorServerExportModeTest {
             assertEquals(HttpStatusCode.OK, resp.status)
             assertNotEquals(HttpStatusCode.NotFound, resp.status)
             assertTrue(resp.bodyAsBytes().isNotEmpty())
+        }
+    }
+
+    // 装机反馈：导出模式没接「请求加入」—— 开 PIN 时第二台点「请求加入」打到不存在的路由，显示「网络错误」；
+    // 关 PIN 时第二台不用确认直接进。导出给浏览器的是全部历史，与传输模式同一条规则：已有设备时要手机允许。
+    @Test
+    fun `export mode lets a second browser ask the phone to join`() = runBlocking {
+        val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
+        val joins = JoinRequests()
+        val registry = DeviceRegistry()
+        val s = buildServer(ServiceMode.Export, SessionState(nowMs = { 0L }), pin, registry = registry, joins = joins)
+        server = s
+        val port = s.start()
+
+        HttpClient(CIO) { install(HttpCookies) }.use { first -> authenticate(first, port) }
+        HttpClient(CIO) { install(HttpCookies); followRedirects = false }.use { second ->
+            assertEquals(HttpStatusCode.Accepted, second.post("http://127.0.0.1:$port/api/join").status)
+            joins.approve(joins.pending.value.single().id)
+            val approved = second.post("http://127.0.0.1:$port/api/join/status")
+            assertEquals(HttpStatusCode.OK, approved.status)
+            assertTrue(approved.bodyAsText().contains("\"redirectTo\":\"/export\""))
+            assertEquals(2, registry.devices.value.size)
+        }
+    }
+
+    @Test
+    fun `export mode with pin off no longer lets a second browser walk straight in`() = runBlocking {
+        val pin = PinAuth(nowMs = { 0L }, pinSupplier = { "000000" }, tokenSupplier = { "TOK" })
+        val registry = DeviceRegistry().also { it.issue("UA", viaPin = true) }
+        val s = buildServer(
+            ServiceMode.Export, SessionState(nowMs = { 0L }), pin,
+            registry = registry, joins = JoinRequests(), requirePin = false,
+        )
+        server = s
+        val port = s.start()
+
+        HttpClient(CIO) { install(HttpCookies); followRedirects = false }.use { second ->
+            val root = second.get("http://127.0.0.1:$port/")
+            assertEquals(HttpStatusCode.OK, root.status)
+            assertEquals(null, root.headers[HttpHeaders.SetCookie])
+            assertEquals(1, registry.devices.value.size)
         }
     }
 }

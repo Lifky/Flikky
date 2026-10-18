@@ -63,6 +63,9 @@ fun ExportingScreen(
     // SessionState.exportMode stays in sync with what's on screen.
     BackHandler(enabled = ui.phase != ExportingUiState.Phase.Gone) { /* no-op */ }
 
+    // 导出也走「请求加入」（装机反馈）：已有设备时新浏览器要在这里允许。
+    com.example.flikky.ui.components.JoinRequestHost()
+
     Scaffold(
         topBar = {
             Column {

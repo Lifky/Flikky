@@ -79,10 +79,16 @@ object ServiceLocator {
     @Volatile var currentController: TransferController? = null
 
     /**
-     * 会话页此刻是否在前台（v1.23 多设备）：在的话「请求加入」只弹页内对话框，不再发横幅通知。
-     * ServingScreen 按生命周期写，TransferService 订阅。
+     * 能弹「请求加入」对话框的页面（会话页、导出页）此刻是否在前台（v1.23 多设备）：在的话只弹页内对话框，
+     * 不再发横幅通知。两个页面按生命周期写，TransferService 订阅。
      */
-    val servingVisible = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val joinDialogShown = kotlinx.coroutines.flow.MutableStateFlow(false)
+
+    /**
+     * 当前服务的「请求加入」队列（传输与导出共用，服务停止时为 null）。手机界面与通知按钮都经它允许 / 拒绝 ——
+     * 导出模式没有 TransferController，所以不走 controller。
+     */
+    @Volatile var currentJoinRequests: com.example.flikky.server.JoinRequests? = null
 
     /**
      * v1.3 对端撤回通知渠道。TransferService 在 onRecallMessage 桥接

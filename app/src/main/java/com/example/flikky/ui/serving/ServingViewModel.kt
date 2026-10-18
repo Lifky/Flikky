@@ -141,11 +141,6 @@ class ServingViewModel(app: Application) : AndroidViewModel(app) {
     val devices: StateFlow<List<PeerDevice>> = ServiceLocator.session.devices
     val knownDevices: StateFlow<Map<String, PeerDevice>> = ServiceLocator.session.knownDevices
 
-    val joinRequests: StateFlow<List<com.example.flikky.server.JoinRequests.View>> = ServiceLocator.session.joinRequests
-
-    fun approveJoin(requestId: String) { ServiceLocator.currentController?.approveJoin(requestId) }
-
-    fun denyJoin(requestId: String) { ServiceLocator.currentController?.denyJoin(requestId) }
 
     val knownDeviceAvatars: StateFlow<Map<String, String>> = ServiceLocator.session.knownDeviceAvatars
 

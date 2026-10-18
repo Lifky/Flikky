@@ -1,7 +1,6 @@
 package com.example.flikky.service
 
 import com.example.flikky.server.DeviceRegistry
-import com.example.flikky.server.JoinRequests
 import com.example.flikky.server.routes.WsHub
 import com.example.flikky.session.SessionState
 import com.example.flikky.session.TransferStats
@@ -21,7 +20,6 @@ class TransferControllerDevicesTest {
     private fun controller(
         hub: () -> WsHub?,
         registry: DeviceRegistry,
-        joins: JoinRequests? = null,
         revoked: () -> Unit = {},
     ) = TransferController(
         session = SessionState(nowMs = { 0L }).apply { startNew(1L) },
@@ -34,7 +32,6 @@ class TransferControllerDevicesTest {
         scope = TestScope(),
         devices = registry,
         onDeviceRevoked = revoked,
-        joins = joins,
     )
 
     @Test fun `renaming a device pushes the new record only to that device`() = runTest {
@@ -74,18 +71,5 @@ class TransferControllerDevicesTest {
         controller({ hub }, DeviceRegistry()) { reported++ }.disconnectDevice("nope")
         coVerify(exactly = 0) { hub.closeDevice(any()) }
         assertEquals(0, reported)
-    }
-
-    // 手机上点「允许 / 拒绝」：只改请求状态，凭据等请求方来领时才签发（JoinRoutes）。
-    @Test fun `allowing and refusing join requests from the phone`() = runTest {
-        val joins = JoinRequests()
-        val a = joins.create("UA")!!
-        val b = joins.create("UA")!!
-        val c = controller({ null }, registry(), joins = joins)
-        assertTrue(c.approveJoin(a.request.id))
-        assertTrue(c.denyJoin(b.request.id))
-        assertEquals(JoinRequests.Status.Approved, joins.status(a.secret))
-        assertEquals(JoinRequests.Status.Denied, joins.status(b.secret))
-        assertFalse(c.approveJoin("unknown"))
     }
 }

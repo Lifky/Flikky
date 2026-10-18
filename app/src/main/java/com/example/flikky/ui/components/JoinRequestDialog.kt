@@ -1,4 +1,4 @@
-package com.example.flikky.ui.serving
+package com.example.flikky.ui.components
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon

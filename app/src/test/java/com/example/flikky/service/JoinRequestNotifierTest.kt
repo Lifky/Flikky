@@ -3,6 +3,7 @@ package com.example.flikky.service
 import android.app.NotificationManager
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.example.flikky.di.ServiceLocator
 import com.example.flikky.server.JoinRequests
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -47,7 +48,24 @@ class JoinRequestNotifierTest {
     // 会话页就在眼前时，页内弹窗已经够了；同时再弹一条横幅通知只是噪音。
     @Test fun `the notification is left to the in-app dialog while the serving screen is visible`() {
         val pending = listOf(JoinRequests.View("r1", null, 0L))
-        assertEquals(emptyList<JoinRequests.View>(), JoinRequestNotifier.notifiable(pending, servingVisible = true))
-        assertEquals(pending, JoinRequestNotifier.notifiable(pending, servingVisible = false))
+        assertEquals(emptyList<JoinRequests.View>(), JoinRequestNotifier.notifiable(pending, dialogShown = true))
+        assertEquals(pending, JoinRequestNotifier.notifiable(pending, dialogShown = false))
+    }
+
+    // 导出模式没有 TransferController：通知上的「允许 / 拒绝」直接作用在当前队列上，两种模式同一条路。
+    @Test fun `the notification buttons act on the current queue in either mode`() {
+        val joins = JoinRequests()
+        val a = joins.create("UA")!!
+        val b = joins.create("UA")!!
+        ServiceLocator.currentJoinRequests = joins
+        try {
+            val receiver = JoinRequestActionReceiver()
+            receiver.onReceive(context, JoinRequestNotifier.actionIntent(context, JoinRequestNotifier.ACTION_ALLOW, a.request.id))
+            receiver.onReceive(context, JoinRequestNotifier.actionIntent(context, JoinRequestNotifier.ACTION_DENY, b.request.id))
+            assertEquals(JoinRequests.Status.Approved, joins.status(a.secret))
+            assertEquals(JoinRequests.Status.Denied, joins.status(b.secret))
+        } finally {
+            ServiceLocator.currentJoinRequests = null
+        }
     }
 }

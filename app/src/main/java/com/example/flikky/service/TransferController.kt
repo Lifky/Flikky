@@ -7,7 +7,6 @@ import com.example.flikky.data.SessionFileStore
 import com.example.flikky.data.SessionRepository
 import com.example.flikky.data.SessionRepository.RecallOutcome
 import com.example.flikky.server.DeviceRegistry
-import com.example.flikky.server.JoinRequests
 import com.example.flikky.server.dto.toDtoJson
 import com.example.flikky.server.dto.FileMessageDto
 import com.example.flikky.server.dto.FileProgressDto
@@ -59,8 +58,6 @@ class TransferController(
     private val devices: DeviceRegistry = DeviceRegistry(),
     /** 断开之后回调：PIN 模式下没人再持有凭据时由 TransferService 换发 PIN（spec §4.4）。 */
     private val onDeviceRevoked: () -> Unit = {},
-    /** 「请求加入」队列（v1.23 多设备）；手机在弹窗或通知里点允许 / 拒绝时经这里改状态。 */
-    private val joins: JoinRequests? = null,
 ) {
     suspend fun sendText(text: String) {
         if (text.isBlank()) return
@@ -259,9 +256,4 @@ class TransferController(
     private suspend fun pushDevice(device: PeerDevice) {
         wsHub()?.sendToDevice(device.deviceId, "device_updated", device.toDtoJson())
     }
-
-    /** 允许一个加入请求：只改状态；会话凭据等请求方下次来查时才签发（JoinRoutes），明文不在服务端停留。 */
-    fun approveJoin(requestId: String): Boolean = joins?.approve(requestId) ?: false
-
-    fun denyJoin(requestId: String): Boolean = joins?.deny(requestId) ?: false
 }

@@ -26,9 +26,9 @@ object JoinRequestNotifier {
     const val ACTION_DENY = "com.example.flikky.action.JOIN_DENY"
     const val EXTRA_REQUEST_ID = "requestId"
 
-    /** 会话页就在眼前时交给页内弹窗；同时再弹横幅通知只是噪音。 */
-    fun notifiable(pending: List<JoinRequests.View>, servingVisible: Boolean): List<JoinRequests.View> =
-        if (servingVisible) emptyList() else pending
+    /** 会话页 / 导出页就在眼前时交给页内弹窗；同时再弹横幅通知只是噪音。 */
+    fun notifiable(pending: List<JoinRequests.View>, dialogShown: Boolean): List<JoinRequests.View> =
+        if (dialogShown) emptyList() else pending
 
     fun update(context: Context, pending: List<JoinRequests.View>) {
         val nm = context.getSystemService(NotificationManager::class.java) ?: return
@@ -83,14 +83,14 @@ object JoinRequestNotifier {
     }
 }
 
-/** 通知上的「允许 / 拒绝」。服务已停（没有 controller）时什么也不做。 */
+/** 通知上的「允许 / 拒绝」。传输与导出共用当前队列；服务已停（队列为 null）时什么也不做。 */
 class JoinRequestActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val id = intent.getStringExtra(JoinRequestNotifier.EXTRA_REQUEST_ID) ?: return
-        val controller = ServiceLocator.currentController ?: return
+        val joins = ServiceLocator.currentJoinRequests ?: return
         when (intent.action) {
-            JoinRequestNotifier.ACTION_ALLOW -> controller.approveJoin(id)
-            JoinRequestNotifier.ACTION_DENY -> controller.denyJoin(id)
+            JoinRequestNotifier.ACTION_ALLOW -> joins.approve(id)
+            JoinRequestNotifier.ACTION_DENY -> joins.deny(id)
         }
     }
 }

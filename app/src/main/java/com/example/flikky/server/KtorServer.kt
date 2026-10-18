@@ -148,8 +148,14 @@ class KtorServer(
         required = requirePin,
         pinAuth = pinAuth,
         registry = deviceRegistry,
-        joinRequests = joinRequests.takeIf { mode == ServiceMode.Transfer },
+        joinRequests = joinRequests,
     )
+
+    /** 进门后的落脚页：传输 → 会话页，导出 → 下载页。登录与「请求加入」共用。 */
+    private fun landingPath(): String = when (mode) {
+        ServiceMode.Transfer -> "/app"
+        ServiceMode.Export -> "/export"
+    }
 
     fun start(): Int {
         var lastError: Throwable? = null
@@ -193,12 +199,7 @@ class KtorServer(
                         authRoutes(
                             authGate = authGate,
                             readAsset = assetLoader,
-                            redirectAfterLogin = {
-                                when (mode) {
-                                    ServiceMode.Transfer -> "/app"
-                                    ServiceMode.Export -> "/export"
-                                }
-                            },
+                            redirectAfterLogin = ::landingPath,
                             publicThemeProvider = {
                                 val info = peerInfoProvider()
                                 WebThemeDto(
@@ -209,6 +210,8 @@ class KtorServer(
                                 )
                             },
                         )
+                        // 请求加入两种模式都要（装机反馈）：导出给浏览器的是全部历史，已有设备时同样要手机允许。
+                        joinRequests?.let { joinRoutes(authGate, it, redirectAfterLogin = ::landingPath) }
                         when (mode) {
                             ServiceMode.Transfer -> installTransferRoutes(authGate)
                             ServiceMode.Export -> installExportRoutes(authGate)
@@ -259,7 +262,6 @@ class KtorServer(
             thumbnailer = thumbnailGenerator,
         )
         peerInfoRoutes(authGate, peerInfoProvider)
-        joinRequests?.let { joinRoutes(authGate, it, redirectAfterLogin = { "/app" }) }
         deviceRoutes(
             authGate = authGate,
             registry = deviceRegistry,
