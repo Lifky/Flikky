@@ -2,6 +2,11 @@
 (function () {
     'use strict';
 
+    // 接口请求经会话页的 apiFetch：凭据失效（401）时统一弹「登录已失效」（B59#4）。单独加载本文件时（测试）退回原生 fetch。
+    const apiFetch = (input, init) => (window.flikky && window.flikky.apiFetch
+        ? window.flikky.apiFetch(input, init)
+        : fetch(input, init));
+
     window.createAlbumThumbnailCache = function (options) {
         const settings = options || {};
         const maxBytes = settings.maxBytes ?? 32 * 1024 * 1024;
@@ -27,7 +32,7 @@
         async function download(request) {
             running += 1;
             try {
-                const response = await fetch('/api/album/thumb?id=' + encodeURIComponent(request.id), {
+                const response = await apiFetch('/api/album/thumb?id=' + encodeURIComponent(request.id), {
                     credentials: 'same-origin', cache: 'no-store', signal: request.controller.signal,
                 });
                 if (request.generation !== generation) { request.resolve(null); return; }

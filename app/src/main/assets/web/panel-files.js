@@ -18,6 +18,11 @@
 (function () {
     'use strict';
 
+    // 接口请求经会话页的 apiFetch：凭据失效（401）时统一弹「登录已失效」（B59#4）。单独加载本文件时（测试）退回原生 fetch。
+    const apiFetch = (input, init) => (window.flikky && window.flikky.apiFetch
+        ? window.flikky.apiFetch(input, init)
+        : fetch(input, init));
+
     const t = (key, values) => (window.flikkyI18n ? window.flikkyI18n.t(key, values) : key);
 
     /** 当前相对路径。只存内存：不敏感，但也没有跨会话价值，且重连必须回根目录。 */
@@ -1169,7 +1174,7 @@
     /** 只看状态码的静默探测。**不动任何 DOM。** */
     async function probeAccess() {
         try {
-            const r = await fetch(listUrl(currentPath), { credentials: 'same-origin' });
+            const r = await apiFetch(listUrl(currentPath), { credentials: 'same-origin' });
             // 正文一律丢弃 —— 不取消的话，一个上千项的目录会被整份读完，
             // 而我们只要那个状态码。
             if (r && r.body && typeof r.body.cancel === 'function') {
@@ -1692,7 +1697,7 @@
     }
 
     async function loadStreaming(target, seq) {
-        const r = await fetch(listUrl(target), { credentials: 'same-origin' });
+        const r = await apiFetch(listUrl(target), { credentials: 'same-origin' });
         if (seq !== requestSeq) return true;
         if (!r.ok) {
             loadingPath = null;

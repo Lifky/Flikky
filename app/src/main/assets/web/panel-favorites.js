@@ -32,6 +32,11 @@
 (function () {
     'use strict';
 
+    // 接口请求经会话页的 apiFetch：凭据失效（401）时统一弹「登录已失效」（B59#4）。单独加载本文件时（测试）退回原生 fetch。
+    const apiFetch = (input, init) => (window.flikky && window.flikky.apiFetch
+        ? window.flikky.apiFetch(input, init)
+        : fetch(input, init));
+
     function t(key, values) {
         return window.flikkyI18n ? window.flikkyI18n.t(key, values) : key;
     }
@@ -550,7 +555,7 @@
     async function load() {
         phase = 'loading';
         try {
-            const res = await fetch('/api/favorites', { credentials: 'same-origin' });
+            const res = await apiFetch('/api/favorites', { credentials: 'same-origin' });
             if (res.status === 404) {
                 phase = 'disabled';
                 render();

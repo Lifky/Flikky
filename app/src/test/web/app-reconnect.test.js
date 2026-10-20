@@ -64,6 +64,8 @@ test('new settings win over a peer-info response requested before the push', asy
     applyPeerAppearance: data => applied.push(data), t: key => key,
   };
   vm.createContext(context);
+  // v1.24：接口请求经 apiFetch（401 统一处理）；这里只关心应答顺序，直通即可。
+  vm.runInContext('function apiFetch(input, init) { return fetch(input, init); }', context);
   vm.runInContext(functionBody(source, 'async function fetchPeerInfo('), context);
   const pending = context.fetchPeerInfo();
   context.peerAppearanceRevision++;
@@ -91,6 +93,8 @@ test('reconnect reconciles offline completion and recall without deleting newer 
     markBubbleFailedNoRetry() {}, refreshSaveAllFab() {},
   };
   vm.createContext(context);
+  // v1.24：接口请求经 apiFetch（401 统一处理）；这里只关心应答顺序，直通即可。
+  vm.runInContext('function apiFetch(input, init) { return fetch(input, init); }', context);
   const reconcile = source.includes('function reconcileHistorySnapshot(')
     ? functionBody(source, 'function reconcileHistorySnapshot(') : '';
   vm.runInContext(reconcile + '\n' + functionBody(source, 'async function loadHistory('), context);

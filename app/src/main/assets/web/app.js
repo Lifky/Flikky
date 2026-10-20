@@ -228,12 +228,12 @@
 
     async function putSelf(body) {
         try {
-            const r = await fetch('/api/devices/self', {
+            const r = await apiFetch('/api/devices/self', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json', 'X-Client-Id': myClientId },
                 body: JSON.stringify(body),
             });
-            if (r.status === 401) { onDeviceRevoked('unauthorized'); return; }
+            if (r.status === 401) return;
             if (!r.ok) throw new Error(String(r.status));
             applySelf(await r.json());
         } catch (_) {
@@ -769,7 +769,7 @@
     async function fetchPeerInfo() {
         const revision = peerAppearanceRevision;
         try {
-            const r = await fetch('/api/peer-info');
+            const r = await apiFetch('/api/peer-info');
             if (!r.ok) return;
             const data = await r.json();
             if (revision !== peerAppearanceRevision) return;
@@ -1373,10 +1373,11 @@
             return;
         }
         try {
-            const r = await fetch(`/api/messages/${messageId}/favorite`, {
+            const r = await apiFetch(`/api/messages/${messageId}/favorite`, {
                 method: 'POST',
                 headers: { 'X-Client-Id': myClientId },
             });
+            if (r.status === 401) return;
             if (r.ok) {
                 let body = null;
                 try { body = await r.json(); } catch (_) {}
@@ -1402,10 +1403,11 @@
     async function doRecallMessage(messageId) {
         if (!recallEnabled) return;
         try {
-            const r = await fetch(`/api/messages/${messageId}`, {
+            const r = await apiFetch(`/api/messages/${messageId}`, {
                 method: 'DELETE',
                 headers: { 'X-Client-Id': myClientId },
             });
+            if (r.status === 401) return;
             if (r.ok || r.status === 404) {
                 // 200 刚撤；404 已删（idempotent）。本地节点直接消失 + snackbar 提示。
                 removeMessageNode(messageId);
@@ -1753,8 +1755,8 @@
         const connection = currentWs;
         const knownIds = Array.from(list.querySelectorAll('[data-message-id]'), node => String(node.dataset.messageId));
         lastBubbleOrigin = null;
-        const r = await fetch('/api/messages');
-        if (r.status === 401) { onDeviceRevoked('unauthorized'); return; }
+        const r = await apiFetch('/api/messages');
+        if (r.status === 401) return;
         if (!r.ok) return;
         const data = await r.json();
         if (connection !== currentWs || serverStopped) return;
@@ -1965,12 +1967,22 @@
     }
 
     // v1.23：手机断开了这台设备，或凭据已失效（spec §4.4、§4.6）。与 server_stopped 一样停止重连。
+    // 已经提示过之后，再来的 401 不再叠对话框；但「被手机断开」比「登录失效」更具体，照样告诉用户。
     function onDeviceRevoked(kind) {
+        if (deviceRevoked && kind === 'unauthorized') return;
         deviceRevoked = true;
         setWebConnectionActive(false);
         setConnectionWatermarkState('disconnected');
         setSendEnabled(false);
         showConnectionDialog(kind, kind === 'unauthorized' ? 'app.device.unauthorized' : 'app.device.revoked');
+    }
+
+    // 会话页所有接口请求的入口（B59#4）：凭据失效（401）统一弹「登录已失效」，调用方拿到原样的响应，
+    // 见到 401 直接收手即可，不必再各报各的错。面板经 window.flikky.apiFetch 取用。
+    async function apiFetch(input, init) {
+        const r = await fetch(input, init);
+        if (r.status === 401) onDeviceRevoked('unauthorized');
+        return r;
     }
 
     function openWs() {
@@ -2067,11 +2079,12 @@
         }
         sendBtn.disabled = true;
         try {
-            const r = await fetch('/api/messages', {
+            const r = await apiFetch('/api/messages', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Client-Id': myClientId },
                 body: JSON.stringify({ text }),
             });
+            if (r.status === 401) return;
             if (r.ok) {
                 try {
                     const dto = await r.json();
@@ -2130,6 +2143,11 @@
         }
         xhr.onload = () => {
             removeFromActive();
+            if (xhr.status === 401) {
+                onDeviceRevoked('unauthorized');
+                markBubbleFailedNoRetry(bubble, 'app.send_failed');
+                return;
+            }
             if (xhr.status >= 200 && xhr.status < 300) {
                 try {
                     const dto = JSON.parse(xhr.responseText);
@@ -2495,6 +2513,7 @@
     // 字节格式化：本文件与 panel-favorites.js 各有一份语义相同的实现（backlog 待收敛）。
     // 新面板一律用这个导出，不要再造第四份。
     window.flikky.formatSize = formatSize;
+    window.flikky.apiFetch = apiFetch;
 
     // 滚动条只在真的滚动时露出（shell.css 的 [data-scrolling]）。scroll 事件不冒泡，
     // 所以监听器必须挂在 capture 阶段——一个委派监听器覆盖全部 .flikky-scroll，

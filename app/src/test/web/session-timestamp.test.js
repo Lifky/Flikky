@@ -88,6 +88,7 @@ test('reloading rendered history keeps the divider anchor for the next message',
         function renderFile(msg) { maybeInsertTimeDivider(msg.timestamp); return null; }
         function renderTransferringBubble(msg) { maybeInsertTimeDivider(msg.timestamp); }
         function refreshSaveAllFab() {}
+        function apiFetch(input, init) { return fetch(input, init); }
         ${loadHistorySlice}
         globalThis.runScenario = async () => {
             await loadHistory();

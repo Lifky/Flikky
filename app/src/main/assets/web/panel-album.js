@@ -28,6 +28,11 @@
 (function () {
     'use strict';
 
+    // 接口请求经会话页的 apiFetch：凭据失效（401）时统一弹「登录已失效」（B59#4）。单独加载本文件时（测试）退回原生 fetch。
+    const apiFetch = (input, init) => (window.flikky && window.flikky.apiFetch
+        ? window.flikky.apiFetch(input, init)
+        : fetch(input, init));
+
     const t = (key, values) => (window.flikkyI18n ? window.flikkyI18n.t(key, values) : key);
 
     /**
@@ -697,7 +702,7 @@
         selected.clear();
         render();
         try {
-            const response = await fetch('/api/album/buckets', { credentials: 'same-origin', signal: listController.signal });
+            const response = await apiFetch('/api/album/buckets', { credentials: 'same-origin', signal: listController.signal });
             if (seq !== requestSeq) return;
             if (!response.ok) {
                 loading = false;
@@ -782,7 +787,7 @@
         try {
             // 进了相册簿就只拉该簿；空串是合法簿名，所以判 null 而不是判空。
             const query = openBucket === null ? '' : '&bucket=' + encodeURIComponent(openBucket);
-            const response = await fetch('/api/album/list?stream=1' + query, {
+            const response = await apiFetch('/api/album/list?stream=1' + query, {
                 credentials: 'same-origin', signal: listController.signal,
             });
             if (seq !== requestSeq) return;
