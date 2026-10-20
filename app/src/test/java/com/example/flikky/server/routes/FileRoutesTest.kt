@@ -1,5 +1,9 @@
 package com.example.flikky.server.routes
 
+import io.ktor.client.request.header
+import kotlinx.coroutines.job
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.currentCoroutineContext
 import com.example.flikky.server.PinAuth
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
@@ -309,5 +313,49 @@ class FileRoutesTest {
         assertEquals("test-device", (h.persisted.single() as Message.File).senderDeviceId)
         val added = h.events.single { it.first == "file_added" }.second
         assertTrue(added, added.contains("\"senderDeviceId\":\"test-device\""))
+    }
+    // v1.24 D82：设备被断开时它的上传被取消。清理（标失败、删半截文件、广播 file_removed）必须在取消之后照样完成，
+    // 否则别的设备会一直看到一条「上传中」。线上的 WsHub.broadcast 在已取消的协程里会抛，这里用 ensureActive 模拟。
+    @Test
+    fun `an upload cancelled midway still cleans up after itself`() = testApplication {
+        val h = Harness(tmp.root)
+        application {
+            install(ContentNegotiation) { json() }
+            routing {
+                fileRoutes(
+                    session = h.session,
+                    authGate = allowAllAuthGate(),
+                    store = h.store,
+                    stats = h.stats,
+                    currentSessionId = { 5L },
+                    onPersist = { h.persisted += it },
+                    broadcastEvent = { type, payload ->
+                        currentCoroutineContext().ensureActive()
+                        h.events += type to payload
+                        // 第一条消息一登记就模拟手机断开：取消本次调用。
+                        if (type == "file_added") currentCoroutineContext().job.cancel()
+                    },
+                    nowMs = { 0L },
+                    thumbnailer = ThumbnailGenerator { _, _, _ -> false },
+                )
+            }
+        }
+        val payload = ByteArray(512 * 1024) { it.toByte() }
+        runCatching {
+            client.post("/api/files") {
+                header("X-File-Size", payload.size.toString())
+                setBody(MultiPartFormDataContent(formData {
+                    val (_, bytes, headers) = filePart("big.bin", payload)
+                    append("file", bytes, headers)
+                }))
+            }
+        }
+        val types = h.events.map { it.first }
+        assertTrue("other devices must be told to drop the message: $types", "file_removed" in types)
+        assertTrue("a cancelled upload is never announced as ready: $types", "file_ready" !in types)
+        val msg = h.session.snapshot.value.messages.filterIsInstance<Message.File>().single()
+        assertEquals(Message.File.Status.FAILED, msg.status)
+        assertTrue("no half-written file is left behind", h.filesDir.listFiles().orEmpty().isEmpty())
+        assertTrue(h.persisted.isEmpty())
     }
 }

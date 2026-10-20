@@ -18,7 +18,7 @@ import io.ktor.server.application.call
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
-import io.ktor.server.response.respondOutputStream
+import com.example.flikky.server.respondRevocableOutputStream
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import java.io.File
@@ -96,7 +96,7 @@ fun Route.albumRoutes(
         val head = withContext(Dispatchers.IO) {
             AlbumStreamHeadDto(total = total, todayKey = lib.todayKey(), yesterdayKey = lib.yesterdayKey())
         }
-        call.respondOutputStream(NDJSON_ALBUM, HttpStatusCode.OK) {
+        call.respondRevocableOutputStream(NDJSON_ALBUM, HttpStatusCode.OK) {
             fun line(value: String) { write(value.toByteArray()); write(LF_ALBUM); flush() }
             line(WireJson.encodeToString(AlbumStreamHeadDto.serializer(), head))
             lib.listStream(bucket).collect { batch -> batch.forEach { line(WireJson.encodeToString(AlbumItemDto.serializer(), it)) } }
@@ -192,7 +192,7 @@ private suspend fun ApplicationCall.respondAlbumFile(
     if (handle.size > 0L) {
         response.header(HttpHeaders.ContentLength, handle.size.toString())
     }
-    respondOutputStream(
+    respondRevocableOutputStream(
         contentType = if (inline) ContentType.parse(handle.mime) else ContentType.Application.OctetStream,
         status = HttpStatusCode.OK,
     ) {

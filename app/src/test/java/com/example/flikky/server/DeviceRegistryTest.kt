@@ -154,4 +154,72 @@ class DeviceRegistryTest {
         val ordinals = uas.map { r.issue(it, viaPin = true).device.defaultOrdinal }
         assertEquals(listOf(1, 2), ordinals)
     }
+    // v1.24 D82：断开即时生效 —— 撤销时通知正在为这台设备服务的请求，让它们当场中止。
+    @Test fun `revoking a device fires its watchers once`() {
+        val r = registry()
+        val id = r.issue(null, viaPin = true).device.deviceId
+        var fired = 0
+        assertNotNull(r.watch(id) { fired++ })
+        r.revoke(id)
+        r.revoke(id)
+        assertEquals(1, fired)
+    }
+
+    @Test fun `only the revoked device's watchers fire`() {
+        val r = registry()
+        val a = r.issue(null, viaPin = true).device.deviceId
+        val b = r.issue(null, viaPin = true).device.deviceId
+        var aFired = 0
+        var bFired = 0
+        r.watch(a) { aFired++ }
+        r.watch(b) { bFired++ }
+        r.revoke(a)
+        assertEquals(1, aFired)
+        assertEquals(0, bFired)
+    }
+
+    @Test fun `a finished request stops watching`() {
+        val r = registry()
+        val id = r.issue(null, viaPin = true).device.deviceId
+        var fired = 0
+        r.watch(id) { fired++ }!!.close()
+        r.revoke(id)
+        assertEquals(0, fired)
+    }
+
+    @Test fun `an unknown or already revoked device cannot be watched`() {
+        val r = registry()
+        val id = r.issue(null, viaPin = true).device.deviceId
+        r.revoke(id)
+        assertNull(r.watch(id) {})
+        assertNull(r.watch("nope") {})
+    }
+
+    @Test fun `revokeAll and pending eviction fire watchers too`() {
+        val r = registry(maxPending = 1)
+        val pending = r.issue(null, viaPin = false).device.deviceId
+        val pin = r.issue(null, viaPin = true).device.deviceId
+        var evicted = 0
+        var cleared = 0
+        r.watch(pending) { evicted++ }
+        r.watch(pin) { cleared++ }
+        r.issue(null, viaPin = false) // 挤掉最早的 pending
+        assertEquals(1, evicted)
+        r.revokeAll()
+        assertEquals(1, cleared)
+    }
+
+    @Test fun `watchers run outside the registry lock`() {
+        val r = registry()
+        val id = r.issue(null, viaPin = true).device.deviceId
+        var otherThreadGotIn = false
+        r.watch(id) {
+            // 取消协程会同步跑完成回调；若此时仍持有锁，别的线程碰注册表就会卡住。
+            val t = kotlin.concurrent.thread { r.hasCredentials() }
+            t.join(2_000)
+            otherThreadGotIn = !t.isAlive
+        }
+        r.revoke(id)
+        assertTrue(otherThreadGotIn)
+    }
 }

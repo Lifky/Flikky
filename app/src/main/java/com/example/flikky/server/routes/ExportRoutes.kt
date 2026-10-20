@@ -13,7 +13,7 @@ import io.ktor.server.application.call
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
-import io.ktor.server.response.respondOutputStream
+import com.example.flikky.server.respondRevocableOutputStream
 import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
@@ -103,7 +103,7 @@ fun Route.exportRoutes(
 
         var streamedOk = false
         try {
-            call.respondOutputStream(contentType = ContentType.Application.Zip, status = HttpStatusCode.OK) {
+            call.respondRevocableOutputStream(contentType = ContentType.Application.Zip, status = HttpStatusCode.OK) {
                 ZipExporter.write(
                     out = this,
                     snapshot = snapshot,

@@ -195,6 +195,8 @@ class KtorServer(
                         call.response.headers.append("Cross-Origin-Opener-Policy", "same-origin")
                         call.response.headers.append("Cross-Origin-Resource-Policy", "same-origin")
                     }
+                    // D82：手机断开设备时，它正在进行的请求当场取消（每个请求只在开始时鉴权一次）。
+                    installRevocationCancel(authGate::deviceFor, deviceRegistry::watch)
                     routing {
                         authRoutes(
                             authGate = authGate,

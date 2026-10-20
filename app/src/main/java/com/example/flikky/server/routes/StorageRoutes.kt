@@ -17,7 +17,7 @@ import io.ktor.server.application.call
 import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
-import io.ktor.server.response.respondOutputStream
+import com.example.flikky.server.respondRevocableOutputStream
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import kotlinx.coroutines.Dispatchers
@@ -166,7 +166,7 @@ fun Route.storageRoutes(
                 return@get
             }
             val stream = opened.value
-            call.respondOutputStream(contentType = NDJSON, status = HttpStatusCode.OK) {
+            call.respondRevocableOutputStream(contentType = NDJSON, status = HttpStatusCode.OK) {
                 val out = this
                 fun line(text: String) {
                     out.write(text.toByteArray(Charsets.UTF_8))
@@ -310,7 +310,7 @@ private suspend fun ApplicationCall.respondStorageFile(
             .toString(),
     )
     response.header(HttpHeaders.ContentLength, handle.file.length().toString())
-    respondOutputStream(
+    respondRevocableOutputStream(
         contentType = if (inline) ContentType.parse(handle.mime) else ContentType.Application.OctetStream,
         status = HttpStatusCode.OK,
     ) {

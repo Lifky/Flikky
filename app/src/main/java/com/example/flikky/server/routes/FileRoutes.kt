@@ -24,12 +24,14 @@ import io.ktor.server.response.header
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondBytesWriter
-import io.ktor.server.response.respondOutputStream
+import com.example.flikky.server.respondRevocableOutputStream
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.utils.io.readAvailable
 import io.ktor.utils.io.writeFully
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.text.SimpleDateFormat
@@ -165,17 +167,21 @@ fun Route.fileRoutes(
                 part.dispose()
             }
         } catch (e: Exception) {
+            // 含 CancellationException：手机断开这台设备时本次调用被取消（D82）。清理必须照样做完 ——
+            // 否则别的设备一直看到一条「上传中」—— 所以放进 NonCancellable。
             if (inFlightMsgId > 0L) {
-                session.updateMessage(inFlightMsgId) { msg ->
-                    (msg as Message.File).copy(status = Message.File.Status.FAILED)
-                }
-                session.clearProgress(inFlightMsgId)
-                stats.decrementFileCount()
-                inFlightTarget?.delete()
-                val removedDto = FileRemovedDto(inFlightMsgId)
-                runCatching {
-                    broadcastEvent("file_removed",
-                        WireJson.encodeToString(FileRemovedDto.serializer(), removedDto))
+                withContext(NonCancellable) {
+                    session.updateMessage(inFlightMsgId) { msg ->
+                        (msg as Message.File).copy(status = Message.File.Status.FAILED)
+                    }
+                    session.clearProgress(inFlightMsgId)
+                    stats.decrementFileCount()
+                    inFlightTarget?.delete()
+                    val removedDto = FileRemovedDto(inFlightMsgId)
+                    runCatching {
+                        broadcastEvent("file_removed",
+                            WireJson.encodeToString(FileRemovedDto.serializer(), removedDto))
+                    }
                 }
             }
             return@post
@@ -253,7 +259,7 @@ fun Route.fileRoutes(
                 .withParameter(ContentDisposition.Parameters.FileName, "flikky-files-$stamp.zip")
                 .toString(),
         )
-        call.respondOutputStream(
+        call.respondRevocableOutputStream(
             contentType = ContentType.Application.Zip,
             status = HttpStatusCode.OK,
         ) {

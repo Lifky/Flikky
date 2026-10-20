@@ -122,4 +122,21 @@ class WsRoutesDevicesTest {
             assertTrue(first, first.contains(""""selfDeviceId":"${me.deviceId}""""))
         }
     }
+    // v1.24 D82：鉴权通过后、登记之前被断开 —— closeDevice 找不到这条连接，它会一直收广播到下次重连。
+    // 登记后再确认一次设备还在，不在就以 4403 关闭。allowAllAuthGate 解析出的设备不在空登记里，等同于刚被撤销。
+    @Test fun `a socket revoked between its check and its registration is closed as revoked`() = testApplication {
+        val registry = DeviceRegistry()
+        val hub = WsHub()
+        val session = SessionState(nowMs = { 0L })
+        application {
+            install(ContentNegotiation) { json() }
+            install(ServerWebSockets) {}
+            routing { wsRoutes(allowAllAuthGate(), session, hub, registry) }
+        }
+        createClient { install(WebSockets) }.webSocket("/ws") {
+            assertEquals(WS_CLOSE_REVOKED, withTimeout(2_000) { closeReason.await() }!!.code)
+        }
+        assertEquals(0, hub.size())
+        assertEquals(false, session.snapshot.value.clientConnected)
+    }
 }

@@ -17,6 +17,9 @@ import java.security.MessageDigest
  * token 是高熵随机值，不需要慢哈希；按哈希查表也不泄露可利用的时序，所以不另做常量时间比较。
  *
  * 跨 Wi-Fi rebind 存活（TransferService 字段），不持有任何 KtorServer 成员（rebind 引用规范）。
+ *
+ * 撤销即时生效（v1.24，D82）：正在为某台设备服务的请求经 [watch] 登记，设备被撤销（含 [revokeAll]、pending 溢出淘汰）时
+ * 回调它们当场中止。回调一律在锁外执行 —— 取消协程会同步跑完成回调，持锁调用可能与别的线程互等。
  */
 class DeviceRegistry(
     private val nowMs: () -> Long = System::currentTimeMillis,
@@ -34,6 +37,8 @@ class DeviceRegistry(
     private val byId = LinkedHashMap<String, PeerDevice>()
     /** 已采纳过第一次 client_hello 的设备（spec §5.2：之后以服务端为准）。 */
     private val announced = HashSet<String>()
+    /** deviceId → 正在为它服务的请求的撤销回调。 */
+    private val watchers = HashMap<String, MutableList<() -> Unit>>()
 
     private val _devices = MutableStateFlow<List<PeerDevice>>(emptyList())
     /** 只含 visible 设备，按 connectedAt 升序。 */
@@ -43,9 +48,15 @@ class DeviceRegistry(
      * 签发一台设备。[viaPin] 为真（输对了 PIN）时签发即 visible、不占 pending 额度：
      * 若也等 WebSocket，用户输完 PIN 就关页面会留下一台「看不见也断不开」的设备，PIN 又已用掉（spec §4.3）。
      */
-    @Synchronized
     fun issue(userAgent: String?, viaPin: Boolean, token: String = tokenSupplier()): Issued {
-        if (!viaPin) evictPendingOverflow()
+        val fired = mutableListOf<() -> Unit>()
+        val issued = synchronized(this) { issueLocked(userAgent, viaPin, token, fired) }
+        fire(fired)
+        return issued
+    }
+
+    private fun issueLocked(userAgent: String?, viaPin: Boolean, token: String, fired: MutableList<() -> Unit>): Issued {
+        if (!viaPin) evictPendingOverflow(fired)
         val id = idSupplier()
         var device = PeerDevice(
             deviceId = id,
@@ -129,21 +140,45 @@ class DeviceRegistry(
         return changed.filter { it.visible }
     }
 
-    @Synchronized
     fun revoke(deviceId: String): Boolean {
-        if (!removeQuietly(deviceId)) return false
-        publish()
-        return true
+        val fired = mutableListOf<() -> Unit>()
+        val removed = synchronized(this) {
+            removeQuietly(deviceId, fired).also { if (it) publish() }
+        }
+        fire(fired)
+        return removed
     }
 
-    @Synchronized
     fun revokeAll() {
-        if (byId.isEmpty()) return
-        byId.clear()
-        deviceIdByHash.clear()
-        hashByDeviceId.clear()
-        announced.clear()
-        publish()
+        val fired = synchronized(this) {
+            if (byId.isEmpty()) return
+            val all = watchers.values.flatten()
+            byId.clear()
+            deviceIdByHash.clear()
+            hashByDeviceId.clear()
+            announced.clear()
+            watchers.clear()
+            publish()
+            all
+        }
+        fire(fired)
+    }
+
+    /**
+     * 登记一个「这台设备被撤销时要中止」的请求。设备已不存在（期间被撤销）返回 null；
+     * 请求结束时 close 返回值注销。
+     */
+    @Synchronized
+    fun watch(deviceId: String, onRevoked: () -> Unit): AutoCloseable? {
+        if (deviceId !in byId) return null
+        watchers.getOrPut(deviceId) { mutableListOf() }.add(onRevoked)
+        return AutoCloseable {
+            synchronized(this@DeviceRegistry) {
+                val list = watchers[deviceId] ?: return@synchronized
+                list.remove(onRevoked)
+                if (list.isEmpty()) watchers.remove(deviceId)
+            }
+        }
     }
 
     /** 会话里有没有「真的进来了」的设备：有就要手机允许新设备加入（JoinRequests）。pending 不算。 */
@@ -163,18 +198,24 @@ class DeviceRegistry(
         return device.copy(visible = true, defaultOrdinal = maxOrdinal + 1)
     }
 
-    private fun evictPendingOverflow() {
+    private fun evictPendingOverflow(fired: MutableList<() -> Unit>) {
         val pending = byId.values.filter { !it.visible }
         val excess = pending.size - maxPending + 1
         if (excess <= 0) return
-        pending.take(excess).forEach { removeQuietly(it.deviceId) }
+        pending.take(excess).forEach { removeQuietly(it.deviceId, fired) }
     }
 
-    private fun removeQuietly(deviceId: String): Boolean {
+    /** 删掉一台设备；它的撤销回调收进 [fired]，由调用方出锁后执行。 */
+    private fun removeQuietly(deviceId: String, fired: MutableList<() -> Unit>): Boolean {
         byId.remove(deviceId) ?: return false
         hashByDeviceId.remove(deviceId)?.let { deviceIdByHash.remove(it) }
         announced.remove(deviceId)
+        watchers.remove(deviceId)?.let { fired += it }
         return true
+    }
+
+    private fun fire(callbacks: List<() -> Unit>) {
+        callbacks.forEach { runCatching { it() } }
     }
 
     private fun store(device: PeerDevice): PeerDevice {

@@ -120,7 +120,13 @@ fun Route.wsRoutes(
         }
         val deviceId = device.deviceId
         hub.add(this, deviceId)
-        registry.attach(deviceId)
+        // 先进 hub 再登记（D82）：撤销是「先删登记、再 closeDevice」。若在鉴权之后、这里之前被撤销，
+        // closeDevice 已经找过 hub 了 —— 登记会失败，自己以 4403 关闭；若在这之后被撤销，closeDevice 会找到这条连接。
+        if (registry.attach(deviceId) == null) {
+            hub.remove(this)
+            close(CloseReason(WS_CLOSE_REVOKED, "revoked"))
+            return@webSocket
+        }
         session.setClientConnected(true)
         // 先让它认得会话里的其他设备，再处理后续帧；之后的变化由 TransferService 整体广播（spec §12）。
         runCatching {
