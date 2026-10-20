@@ -64,6 +64,11 @@ fun ConnectionInfoCard(
     pinUsedBy: String? = null,
     /** 用过这个 PIN 的设备不止一台时（经手机允许加入），改说台数。 */
     pinUsedByCount: Int = 1,
+    /**
+     * 输错太多次，PIN 已停用到服务重启（B59#5）。优先于 [pinUsedBy]：那串数字输对了也进不来，
+     * 而「怎么恢复」才是用户此刻需要的；连续输错 5 次本身也值得警觉。
+     */
+    pinBlocked: Boolean = false,
 ) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -144,7 +149,22 @@ fun ConnectionInfoCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(Spacing.xs))
-                if (pinUsedBy != null) {
+                if (pinBlocked) {
+                    Text(
+                        text = stringResource(R.string.connection_pin_blocked),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.testTag("pin-blocked"),
+                    )
+                    Spacer(Modifier.height(Spacing.xs))
+                    Text(
+                        text = stringResource(R.string.connection_pin_blocked_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                } else if (pinUsedBy != null) {
                     Text(
                         text = if (pinUsedByCount > 1) {
                             pluralStringResource(R.plurals.connection_pin_used_by_many, pinUsedByCount, pinUsedByCount)

@@ -1,5 +1,9 @@
 package com.example.flikky.server
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
 /** 只核对 PIN：单次使用、3 次锁 30 秒、5 次终止。token 只经手不存，凭据由 DeviceRegistry 保管哈希。 */
 class PinAuth(
     private val nowMs: () -> Long,
@@ -18,7 +22,17 @@ class PinAuth(
     private var wrongTotal: Int = 0
     private var wrongInWindow: Int = 0
     private var lockUntilMs: Long = 0L
-    private var terminated: Boolean = false
+    private val _blocked = MutableStateFlow(false)
+
+    /**
+     * 输错 [TERMINATE_THRESHOLD] 次后 PIN 停用，直到换 IP（[renewPin]）。手机卡片据此不再显示数字（B59#5）：
+     * 那串数字输对了也只会得到 Terminated。
+     */
+    val blocked: StateFlow<Boolean> = _blocked.asStateFlow()
+
+    private var terminated: Boolean
+        get() = _blocked.value
+        set(value) { _blocked.value = value }
 
     @Synchronized
     fun currentPin(): String? = pin
@@ -80,9 +94,9 @@ class PinAuth(
         pin = newPin
     }
 
-    /** PIN 已被用掉、且再没有设备持有凭据时才需要新 PIN（spec §4.2 的不变式）。 */
+    /** PIN 已被用掉、且再没有设备持有凭据时才需要新 PIN（spec §4.2 的不变式）。停用时不换发：新 PIN 也用不了。 */
     @Synchronized
-    fun needsNextPin(hasCredentials: Boolean): Boolean = pin == null && !hasCredentials
+    fun needsNextPin(hasCredentials: Boolean): Boolean = pin == null && !hasCredentials && !terminated
 
     companion object {
         const val LOCK_THRESHOLD = 3

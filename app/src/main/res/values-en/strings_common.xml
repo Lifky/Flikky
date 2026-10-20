@@ -68,4 +68,6 @@
         <item quantity="one">Used by %1$d device</item>
         <item quantity="other">Used by %1$d devices</item>
     </plurals>
+    <string name="connection_pin_blocked">Disabled (too many wrong attempts)</string>
+    <string name="connection_pin_blocked_hint">Stop and start the service again to get a new PIN</string>
 </resources>

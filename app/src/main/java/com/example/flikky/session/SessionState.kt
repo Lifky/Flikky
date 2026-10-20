@@ -225,6 +225,12 @@ class SessionState(private val nowMs: () -> Long) {
 
     fun setJoinRequests(list: List<com.example.flikky.server.JoinRequests.View>) { _joinRequests.value = list }
 
+    // PIN 因输错太多次停用（B59#5）：连接卡片据此不显示数字、改说怎么恢复。传输与导出共用。
+    private val _pinBlocked = MutableStateFlow(false)
+    val pinBlocked: StateFlow<Boolean> = _pinBlocked.asStateFlow()
+
+    fun setPinBlocked(blocked: Boolean) { _pinBlocked.value = blocked }
+
     // 本会话见过的每台设备的最近记录（含已断开的）：浏览器端名册与历史消息的发送者都靠它。
     private val _knownDevices = MutableStateFlow<Map<String, PeerDevice>>(emptyMap())
     val knownDevices: StateFlow<Map<String, PeerDevice>> = _knownDevices.asStateFlow()

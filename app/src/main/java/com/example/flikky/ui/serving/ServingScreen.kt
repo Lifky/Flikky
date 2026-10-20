@@ -129,6 +129,7 @@ fun ServingScreen(
     // 头像选择器的 App / Browser tab，与设置页同一形状（0 = App，1 = Browser）。
     var avatarSheetTab by remember { mutableStateOf(0) }
     val devices by viewModel.devices.collectAsState()
+    val pinBlocked by ServiceLocator.session.pinBlocked.collectAsState()
     val knownAvatars by viewModel.knownDeviceAvatars.collectAsState()
     val knownDevices by viewModel.knownDevices.collectAsState()
     var showDevices by remember { mutableStateOf(false) }
@@ -311,6 +312,7 @@ fun ServingScreen(
                                 onAdoptNumber = ServiceLocator::adoptHostNumber,
                                 pinUsedBy = offline?.takeIf { ui.requirePin }?.firstName,
                                 pinUsedByCount = offline?.count ?: 1,
+                                pinBlocked = pinBlocked,
                             )
                         }
                         // 一行状态，同时是「管理设备」的入口（装机 Screenshot_3：原先等待行 + 管理设备按钮两层）。

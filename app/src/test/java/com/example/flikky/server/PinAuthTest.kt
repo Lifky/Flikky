@@ -110,4 +110,29 @@ class PinAuthTest {
         }
         assertTrue(held.none { it == "TOKEN" })
     }
+    // v1.24（B59#5）：输错 5 次后 PIN 停用到换 IP 为止。手机卡片据此不再显示一串用不了的数字。
+    @Test
+    fun `five wrong attempts block the pin until the host changes`() {
+        assertFalse(auth.blocked.value)
+        repeat(PinAuth.TERMINATE_THRESHOLD) {
+            now += PinAuth.LOCK_DURATION_MS + 1
+            auth.tryConsume("000000")
+        }
+        assertTrue(auth.blocked.value)
+        auth.renewPin("654321")
+        assertFalse(auth.blocked.value)
+    }
+
+    @Test
+    fun `a pin blocked after a disconnect stays blocked and is not replaced`() {
+        auth.tryConsume("123456")          // 第一台登录
+        auth.issueNextPin("222222")        // 手机断开它，换发（D80）
+        repeat(PinAuth.TERMINATE_THRESHOLD) {
+            now += PinAuth.LOCK_DURATION_MS + 1
+            auth.tryConsume("000000")
+        }
+        assertTrue(auth.blocked.value)
+        assertFalse("a fresh pin would only meet Terminated", auth.needsNextPin(hasCredentials = false))
+        assertEquals(PinAuth.Result.Terminated, auth.tryConsume("222222"))
+    }
 }

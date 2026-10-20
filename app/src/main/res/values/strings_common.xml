@@ -66,4 +66,6 @@
     <plurals name="connection_pin_used_by_many">
         <item quantity="other">已被 %1$d 台设备使用</item>
     </plurals>
+    <string name="connection_pin_blocked">已停用（错误次数过多）</string>
+    <string name="connection_pin_blocked_hint">停止后重新开始服务可获得新 PIN</string>
 </resources>

@@ -57,6 +57,7 @@ fun ExportingScreen(
     viewModel: ExportingViewModel = viewModel(),
 ) {
     val ui by viewModel.ui.collectAsState()
+    val pinBlocked by ServiceLocator.session.pinBlocked.collectAsState()
 
     // Block the system back gesture from escaping while an export is live —
     // users must route through the explicit "取消导出" / "保留 / 删除" flows so
@@ -93,6 +94,7 @@ fun ExportingScreen(
                         onAdoptNumber = ServiceLocator::adoptHostNumber,
                         pin = ui.pin,
                         requirePin = ui.requirePin,
+                        pinBlocked = pinBlocked,
                         onCancel = {
                             viewModel.cancelExport()
                             onBack()
@@ -164,6 +166,7 @@ private fun ArmedContent(
     onAdoptNumber: (Int) -> Unit,
     pin: String,
     requirePin: Boolean,
+    pinBlocked: Boolean,
     onCancel: () -> Unit,
 ) {
     Column(
@@ -172,7 +175,13 @@ private fun ArmedContent(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         rememberLastCardInputs(address, pin, requirePin)?.let {
-            ConnectionInfoCard(address = it.address, pin = it.pin, requirePin = it.requirePin, onAdoptNumber = onAdoptNumber)
+            ConnectionInfoCard(
+                address = it.address,
+                pin = it.pin,
+                requirePin = it.requirePin,
+                onAdoptNumber = onAdoptNumber,
+                pinBlocked = pinBlocked,
+            )
         }
 
         Text(

@@ -111,6 +111,7 @@ class TransferService : Service() {
     /** 「请求加入」队列（v1.23 多设备）。与 [deviceRegistry] 一样跨 rebind 存活，经参数交给每个新 KtorServer。 */
     private var joinRequests: JoinRequests? = null
     private var joinsJob: Job? = null
+    private var pinBlockedJob: Job? = null
     private var controller: TransferController? = null
     private var currentSessionId: Long = -1L
     @Volatile private var currentMode: ServiceMode? = null
@@ -298,6 +299,7 @@ class TransferService : Service() {
             tokenSupplier = { IdGen.newToken() },
         )
         pinAuth = auth
+        watchPinBlocked(auth)
         val registry = DeviceRegistry(defaultAvatar = { latestSettings.browserAvatarKey })
         deviceRegistry = registry
         startJoinRequests()
@@ -438,6 +440,7 @@ class TransferService : Service() {
             tokenSupplier = { IdGen.newToken() },
         )
         pinAuth = auth
+        watchPinBlocked(auth)
         val registry = DeviceRegistry()
         deviceRegistry = registry
         // 导出同样要（装机反馈）：已有设备时新设备经手机允许才能进，不然关 PIN 谁来都能下载全部历史。
@@ -514,6 +517,8 @@ class TransferService : Service() {
         peerFavoritesJob?.cancel(); peerFavoritesJob = null
         devicesJob?.cancel(); devicesJob = null
         joinsJob?.cancel(); joinsJob = null
+        pinBlockedJob?.cancel(); pinBlockedJob = null
+        ServiceLocator.session.setPinBlocked(false)
 
         if (mode == ServiceMode.Transfer) {
             val sid = currentSessionId
@@ -594,6 +599,12 @@ class TransferService : Service() {
                     JoinRequestNotifier.update(this@TransferService, JoinRequestNotifier.notifiable(list, shown))
                 }
         }
+    }
+
+    /** PIN 停用状态 → 连接卡片（B59#5）。PinAuth 跨 rebind 存活，换 IP 时 renewPin 会把它清掉。 */
+    private fun watchPinBlocked(auth: PinAuth) {
+        pinBlockedJob?.cancel()
+        pinBlockedJob = scope.launch { auth.blocked.collect { ServiceLocator.session.setPinBlocked(it) } }
     }
 
     private fun buildTransferKtor(host: String, auth: PinAuth, registry: DeviceRegistry, startPort: Int): KtorServer = KtorServer(
