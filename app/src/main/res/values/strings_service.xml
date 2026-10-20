@@ -21,7 +21,10 @@
     <string name="join_request_channel_name">设备加入请求</string>
     <string name="join_request_channel_description">有新设备想加入本次会话时提醒你</string>
     <string name="join_request_title">「%1$s」想加入本次会话</string>
-    <string name="join_request_body">允许后它能看到会话里的全部消息和文件</string>
+    <string name="join_request_body">与新设备上显示的代码一致再允许。允许后它能看到会话里的全部消息和文件</string>
+    <string name="join_request_code_description">代码 %1$s</string>
+    <string name="join_request_notification_text">代码 %1$s · 与新设备上显示的一致再允许</string>
+    <string name="join_request_notification_big_text">代码 %1$s · 与新设备上显示的一致再允许。允许后它能看到会话里的全部消息和文件</string>
     <string name="join_request_allow">允许</string>
     <string name="join_request_deny">拒绝</string>
 </resources>

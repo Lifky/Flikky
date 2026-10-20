@@ -16,7 +16,8 @@ import com.example.flikky.server.JoinRequests
 /**
  * 手机在后台时的「请求加入」通知（v1.23 多设备，用户裁决：带「允许 / 拒绝」，锁屏时要先解锁）。
  *
- * 一次只提示最早那个请求；处理掉一个，下一个顶上来。通知里只有设备名（通知规范：只放入口，不放敏感值）。
+ * 一次只提示最早那个请求；处理掉一个，下一个顶上来。通知里只有设备名与比对码（通知规范：只放入口，不放敏感值；
+ * 比对码不是凭据，知道了也进不来 —— 不放的话，从通知上允许就没法核对，D82）。
  * 按钮交给 [JoinRequestActionReceiver]，而不是去启动服务：服务已停时点一个过期通知，不该把服务拉起来。
  */
 object JoinRequestNotifier {
@@ -47,7 +48,8 @@ object JoinRequestNotifier {
         val notification = Notification.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(context.getString(R.string.join_request_title, name))
-            .setContentText(context.getString(R.string.join_request_body))
+            .setContentText(context.getString(R.string.join_request_notification_text, first.code))
+            .setStyle(Notification.BigTextStyle().bigText(context.getString(R.string.join_request_notification_big_text, first.code)))
             .setCategory(Notification.CATEGORY_CALL)
             .setContentIntent(open)
             .setAutoCancel(true)

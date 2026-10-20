@@ -23,7 +23,10 @@
     <string name="join_request_channel_name">Device join requests</string>
     <string name="join_request_channel_description">Lets you know when a new device wants to join this session</string>
     <string name="join_request_title">“%1$s” wants to join this session</string>
-    <string name="join_request_body">Once allowed, it can see every message and file in the session</string>
+    <string name="join_request_body">Allow only if this matches the code on the new device. Once allowed, it can see every message and file in the session</string>
+    <string name="join_request_code_description">Code %1$s</string>
+    <string name="join_request_notification_text">Code %1$s · allow only if it matches the new device</string>
+    <string name="join_request_notification_big_text">Code %1$s · allow only if it matches the code on the new device. Once allowed, it can see every message and file in the session</string>
     <string name="join_request_allow">Allow</string>
     <string name="join_request_deny">Deny</string>
 </resources>

@@ -33,6 +33,17 @@ class JoinRequestNotifierTest {
         assertTrue("allowing from the lock screen must ask to unlock first", n.actions.all { it.isAuthenticationRequired })
     }
 
+    // D82：从通知上允许也要能核对。比对码不是凭据，可以进通知。
+    @Test fun `the notification shows the compare code`() {
+        JoinRequestNotifier.update(context, listOf(JoinRequests.View("r1", "Chrome · Windows", 0L, code = "4821")))
+        val n = shadowOf(nm).getNotification(JoinRequestNotifier.NOTIFICATION_ID)
+        val text = n.extras.getCharSequence(android.app.Notification.EXTRA_TEXT).toString()
+        val big = n.extras.getCharSequence(android.app.Notification.EXTRA_BIG_TEXT).toString()
+        assertTrue(text, text.contains("4821"))
+        assertTrue(big, big.contains("4821"))
+        assertTrue("the expanded text still says what allowing means: $big", big.length > text.length)
+    }
+
     @Test fun `no waiting request clears the notification`() {
         JoinRequestNotifier.update(context, listOf(JoinRequests.View("r1", null, 0L, code = "4821")))
         JoinRequestNotifier.update(context, emptyList())
