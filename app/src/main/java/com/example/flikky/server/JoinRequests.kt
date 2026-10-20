@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.asStateFlow
  * - 手机允许后**不当场签发**会话凭据：请求方下次来查状态时 [claim]，由路由当场向 DeviceRegistry 签发 ——
  *   会话 token 明文从不在服务端停留。
  * - 一分钟没人理就过期；同时最多 [maxPending] 个，多了直接拒，免得一台设备刷请求把手机淹在弹窗里。
+ * - 每个请求带一个 4 位比对码（D82），请求方页面与手机都显示它；同时等待的请求之间不重复，
+ *   所以抢先挂着的请求，码必然与用户自己的不同。比对码不是凭据。
  *
  * 跨 Wi-Fi rebind 存活（TransferService 字段），不持有任何 KtorServer 成员（rebind 引用规范）。
  */
@@ -20,19 +22,21 @@ class JoinRequests(
     private val nowMs: () -> Long = System::currentTimeMillis,
     private val secretSupplier: () -> String = IdGen::newToken,
     private val idSupplier: () -> String = IdGen::newDeviceId,
+    private val codeSupplier: () -> String = IdGen::newJoinCode,
     private val maxPending: Int = MAX_PENDING,
 ) {
     enum class State { PENDING, APPROVED, DENIED }
 
-    /** 给手机界面看的一项：公开的 [id]、可读的设备标签。不含凭证。 */
-    data class View(val id: String, val label: String?, val createdAt: Long)
+    /** 给手机界面看的一项：公开的 [id]、可读的设备标签、比对码。不含凭证。 */
+    data class View(val id: String, val label: String?, val createdAt: Long, val code: String)
 
     data class Created(val secret: String, val request: View)
 
     data class Claimed(val userAgent: String?)
 
     sealed class Status {
-        object Pending : Status()
+        /** 还在等手机；[code] 是请求方页面要显示的比对码。 */
+        data class Pending(val code: String) : Status()
         object Approved : Status()
         object Denied : Status()
         object Expired : Status()
@@ -51,7 +55,7 @@ class JoinRequests(
         dropExpired()
         if (byHash.values.count { it.state == State.PENDING } >= maxPending) return null
         val secret = secretSupplier()
-        val view = View(idSupplier(), UserAgentLabel.from(userAgent), nowMs())
+        val view = View(idSupplier(), UserAgentLabel.from(userAgent), nowMs(), freshCode())
         byHash[DeviceRegistry.hashOf(secret)] = Entry(view, userAgent, State.PENDING)
         publish()
         return Created(secret, view)
@@ -68,7 +72,7 @@ class JoinRequests(
             return Status.Expired
         }
         return when (entry.state) {
-            State.PENDING -> Status.Pending
+            State.PENDING -> Status.Pending(entry.view.code)
             State.APPROVED -> Status.Approved
             State.DENIED -> Status.Denied
         }
@@ -107,6 +111,16 @@ class JoinRequests(
         return true
     }
 
+    /** 与仍在等待的请求都不同的码。供给方连续撞号时退回顺序挑一个空闲的（上限 3 个，必有空位）。 */
+    private fun freshCode(): String {
+        val taken = byHash.values.filter { it.state == State.PENDING }.mapTo(HashSet()) { it.view.code }
+        repeat(CODE_ATTEMPTS) {
+            val code = codeSupplier()
+            if (code !in taken) return code
+        }
+        return (0 until 10_000).asSequence().map { it.toString().padStart(4, '0') }.first { it !in taken }
+    }
+
     private fun isExpired(entry: Entry) = nowMs() - entry.view.createdAt > TTL_MS
 
     private fun dropExpired() {
@@ -120,5 +134,6 @@ class JoinRequests(
     companion object {
         const val TTL_MS = 60_000L
         const val MAX_PENDING = 3
+        private const val CODE_ATTEMPTS = 16
     }
 }

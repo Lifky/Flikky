@@ -13,6 +13,9 @@ object IdGen {
         return n.toString().padStart(6, '0')
     }
 
+    /** 加入请求的比对码（D82）：4 位，只用于两端核对，不是凭据。 */
+    fun newJoinCode(): String = random.nextInt(10_000).toString().padStart(4, '0')
+
     /** 会话凭据：256 位（红线「至少 256 位」）。明文只用于种 Cookie，服务端只存它的 SHA-256。 */
     fun newToken(): String {
         val bytes = ByteArray(32)

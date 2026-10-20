@@ -140,4 +140,26 @@ class JoinRoutesTest {
         assertEquals(HttpStatusCode.OK, second.post("/api/join/status").status)
         assertEquals(2, r.registry.devices.value.size)
     }
+    // v1.24 D82：等待页拿到的码就是手机上显示的那个；刷新、轮询拿到的都是同一个。
+    @Test fun `the waiting page gets the same code the phone shows`() = testApplication {
+        val r = rig(requirePin = false)
+        r.registry.issue("UA", viaPin = true)
+        val second = browser()
+        val asked = second.post("/api/join").bodyAsText()
+        val code = r.joins.pending.value.single().code
+        assertTrue(asked, asked.contains("\"code\":\"$code\""))
+        assertTrue(second.post("/api/join/status").bodyAsText().contains("\"code\":\"$code\""))
+        // 刷新页面后再点一次：还是那个请求、那个码。
+        assertTrue(second.post("/api/join").bodyAsText().contains("\"code\":\"$code\""))
+    }
+
+    @Test fun `only a waiting request carries a code`() = testApplication {
+        val r = rig(requirePin = false)
+        r.registry.issue("UA", viaPin = true)
+        val second = browser()
+        second.post("/api/join")
+        r.joins.approve(r.joins.pending.value.single().id)
+        val approved = second.post("/api/join/status").bodyAsText()
+        assertTrue(approved, !approved.contains("\"code\":\""))
+    }
 }

@@ -367,7 +367,10 @@ class KtorServerExportModeTest {
 
         HttpClient(CIO) { install(HttpCookies) }.use { first -> authenticate(first, port) }
         HttpClient(CIO) { install(HttpCookies); followRedirects = false }.use { second ->
-            assertEquals(HttpStatusCode.Accepted, second.post("http://127.0.0.1:$port/api/join").status)
+            val asked = second.post("http://127.0.0.1:$port/api/join")
+            assertEquals(HttpStatusCode.Accepted, asked.status)
+            // D82：导出模式同样把比对码交给等待页。
+            assertTrue(asked.bodyAsText().contains("\"code\":\"${joins.pending.value.single().code}\""))
             joins.approve(joins.pending.value.single().id)
             val approved = second.post("http://127.0.0.1:$port/api/join/status")
             assertEquals(HttpStatusCode.OK, approved.status)

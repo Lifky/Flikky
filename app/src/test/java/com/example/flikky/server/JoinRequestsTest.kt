@@ -14,17 +14,21 @@ import org.junit.Test
 class JoinRequestsTest {
     private var now = 0L
     private var seq = 0
-    private fun requests(maxPending: Int = 3) = JoinRequests(
+    private var codeSeq = 0
+    private fun requests(maxPending: Int = 3, codeSupplier: () -> String = { "%04d".format(++codeSeq) }) = JoinRequests(
         nowMs = { now },
         secretSupplier = { "secret-${++seq}" },
         idSupplier = { "req-$seq" },
+        codeSupplier = codeSupplier,
         maxPending = maxPending,
     )
+
+    private fun JoinRequests.isPending(secret: String) = status(secret) is JoinRequests.Status.Pending
 
     @Test fun `a new request waits for the phone`() {
         val r = requests()
         val created = r.create(userAgent = "UA")!!
-        assertEquals(JoinRequests.Status.Pending, r.status(created.secret))
+        assertTrue(r.isPending(created.secret))
         assertEquals(listOf(created.request.id), r.pending.value.map { it.id })
     }
 
@@ -44,7 +48,7 @@ class JoinRequestsTest {
         val r = requests()
         val created = r.create("UA")!!
         assertNull(r.claim(created.secret))
-        assertEquals(JoinRequests.Status.Pending, r.status(created.secret))
+        assertTrue(r.isPending(created.secret))
     }
 
     @Test fun `a denied request says so and leaves the queue`() {
@@ -94,5 +98,36 @@ class JoinRequestsTest {
         r.clear()
         assertTrue(r.pending.value.isEmpty())
         assertEquals(JoinRequests.Status.Unknown, r.status(created.secret))
+    }
+    // v1.24 D82：请求方页面与手机显示同一个比对码，用户核对一致再允许。
+    @Test fun `each request carries a four digit code the phone and the page both see`() {
+        val r = requests(codeSupplier = { "4821" })
+        val created = r.create("UA")!!
+        assertEquals("4821", created.request.code)
+        assertEquals("4821", r.pending.value.single().code)
+        assertEquals(JoinRequests.Status.Pending("4821"), r.status(created.secret))
+    }
+
+    @Test fun `requests waiting at the same time never share a code`() {
+        val codes = ArrayDeque(listOf("1234", "1234", "1234", "5678"))
+        val r = requests(codeSupplier = { codes.removeFirst() })
+        val first = r.create("a")!!
+        val second = r.create("b")!!
+        assertEquals("1234", first.request.code)
+        assertEquals("a code already on screen is skipped", "5678", second.request.code)
+    }
+
+    @Test fun `a code is free again once its request has left the queue`() {
+        val r = requests(codeSupplier = { "1234" })
+        val first = r.create("a")!!
+        r.deny(first.request.id)
+        assertEquals("1234", r.create("b")!!.request.code)
+    }
+
+    @Test fun `a supplier stuck on taken codes still yields a unique one`() {
+        val r = requests(codeSupplier = { "0000" })
+        val codes = List(3) { r.create("ua-$it")!!.request.code }
+        assertEquals(3, codes.toSet().size)
+        assertTrue(codes.all { it.matches(Regex("""\d{4}""")) })
     }
 }

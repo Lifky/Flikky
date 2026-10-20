@@ -21,7 +21,12 @@ private const val JOIN_PATH = "/api/join"
 data class JoinStateDto(val joinRequired: Boolean)
 
 @Serializable
-data class JoinStatusDto(val status: String, val redirectTo: String? = null)
+data class JoinStatusDto(
+    val status: String,
+    val redirectTo: String? = null,
+    /** 还在等手机时的比对码（D82）：页面显示它，用户与手机上的核对。其余状态为 null。 */
+    val code: String? = null,
+)
 
 /**
  * 「请求加入」（v1.23 多设备，用户裁决）：会话里已有设备时，新设备在入口页请求加入，手机允许后进入。
@@ -29,6 +34,8 @@ data class JoinStatusDto(val status: String, val redirectTo: String? = null)
  * - `GET  /api/join/state`  入口页决定显示 PIN 还是「请求加入」。不含任何秘密，所以不需要凭据。
  * - `POST /api/join`        发起（同一页面重复点不会再排一个）。
  * - `POST /api/join/status` 轮询；手机允许后这一次当场签发会话凭据并种 Cookie。
+ *
+ * 等待中的应答都带比对码（D82）：刷新页面后再点一次，拿到的仍是同一个请求、同一个码。
  *
  * 两个 POST 都过 SameOriginGuard（D79），请求凭证只走 HttpOnly Cookie。
  */
@@ -46,8 +53,9 @@ fun Route.joinRoutes(
             call.respond(HttpStatusCode.Conflict, JoinStatusDto("not_needed"))
             return@post
         }
-        if (joins.status(call.request.cookies[JOIN_COOKIE]) == JoinRequests.Status.Pending) {
-            call.respond(HttpStatusCode.Accepted, JoinStatusDto("pending"))
+        val existing = joins.status(call.request.cookies[JOIN_COOKIE])
+        if (existing is JoinRequests.Status.Pending) {
+            call.respond(HttpStatusCode.Accepted, JoinStatusDto("pending", code = existing.code))
             return@post
         }
         val created = joins.create(call.request.headers[HttpHeaders.UserAgent])
@@ -56,13 +64,13 @@ fun Route.joinRoutes(
             return@post
         }
         call.setJoinCookie(created.secret)
-        call.respond(HttpStatusCode.Accepted, JoinStatusDto("pending"))
+        call.respond(HttpStatusCode.Accepted, JoinStatusDto("pending", code = created.request.code))
     }
 
     post("$JOIN_PATH/status") {
         val secret = call.request.cookies[JOIN_COOKIE]
-        when (joins.status(secret)) {
-            JoinRequests.Status.Pending -> call.respond(HttpStatusCode.Accepted, JoinStatusDto("pending"))
+        when (val status = joins.status(secret)) {
+            is JoinRequests.Status.Pending -> call.respond(HttpStatusCode.Accepted, JoinStatusDto("pending", code = status.code))
             JoinRequests.Status.Approved -> {
                 val claimed = joins.claim(secret)
                 if (claimed == null) {

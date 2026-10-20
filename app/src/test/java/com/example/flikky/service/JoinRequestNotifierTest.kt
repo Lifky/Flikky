@@ -25,7 +25,7 @@ class JoinRequestNotifierTest {
     private val nm get() = context.getSystemService(NotificationManager::class.java)
 
     @Test fun `a waiting request shows a notification with allow and refuse`() {
-        JoinRequestNotifier.update(context, listOf(JoinRequests.View("r1", "Chrome · Windows", 0L)))
+        JoinRequestNotifier.update(context, listOf(JoinRequests.View("r1", "Chrome · Windows", 0L, code = "4821")))
         val n = shadowOf(nm).getNotification(JoinRequestNotifier.NOTIFICATION_ID)
         val title = n.extras.getCharSequence(android.app.Notification.EXTRA_TITLE).toString()
         assertTrue(title, title.contains("Chrome · Windows"))
@@ -34,7 +34,7 @@ class JoinRequestNotifierTest {
     }
 
     @Test fun `no waiting request clears the notification`() {
-        JoinRequestNotifier.update(context, listOf(JoinRequests.View("r1", null, 0L)))
+        JoinRequestNotifier.update(context, listOf(JoinRequests.View("r1", null, 0L, code = "4821")))
         JoinRequestNotifier.update(context, emptyList())
         assertNull(shadowOf(nm).getNotification(JoinRequestNotifier.NOTIFICATION_ID))
     }
@@ -47,7 +47,7 @@ class JoinRequestNotifierTest {
 
     // 会话页就在眼前时，页内弹窗已经够了；同时再弹一条横幅通知只是噪音。
     @Test fun `the notification is left to the in-app dialog while the serving screen is visible`() {
-        val pending = listOf(JoinRequests.View("r1", null, 0L))
+        val pending = listOf(JoinRequests.View("r1", null, 0L, code = "4821"))
         assertEquals(emptyList<JoinRequests.View>(), JoinRequestNotifier.notifiable(pending, dialogShown = true))
         assertEquals(pending, JoinRequestNotifier.notifiable(pending, dialogShown = false))
     }
