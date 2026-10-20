@@ -241,6 +241,12 @@
         }
     }
 
+    // 输入法组字中的按键（B59#7）：回车是「上屏」，不是「发送 / 确定」。Safari 在 compositionend 之后
+    // 才派发 keydown，那时 isComposing 已是 false，只能靠 keyCode 229 认出来。
+    function isImeComposing(e) {
+        return !!e && (e.isComposing === true || e.keyCode === 229);
+    }
+
     function openDeviceNameDialog() {
         const dialog = document.getElementById('device-name-dialog');
         const input = document.getElementById('device-name-input');
@@ -262,7 +268,7 @@
             putSelf({ name: deviceSelf.nameToSave(input.value, fallback) });
         }
         // 输入法组字中的回车是「上屏」，不是「确定」。
-        function onKey(e) { if (e.key === 'Enter' && !e.isComposing) submit(); }
+        function onKey(e) { if (e.key === 'Enter' && !isImeComposing(e)) submit(); }
         okBtn.addEventListener('click', submit);
         cancelBtn.addEventListener('click', cleanup);
         input.addEventListener('keydown', onKey);
@@ -2586,7 +2592,7 @@
     saveAllZipItem.addEventListener('click', () => { closeSaveAllMenu(); saveAllAsZip(); });
     sendBtn.addEventListener('click', sendText);
     input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendText(); }
+        if (e.key === 'Enter' && !e.shiftKey && !isImeComposing(e)) { e.preventDefault(); sendText(); }
     });
     input.addEventListener('input', () => {
         autoGrowInput();

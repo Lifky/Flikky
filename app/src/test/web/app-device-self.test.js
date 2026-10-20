@@ -122,10 +122,13 @@ test('enter while an IME is composing does not submit the name', () => {
         myDisplayName: () => 'Chrome · Windows', putSelf: (body) => puts.push(body),
     };
     vm.createContext(context);
+    vm.runInContext(functionBody(source, 'function isImeComposing('), context);
     vm.runInContext(functionBody(source, 'function openDeviceNameDialog('), context);
     context.openDeviceNameDialog();
     input.value = '客厅';
     listeners.keydown.forEach((fn) => fn({ key: 'Enter', isComposing: true }));
+    // Safari：compositionend 之后才派发 keydown，isComposing 已是 false，keyCode 仍是 229。
+    listeners.keydown.forEach((fn) => fn({ key: 'Enter', isComposing: false, keyCode: 229 }));
     assert.deepEqual(puts, []);
     assert.equal(dialog.open, true);
     listeners.keydown.forEach((fn) => fn({ key: 'Enter', isComposing: false }));
