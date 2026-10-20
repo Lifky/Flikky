@@ -9,8 +9,9 @@ import org.junit.Test
  * 这些是「漏一行、行为测试照样全绿」的地方。
  */
 class TransferServiceJoinWiringSourceTest {
-    private val service = File("src/main/java/com/example/flikky/service/TransferService.kt").readText()
-    private val ktor = File("src/main/java/com/example/flikky/server/KtorServer.kt").readText()
+    // 本机 core.autocrlf=true：检出后的工作区文件是 CRLF。下面按 "\n" 切块，先统一换行再比。
+    private val service = File("src/main/java/com/example/flikky/service/TransferService.kt").readText().replace("\r\n", "\n")
+    private val ktor = File("src/main/java/com/example/flikky/server/KtorServer.kt").readText().replace("\r\n", "\n")
 
     private fun block(src: String, start: String, end: String): String {
         val i = src.indexOf(start)
