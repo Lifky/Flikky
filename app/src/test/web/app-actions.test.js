@@ -393,3 +393,21 @@ test('classic file bubble is fully clickable for download', () => {
 test('server-side transferring bubbles use the shared gesture path', () => {
     assert.match(appJs, /function renderTransferringBubble[\s\S]*?appendBubbleRow\(div,[\s\S]*?attachBubbleGestureHandlers\(div\)/);
 });
+
+// v1.24（B55#2）：服务端说「已在收藏中」时（例如历史与推送的竞态让本地集合落后了），星标也要点亮。
+test('a favorite the phone already has lights the star too', async () => {
+    const { functionBody } = require('./scan.js');
+    const context = {
+        allowPeerFavorite: true, myClientId: 'c', favoritesRev: 0,
+        favoritedIds: new Set(),
+        window: { flikky: { showInfo() {}, showError() {} } },
+        document: { body: { dataset: {} } },
+        t: (k) => k,
+        apiFetch: async () => ({ status: 200, ok: true, json: async () => ({ result: 'exists' }) }),
+    };
+    context.setFavoritedIds = (ids) => { context.favoritedIds = new Set(ids.map(String)); };
+    vm.createContext(context);
+    vm.runInContext(functionBody(appJs, 'async function favoriteMessage('), context);
+    await context.favoriteMessage(42);
+    assert.ok(context.favoritedIds.has('42'));
+});

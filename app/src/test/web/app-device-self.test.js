@@ -114,7 +114,7 @@ test('enter while an IME is composing does not submit the name', () => {
     });
     const input = on({ value: '' });
     const okBtn = { addEventListener() {}, removeEventListener() {} };
-    const dialog = { open: false, querySelector: () => okBtn };
+    const dialog = { open: false, querySelector: () => okBtn, addEventListener() {}, removeEventListener() {} };
     const puts = [];
     const context = {
         document: { getElementById: (id) => (id === 'device-name-dialog' ? dialog : input) },
@@ -142,4 +142,46 @@ test('the name field leaves room above it for the floating label', () => {
     const rule = css.match(/#device-name-input\s*\{([^}]*)\}/);
     assert.ok(rule, 'chat.css must style #device-name-input');
     assert.match(rule[1], /margin-top\s*:/);
+});
+
+// v1.24（B59#1）：改名框用 Esc / 点遮罩关闭时也要清理监听器。之前只有「取消 / 确定」会清理，
+// 下次打开再点确定，就会把上一次留下的回调一起触发，发出重复的 PUT。
+test('closing the rename dialog any way leaves no stale listeners behind', () => {
+    const make = () => {
+        const listeners = {};
+        return {
+            listeners,
+            addEventListener(type, fn) { (listeners[type] = listeners[type] || []).push(fn); },
+            removeEventListener(type, fn) { listeners[type] = (listeners[type] || []).filter((f) => f !== fn); },
+            fire(type, ev) { (listeners[type] || []).slice().forEach((fn) => fn(ev || {})); },
+        };
+    };
+    const input = Object.assign(make(), { value: '' });
+    const okBtn = make();
+    const cancelBtn = make();
+    const dialog = Object.assign(make(), {
+        open: false,
+        querySelector: (sel) => (sel.includes('confirm') ? okBtn : cancelBtn),
+    });
+    const puts = [];
+    const context = {
+        document: { getElementById: (id) => (id === 'device-name-dialog' ? dialog : input) },
+        deviceSelf: deviceSelf(), mySelf: null, t: (k) => k,
+        myDisplayName: () => 'Chrome', putSelf: (body) => puts.push(body),
+    };
+    vm.createContext(context);
+    vm.runInContext(functionBody(source, 'function isImeComposing('), context);
+    vm.runInContext(functionBody(source, 'function openDeviceNameDialog('), context);
+
+    context.openDeviceNameDialog();
+    // Esc / 点遮罩：mdui 直接关掉对话框并派发 closed，不经过我们的按钮。
+    dialog.open = false;
+    dialog.fire('closed', { target: dialog });
+    context.openDeviceNameDialog();
+    input.value = '客厅';
+    okBtn.fire('click');
+    assert.deepEqual(JSON.parse(JSON.stringify(puts)), [{ name: '客厅' }]);
+    for (const el of [okBtn, cancelBtn, input, dialog]) {
+        for (const [type, fns] of Object.entries(el.listeners)) assert.equal(fns.length, 0, `stale ${type} listener`);
+    }
 });

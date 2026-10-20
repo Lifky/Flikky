@@ -116,7 +116,8 @@ fun Route.messageRoutes(
                 )
             }
         }
-        val favorited = if (peerFavoriteEnabled()) favoritedIds() else emptyList()
+        // 收藏状态只是锦上添花：读收藏库失败不能拖垮整个历史接口（B55#3），只是不标星。
+        val favorited = if (peerFavoriteEnabled()) runCatching { favoritedIds() }.getOrDefault(emptyList()) else emptyList()
         val self = authGate.deviceFor(call.request.cookies[AUTH_COOKIE])?.deviceId
         call.respond(MessagesResponse(texts, files, ordered, favoritedIds = favorited, selfDeviceId = self))
     }

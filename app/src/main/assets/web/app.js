@@ -254,12 +254,19 @@
         input.value = myDisplayName();
         const okBtn = dialog.querySelector('[data-action="confirm"]');
         const cancelBtn = dialog.querySelector('[data-action="cancel"]');
+        let cleaned = false;
         function cleanup() {
+            if (cleaned) return;
+            cleaned = true;
             dialog.open = false;
             okBtn.removeEventListener('click', submit);
             cancelBtn.removeEventListener('click', cleanup);
             input.removeEventListener('keydown', onKey);
+            dialog.removeEventListener('closed', onClosed);
         }
+        // Esc / 点遮罩由 mdui 直接关闭，不经过上面两个按钮（B59#1）：不清理的话，下次点确定会连同这次的回调一起触发。
+        // 只认对话框自己的 closed —— 里面的组件也可能派发同名事件并冒泡上来。
+        function onClosed(e) { if (e && e.target === dialog) cleanup(); }
         function submit() {
             cleanup();
             if (!deviceSelf) return;
@@ -272,6 +279,7 @@
         okBtn.addEventListener('click', submit);
         cancelBtn.addEventListener('click', cleanup);
         input.addEventListener('keydown', onKey);
+        dialog.addEventListener('closed', onClosed);
         dialog.open = true;
     }
     let phoneAvatarKey = AVATAR_DEFAULT_PHONE;
@@ -1382,6 +1390,8 @@
                 let body = null;
                 try { body = await r.json(); } catch (_) {}
                 if (body && body.result === 'exists') {
+                    // 本地集合可能落后于手机（历史与推送的竞态，D78）：服务端说已收藏，星标就跟着点亮（B55#2）。
+                    setFavoritedIds([...favoritedIds, String(messageId)]);
                     notify('showInfo', 'app.favorite_exists');
                     return;
                 }

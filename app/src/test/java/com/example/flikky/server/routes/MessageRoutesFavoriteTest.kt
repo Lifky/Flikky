@@ -185,4 +185,14 @@ class MessageRoutesFavoriteTest {
         authenticate(http)
         assertEquals(emptyList<Long>(), favoritedOf(http.get("/api/messages").bodyAsText()))
     }
+    // v1.24（B55#3）：收藏状态只是锦上添花。读收藏库失败时，历史照常返回，只是不标星。
+    @Test
+    fun `history still loads when the favorites lookup fails`() = testApplication {
+        application(setupApp(favoriteHandler = { error("unused") }, favoritedIds = { error("room is unavailable") }))
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+        val resp = http.get("/api/messages")
+        assertEquals(HttpStatusCode.OK, resp.status)
+        assertEquals(emptyList<Long>(), favoritedOf(resp.bodyAsText()))
+    }
 }

@@ -182,8 +182,6 @@ class KtorServer(
                             call.respond(HttpStatusCode.InternalServerError, mapOf("error" to (cause.message ?: "error")))
                         }
                     }
-                    // D79：只认本机对外的名字（挡 DNS 重绑定）；跨源的状态修改请求在进路由前就被挡掉。
-                    installSameOriginGuard(allowedHosts = { servedHosts(host, port, session.snapshot.value.localName) })
                     intercept(ApplicationCallPipeline.Plugins) {
                         call.response.headers.append("Content-Security-Policy",
                             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
@@ -195,6 +193,9 @@ class KtorServer(
                         call.response.headers.append("Cross-Origin-Opener-Policy", "same-origin")
                         call.response.headers.append("Cross-Origin-Resource-Policy", "same-origin")
                     }
+                    // D79：只认本机对外的名字（挡 DNS 重绑定）；跨源的状态修改请求在进路由前就被挡掉。
+                    // 装在安全响应头之后（B55#5）：守卫拒绝时直接 finish()，排在它后面的拦截器不会执行，403 就没有这些头。
+                    installSameOriginGuard(allowedHosts = { servedHosts(host, port, session.snapshot.value.localName) })
                     // D82：手机断开设备时，它正在进行的请求当场取消（每个请求只在开始时鉴权一次）。
                     installRevocationCancel(authGate::deviceFor, deviceRegistry::watch)
                     routing {
