@@ -18,9 +18,20 @@
         return 'error';
     }
 
+    /** 比对码（v1.24 D82）：只认 4 位数字，别的一律不显示。 */
+    function codeFrom(body) {
+        const code = body && typeof body.code === 'string' ? body.code : '';
+        return /^\d{4}$/.test(code) ? code : '';
+    }
+
+    /** 读屏逐位念：「4 8 2 1」，而不是「四千八百二十一」。 */
+    function spokenCode(code) {
+        return String(code).split('').join(' ');
+    }
+
     const VIEWS = {
         idle: { textKey: 'login.join.intro', buttonKey: 'login.join.request', buttonDisabled: false, polling: false },
-        waiting: { textKey: 'login.join.waiting', buttonKey: 'login.join.waiting_button', buttonDisabled: true, polling: true },
+        waiting: { textKey: 'login.join.waiting', buttonKey: 'login.join.waiting_button', buttonDisabled: true, polling: true, showsCode: true },
         denied: { textKey: 'login.join.denied', buttonKey: 'login.join.retry', buttonDisabled: false, polling: false },
         expired: { textKey: 'login.join.expired', buttonKey: 'login.join.retry', buttonDisabled: false, polling: false },
         busy: { textKey: 'login.join.busy', buttonKey: 'login.join.retry', buttonDisabled: false, polling: false },
@@ -31,5 +42,5 @@
         return VIEWS[state] || VIEWS.idle;
     }
 
-    global.flikkyJoin = { outcome, view, POLL_MS: 1500 };
+    global.flikkyJoin = { outcome, view, codeFrom, spokenCode, POLL_MS: 1500 };
 })(globalThis);

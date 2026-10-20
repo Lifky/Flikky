@@ -50,8 +50,10 @@
     const joinPanel = document.getElementById('join-panel');
     const joinText = document.getElementById('join-text');
     const joinBtn = document.getElementById('join-btn');
+    const joinCodeEl = document.getElementById('join-code');
     const loginSub = document.getElementById('login-sub');
     let joinState = 'idle';
+    let joinCode = '';
     let pollTimer = null;
 
     function renderJoin() {
@@ -60,6 +62,11 @@
         joinText.textContent = t(v.textKey);
         joinBtn.textContent = t(v.buttonKey);
         joinBtn.disabled = v.buttonDisabled;
+        if (joinCodeEl) {
+            joinCodeEl.hidden = !(v.showsCode && joinCode);
+            joinCodeEl.textContent = joinCode;
+            joinCodeEl.setAttribute('aria-label', t('login.join.code_label', { code: joinLib.spokenCode(joinCode) }));
+        }
     }
 
     function showJoin() {
@@ -86,6 +93,9 @@
         }
         // 409：其实不需要加入了（比如手机断开了所有设备、换了新 PIN）——回到正常的进入方式。
         if (next === 'not_needed') { window.location.href = '/'; return; }
+        // 等待中的应答都带码；网络抖动时保留上一次的码，请求结束（拒绝 / 过期）就清掉。
+        if (next === 'waiting') joinCode = joinLib.codeFrom(body) || joinCode;
+        else if (next !== 'error') joinCode = '';
         setJoinState(next);
     }
 

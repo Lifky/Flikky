@@ -60,3 +60,33 @@ test('login.js asks which way in, polls while waiting and renders text safely', 
     // PIN 已被用掉 = 会话里已有设备：直接切到「请求加入」，不再让人对着失效的 PIN 发呆。
     assert.match(loginSrc, /err === 'pin_consumed'\) showJoin\(\)/);
 });
+
+// v1.24 D82：等待时显示与手机相同的比对码，用户核对一致再在手机上点允许。
+test('only a well-formed code from the server is shown', () => {
+    const j = load();
+    assert.equal(j.codeFrom({ status: 'pending', code: '4821' }), '4821');
+    assert.equal(j.codeFrom({ status: 'pending', code: '0007' }), '0007');
+    assert.equal(j.codeFrom({ status: 'pending' }), '');
+    assert.equal(j.codeFrom({ status: 'pending', code: '<b>1' }), '', 'never render anything but four digits');
+    assert.equal(j.codeFrom(null), '');
+});
+
+test('screen readers hear the code digit by digit', () => {
+    assert.equal(load().spokenCode('4821'), '4 8 2 1');
+});
+
+test('the code shows only while waiting', () => {
+    const j = load();
+    assert.equal(j.view('waiting').showsCode, true);
+    for (const state of ['idle', 'denied', 'expired', 'busy', 'error']) {
+        assert.ok(!j.view(state).showsCode, state);
+    }
+});
+
+test('the join panel has a hidden code line rendered with textContent', () => {
+    assert.match(html, /<p[^>]*id="join-code"[^>]*hidden/);
+    const render = functionBody(loginSrc, 'function renderJoin(');
+    assert.match(render, /joinCodeEl\.textContent = joinCode/);
+    assert.match(render, /joinCodeEl\.hidden = /);
+    assert.match(loginSrc, /joinLib\.codeFrom\(body\)/);
+});

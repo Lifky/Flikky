@@ -45,6 +45,8 @@
             <!-- v1.23：会话里已有设备时改走「请求加入」，由手机允许（login.js 按 /api/join/state 切换）。 -->
             <section class="fk-join" id="join-panel" hidden>
                 <p class="fk-login-sub" id="join-text" role="status" aria-live="polite"></p>
+                <!-- v1.24 D82：等待手机确认时显示比对码，与手机弹窗 / 通知上的一致才该放行。 -->
+                <p class="fk-join-code" id="join-code" hidden></p>
                 <button class="fk-btn" id="join-btn" type="button"></button>
             </section>
         </main>

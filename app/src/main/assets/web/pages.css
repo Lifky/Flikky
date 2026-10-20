@@ -189,6 +189,21 @@ body {
   width: 100%;
 }
 
+/* v1.24 比对码：与手机弹窗上的码对照着看。字号与 PIN 格子同一档（独立页只用三档字号），
+   靠加粗、字距和等宽数字拉开层次，1 和 7 不会挤在一起。 */
+.fk-join-code {
+  margin: 0;
+  text-align: center;
+  font: var(--flikky-type-headline-small) var(--flikky-font-family);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .24em;
+  /* 字距也加在最后一个字后面：左侧补同样的量，居中才不偏。 */
+  padding-left: .24em;
+  color: rgb(var(--mdui-color-on-surface));
+}
+.fk-join-code[hidden] { display: none; }
+
 /* ── 导出 ────────────────────────────────────────────────────────────── */
 
 .fk-export-head {
