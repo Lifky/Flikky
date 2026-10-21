@@ -1555,6 +1555,9 @@
         // 带了 id。没有 data-message-id 的节点 removeMessageNode 找不到它。
         if (dto.id != null) {
             bubble.dataset.messageId = dto.id;
+            // 记进 seen（装机反馈）：平时由自己那条 file_added 广播记，但页面在后台时 WS 断了就收不到，
+            // 重连后拉历史会把它再画一遍。
+            seen.add(`file_added:${dto.id}`);
             bubble.dataset.kind = 'file';
             attachBubbleGestureHandlers(bubble);
         }
@@ -1773,6 +1776,13 @@
         // 先认清自己是哪台，再回放：否则别的电脑发的历史消息会先被画到右边。
         if (typeof data.selfDeviceId === 'string' && data.selfDeviceId) myDeviceId = data.selfDeviceId;
         reconcileHistorySnapshot(data, knownIds);
+        // 页面上已经有这条就不再画（装机反馈：手机浏览器从系统选择器回来，自己刚发的图出现两个气泡）。
+        // seen 只记得收到过的广播；页面在后台时 WS 断了，自己那条广播没收到，本地上传气泡却已经完成。
+        const alreadyShown = (key, id) => {
+            if (!list.querySelector(`[data-message-id="${id}"]`)) return false;
+            seen.add(key);
+            return true;
+        };
         if (Array.isArray(data.favoritedIds)) setFavoritedIds(data.favoritedIds);
         // 服务端 v1.2 起新增 `ordered`（按 timestamp 升序的混合列表）。优先用它，
         // 否则回退到 texts+files 各自顺序——但回退路径会丢失跨 kind 的时间顺序，
@@ -1785,12 +1795,12 @@
                     if (recalledMessageIds.has(String(m.id))) continue;
                     if (m.kind === 'text') {
                         const key = `text_added:${m.id}`;
-                        if (seen.has(key)) continue;
+                        if (seen.has(key) || alreadyShown(key, m.id)) continue;
                         seen.add(key);
                         renderText(m, m.origin === 'BROWSER');
                     } else if (m.kind === 'file') {
                         const key = `file_added:${m.id}`;
-                        if (seen.has(key)) continue;
+                        if (seen.has(key) || alreadyShown(key, m.id)) continue;
                         seen.add(key);
                         if (m.status === 'IN_PROGRESS') {
                             renderTransferringBubble(m);
@@ -1806,14 +1816,14 @@
             for (const t of data.texts || []) {
                 if (recalledMessageIds.has(String(t.id))) continue;
                 const key = `text_added:${t.id}`;
-                if (seen.has(key)) continue;
+                if (seen.has(key) || alreadyShown(key, t.id)) continue;
                 seen.add(key);
                 renderText(t, t.origin === 'BROWSER');
             }
             for (const f of data.files || []) {
                 if (recalledMessageIds.has(String(f.id))) continue;
                 const key = `file_added:${f.id}`;
-                if (seen.has(key)) continue;
+                if (seen.has(key) || alreadyShown(key, f.id)) continue;
                 seen.add(key);
                 const bubble = renderFile(f, f.origin === 'BROWSER');
                 if (bubble) bubble.dataset.fileId = f.fileId;

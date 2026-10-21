@@ -27,6 +27,8 @@ function createElement() {
         textContent: '',
         appendChild(child) { this.children.push(child); },
         querySelectorAll() { return []; },
+        // 这里的回放替身不给气泡打 data-message-id，所以「页面上已有这条」永远为假。
+        querySelector() { return null; },
     };
 }
 
