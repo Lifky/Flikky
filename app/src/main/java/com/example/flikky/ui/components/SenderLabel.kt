@@ -13,7 +13,8 @@ import com.example.flikky.ui.theme.Spacing
 
 /**
  * 气泡上方的发送者名字（v1.23 多设备）。两端同一规则，浏览器端见 app.js 的 `senderLabelVisible`：
- * 「自动」= 本会话出现过 2 台以上对端设备时显示（一对一时名字只是噪音）。
+ * 「自动」= 会话里有 2 台以上设备时显示（一对一时名字只是噪音）。会话页数仍在会话里的（被手机断开的不算，
+ * v1.24 装机反馈：同一个浏览器被断开后重进，会被算成两台）；历史页没有断开记录，数本场出现过的。
  */
 internal fun senderNamesEnabled(mode: SenderNameMode, peerDeviceCount: Int): Boolean = when (mode) {
     SenderNameMode.AUTO -> peerDeviceCount >= 2

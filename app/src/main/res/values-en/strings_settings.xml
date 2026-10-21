@@ -61,7 +61,7 @@
     <string name="settings_avatar_last">Last message in group</string>
     <string name="settings_avatar_each">Every message</string>
     <string name="settings_sender_name">Sender names</string>
-    <string name="settings_sender_name_summary">Show which device sent each message above its bubble. Auto shows them once 2 or more devices have joined this session. Synced to the browser</string>
+    <string name="settings_sender_name_summary">Show which device sent each message above its bubble. Auto shows them while 2 or more devices are in the session (disconnected ones don’t count). Synced to the browser</string>
     <string name="settings_sender_name_auto">Auto</string>
     <string name="settings_sender_name_always">Always</string>
     <string name="settings_sender_name_off">Off</string>

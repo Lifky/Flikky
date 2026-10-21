@@ -106,6 +106,8 @@ fun ServingChatTab(
     deviceAvatars: Map<String, String>,
     /** 本会话见过的每台对端设备（含已断开的），用于名字标签。 */
     knownDevices: Map<String, PeerDevice> = emptyMap(),
+    /** 仍在会话里的设备数（被手机断开的不算，在线离线都算）：「自动」显示名字按它判断（v1.24 装机反馈）。 */
+    presentDeviceCount: Int = knownDevices.size,
     actionTarget: Long?,
     onActionTargetChange: (Long?) -> Unit,
     snackbarHostState: SnackbarHostState,
@@ -361,7 +363,7 @@ fun ServingChatTab(
 
     val unknownDevice = stringResource(R.string.device_unknown_browser)
     val phoneName = settings.deviceName.ifBlank { stringResource(R.string.settings_default_device_name) }
-    val namesOn = senderNamesEnabled(settings.senderNameMode, peerDeviceCount = knownDevices.size)
+    val namesOn = senderNamesEnabled(settings.senderNameMode, peerDeviceCount = presentDeviceCount)
     val senderKeys = remember(ui.messages) { ui.messages.map { it.groupKey() } }
     Column(modifier = modifier.fillMaxSize()) {
         Box(modifier = Modifier.weight(1f)) {

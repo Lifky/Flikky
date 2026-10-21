@@ -46,4 +46,22 @@ class SenderLabelTest {
         assertEquals(listOf("a", "b", null, LEGACY_BROWSER_SENDER), listOf(a1, b1, phone, legacy).map { it.peerSenderKey() })
         assertEquals(listOf("a", "b", PHONE_SENDER), listOf(a1, b1, phone).map { it.groupKey() })
     }
+    // v1.24 装机反馈：唯一那台被断开、刷新重进后仍只有一台，名字却出现了 —— 数的是本场出现过的全部设备。
+    // 会话页改数仍在会话里的设备（ServingScreen 的 devices = 未被断开的，在线离线都算）。
+    @Test fun `the serving chat counts only devices still in the session`() {
+        val tab = source("com/example/flikky/ui/serving/ServingChatTab.kt")
+        assertTrue(tab.contains("senderNamesEnabled(settings.senderNameMode, peerDeviceCount = presentDeviceCount)"))
+        assertTrue(source("com/example/flikky/ui/serving/ServingScreen.kt").contains("presentDeviceCount = devices.size"))
+    }
+
+    private fun source(relative: String): String {
+        var dir: java.io.File? = java.io.File(System.getProperty("user.dir").orEmpty()).absoluteFile
+        while (dir != null) {
+            listOf("src/main/java", "app/src/main/java")
+                .map { java.io.File(dir, "$it/$relative") }
+                .firstOrNull { it.isFile }?.let { return it.readText() }
+            dir = dir.parentFile
+        }
+        error("missing $relative")
+    }
 }

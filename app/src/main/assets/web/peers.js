@@ -25,7 +25,7 @@
         return MODES.indexOf(mode) >= 0 ? mode : 'AUTO';
     }
 
-    /** 「自动」= 本会话出现过 2 台以上对端设备时才标名字：一对一时名字只是噪音。 */
+    /** 「自动」= 会话里有 2 台以上设备时才标名字：一对一时名字只是噪音。台数用 [presentCount]。 */
     function namesEnabled(mode, peerCount) {
         switch (normalizeMode(mode)) {
             case 'ALWAYS': return true;
@@ -39,6 +39,16 @@
      * [everyMessage]（常驻按钮）：每条都标 —— 每条下面都有一排按钮，只标首条会让后面几条上方空一块。
      * 否则（悬浮工具栏）：同一发送者连续几条只标第一条，时间分隔条后重新开始；[breaks][i] 为真表示第 i 条前有分隔条。
      */
+    /**
+     * 仍在会话里的设备数（被手机断开的不算，在线离线都算）。被断开的留在名册里只因为它发过的消息还在；
+     * 同一个浏览器被断开后重进算新设备，数总数会让唯一的一台也标出名字（v1.24 装机反馈）。
+     */
+    function presentCount(roster) {
+        let n = 0;
+        if (roster) roster.forEach((entry) => { if (entry && entry.present !== false) n += 1; });
+        return n;
+    }
+
     function labelPlan(senders, breaks, everyMessage) {
         return senders.map((sender, i) => {
             if (!sender) return false;
@@ -74,5 +84,5 @@
         return entry.defaultOrdinal > 1 ? label + ' ' + entry.defaultOrdinal : label;
     }
 
-    global.flikkyPeers = { ME, PHONE, senderKey, normalizeMode, namesEnabled, labelPlan, parseRoster, displayName };
+    global.flikkyPeers = { ME, PHONE, senderKey, normalizeMode, namesEnabled, presentCount, labelPlan, parseRoster, displayName };
 })(globalThis);

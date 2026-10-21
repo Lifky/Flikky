@@ -61,7 +61,7 @@
     <string name="settings_avatar_last">组内末条显示</string>
     <string name="settings_avatar_each">每条都显示</string>
     <string name="settings_sender_name">发送者名字</string>
-    <string name="settings_sender_name_summary">在气泡上方显示是哪台设备发的。「自动」= 本次会话连过 2 台以上设备时显示，两端同步</string>
+    <string name="settings_sender_name_summary">在气泡上方显示是哪台设备发的。「自动」= 会话里有 2 台以上设备时显示（被断开的不算），两端同步</string>
     <string name="settings_sender_name_auto">自动</string>
     <string name="settings_sender_name_always">始终显示</string>
     <string name="settings_sender_name_off">不显示</string>

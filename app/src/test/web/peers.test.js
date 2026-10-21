@@ -69,3 +69,22 @@ test('roster entries resolve names and avatars, with safe fallbacks', () => {
     assert.equal(p.parseRoster(null).size, 0);
     assert.equal(p.parseRoster({ devices: [{ name: 'no id' }] }).size, 0, 'entries without an id are dropped');
 });
+
+// v1.24 装机反馈：唯一那台被手机断开、浏览器刷新重进后，会话里仍只有一台，名字却出现了 ——
+// 被断开的那台还留在名册里（它发过的消息还在），而「自动」数的是名册总数。只数仍在会话里的。
+test('auto counts only devices still in the session', () => {
+    const p = load();
+    const roster = p.parseRoster({ devices: [
+        { deviceId: 'old', name: '', defaultLabel: 'Chrome · Windows', online: false, present: false },
+        { deviceId: 'new', name: '', defaultLabel: 'Chrome · Windows', online: true, present: true },
+    ] });
+    assert.equal(p.presentCount(roster), 1);
+    assert.equal(p.namesEnabled('AUTO', p.presentCount(roster)), false);
+    roster.set('other', { deviceId: 'other', present: true });
+    assert.equal(p.namesEnabled('AUTO', p.presentCount(roster)), true, 'an offline but not disconnected device still counts');
+});
+
+test('the chat page feeds the rule the present count', () => {
+    const app = fs.readFileSync(path.join(__dirname, '../../main/assets/web/app.js'), 'utf8');
+    assert.ok(app.includes('peersLib.namesEnabled(senderNameMode, peersLib.presentCount(peerRoster))'));
+});

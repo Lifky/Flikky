@@ -411,6 +411,7 @@ fun ServingScreen(
                         peerAvatarKey = peerAvatarKey,
                         deviceAvatars = knownAvatars,
                         knownDevices = knownDevices,
+                        presentDeviceCount = devices.size,
                         actionTarget = actionTarget,
                         onActionTargetChange = { actionTarget = it },
                         snackbarHostState = snackbarHostState,

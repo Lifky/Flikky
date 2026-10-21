@@ -495,7 +495,7 @@
         const rows = Array.from(list.querySelectorAll('.bubble-row'));
         const senders = rows.map(rowSender);
         const breaks = rows.map((r) => !!(r && r.dataset && r.dataset.groupBreak));
-        const labels = peersLib && peersLib.namesEnabled(senderNameMode, peerRoster.size)
+        const labels = peersLib && peersLib.namesEnabled(senderNameMode, peersLib.presentCount(peerRoster))
             ? peersLib.labelPlan(senders, breaks, actionStyle === 'INLINE')
             : [];
         let previousSender = null;
