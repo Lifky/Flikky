@@ -82,13 +82,14 @@ test('peer favoriting adds favorite to text and completed files, before recall',
 });
 
 // 2026-09-27 用户：点了收藏后星标要变实心；手机上取消后要变回空心。
-test('a favorited message shows a filled star labelled as favorited', () => {
+// v1.24（用户 2026-10-22）：实心星点了是取消收藏，标签随之说「取消收藏」。
+test('a favorited message shows a filled star that offers to remove it', () => {
     const star = (favorited) => fullActionsOf(fakeBubble({ kind: 'text', messageId: '5' }), false, false, true, favorited)
         .find(action => action.kind === 'favorite');
     assert.equal(star([]).filled, false);
     assert.equal(star([]).labelKey, 'app.favorite');
     assert.equal(star(['5']).filled, true);
-    assert.equal(star(['5']).labelKey, 'app.favorited');
+    assert.equal(star(['5']).labelKey, 'app.unfavorite');
 });
 
 test('every icon renderer honours the filled flag', () => {
@@ -104,15 +105,40 @@ test('the favorited set comes from history and from the phone push', () => {
     assert.match(appJs, /buildMessageActions\(bubble, recallEnabled, allowPeerRecall, allowPeerFavorite, favoritedIds\)/);
 });
 
-test('tapping a filled star explains where to remove it instead of posting again', () => {
-    const body = appJs.slice(appJs.indexOf('async function favoriteMessage('));
-    const guard = body.indexOf('favoritedIds.has(');
-    const post = body.indexOf('fetch(');
-    assert.ok(guard >= 0 && guard < post, 'the local check must come before the request');
-    for (const key of ['app.favorited', 'app.favorite_exists']) {
+// v1.24（用户 2026-10-22）：浏览器也能取消收藏本场消息，与手机在会话里点星同一效果，不弹确认。
+test('tapping a filled star removes the favorite from the phone', async () => {
+    const { functionBody } = require('./scan.js');
+    const calls = [];
+    const notes = [];
+    const context = {
+        allowPeerFavorite: true, myClientId: 'c', favoritesRev: 0,
+        favoritedIds: new Set(['42']),
+        window: { flikky: { showInfo: (m) => notes.push(m), showError: (m) => notes.push('error:' + m) } },
+        document: { body: { dataset: {} } },
+        t: (k) => k,
+        apiFetch: async (url, init) => {
+            calls.push([url, init && init.method]);
+            return { status: 200, ok: true, json: async () => ({ result: 'removed' }) };
+        },
+    };
+    context.setFavoritedIds = (ids) => { context.favoritedIds = new Set(ids.map(String)); };
+    vm.createContext(context);
+    vm.runInContext(functionBody(appJs, 'async function unfavoriteMessage('), context);
+    vm.runInContext(functionBody(appJs, 'async function favoriteMessage('), context);
+    await context.favoriteMessage(42);
+    assert.deepEqual(calls, [['/api/messages/42/favorite', 'DELETE']]);
+    assert.equal(context.favoritedIds.has('42'), false);
+    assert.deepEqual(notes, ['app.favorite_removed']);
+    for (const key of ['app.unfavorite', 'app.favorite_removed', 'app.unfavorite_failed']) {
         assert.ok(i18nJs.split(`'${key}'`).length - 1 >= 2, `${key} must exist in zh-CN and en`);
     }
-    assert.match(i18nJs, /'app\.favorite_exists': '已在收藏中，可在手机上取消'/);
+});
+
+// v1.24 装机反馈：收藏面板不跟着更新。手机推 favorites_changed（收藏或合集变了），面板重新拉。
+test('a favorites change pushed by the phone reloads the panel', () => {
+    const at = appJs.indexOf("ev.type === 'favorites_changed'");
+    assert.ok(at >= 0, 'app.js handles favorites_changed');
+    assert.ok(appJs.slice(at, at + 400).includes('document.body.dataset.favoritesRev = '));
 });
 
 test('favorite needs a server-side id and a completed file', () => {

@@ -32,4 +32,15 @@ class TransferServicePeerFavoriteSourceTest {
     @Test fun `history reads the favorited ids of the running session`() {
         assertTrue(service.contains("favoritedIds = { ServiceLocator.favoritesRepository.favoritedIds(currentSessionId) }"))
     }
+    // v1.24 装机反馈：浏览器收藏面板不跟着更新。允许浏览器查看收藏时，收藏一变就推一次「去重新拉」。
+    @Test fun `favorite changes nudge the browser panel through the current hub`() {
+        assertTrue(service.contains("peerFavoritesChanged("))
+        assertTrue(service.contains("it.favoriteBetaEnabled && it.favoriteBrowsingEnabled"))
+        assertTrue(service.contains("ktor?.wsHub?.broadcast(\"favorites_changed\""))
+        assertTrue(service.contains("peerFavoritesPanelJob?.cancel(); peerFavoritesPanelJob = null"))
+    }
+
+    @Test fun `the browser can unfavorite through the shared lock`() {
+        assertTrue(service.contains("ServiceLocator.favoritesRepository.unfavoriteFromPeer(currentSessionId, id)"))
+    }
 }

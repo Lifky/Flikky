@@ -120,6 +120,17 @@ class FavoritesRepository(
             PeerFavoriteResult.Added
         }
 
+    /**
+     * v1.24（用户 2026-10-22）：浏览器取消收藏本场的一条消息。与手机在会话里点星同一效果（[unfavoriteBySource]），
+     * 与 [favoriteFromPeer] 共用一把锁，免得收藏与取消交错。返回是否真的删掉了一项。
+     */
+    suspend fun unfavoriteFromPeer(sid: Long, mid: Long): Boolean =
+        peerFavoriteLock.withLock {
+            val row = favoriteDao.findBySource(sid, mid) ?: return@withLock false
+            deleteFavorite(row.id)
+            true
+        }
+
     suspend fun addLocalText(text: String, groupId: Long?): Long {
         val normalized = text.trim()
         require(normalized.isNotBlank()) { "Local favorite text must not be blank" }

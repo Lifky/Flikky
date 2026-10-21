@@ -2,10 +2,12 @@ package com.example.flikky.server.routes
 
 import com.example.flikky.server.PinAuth
 import com.example.flikky.server.dto.ServerFavoriteOutcome
+import com.example.flikky.server.dto.ServerUnfavoriteOutcome
 import com.example.flikky.session.Message
 import com.example.flikky.session.Origin
 import com.example.flikky.session.SessionState
 import io.ktor.client.plugins.cookies.HttpCookies
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -47,6 +49,7 @@ class MessageRoutesFavoriteTest {
         favoriteHandler: suspend (Message) -> ServerFavoriteOutcome,
         peerFavoriteEnabled: () -> Boolean = { true },
         favoritedIds: suspend () -> List<Long> = { emptyList() },
+        unfavoriteHandler: suspend (Long) -> ServerUnfavoriteOutcome = { error("unfavorite is not under test") },
     ): io.ktor.server.application.Application.() -> Unit = {
         install(ContentNegotiation) { json() }
         routing {
@@ -73,6 +76,7 @@ class MessageRoutesFavoriteTest {
                 favoriteHandler = favoriteHandler,
                 peerFavoriteEnabled = peerFavoriteEnabled,
                 favoritedIds = favoritedIds,
+                unfavoriteHandler = unfavoriteHandler,
             )
         }
     }
@@ -194,5 +198,66 @@ class MessageRoutesFavoriteTest {
         val resp = http.get("/api/messages")
         assertEquals(HttpStatusCode.OK, resp.status)
         assertEquals(emptyList<Long>(), favoritedOf(resp.bodyAsText()))
+    }
+    // ── v1.24（用户 2026-10-22）：浏览器也能取消收藏本场消息，与手机在会话里点星同一效果。
+
+    @Test
+    fun `unfavoriting without a cookie is 401 and nothing is removed`() = testApplication {
+        application(setupApp(favoriteHandler = { error("unused") }, unfavoriteHandler = { error("must not run unauthenticated") }))
+        val resp = client.delete("/api/messages/123/favorite") { header("X-Client-Id", "c") }
+        assertEquals(HttpStatusCode.Unauthorized, resp.status)
+    }
+
+    @Test
+    fun `unfavoriting with peer favoriting off is 403`() = testApplication {
+        application(
+            setupApp(
+                favoriteHandler = { error("unused") },
+                peerFavoriteEnabled = { false },
+                unfavoriteHandler = { error("must not run while disabled") },
+            ),
+        )
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+        val resp = http.delete("/api/messages/123/favorite") { header("X-Client-Id", "c") }
+        assertEquals(HttpStatusCode.Forbidden, resp.status)
+        assertEquals("favorite_disabled", errorOf(resp.bodyAsText()))
+    }
+
+    @Test
+    fun `only messages of this session can be unfavorited`() = testApplication {
+        // 浏览器碰得到的只有本场消息：id 不是授权凭据，收藏页里别的收藏项删不到。
+        application(setupApp(favoriteHandler = { error("unused") }, unfavoriteHandler = { error("must not reach the store") }))
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+        val resp = http.delete("/api/messages/999/favorite") { header("X-Client-Id", "c") }
+        assertEquals(HttpStatusCode.NotFound, resp.status)
+    }
+
+    @Test
+    fun `unfavoriting removes the phone's favorite and says so`() = testApplication {
+        val removed = mutableListOf<Long>()
+        application(
+            setupApp(
+                favoriteHandler = { error("unused") },
+                unfavoriteHandler = { id -> removed += id; ServerUnfavoriteOutcome.Removed },
+            ),
+        )
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+        val resp = http.delete("/api/messages/123/favorite") { header("X-Client-Id", "c") }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        assertEquals("removed", resultOf(resp.bodyAsText()))
+        assertEquals(listOf(123L), removed)
+    }
+
+    @Test
+    fun `unfavoriting something not favorited is a quiet no-op`() = testApplication {
+        application(setupApp(favoriteHandler = { error("unused") }, unfavoriteHandler = { ServerUnfavoriteOutcome.NotFavorited }))
+        val http = createClient { install(HttpCookies) }
+        authenticate(http)
+        val resp = http.delete("/api/messages/123/favorite") { header("X-Client-Id", "c") }
+        assertEquals(HttpStatusCode.OK, resp.status)
+        assertEquals("not_favorited", resultOf(resp.bodyAsText()))
     }
 }

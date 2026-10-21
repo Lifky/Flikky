@@ -552,29 +552,46 @@
 
     // ── 数据加载 ─────────────────────────────────────────────────────────────
 
-    async function load() {
-        phase = 'loading';
+    // 每次拉取一个序号：先发出的请求晚落地时直接丢弃，不盖掉后发出的那次（v1.24：手机推送会连着触发好几次）。
+    let loadGeneration = 0;
+
+    /**
+     * [options.background]：手机推来「收藏变了」时的后台刷新（v1.24 装机反馈）。不打断用户 ——
+     * 拉取期间旧列表照常显示，还在的行保持选中；失败时保留旧列表，不切到错误态。
+     */
+    async function load(options) {
+        const background = !!(options && options.background) && phase === 'loaded';
+        const generation = ++loadGeneration;
+        if (!background) phase = 'loading';
         try {
             const res = await apiFetch('/api/favorites', { credentials: 'same-origin' });
+            if (generation !== loadGeneration) return;
             if (res.status === 404) {
                 phase = 'disabled';
                 render();
                 return;
             }
             if (!res.ok) {
+                if (background) return;
                 phase = 'error';
                 render();
                 return;
             }
             const data = await res.json();
+            if (generation !== loadGeneration) return;
             groups = Array.isArray(data.groups) ? data.groups : [];
             items = Array.isArray(data.items) ? data.items : [];
             itemsById.clear();
             items.forEach((item) => itemsById.set(item.id, item));
-            selected.clear();
+            if (background) {
+                Array.from(selected).forEach((id) => { if (!itemsById.has(id)) selected.delete(id); });
+            } else {
+                selected.clear();
+            }
             phase = 'loaded';
             render();
         } catch (e) {
+            if (generation !== loadGeneration || background) return;
             phase = 'error';
             render();
         }
@@ -589,12 +606,18 @@
     // app.js 反过来知道面板存在，而是观察它已经发布出来的属性，与 panel-settings.js
     // 观察 data-app-version/data-timestamps 是同一手法。变化时重新拉取——
     // 属性本身只是提示，真相仍然是服务端那次 GET 的状态码。
-    // data-favorites-rev：浏览器在会话里收藏了一条消息（D78），列表多了一行。
-    const PUBLISHED_ATTRS = ['data-favorite-enabled', 'data-favorites-rev'];
+    // data-favorites-rev：收藏变了 —— 浏览器在会话里收藏 / 取消了一条（D78），或手机推来 favorites_changed（v1.24）。
+    // 它只触发后台刷新；开关变化才是整页重新加载。
+    const REV_ATTR = 'data-favorites-rev';
+    const PUBLISHED_ATTRS = ['data-favorite-enabled', REV_ATTR];
 
     function observeFavoriteEnabled() {
         if (typeof MutationObserver !== 'function') return;
-        new MutationObserver(() => { load(); }).observe(document.body, {
+        new MutationObserver((records) => {
+            const onlyRev = Array.isArray(records) && records.length > 0
+                && records.every((r) => r && r.attributeName === REV_ATTR);
+            load(onlyRev ? { background: true } : undefined);
+        }).observe(document.body, {
             attributes: true,
             attributeFilter: PUBLISHED_ATTRS,
         });

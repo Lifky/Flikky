@@ -4,6 +4,7 @@ import com.example.flikky.export.ExportMode
 import com.example.flikky.export.ExportSnapshot
 import com.example.flikky.server.dto.ServerFavoriteOutcome
 import com.example.flikky.server.dto.ServerRecallOutcome
+import com.example.flikky.server.dto.ServerUnfavoriteOutcome
 import com.example.flikky.server.dto.FavoritesResponseDto
 import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.dto.WebThemeDto
@@ -79,6 +80,8 @@ class KtorServer(
     private val allowPeerRecall: () -> Boolean = { false },
     /** D78：浏览器收藏会话消息。Export 模式保持默认（关闭），export.html 没有这个入口。 */
     private val onFavoriteMessage: suspend (Message) -> ServerFavoriteOutcome = { ServerFavoriteOutcome.Failed },
+    /** v1.24：浏览器取消收藏本场消息。Export 模式保持默认，export.html 没有这个入口。 */
+    private val onUnfavoriteMessage: suspend (Long) -> ServerUnfavoriteOutcome = { ServerUnfavoriteOutcome.Failed },
     private val peerFavoriteEnabled: () -> Boolean = { false },
     private val favoritedIds: suspend () -> List<Long> = { emptyList() },
     /**
@@ -250,6 +253,7 @@ class KtorServer(
             recallEnabled = recallEnabled,
             allowPeerRecall = allowPeerRecall,
             favoriteHandler = onFavoriteMessage,
+            unfavoriteHandler = onUnfavoriteMessage,
             peerFavoriteEnabled = peerFavoriteEnabled,
             favoritedIds = favoritedIds,
         )

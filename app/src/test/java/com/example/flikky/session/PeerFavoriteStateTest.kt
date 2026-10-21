@@ -45,4 +45,29 @@ class PeerFavoriteStateTest {
             expectNoEvents()
         }
     }
+    // v1.24 装机反馈：浏览器收藏面板不跟着更新。允许浏览器查看收藏时，收藏或合集一变就发一次「去重新拉」。
+    @Test fun `the panel is nudged on every change while browsing is allowed`() = runTest {
+        val gate = MutableStateFlow(true)
+        val content = MutableStateFlow(listOf(1L))
+        peerFavoritesChanged(gate, content).test {
+            expectNoEvents() // 开着时的初值不算变化：浏览器开面板时自己会拉
+            content.value = listOf(1L, 2L)
+            assertEquals(Unit, awaitItem())
+            content.value = listOf(2L)
+            assertEquals(Unit, awaitItem())
+        }
+    }
+
+    @Test fun `nothing is sent while browsing is off, and opening it is not a change`() = runTest {
+        val gate = MutableStateFlow(false)
+        val content = MutableStateFlow(listOf(1L))
+        peerFavoritesChanged(gate, content).test {
+            content.value = listOf(1L, 2L)
+            expectNoEvents()
+            gate.value = true // 打开时浏览器靠 data-favorite-enabled 自己拉一次
+            expectNoEvents()
+            content.value = listOf(3L)
+            assertEquals(Unit, awaitItem())
+        }
+    }
 }

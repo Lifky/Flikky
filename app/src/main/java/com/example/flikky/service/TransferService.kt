@@ -43,6 +43,7 @@ import com.example.flikky.server.dto.toDtoJson
 import com.example.flikky.server.dto.PeerInfoDto
 import com.example.flikky.server.dto.LeadingVisualDto
 import com.example.flikky.server.dto.ServerFavoriteOutcome
+import com.example.flikky.server.dto.ServerUnfavoriteOutcome
 import com.example.flikky.server.dto.ServerRecallOutcome
 import com.example.flikky.server.dto.FavoritesStateDto
 import com.example.flikky.server.dto.StatusDto
@@ -53,6 +54,7 @@ import com.example.flikky.session.NetworkStatus
 import com.example.flikky.session.PeerChannelState
 import com.example.flikky.session.peerChannelState
 import com.example.flikky.session.peerFavoritedIds
+import com.example.flikky.session.peerFavoritesChanged
 import com.example.flikky.ui.theme.resolveFlikkyTheme
 import com.example.flikky.ui.theme.resolveLeadingColors
 import com.example.flikky.ui.theme.toWireColors
@@ -119,6 +121,7 @@ class TransferService : Service() {
     private var statusBroadcastJob: Job? = null
     private var devicesJob: Job? = null
     private var peerFavoritesJob: Job? = null
+    private var peerFavoritesPanelJob: Job? = null
 
     private val rebinder = NetworkRebinder()
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
@@ -384,6 +387,20 @@ class TransferService : Service() {
                 ktor?.wsHub?.broadcast("favorites_state", payload)
             }
         }
+        // v1.24 装机反馈：浏览器收藏面板不跟着更新。允许浏览器查看收藏时，收藏或合集一变就推一个「去重新拉」，
+        // 内容不外发。同样经 field-level [ktor] 现取 hub。
+        peerFavoritesPanelJob = scope.launch {
+            peerFavoritesChanged(
+                gate = ServiceLocator.settingsRepository.settings
+                    .map { it.favoriteBetaEnabled && it.favoriteBrowsingEnabled },
+                content = combine(
+                    ServiceLocator.favoritesRepository.observeFavorites(),
+                    ServiceLocator.favoritesRepository.observeGroups(),
+                ) { favorites, groups -> favorites to groups },
+            ).collect {
+                ktor?.wsHub?.broadcast("favorites_changed", "{}")
+            }
+        }
 
         val notif = NotificationHelper.build(
             context = this,
@@ -515,6 +532,7 @@ class TransferService : Service() {
         ServiceLocator.currentController = null
         statusBroadcastJob?.cancel(); statusBroadcastJob = null
         peerFavoritesJob?.cancel(); peerFavoritesJob = null
+        peerFavoritesPanelJob?.cancel(); peerFavoritesPanelJob = null
         devicesJob?.cancel(); devicesJob = null
         joinsJob?.cancel(); joinsJob = null
         pinBlockedJob?.cancel(); pinBlockedJob = null
@@ -661,6 +679,21 @@ class TransferService : Service() {
             } catch (e: Exception) {
                 Log.w(TAG, "peer favorite failed for message ${msg.id}", e)
                 ServerFavoriteOutcome.Failed
+            }
+        },
+        // v1.24（用户 2026-10-22）：浏览器取消收藏本场消息，与手机在会话里点星同一效果。
+        onUnfavoriteMessage = { id ->
+            try {
+                if (ServiceLocator.favoritesRepository.unfavoriteFromPeer(currentSessionId, id)) {
+                    ServerUnfavoriteOutcome.Removed
+                } else {
+                    ServerUnfavoriteOutcome.NotFavorited
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "peer unfavorite failed for message $id", e)
+                ServerUnfavoriteOutcome.Failed
             }
         },
         // 与 peer-info 的 allowPeerFavorite 同一判据：收藏功能与对端开关两轴都开。

@@ -56,6 +56,7 @@ function load({
   status = 200,
   throwNetwork = false,
   clipboard = true,
+  deferred = false,
 } = {}) {
   const doc = createDocument();
   const root = buildSkeleton(doc);
@@ -65,6 +66,9 @@ function load({
   const timeouts = [];
   doc.execCommand = (name) => { execCommands.push(name); return true; };
 
+  // deferred：请求先挂着，由测试决定先后落地（验证旧应答不覆盖新应答）。
+  const pending = [];
+  let current = response;
   const ctx = {
     console,
     document: doc,
@@ -75,11 +79,14 @@ function load({
     fetch(url, opts) {
       fetched.push({ url, opts: opts || {} });
       if (throwNetwork) return Promise.reject(new Error('offline'));
-      return Promise.resolve({
+      const body = current;
+      const reply = {
         ok: status >= 200 && status < 300,
         status,
-        json: () => Promise.resolve(response),
-      });
+        json: () => Promise.resolve(body),
+      };
+      if (deferred) return new Promise((resolve) => pending.push(() => resolve(reply)));
+      return Promise.resolve(reply);
     },
     navigator: clipboard
       ? { clipboard: { writeText(text) { copied.push(text); return Promise.resolve(); } } }
@@ -107,7 +114,7 @@ function load({
 
   const api = ctx.window.flikkyPanels && ctx.window.flikkyPanels.favorites;
   assert.ok(api, 'panel-favorites.js must register window.flikkyPanels.favorites');
-  return { doc, root, api, fetched, copied, execCommands, timeouts };
+  return { doc, root, api, fetched, copied, execCommands, timeouts, pending, setResponse: (r) => { current = r; } };
 }
 
 const flush = async (n = 12) => { for (let i = 0; i < n; i += 1) await Promise.resolve(); };
@@ -369,6 +376,36 @@ test('a message favorited from the chat reloads the list', async () => {
   doc.body.dataset.favoritesRev = '1';
   await flush();
   assert.equal(fetched.length, 2, 'a new favorite must trigger a refetch');
+});
+
+// v1.24 装机反馈：手机推「收藏变了」后面板自己重新拉。后台刷新不能打断用户：还在的行保持选中，
+// 拉取期间旧列表照常显示；先发出的请求晚落地时不能盖掉后发出的。
+test('a background reload keeps the selection of rows that are still there', async () => {
+  const { doc, setResponse } = await mounted();
+  rowById(doc, '12').click();
+  rowById(doc, '13').click();
+  setResponse({ groups: GROUPS, items: ITEMS.filter((i) => i.id !== 13) });
+  doc.body.dataset.favoritesRev = '2';
+  await flush();
+  assert.equal(rowById(doc, '13'), undefined);
+  assert.equal(rowById(doc, '12').getAttribute('aria-selected'), 'true');
+  assert.match(doc.getElementById('fav-count').textContent, /1/);
+});
+
+test('an older reply never overwrites a newer one', async () => {
+  const { doc, pending, setResponse } = load({ deferred: true });
+  pending.shift()();                                  // 首次加载落地
+  await flush();
+  setResponse({ groups: GROUPS, items: ITEMS });      // 第二次（较旧）拉到 3 行
+  doc.body.dataset.favoritesRev = '1';
+  setResponse({ groups: GROUPS, items: ITEMS.slice(0, 1) }); // 第三次（较新）只剩 1 行
+  doc.body.dataset.favoritesRev = '2';
+  const [older, newer] = pending.splice(0);
+  newer();
+  await flush();
+  older();
+  await flush();
+  assert.equal(rowsOf(doc).length, 1, 'the late older reply must be ignored');
 });
 
 test('new favorites i18n keys exist in both languages', () => {

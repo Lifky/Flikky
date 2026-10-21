@@ -119,6 +119,13 @@ sealed class ServerFavoriteOutcome {
     data object Failed : ServerFavoriteOutcome()
 }
 
+/** v1.24：浏览器取消收藏一条会话消息的结果（server-local，不依赖 data 层）。 */
+sealed class ServerUnfavoriteOutcome {
+    data object Removed : ServerUnfavoriteOutcome()
+    data object NotFavorited : ServerUnfavoriteOutcome()
+    data object Failed : ServerUnfavoriteOutcome()
+}
+
 sealed class ServerRecallOutcome {
     data class Success(val messageId: Long, val sessionId: Long) : ServerRecallOutcome()
     object NotFound : ServerRecallOutcome()

@@ -569,4 +569,15 @@ class FavoritesRepositoryTest {
 
         assertEquals(listOf(5L), repo.favoritedIds(1L))
     }
+    // v1.24（用户 2026-10-22）：浏览器也能取消收藏本场消息 —— 与手机在会话里点星同一效果（连同文件副本删除）。
+    @Test fun unfavoriteFromPeer_removes_the_row_and_reports_repeats() = runTest {
+        val msg = Message.Text(id = 7L, origin = Origin.PHONE, timestamp = 7L, content = "drop")
+        repo.favoriteFromPeer(sid = 1L, sessionName = "live", msg = msg)
+
+        assertFalse("another session's message with the same id is not touched", repo.unfavoriteFromPeer(sid = 2L, mid = 7L))
+        assertEquals(1, repo.snapshot().first.size)
+        assertTrue(repo.unfavoriteFromPeer(sid = 1L, mid = 7L))
+        assertTrue(repo.snapshot().first.isEmpty())
+        assertFalse(repo.unfavoriteFromPeer(sid = 1L, mid = 7L))
+    }
 }

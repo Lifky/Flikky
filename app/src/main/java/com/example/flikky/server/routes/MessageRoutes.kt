@@ -6,6 +6,7 @@ import com.example.flikky.server.dto.RecallResponse
 import com.example.flikky.server.dto.SendTextRequest
 import com.example.flikky.server.dto.ServerFavoriteOutcome
 import com.example.flikky.server.dto.ServerRecallOutcome
+import com.example.flikky.server.dto.ServerUnfavoriteOutcome
 import com.example.flikky.server.dto.TextMessageDto
 import com.example.flikky.server.dto.WireJson
 import com.example.flikky.session.Message
@@ -46,6 +47,11 @@ fun Route.messageRoutes(
     peerFavoriteEnabled: () -> Boolean = { false },
     /** D78：本会话已收藏消息 id（历史接口带给浏览器画实心星）。只在 [peerFavoriteEnabled] 时读取。 */
     favoritedIds: suspend () -> List<Long> = { emptyList() },
+    /**
+     * v1.24（用户 2026-10-22）：浏览器取消收藏本场的一条消息 —— 与手机在会话里点星同一效果，
+     * 手机收藏里那一项连同文件副本删除。与收藏同一道门（[peerFavoriteEnabled]）。
+     */
+    unfavoriteHandler: suspend (messageId: Long) -> ServerUnfavoriteOutcome = { ServerUnfavoriteOutcome.Failed },
 ) {
     fun requireAuth(call: ApplicationCall): Boolean {
         val token = call.request.cookies[AUTH_COOKIE]
@@ -193,6 +199,31 @@ fun Route.messageRoutes(
             ServerFavoriteOutcome.AlreadyFavorited -> call.respond(HttpStatusCode.OK, mapOf("result" to "exists"))
             ServerFavoriteOutcome.Failed ->
                 call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "favorite_failed"))
+        }
+    }
+
+    delete("/api/messages/{id}/favorite") {
+        if (!requireAuth(call)) { call.respond(HttpStatusCode.Unauthorized); return@delete }
+        if (!peerFavoriteEnabled()) {
+            call.respond(HttpStatusCode.Forbidden, mapOf("error" to "favorite_disabled"))
+            return@delete
+        }
+        val id = call.parameters["id"]?.toLongOrNull()
+            ?: run { call.respond(HttpStatusCode.BadRequest, mapOf("error" to "invalid_id")); return@delete }
+        if (call.request.headers["X-Client-Id"] == null) {
+            call.respond(HttpStatusCode.BadRequest, mapOf("error" to "missing_client_id"))
+            return@delete
+        }
+        // 只认当前会话里的消息：浏览器碰得到的只有本场消息，收藏页里别的收藏项删不到。
+        if (session.snapshot.value.messages.none { it.id == id }) {
+            call.respond(HttpStatusCode.NotFound, mapOf("error" to "not_found"))
+            return@delete
+        }
+        when (unfavoriteHandler(id)) {
+            ServerUnfavoriteOutcome.Removed -> call.respond(HttpStatusCode.OK, mapOf("result" to "removed"))
+            ServerUnfavoriteOutcome.NotFavorited -> call.respond(HttpStatusCode.OK, mapOf("result" to "not_favorited"))
+            ServerUnfavoriteOutcome.Failed ->
+                call.respond(HttpStatusCode.InternalServerError, mapOf("error" to "unfavorite_failed"))
         }
     }
 }

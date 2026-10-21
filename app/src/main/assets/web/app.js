@@ -996,7 +996,8 @@
                 kind: 'favorite',
                 icon: 'star',
                 filled: isFavorited,
-                labelKey: isFavorited ? 'app.favorited' : 'app.favorite',
+                // 实心星点了是取消收藏（v1.24，用户 2026-10-22），标签照实说。
+                labelKey: isFavorited ? 'app.unfavorite' : 'app.favorite',
             });
         }
         // 撤回不受状态限制，但要有 server-side id（上传完成前没有）。
@@ -1370,14 +1371,35 @@
     }
 
     // D78：收藏到手机。只能加不能删；重复收藏服务端去重，回 exists。
+    // 浏览器取消收藏本场的一条消息：手机收藏里那一项连同文件副本删除。服务端说本来就没收藏，也照样把星熄掉。
+    async function unfavoriteMessage(messageId, notify) {
+        try {
+            const r = await apiFetch(`/api/messages/${messageId}/favorite`, {
+                method: 'DELETE',
+                headers: { 'X-Client-Id': myClientId },
+            });
+            if (r.status === 401) return;
+            if (r.ok) {
+                setFavoritedIds([...favoritedIds].filter((id) => id !== String(messageId)));
+                notify('showInfo', 'app.favorite_removed');
+            } else if (r.status === 403) {
+                notify('showError', 'app.favorite_not_enabled');
+            } else {
+                notify('showError', 'app.unfavorite_failed');
+            }
+        } catch (_) {
+            notify('showError', 'app.unfavorite_failed');
+        }
+    }
+
     async function favoriteMessage(messageId) {
         if (!allowPeerFavorite || !messageId) return;
         const notify = (kind, key) => {
             if (window.flikky && window.flikky[kind]) window.flikky[kind](t(key));
         };
-        // 实心星：浏览器取消不了，告诉用户去手机上取消，不再发请求。
+        // 实心星：取消收藏（v1.24，用户 2026-10-22）—— 与手机在会话里点星同一效果，不弹确认。
         if (favoritedIds.has(String(messageId))) {
-            notify('showInfo', 'app.favorite_exists');
+            await unfavoriteMessage(messageId, notify);
             return;
         }
         try {
@@ -1676,6 +1698,12 @@
         }
         if (ev.type === 'favorites_state') {
             setFavoritedIds(ev.payload && ev.payload.messageIds);
+            return;
+        }
+        // 手机上的收藏或合集变了（v1.24 装机反馈）：通知收藏面板重新拉。只是个信号，内容不随推送下发。
+        if (ev.type === 'favorites_changed') {
+            favoritesRev += 1;
+            document.body.dataset.favoritesRev = String(favoritesRev);
             return;
         }
         if (ev.type === 'message_recalled') {
