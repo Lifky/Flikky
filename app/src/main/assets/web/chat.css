@@ -130,10 +130,17 @@
   color: inherit;
   text-decoration: none;
   flex: 1;
+  /* 长文件名在气泡里折行（与 App 端一致）：没有空格的一长串也能断，min-width: 0 让它可以窄于最长的那一段。
+     否则气泡被撑出屏幕，整页要左右滑动（v1.24 装机反馈）。 */
+  min-width: 0;
+  overflow-wrap: anywhere;
   font: var(--flikky-type-label-large) var(--flikky-font-family);
   letter-spacing: var(--flikky-type-label-large-tracking);
 }
 .file-bubble .size {
+  /* 大小不折行、不被名字挤窄：手机上「108.7 MB」曾被挤成两行。 */
+  white-space: nowrap;
+  flex-shrink: 0;
   font: var(--flikky-type-body-small) var(--flikky-font-family);
   letter-spacing: var(--flikky-type-body-small-tracking);
   opacity: .8;
