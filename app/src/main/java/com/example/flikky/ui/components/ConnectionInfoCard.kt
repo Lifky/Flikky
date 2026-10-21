@@ -205,16 +205,22 @@ fun ConnectionInfoCard(
 }
 
 /** [ConnectionInfoCard] 的全部输入。 */
-data class ConnectionCardInputs(val address: ConnectionAddresses, val pin: String, val requirePin: Boolean)
+data class ConnectionCardInputs(val address: ConnectionAddresses, val pin: String, val requirePin: Boolean, val pinBlocked: Boolean = false)
 
 /**
  * 卡片停在最后一帧：服务一停，地址与 PIN 就被清空，页面却还要播完返回动画；
  * 卡片若跟着消失，下面的内容会塌成半截（2026-09-27 装机反馈）。地址未就绪前返回 null。
  */
 @Composable
-fun rememberLastCardInputs(address: ConnectionAddresses?, pin: String, requirePin: Boolean): ConnectionCardInputs? {
+fun rememberLastCardInputs(
+    address: ConnectionAddresses?,
+    pin: String,
+    requirePin: Boolean,
+    /** 也冻结进最后一帧（v1.24 装机：停止服务时「停用」先复位，退场中的卡片会闪出旧 PIN）。 */
+    pinBlocked: Boolean = false,
+): ConnectionCardInputs? {
     val last = remember { LastNonNull<ConnectionCardInputs>() }
-    return last.update(address?.let { ConnectionCardInputs(it, pin, requirePin) })
+    return last.update(address?.let { ConnectionCardInputs(it, pin, requirePin, pinBlocked) })
 }
 
 /** 同组内相邻两行之间（两行地址、地址与它的说明）。48dp 的按钮行自带留白，4dp 就够分开。 */

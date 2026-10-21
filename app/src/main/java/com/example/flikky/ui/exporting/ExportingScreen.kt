@@ -174,13 +174,13 @@ private fun ArmedContent(
         verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        rememberLastCardInputs(address, pin, requirePin)?.let {
+        rememberLastCardInputs(address, pin, requirePin, pinBlocked)?.let {
             ConnectionInfoCard(
                 address = it.address,
                 pin = it.pin,
                 requirePin = it.requirePin,
                 onAdoptNumber = onAdoptNumber,
-                pinBlocked = pinBlocked,
+                pinBlocked = it.pinBlocked,
             )
         }
 

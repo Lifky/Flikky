@@ -111,6 +111,16 @@ class ConnectionInfoCardStructureTest {
         }
     }
 
+    // v1.24 装机：PIN 停用后点停止服务，旧 PIN 闪一下（两屏都是）。「停用」要与地址、PIN 一起冻结进最后一帧，
+    // 否则复位那一刻卡片还在，就按「未停用」画出了数字。
+    @Test fun `the frozen card keeps the blocked pin state too`() {
+        assertTrue(card.contains("data class ConnectionCardInputs(val address: ConnectionAddresses, val pin: String, val requirePin: Boolean, val pinBlocked: Boolean"))
+        listOf("ui/serving/ServingScreen.kt", "ui/exporting/ExportingScreen.kt").forEach {
+            val screen = source("com/example/flikky/$it")
+            assertTrue("$it must freeze pinBlocked with the card", screen.contains("pinBlocked = it.pinBlocked"))
+        }
+    }
+
     private fun source(relative: String): String {
         var dir: File? = File(System.getProperty("user.dir").orEmpty()).absoluteFile
         while (dir != null) {

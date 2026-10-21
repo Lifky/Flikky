@@ -518,7 +518,6 @@ class TransferService : Service() {
         devicesJob?.cancel(); devicesJob = null
         joinsJob?.cancel(); joinsJob = null
         pinBlockedJob?.cancel(); pinBlockedJob = null
-        ServiceLocator.session.setPinBlocked(false)
 
         if (mode == ServiceMode.Transfer) {
             val sid = currentSessionId
@@ -563,6 +562,8 @@ class TransferService : Service() {
         currentHostIp = null
         currentRequirePin = true
         _running.value = null
+        // 放在清空 _running 之后（装机：先复位的话，卡片退场前那一刻会按「未停用」画出旧 PIN，闪一下）。
+        ServiceLocator.session.setPinBlocked(false)
     }
 
     /**
@@ -604,6 +605,8 @@ class TransferService : Service() {
     /** PIN 停用状态 → 连接卡片（B59#5）。PinAuth 跨 rebind 存活，换 IP 时 renewPin 会把它清掉。 */
     private fun watchPinBlocked(auth: PinAuth) {
         pinBlockedJob?.cancel()
+        // 收集在 IO 协程里异步开始，卡片可能先出现：先同步写一次当前值。
+        ServiceLocator.session.setPinBlocked(auth.blocked.value)
         pinBlockedJob = scope.launch { auth.blocked.collect { ServiceLocator.session.setPinBlocked(it) } }
     }
 

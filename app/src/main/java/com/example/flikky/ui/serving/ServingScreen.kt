@@ -300,7 +300,7 @@ fun ServingScreen(
                         onStopClick = { viewModel.stopService(); onStopped() },
                     )
                 } else {
-                    val card = rememberLastCardInputs(ui.address, ui.pin, ui.requirePin)
+                    val card = rememberLastCardInputs(ui.address, ui.pin, ui.requirePin, pinBlocked)
                     // fillMaxWidth：卡片还没出现时，下面的等待行与停止按钮也保持居中。
                     Column(Modifier.fillMaxWidth().padding(Spacing.sectionGap)) {
                         val offline = offlinePeers(devices, stringResource(R.string.device_unknown_browser))
@@ -312,7 +312,7 @@ fun ServingScreen(
                                 onAdoptNumber = ServiceLocator::adoptHostNumber,
                                 pinUsedBy = offline?.takeIf { ui.requirePin }?.firstName,
                                 pinUsedByCount = offline?.count ?: 1,
-                                pinBlocked = pinBlocked,
+                                pinBlocked = it.pinBlocked,
                             )
                         }
                         // 一行状态，同时是「管理设备」的入口（装机 Screenshot_3：原先等待行 + 管理设备按钮两层）。
