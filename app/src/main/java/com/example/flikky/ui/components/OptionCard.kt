@@ -1,6 +1,5 @@
 package com.example.flikky.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -30,8 +29,10 @@ fun OptionCard(
     modifier: Modifier = Modifier,
     description: String? = null,
 ) {
+    // 可点击 Card 的 onClick 重载：水波纹按卡片形状裁剪、语义是按钮。外层 .clickable 会画出直角矩形（v1.24 装机 Screenshot_7）。
     Card(
-        modifier = modifier.aspectRatio(1f).clickable(onClick = onClick),
+        onClick = onClick,
+        modifier = modifier.aspectRatio(1f),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Column(

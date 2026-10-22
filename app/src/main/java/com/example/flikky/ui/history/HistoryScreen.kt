@@ -450,7 +450,8 @@ fun HistoryScreen(
         )
         SelectionContainer {
         LazyColumn(
-            modifier = Modifier.fillMaxSize().maxContentWidth().padding(horizontal = Spacing.md),
+            // 左右留白不加在列表上，而由每行自己在底色之内留（v1.24 装机 Screenshot_6：定位底色要铺满整行）。
+            modifier = Modifier.fillMaxSize().maxContentWidth(),
             contentPadding = PaddingValues(bottom = listBottomLift),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
             state = listState,
@@ -492,7 +493,8 @@ fun HistoryScreen(
                 Box(
                     modifier = flikkyItemAnimation()
                         .fillMaxWidth()
-                        .background(highlightColor),
+                        .background(highlightColor)
+                        .padding(horizontal = Spacing.md),
                 ) {
                     Column {
                         if (
