@@ -4,9 +4,45 @@
 
 This file records user-facing changes for each Flikky release, loosely following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow `x.y.z`: x for major architectural changes, y for new features, z for bug fixes. Dates are tag creation dates.
 
+## [v1.24.0](https://github.com/Lifky/Flikky/releases/tag/v1.24.0) · 2026-10-22
+
+Know who is knocking. A device asking to join shows a 4-digit code that the phone shows too, so you allow the right one; disconnecting a device now cuts off its transfers at once; and the browser can take back a favorite as well as add one.
+
+### Added
+
+#### A compare code when a device asks to join
+- When a device asks to join, its page and the phone show the same 4-digit code: in the dialog on the session or export screen, and in the notification when the phone is in the background. Allow only when the two match
+- Requests waiting at the same time never share a code, so a request someone else left waiting cannot show yours. Refreshing the waiting page keeps the code
+- The code is not a credential — knowing it gets no one in — so it may appear in the notification. Screen readers read it digit by digit on both ends
+
+#### Favorites from the browser, both ways
+- With "Allow the peer to favorite messages" on, tapping a filled star in the browser removes that favorite from the phone, including its file copy. It works for any favorited message in the current session, including ones favorited on the phone, and needs no confirmation
+- With favorites browsing allowed, the browser's favorites panel refreshes by itself when favorites or collections change on the phone, and rows that are still there stay selected
+
+### Changed
+- When five wrong PIN attempts disable the PIN, the connection card (transfer and export screens) reads "Disabled (too many wrong attempts)" with how to get a new one, instead of a PIN that no longer works. Disconnecting the last device no longer issues a new PIN that could never be used, and the browser says the PIN is disabled instead of claiming the service has stopped
+- Sender names on "Auto" now count the devices still in the session: one the phone disconnected no longer counts. History still counts every device that took part
+- Browser file bubbles show the size under the name, as in the app. Long names wrap inside the bubble instead of making the page scroll sideways, and short names and medium-length text no longer wrap early
+
+### Security
+- **Disconnecting a device takes effect at once.** Its uploads, file and ZIP downloads and listings in progress are cut off; an interrupted upload disappears from every device instead of staying "uploading". A browser disconnected while its connection was still opening is closed too
+- Requests refused by the same-origin check now carry the same security headers (CSP and others) as every other response
+
+### Fixed
+- Pressing Enter to pick a candidate in an input method (for example Chinese on macOS) no longer sends the message or submits the rename field
+- After the browser's rename dialog was closed with Esc or a click outside, the next rename was sent twice
+- Favoriting a message that was already a favorite now fills the star
+- A failure reading favorites no longer breaks the browser's whole message list
+- Any request the phone answers with "signed out" now shows the disconnected dialog, not only the history and rename requests
+- On a phone browser, coming back from the system picker no longer shows the image you just sent twice
+- Stopping the service after the PIN was disabled no longer flashes the old PIN on the card
+- With many sessions or favorites, the last row can scroll above the floating button, so its menu is reachable
+- The message located from search in History, and the message selected in floating-toolbar mode, are tinted across the whole row
+- The ripple on the "File" and "Image" tiles of the add sheet stays inside their rounded corners
+
 ## [v1.23.0](https://github.com/Lifky/Flikky/releases/tag/v1.23.0) · 2026-10-18
 
-Every device gets a name and a credential of its own. The phone sees, renames and disconnects each browser that connects; one session can hold several computers, a new device joins only once the phone allows it, and every bubble shows which device sent it.
+Every device gets a name and a credential of its own. The phone sees, renames and disconnects each browser that connects; one session can hold several devices, a new device joins only once the phone allows it, and every bubble shows which device sent it.
 
 ### Added
 
@@ -19,10 +55,10 @@ Every device gets a name and a credential of its own. The phone sees, renames an
 - Tap the session header to open the connected-devices panel: online or offline, rename, change avatar, disconnect. With several online, the header stacks their avatars, reads "N devices online" and shows a drop-down arrow
 - A disconnected browser sees "The phone disconnected this device" with a Reconnect button instead of retrying forever; with the PIN on, the phone shows a fresh PIN right away
 
-#### Several computers in one session
+#### Several devices in one session
 - The first device gets in as before (PIN, or straight in with the PIN off); every later one taps "Ask to join" on the entry page and gets in once you tap "Allow" on the phone. The rule is the same with the PIN on or off, and for browser downloads of an export
 - On the session or export screen the phone shows a dialog; in the background it posts a notification with Allow and Deny. Once a device joins, the phone says "X joined"
-- Messages from another computer sit on the other side with its own avatar; when any device changes its avatar, all of its bubbles update on every other device
+- Messages from another device sit on the other side with its own avatar; when any device changes its avatar, all of its bubbles update on every other device
 - **Settings › Chat appearance › Sender names**: auto (shown once 2 or more devices have joined, the default), always or off, followed by the browser. Both sides are labelled; with inline buttons every message carries a name, with the floating toolbar only the first of a run does
 
 ### Changed
@@ -34,7 +70,7 @@ Every device gets a name and a credential of its own. The phone sees, renames an
 ### Security
 - **Sign-in credentials are now 256-bit and the server stores only their SHA-256.** Each device has its own credential and can be revoked on its own
 - **Turning the PIN off no longer means anyone can walk in**: the server still issues a controlled session, and once a device is in, new ones need the phone's approval. A cross-site page touching the phone's address no longer leaves a "ghost device" in the list
-- A browser can recall only messages sent by its own device; another computer's messages count as the peer's and need "Allow recalling peer messages"
+- A browser can recall only messages sent by its own device; another device's messages count as the peer's and need "Allow recalling peer messages"
 - Join-request credentials live only in an HttpOnly, SameSite=Strict cookie, are stored as hashes, expire after a minute, and at most 3 can wait at once; "Allow" on the notification asks you to unlock first
 - The new PIN issued after a disconnect keeps the brute-force counters
 
