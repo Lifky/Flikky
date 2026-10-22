@@ -450,7 +450,8 @@ fun HistoryScreen(
         )
         SelectionContainer {
         LazyColumn(
-            // 左右留白不加在列表上，而由每行自己在底色之内留（v1.24 装机 Screenshot_6：定位底色要铺满整行）。
+            // 左右留白不加在列表上，而由每行自己在底色之内留：定位高亮与悬浮工具栏的选中底色都要铺满整行
+            // （v1.24 装机 Screenshot_6 及复验）。气泡用 horizontalInset，常驻操作栏自己留。
             modifier = Modifier.fillMaxSize().maxContentWidth(),
             contentPadding = PaddingValues(bottom = listBottomLift),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
@@ -493,8 +494,7 @@ fun HistoryScreen(
                 Box(
                     modifier = flikkyItemAnimation()
                         .fillMaxWidth()
-                        .background(highlightColor)
-                        .padding(horizontal = Spacing.md),
+                        .background(highlightColor),
                 ) {
                     Column {
                         if (
@@ -527,6 +527,7 @@ fun HistoryScreen(
                             cornerRadius = settings.bubbleCornerRadius.dp,
                             selected = floating && isActionTarget,
                             senderName = senderName,
+                            horizontalInset = Spacing.md,
                             thumbnailFile = (msg as? Message.File)
                                 ?.takeIf {
                                     it.status == Message.File.Status.COMPLETED &&
@@ -540,7 +541,7 @@ fun HistoryScreen(
                             // 常驻模式：每条气泡下方固定显示操作栏，按 origin 与气泡同侧边缘对齐。
                             val barAlignment = if (msg.origin == Origin.PHONE) Alignment.CenterEnd else Alignment.CenterStart
                             Box(
-                                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                                modifier = Modifier.fillMaxWidth().padding(start = Spacing.md, top = 2.dp, end = Spacing.md),
                                 contentAlignment = barAlignment,
                             ) {
                                 MessageActionBar(

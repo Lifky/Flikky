@@ -75,6 +75,10 @@ fun MessageBubble(
     thumbnailFile: File? = null,
     /** 气泡上方的发送者名字（多设备时，见 SenderLabel.kt）；null = 不显示。两侧都可用，对齐跟气泡同侧。 */
     senderName: String? = null,
+    /**
+     * 行内左右留白，画在选中底色之内：列表本身不内缩，底色才能铺满整行（v1.24 装机复验，悬浮工具栏模式）。
+     */
+    horizontalInset: Dp = 0.dp,
 ) {
     val mine = msg.origin == Origin.PHONE
     val maxWidth = (LocalConfiguration.current.screenWidthDp * 0.8f).dp
@@ -103,7 +107,8 @@ fun MessageBubble(
             .then(
                 if (selected) Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
                 else Modifier
-            ),
+            )
+            .padding(horizontal = horizontalInset),
         horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Bottom,
     ) {

@@ -376,7 +376,9 @@ fun ServingChatTab(
               androidx.compose.foundation.text.selection.SelectionContainer {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxSize().padding(horizontal = Spacing.md),
+                    // 左右留白不加在列表上：悬浮工具栏的选中底色要铺满整行（v1.24 装机复验）。
+                    // 气泡用 horizontalInset 在底色之内留，常驻操作栏自己留。
+                    modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(Spacing.sm),
                 ) {
                     itemsIndexed(ui.messages, key = { _, m -> m.id }) { index, msg ->
@@ -432,6 +434,7 @@ fun ServingChatTab(
                                 cornerRadius = settings.bubbleCornerRadius.dp,
                                 selected = floating && isActionTarget,
                                 senderName = senderName,
+                                horizontalInset = Spacing.md,
                                 thumbnailFile = (msg as? Message.File)
                                     ?.takeIf {
                                         it.status == Message.File.Status.COMPLETED &&
@@ -447,7 +450,7 @@ fun ServingChatTab(
                                 // 常驻模式：每条气泡下方固定显示操作栏，按 origin 与气泡同侧边缘对齐。
                                 val barAlignment = if (msg.origin == Origin.PHONE) Alignment.CenterEnd else Alignment.CenterStart
                                 Box(
-                                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(start = Spacing.md, top = 2.dp, end = Spacing.md),
                                     contentAlignment = barAlignment,
                                 ) {
                                     MessageActionBar(
