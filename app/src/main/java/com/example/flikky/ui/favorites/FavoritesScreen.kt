@@ -53,8 +53,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -69,6 +71,7 @@ import com.example.flikky.di.ServiceLocator
 import com.example.flikky.ui.components.ConfirmDialog
 import com.example.flikky.ui.components.EmptyStateContent
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
+import com.example.flikky.ui.components.fabClearance
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.GroupWording
 import com.example.flikky.ui.components.ImagePreviewDialog
@@ -148,6 +151,9 @@ fun FavoritesScreen(
     val canSendFavorites = sessionSnap.clientConnected
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    // 「添加收藏」FAB 的实测高度：列表底部按它留白，末行的行尾按钮才不会被盖住（同主页，v1.24 装机）。
+    val density = LocalDensity.current
+    var fabHeight by remember { mutableStateOf(0.dp) }
     val clipboard = LocalClipboard.current
     val context = LocalContext.current
 
@@ -471,7 +477,10 @@ fun FavoritesScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             if (!selecting) {
-                FloatingActionButton(onClick = { showAddFavoriteSheet = true }) {
+                FloatingActionButton(
+                    onClick = { showAddFavoriteSheet = true },
+                    modifier = Modifier.onSizeChanged { fabHeight = with(density) { it.height.toDp() } },
+                ) {
                     Icon(
                         Icons.Default.Add,
                         contentDescription = stringResource(R.string.favorites_add),
@@ -512,9 +521,13 @@ fun FavoritesScreen(
                             modifier = Modifier.fillMaxSize(),
                         )
                     } else {
-                        // 多选浮动工具栏悬浮在列表之上，抬升底部 padding 让末行可滚出栏上方。
+                        // 悬浮在列表之上的东西 —— 多选时的浮动工具栏、平时的「添加收藏」FAB —— 都要抬升底部 padding，
+                        // 让末行可滚出它们上方。
                         val listBottomLift by animateDpAsState(
-                            targetValue = if (selecting) FlikkyFloatingToolbarLift else 0.dp,
+                            targetValue = when {
+                                selecting -> FlikkyFloatingToolbarLift
+                                else -> fabClearance(fabHeight)
+                            },
                             animationSpec = Motion.effects(),
                             label = "favoritesListBottomLift",
                         )

@@ -93,4 +93,14 @@ class HomeWiringTest {
             assertFalse("分节方式的文案里不该出现「分组」：$it", it.contains("分组"))
         }
     }
+    // v1.24 装机（Screenshot_5）：历史很多时最后一项被「启动服务」FAB 盖住一半，点不到它的菜单。
+    // 多选时的浮动工具栏早已抬升过底部留白，FAB 显示时没有。按 FAB 实测高度留：字号放大时也盖不住。
+    // 收藏页的「添加收藏」FAB 同理（同一个问题，一并修）。
+    @Test fun `the last row can scroll above the start service fab`() {
+        for (path in listOf("com/example/flikky/ui/home/HomeScreen.kt", "com/example/flikky/ui/favorites/FavoritesScreen.kt")) {
+            val screen = source(path)
+            assertTrue("$path must measure its FAB", screen.contains(".onSizeChanged { fabHeight = with(density) { it.height.toDp() } }"))
+            assertTrue("$path must lift the list above it", screen.contains("else -> fabClearance(fabHeight)"))
+        }
+    }
 }

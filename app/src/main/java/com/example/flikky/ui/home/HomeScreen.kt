@@ -73,7 +73,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -99,6 +101,7 @@ import com.example.flikky.ui.components.EmptyStateContent
 import com.example.flikky.ui.components.FlikkyLogo
 import com.example.flikky.ui.components.FlikkyFloatingToolbar
 import com.example.flikky.ui.components.FlikkyFloatingToolbarLift
+import com.example.flikky.ui.components.fabClearance
 import com.example.flikky.ui.components.FlikkySelectingToolbarOverlay
 import com.example.flikky.ui.components.RenameDialog
 import com.example.flikky.ui.components.flikkyItemAnimation
@@ -136,6 +139,10 @@ fun HomeScreen(
     val selecting by viewModel.selecting.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    // 「启动服务」FAB 的实测高度：列表底部按它留白，末行才能滚到 FAB 上方（v1.24 装机 Screenshot_5）。
+    // 实测而不是写死 56dp：字号放大时 FAB 会变高。
+    val density = LocalDensity.current
+    var fabHeight by remember { mutableStateOf(0.dp) }
 
     LaunchedEffect(startSelecting) {
         if (startSelecting) {
@@ -351,6 +358,7 @@ fun HomeScreen(
                 exit = scaleOut(Motion.spatialFast()) + fadeOut(Motion.effectsFast()),
             ) {
                 ExtendedFloatingActionButton(
+                    modifier = Modifier.onSizeChanged { fabHeight = with(density) { it.height.toDp() } },
                     onClick = {
                         if (hasInProgress) {
                             // 已有正在进行的会话——FAB 是"继续服务"，直接进 ServingScreen。
@@ -440,9 +448,14 @@ fun HomeScreen(
                             val segPositions = remember(homeItems) {
                                 HomeListBuilder.segmentPositions(homeItems)
                             }
-                            // 多选浮动工具栏悬浮在列表之上，抬升底部 padding 让末行可滚出栏上方。
+                            // 悬浮在列表之上的东西 —— 多选时的浮动工具栏、平时的「启动服务」FAB —— 都要抬升底部 padding，
+                            // 让末行可滚出它们上方（FAB 那条是 v1.24 装机 Screenshot_5：末行菜单被盖住点不到）。
                             val listBottomLift by animateDpAsState(
-                                targetValue = if (selecting) FlikkyFloatingToolbarLift else 0.dp,
+                                targetValue = when {
+                                    selecting -> FlikkyFloatingToolbarLift
+                                    searchExpanded -> 0.dp
+                                    else -> fabClearance(fabHeight)
+                                },
                                 animationSpec = Motion.effects(),
                                 label = "homeListBottomLift",
                             )
