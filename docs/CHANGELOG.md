@@ -4,6 +4,42 @@
 
 This file records user-facing changes for each Flikky release, loosely following [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follow `x.y.z`: x for major architectural changes, y for new features, z for bug fixes. Dates are tag creation dates.
 
+## [v1.24.0](https://github.com/Lifky/Flikky/releases/tag/v1.24.0) · 2026-10-22
+
+Know who is knocking. A computer asking to join shows a 4-digit code that the phone shows too, so you allow the right one; disconnecting a device now cuts off its transfers at once; and the browser can take back a favorite as well as add one.
+
+### Added
+
+#### A compare code when a device asks to join
+- When a computer asks to join, its page and the phone show the same 4-digit code: in the dialog on the session or export screen, and in the notification when the phone is in the background. Allow only when the two match
+- Requests waiting at the same time never share a code, so a request someone else left waiting cannot show yours. Refreshing the waiting page keeps the code
+- The code is not a credential — knowing it gets no one in — so it may appear in the notification. Screen readers read it digit by digit on both ends
+
+#### Favorites from the browser, both ways
+- With "Allow the peer to favorite messages" on, tapping a filled star in the browser removes that favorite from the phone, including its file copy. It works for any favorited message in the current session, including ones favorited on the phone, and needs no confirmation
+- With favorites browsing allowed, the browser's favorites panel refreshes by itself when favorites or collections change on the phone, and rows that are still there stay selected
+
+### Changed
+- When five wrong PIN attempts disable the PIN, the connection card (transfer and export screens) reads "Disabled (too many wrong attempts)" with how to get a new one, instead of a PIN that no longer works. Disconnecting the last device no longer issues a new PIN that could never be used, and the browser says the PIN is disabled instead of claiming the service has stopped
+- Sender names on "Auto" now count the devices still in the session: one the phone disconnected no longer counts. History still counts every device that took part
+- Browser file bubbles show the size under the name, as in the app. Long names wrap inside the bubble instead of making the page scroll sideways, and short names and medium-length text no longer wrap early
+
+### Security
+- **Disconnecting a device takes effect at once.** Its uploads, file and ZIP downloads and listings in progress are cut off; an interrupted upload disappears from every device instead of staying "uploading". A browser disconnected while its connection was still opening is closed too
+- Requests refused by the same-origin check now carry the same security headers (CSP and others) as every other response
+
+### Fixed
+- Pressing Enter to pick a candidate in an input method (for example Chinese on macOS) no longer sends the message or submits the rename field
+- After the browser's rename dialog was closed with Esc or a click outside, the next rename was sent twice
+- Favoriting a message that was already a favorite now fills the star
+- A failure reading favorites no longer breaks the browser's whole message list
+- Any request the phone answers with "signed out" now shows the disconnected dialog, not only the history and rename requests
+- On a phone browser, coming back from the system picker no longer shows the image you just sent twice
+- Stopping the service after the PIN was disabled no longer flashes the old PIN on the card
+- With many sessions or favorites, the last row can scroll above the floating button, so its menu is reachable
+- The message located from search in History, and the message selected in floating-toolbar mode, are tinted across the whole row
+- The ripple on the "File" and "Image" tiles of the add sheet stays inside their rounded corners
+
 ## [v1.23.0](https://github.com/Lifky/Flikky/releases/tag/v1.23.0) · 2026-10-18
 
 Every device gets a name and a credential of its own. The phone sees, renames and disconnects each browser that connects; one session can hold several computers, a new device joins only once the phone allows it, and every bubble shows which device sent it.
