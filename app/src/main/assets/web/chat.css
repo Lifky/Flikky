@@ -104,6 +104,21 @@
   gap: 10px;
   transition: border-radius var(--flikky-spring-spatial-default-dur) var(--flikky-spring-spatial-default);
 }
+/* 普通文件气泡与 App 端同一结构（v1.24 第二轮装机，Screenshot_3/4）：图标 | 名字，大小在名字下一行。
+   原先大小在名字右侧单独占一列，名字被挤窄。图标是第一个子元素（完成、上传中、传输中三种气泡都是），跨两行居中；
+   进度条、百分比、失败提示占整行。媒体气泡另有自己的竖排布局，不走这里。 */
+.file-bubble:not(.media) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 2px;
+}
+.file-bubble:not(.media) > :first-child {
+  grid-row: span 2;
+}
+.file-bubble .progress-bar, .file-bubble .progress-pct, .file-bubble .retry-hint {
+  grid-column: 1 / -1;
+}
 .file-bubble.me {
   background: rgb(var(--mdui-color-primary));
   color: rgb(var(--mdui-color-on-primary));
@@ -132,13 +147,15 @@
   flex: 1;
   /* 长文件名在气泡里折行（与 App 端一致）：没有空格的一长串也能断，min-width: 0 让它可以窄于最长的那一段。
      否则气泡被撑出屏幕，整页要左右滑动（v1.24 装机反馈）。 */
+  grid-column: 2;
   min-width: 0;
   overflow-wrap: anywhere;
   font: var(--flikky-type-label-large) var(--flikky-font-family);
   letter-spacing: var(--flikky-type-label-large-tracking);
 }
 .file-bubble .size {
-  /* 大小不折行、不被名字挤窄：手机上「108.7 MB」曾被挤成两行。 */
+  /* 大小在名字下一行（上面的网格），不折行：手机上「108.7 MB」曾被挤成两行。 */
+  grid-column: 2;
   white-space: nowrap;
   flex-shrink: 0;
   font: var(--flikky-type-body-small) var(--flikky-font-family);
@@ -439,6 +456,10 @@
 }
 
 .bubble-row {
+  /* 撑满列表（v1.24 第二轮装机）：气泡的 max-width: 78% 相对这一行。行原先按内容收缩，宽度又由气泡自己决定，
+     气泡于是被压到自身宽度的 78% 左右 —— 短文件名被折成「app- / release_…」，稍长的文字也提前折行。
+     左右对齐不受影响：them 从左排、me 是 row-reverse 从右排。 */
+  width: 100%;
   display: flex;
   align-items: flex-end;
   flex-wrap: wrap;
